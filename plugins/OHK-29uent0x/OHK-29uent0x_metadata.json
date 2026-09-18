@@ -1,0 +1,19 @@
+{
+    "action_inputs_sequence": [],
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Installs Postgres Database on an OEL8 Server",
+    "execution_timeout": 3600,
+    "id": "OHK-29uent0x",
+    "max_retries": 0,
+    "name": "Install Postgres",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-29uent0x_script.sh",
+    "shared": false,
+    "target_os_families": [
+        "Linux -> Oracle Enterprise Linux"
+    ],
+    "type": "Remote Script"
+}

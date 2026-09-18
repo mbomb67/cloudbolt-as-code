@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Installs NGINX on an Oracle Enterprise Linux 8 OS",
+    "execution_timeout": 600,
+    "id": "OHK-2vdm93hu",
+    "max_retries": 0,
+    "name": "Install NGINX OEL8",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-2vdm93hu_script.sh",
+    "shared": true,
+    "target_os_families": [
+        "Linux -> Oracle Enterprise Linux"
+    ],
+    "type": "Remote Script"
+}

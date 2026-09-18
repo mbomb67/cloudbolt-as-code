@@ -1,0 +1,52 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "JSON object of parameter values to apply. Pre-filled with the deployment's current editable values; edit any you want to change. Pinned parameters do not appear. Provide @secure() values only via scaffold-generated typed (masked) inputs, not in this plaintext field.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": false,
+            "id": "CF-01b1r0r7",
+            "label": "Parameters (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "TXT",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-9f45ede7"
+    },
+    "dialog_message": "Edit the deployment's parameters. A what-if preview will be shown and the job will pause for approval before any change is applied.",
+    "dialog_title_template": "Update {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-pen-to-square",
+    "hide_from_mcp": false,
+    "id": "RSA-fa7r7cg7",
+    "is_synchronous": false,
+    "label": "Update Bicep Deployment",
+    "last_updated": null,
+    "list_view_visible": true,
+    "mcp_destructive_hint": null,
+    "mcp_idempotent_hint": null,
+    "mcp_open_world_hint": null,
+    "mcp_read_only_hint": null,
+    "mcp_tool_description": "",
+    "mcp_tool_name": "",
+    "mcp_tool_title": "",
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 0,
+    "submit_button_label": ""
+}

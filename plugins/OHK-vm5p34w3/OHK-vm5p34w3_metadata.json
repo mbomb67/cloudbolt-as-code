@@ -1,0 +1,11 @@
+{
+    "description": "Teardown counterpart of Add Resource Group to Environment: removes the deleted resource group's resource_group_arm option from every Environment on the same Azure subscription (resource handler) that offers it, plus the environments the build step recorded. Removes only the environment link; never deletes the shared CustomFieldValue. Idempotent.",
+    "id": "OHK-vm5p34w3",
+    "max_retries": 0,
+    "name": "Remove Resource Group from Environments",
+    "resource_technologies": [],
+    "script_filename": "OHK-vm5p34w3_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

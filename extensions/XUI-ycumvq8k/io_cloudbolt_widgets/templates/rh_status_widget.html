@@ -1,0 +1,72 @@
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_styles.html" %}
+<style>
+    @media (max-width: 1330px) {
+        .col-hide {
+            display: none !important;
+        }
+    }
+</style>
+
+<div class="io-cbw-paginate" data-page-size="5">
+    <table class="table small table-striped io-cbw-widget-table" style="width: 100%">
+        <colgroup>
+            <col style="width: 40px" />
+            <col />
+            <col class="col-hide" style="width: 118px; min-width: 118px" />
+            <col class="col-hide" style="width: 58px" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th></th>
+                <th>Resource Handler</th>
+                <th class="col-hide">Technology</th>
+                <th class="col-hide">Conn Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rh in rh_status %}
+            <tr class="io-cbw-page-row">
+                <td>
+                    {% if rh.status == 0 %}🔴
+                    {% elif rh.status == 1 %}🟢
+                    {% elif rh.status == 2 %}🟡
+                    {% else %}🟠{% endif %}
+                </td>
+                <td class="io-cbw-td-clip">
+                    {% if is_super_admin %}
+                    <a
+                        href="/admin/resourcehandlers/{{ rh.id }}/#tab-overview"
+                        class="io-cbw-truncate"
+                        title="{{ rh.name }}"
+                        >{{ rh.name }}</a
+                    >
+                    {% else %}
+                    <span class="io-cbw-truncate" title="{{ rh.name }}">{{ rh.name }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span
+                        class="col-hide icon icon-30 icon-handler-{{ rh.tech_slug }}"
+                        title="{{ rh.tech_name }}"
+                    ></span>
+                </td>
+                <td class="col-hide">
+                    {% if rh.status == 1 %}
+                    {{ rh.time }}s
+                    {% else %}
+                    –
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No Resource Handlers found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="io-cbw-pager text-right small" style="margin-top: 8px"></div>
+</div>
+
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_pagination.html" %}
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-rh-status" tooltip_text="Real-time connection status for each cloud resource handler. Green means healthy; red means potentially unreachable." %}

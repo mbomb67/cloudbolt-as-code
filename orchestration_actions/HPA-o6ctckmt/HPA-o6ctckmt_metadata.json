@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-exqmrl0e"
+    },
+    "description": "Joins newly provisioned Linux servers to their AD domain (from the server's domain_to_join) during post-provisioning. Runs late (run_seq 100) so it follows any DNS-configuring step.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-o6ctckmt",
+    "last_updated": null,
+    "minimum_version_required": "8.6",
+    "name": "Join Linux Server to AD Domain",
+    "run_on_statuses": "",
+    "run_seq": 100
+}

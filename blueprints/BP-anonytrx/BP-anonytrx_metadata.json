@@ -1,0 +1,171 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Oracle Enterprise Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "web-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-40gnhlxk",
+            "name": "Web Server",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-pd2spm2e/",
+                "title": "Oracle Linux 8"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Install NGINX OEL8",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-2vdm93hu"
+            },
+            "deploy_seq": 2,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-svx05f3g",
+            "name": "Install NGINX 1.24 on OEL8",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        },
+        {
+            "action_name": "Set URL Parameter",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-1rel6s64"
+            },
+            "deploy_seq": 3,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-q0hl80w8",
+            "name": "Set URL Parameter",
+            "parameter_defaults": [
+                {
+                    "label": "Port Field Name",
+                    "name": "port_field_name_a233",
+                    "value": "nginx_site_port"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates an NGINX Web Application",
+    "favorited": false,
+    "icon": "nginx_icon.png",
+    "id": "BP-anonytrx",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-08",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "NGINX Web Application",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-pai7wi1z",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter a name for your site",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-3i04fgcf",
+            "label": "Site Name",
+            "name": "nginx_site_name",
+            "options": [],
+            "placeholder": "my-site",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter the port for your site",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [
+                80,
+                8080
+            ],
+            "id": "CF-ihlc2a6l",
+            "label": "Site Port",
+            "name": "nginx_site_port",
+            "options": [],
+            "placeholder": "",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": ""
+        }
+    ],
+    "resource_name_template": "nginx-00X",
+    "resource_type": {
+        "icon": "fa-solid fa-globe",
+        "id": "RT-8rlv702u",
+        "internal_only": false,
+        "label": "Web Application",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "web_application",
+        "plural_label": "Web Applications"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

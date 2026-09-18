@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "allow_parallel_jobs": false,
+    "dependencies": {
+        "hook": "plugins/OHK-bjgpsxoq"
+    },
+    "description": "Downloads each Azure subscription's negotiated Price Sheet (EA/MCA) and caches it on disk for the Azure Resource Manager rate hook. Runs daily; price sheets change about monthly. Requires the handler service principal to hold a billing-scope role (EA EnrollmentReader / MCA Billing Profile Reader).",
+    "enabled": true,
+    "id": "RJB-reblryol",
+    "last_run": null,
+    "last_updated": null,
+    "name": "Azure Price Sheet Refresh",
+    "schedule": "0 2 * * *",
+    "type": "orchestration_hook"
+}

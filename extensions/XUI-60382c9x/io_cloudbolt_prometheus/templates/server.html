@@ -1,0 +1,51 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'io_cloudbolt_prometheus/monitoring_dashboard.css' %}">
+
+<div class="io-prom-dash container-fluid">
+    <section class="prom-health-card">
+        <div class="prom-health-heading">Server overview</div>
+        <node-health server-id="{{ server_id }}"></node-health>
+    </section>
+
+    <div class="row prom-chart-row">
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <cpu-load-graph server-id="{{ server_id }}"></cpu-load-graph>
+            </section>
+        </div>
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <disk-io-graph server-id="{{ server_id }}"></disk-io-graph>
+            </section>
+        </div>
+    </div>
+
+    <div class="row prom-chart-row">
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <iops-graph server-id="{{ server_id }}"></iops-graph>
+            </section>
+        </div>
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <disk-usage-graph server-id="{{ server_id }}"></disk-usage-graph>
+            </section>
+        </div>
+    </div>
+
+    <div class="row prom-chart-row">
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <mem-usage-graph server-id="{{ server_id }}"></mem-usage-graph>
+            </section>
+        </div>
+        <div class="col-md-6 prom-chart-cell">
+            <section class="prom-chart-card">
+                <net-io-graph server-id="{{ server_id }}"></net-io-graph>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="{% static 'io_cloudbolt_prometheus/server_tab.js' %}"></script>

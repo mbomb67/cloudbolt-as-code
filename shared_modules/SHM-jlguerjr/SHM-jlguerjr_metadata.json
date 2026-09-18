@@ -1,0 +1,12 @@
+{
+    "description": "HCP Terraform (TFC) REST client and run engine for workspace-per-deployment provisioning: get-or-adopt workspace, variable upsert, run create/poll with plan-approval pause, plan summaries, state outputs, and safe-delete. The team token lives in the password field of a ConnectionInfo labeled 'tf-cloud' (selected on the order form; any number of labeled connections is supported); account-level non-secret config lives in the block at the top of the script.",
+    "id": "SHM-jlguerjr",
+    "label": "HCP Terraform API",
+    "max_retries": 0,
+    "module_name": "tfc_api",
+    "name": "tfc_api",
+    "resource_technologies": [],
+    "script_filename": "SHM-jlguerjr_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -1,0 +1,112 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Generate Tags from Resource Handler Tag Map",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-xoajww7v"
+            },
+            "deploy_seq": 1,
+            "description": "Evaluates the Taggable Attributes (tag map) on the Azure resource handler against the parameters set on this order and stores the resulting tag dictionary on the Resource (cb_generated_tags) for the resource group build step to apply.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-9auyd0x7",
+            "name": "Generate Tags from Resource Handler Tag Map",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Azure Resource Group",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-7c5xywbx"
+            },
+            "deploy_seq": 2,
+            "description": "Creates an Azure Resource Group in the selected environment's region and subscription.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-uefp3ghx",
+            "name": "Azure Resource Group",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Manage the full lifecycle of Azure Resource Groups: create (build), delete (teardown), and inventory existing groups (discovery), plus day-2 tagging, delete-lock, and contents actions. The order form prompts only for the environment, the group name and optional additional tags; the region and subscription come from the selected Environment, and governance tags are generated automatically from the resource handler's tag map (Taggable Attributes) by a shared first build step. RBAC is enforced through Environment selection; the Azure resource handler is never exposed on the order form.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-e5a4m2bm"
+        },
+        "href": "/api/v3/cmp/actions/OHK-e5a4m2bm/",
+        "title": "Discover Azure Resource Groups"
+    },
+    "favorited": false,
+    "icon": "Azure_Resource_Manager_io20Nmh.png",
+    "id": "BP-zmeot1ff",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-18",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-qwku9lip"
+            },
+            "enabled": true,
+            "label": "Manage Delete Lock"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-a38h23ms"
+            },
+            "enabled": true,
+            "label": "List Resources in Group"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-kbikieh7"
+            },
+            "enabled": true,
+            "label": "Update Tags"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Resource Group",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-layer-group",
+        "id": "RT-l5z0vt90",
+        "internal_only": false,
+        "label": "Azure Resource Group",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "azure_resource_group",
+        "plural_label": "Azure Resource Groups"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown Azure Resource Group",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-4xqzbdtx"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the Azure Resource Group backing this resource, and everything inside it.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-ai01ma0h",
+            "name": "Teardown Azure Resource Group",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

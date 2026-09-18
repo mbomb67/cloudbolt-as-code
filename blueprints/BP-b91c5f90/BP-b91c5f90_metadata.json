@@ -1,0 +1,272 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "pgdb-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-ftmb7742",
+            "name": "Postgres Server",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-pd2spm2e/",
+                "title": "Oracle Linux 8"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Install Postgres",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-29uent0x"
+            },
+            "deploy_seq": 2,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-xvzg3vk0",
+            "name": "Install Postgres",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        },
+        {
+            "action_name": "Set Resource Name From Field",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yw0klpjg"
+            },
+            "deploy_seq": 3,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-w1ojhxtm",
+            "name": "Set Resource Name",
+            "parameter_defaults": [
+                {
+                    "label": "Resource Name Field",
+                    "name": "resource_name_field_a227",
+                    "value": "postgres_database_name"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "",
+    "favorited": false,
+    "icon": "postgres.png",
+    "id": "BP-b91c5f90",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-08",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-9tfwebk7"
+            },
+            "enabled": true,
+            "label": "Test Postgres Connection"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-jaitfhwp"
+            },
+            "enabled": true,
+            "label": "Run SQL Command"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Postgres Database",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-pai7wi1z",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Input the network allowed to authenticate - i.e. 10.0.0.0/8",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-m0ujlzs2",
+            "label": "Client CIDR",
+            "name": "postgres_client_cidr",
+            "options": [],
+            "placeholder": "172.29.10.0/24",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter the name for the Postgres Database",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-iqkbm3mm",
+            "label": "Database Name",
+            "name": "postgres_database_name",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter a name for the database owner. This will be used for connecting to the database after it is deployed.",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-gc59hmyz",
+            "label": "Database Owner",
+            "name": "postgres_database_owner",
+            "options": [],
+            "placeholder": "dbowner",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter the database password",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-q8nchmuq",
+            "label": "Database Password",
+            "name": "postgres_database_password",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "PWD",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "What port should Postgres listen on? Default 5432",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-g988iimx",
+            "label": "Postgres Port",
+            "name": "postgres_port",
+            "options": [],
+            "placeholder": "5432",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Select the version of Postgres you would like to deploy",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [
+                15,
+                16,
+                17,
+                18
+            ],
+            "id": "CF-cckw9w3y",
+            "label": "Postgres Version",
+            "name": "postgres_version",
+            "options": [],
+            "placeholder": "",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": "pg-db-00X",
+    "resource_type": {
+        "icon": "bi bi-database",
+        "id": "RT-gwld7evl",
+        "internal_only": false,
+        "label": "Database",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "database",
+        "plural_label": "Databases"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

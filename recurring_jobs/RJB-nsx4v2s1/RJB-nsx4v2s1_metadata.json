@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "allow_parallel_jobs": false,
+    "create_date": "2025-06-05 04:10:56.267001",
+    "dependencies": {
+        "hook": "plugins/OHK-59t2apzf"
+    },
+    "description": "Find servers that have expired and execute appropriate orchestration action",
+    "enabled": true,
+    "id": "RJB-nsx4v2s1",
+    "last_run": null,
+    "last_updated": null,
+    "name": "Expire Servers",
+    "schedule": "0 0 * * *",
+    "type": "orchestration_hook"
+}

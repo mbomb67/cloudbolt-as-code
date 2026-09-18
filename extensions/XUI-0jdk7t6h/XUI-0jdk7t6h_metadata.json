@@ -1,0 +1,20 @@
+{
+    "description": "Adds a Security Rules tab to Azure Network Security Group resources, showing Inbound and Outbound security rules with add/edit/delete actions. Companion to the Azure Network Security Group blueprint (BP-3fdhnw54).",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-0jdk7t6h",
+    "label": "Azure NSG Management",
+    "last_updated": "2026-07-01",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "azure_nsg_management",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "forms.py",
+        "templates/nsg_overview_tab.html",
+        "readme.md"
+    ],
+    "version": ""
+}

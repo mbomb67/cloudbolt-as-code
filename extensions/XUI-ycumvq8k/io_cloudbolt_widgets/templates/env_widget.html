@@ -1,0 +1,123 @@
+<div id="chart" style="padding: 0; height: 200px; min-height: 0"></div>
+
+<script type="text/javascript">
+$(document).ready(function () {
+    var isSuperAdmin = {{ is_super_admin|yesno:"true,false" }};
+    function escapeHtml(s) {
+        if (s == null || s === "") {
+            return "";
+        }
+        return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    var options = {
+        title: null,
+        chart: {
+            backgroundColor: "transparent",
+            type: "pie",
+            renderTo: "chart",
+            height: 200,
+            spacing: [8, 8, 8, 8],
+        },
+        credits: {
+            enabled: false,
+        },
+        tooltip: {
+            useHTML: true,
+            formatter: function () {
+                var full =
+                    this.point.fullName != null
+                        ? this.point.fullName
+                        : this.point.name;
+                return (
+                    "<b>" +
+                    escapeHtml(full) +
+                    "</b><br/>" +
+                    this.series.name +
+                    ": <b>" +
+                    this.y +
+                    "</b>"
+                );
+            },
+        },
+        series: [{}],
+        plotOptions: {
+            pie: {
+                size: "82%",
+                borderWidth: 1,
+                cursor: isSuperAdmin ? "pointer" : "default",
+                dataLabels: {
+                    distance: 22,
+                    style: {
+                        fontWeight: "normal",
+                        fontSize: "11px",
+                    },
+                    formatter: function () {
+                        return (
+                            "<b>" +
+                            escapeHtml(this.point.name) +
+                            "</b>: <span style='opacity:0.55'>" +
+                            this.y +
+                            "</span>"
+                        );
+                    },
+                },
+                point: isSuperAdmin
+                    ? {
+                          events: {
+                              click: function () {
+                                  window.location =
+                                      "/environments/" +
+                                      this.id +
+                                      "/#tab-servers";
+                              },
+                          },
+                      }
+                    : {},
+            },
+        },
+    };
+
+    var url = "/xui/io_cloudbolt_widgets/api/envs";
+
+    $.getJSON(url, function (data) {
+        options.series[0].data = data.map(function (p) {
+            return {
+                name: p.label,
+                y: p.y,
+                id: p.id,
+                sliced: p.sliced,
+                fullName: p.full_name,
+            };
+        });
+        options.series[0].name = "# Servers";
+
+        const colors = Highcharts.getOptions().colors.map((c, i) =>
+            Highcharts.Color(Highcharts.getOptions().colors[0])
+                .brighten((i - 3) / 7)
+                .get()
+        );
+
+        const grad_colors = _.map(colors, function (color) {
+            return {
+                radialGradient: { cx: 0.5, cy: 0.3, r: 0.7 },
+                stops: [
+                    [0, color],
+                    [1, Highcharts.Color(color).brighten(-0.3).get("rgb")],
+                ],
+            };
+        });
+
+        options.colors = grad_colors;
+        var chart = new Highcharts.Chart(options);
+        $(window).on("resize.ioCbwEnvChart", function () {
+            chart.reflow();
+        });
+    });
+});
+</script>
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-env" tooltip_text="Visual breakdown of active server counts across all environments." %}

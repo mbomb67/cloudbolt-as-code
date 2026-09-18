@@ -1,0 +1,94 @@
+{% load humanize %}
+
+<style>
+    .stats_count {
+        font-size: x-large; 
+        font-weight: bold;
+        line-height: 0.95em;
+    }
+    .stats_label {
+        opacity: 0.50;
+        font-size:small; 
+    }
+    .stats_delta {
+        opacity: 0.50;
+        font-size:small; 
+    }
+    .stats_up {
+        color: green;
+    }
+    .stats_down {
+        color: red;
+    }
+    .stats_asof {
+        color: gray;
+        margin-top: 5px;
+        font-size: x-small;
+        font-style: italic;
+    }
+</style>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="stats_count">{{ stats.day_count|intcomma }}</div>
+        <div class="stats_label">Today</div>
+        {% with stats.day_count_dod_dir as direction %}
+        {% with stats.day_count_dod_delta as delta %}
+            {% if delta != 0 %}
+                <div class="stats_delta stats_{{ direction }}">
+                    {% if direction == "up" %}↑{% elif direction == "down" %}↓{% endif %}
+                    {% if delta > 0 and delta < 1 %}
+                        {{ delta | floatformat:2 }}%
+                    {% else %}
+                        {{ delta | floatformat:0 }}%
+                    {% endif %}
+                </div>
+            {% else %}
+                <div></div>
+            {% endif %}
+        {% endwith %}
+        {% endwith %}
+    </div>
+    <div class="col-md-4">
+        <div class="stats_count">{{ stats.week_count|intcomma }}</div>
+        <div class="stats_label">This Week</div>
+        {% with stats.week_count_wow_dir as direction %}
+        {% with stats.week_count_wow_delta as delta %}
+            {% if delta != 0 %}
+                <div class="stats_delta stats_{{ direction }}">
+                    {% if direction == "up" %}↑{% elif direction == "down" %}↓{% endif %}
+                    {% if delta > 0 and delta < 1 %}
+                        {{ delta | floatformat:2 }}%
+                    {% else %}
+                        {{ delta | floatformat:0 }}%
+                    {% endif %}
+                </div>
+            {% else %}
+                <div></div>
+            {% endif %}
+        {% endwith %}
+        {% endwith %}
+    </div>
+    <div class="col-md-4">
+        <div class="stats_count">{{ stats.month_count|intcomma }}</div>
+        <div class="stats_label">This Month</div>
+        {% with stats.month_count_mom_dir as direction %}
+        {% with stats.month_count_mom_delta as delta %}
+            {% if delta != 0 %}
+                <div class="stats_delta stats_{{ direction }}">
+                    {% if direction == "up" %}↑{% elif direction == "down" %}↓{% endif %}
+                    {% if delta > 0 and delta < 1 %}
+                        {{ delta | floatformat:2 }}%
+                    {% else %}
+                        {{ delta | floatformat:0 }}%
+                    {% endif %}
+                </div>
+            {% else %}
+                <div></div>
+            {% endif %}
+        {% endwith %}
+        {% endwith %}
+    </div>
+</div>
+<div class="stats_asof">{{ stats.asof }}</div>
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-orders" tooltip_text="Order activity trends with daily, weekly, and monthly counts plus period-over-period changes." %}

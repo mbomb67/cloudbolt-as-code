@@ -1,0 +1,11 @@
+{
+    "description": "Joins newly provisioned Linux servers to Active Directory (realmd/SSSD/adcli), using the server's domain_to_join LDAPUtility for domain and bind credentials.",
+    "id": "OHK-exqmrl0e",
+    "max_retries": 0,
+    "name": "Join Linux Server to AD Domain",
+    "resource_technologies": [],
+    "script_filename": "OHK-exqmrl0e_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

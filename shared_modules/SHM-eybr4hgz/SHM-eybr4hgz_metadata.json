@@ -1,0 +1,12 @@
+{
+    "description": "GitHub API client (PAT or GitHub App auth) backed by a ConnectionInfo, extended with Contents-API directory listing / raw file download (sparse template fetch) and repository-archive (tarball) fetch. Backs the Bicep deployment engine; reusable for any GitHub access.",
+    "id": "SHM-eybr4hgz",
+    "label": "GitHub",
+    "max_retries": 0,
+    "module_name": "github",
+    "name": "github",
+    "resource_technologies": [],
+    "script_filename": "SHM-eybr4hgz_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

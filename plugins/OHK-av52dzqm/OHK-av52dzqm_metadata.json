@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5hjzm9e4"
+        ]
+    },
+    "description": "Enumerates Azure subscriptions visible to every configured AzureARMHandler service principal and emits any not already represented as CloudBolt resources.",
+    "id": "OHK-av52dzqm",
+    "max_retries": 0,
+    "name": "Discover Azure Subscriptions",
+    "resource_technologies": [],
+    "script_filename": "OHK-av52dzqm_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

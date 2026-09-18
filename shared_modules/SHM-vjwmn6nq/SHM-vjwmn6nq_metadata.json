@@ -1,0 +1,12 @@
+{
+    "description": "Per-VM customer-managed-key (CMK) disk encryption helpers for Azure: mint a Key Vault key and a Disk Encryption Set (DES) per VM, grant the DES identity key access (RBAC role or access policy), deallocate/PATCH-disks/start to apply the DES to OS+data disks, optionally enable encryption at host, and the reverse for teardown. Raw REST via requests (Key Vault / Authorization SDKs not confirmed in the appliance venv), authenticating with the Resource Handler service principal; every call cites its Microsoft REST reference. Used by OHK-vklpnqhq (Post-Provision) and OHK-2vpg4pff (Post-Delete).",
+    "id": "SHM-vjwmn6nq",
+    "label": "Azure Disk Encryption (CMK)",
+    "max_retries": 0,
+    "module_name": "azure_disk_encryption",
+    "name": "azure_disk_encryption",
+    "resource_technologies": [],
+    "script_filename": "SHM-vjwmn6nq_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

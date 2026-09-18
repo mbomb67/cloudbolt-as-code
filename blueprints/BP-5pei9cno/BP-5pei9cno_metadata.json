@@ -1,0 +1,102 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Build Azure Subscription",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-96zebx6i"
+            },
+            "deploy_seq": 1,
+            "description": "Creates Azure subscription with cross-tenant billing support",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-8vmnjxjs",
+            "name": "Build Azure Subscription",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Create Azure subscriptions with cross-tenant billing. Create subscription in dev tenant while billing goes to production tenant, with automatic cost center tagging via invoice sections.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-av52dzqm"
+        },
+        "href": "/api/v3/cmp/actions/OHK-av52dzqm/",
+        "title": "Discover Azure Subscriptions"
+    },
+    "favorited": false,
+    "icon": "azure2.png",
+    "id": "BP-5pei9cno",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-05-28",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-8zwsrcbv"
+            },
+            "enabled": true,
+            "label": "Revoke Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-f7wb11ny"
+            },
+            "enabled": true,
+            "label": "List Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-mgh3dn9p"
+            },
+            "enabled": true,
+            "label": "Apply Policy"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-1kpl3w0d"
+            },
+            "enabled": true,
+            "label": "Grant Access"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Cross-Tenant Subscription",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-cloud",
+        "id": "RT-iyn3d8zr",
+        "internal_only": false,
+        "label": "Azure Subscription",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "azure_subscription",
+        "plural_label": "Azure Subscriptions"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown Azure Subscription",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-597w4hvq"
+            },
+            "deploy_seq": -1,
+            "description": "Cancel Azure subscription (soft delete - can be reactivated within 90 days)",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-4p7tfi2i",
+            "name": "Teardown Azure Subscription",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

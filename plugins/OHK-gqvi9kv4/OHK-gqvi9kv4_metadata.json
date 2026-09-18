@@ -1,0 +1,169 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure environment to deploy into. Gates resource-handler access for RBAC and supplies the subscription/credentials. The Azure resource handler is never exposed directly.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a363"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "resource_group_a363"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xw3d4due",
+            "label": "Environment",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Optional JSON object of template parameter values, e.g. {\"location\": \"eastus2\", \"vmSize\": \"Standard_B2s\"}. Leave blank to rely on template defaults. Scaffold-generated blueprints replace this with typed per-parameter inputs.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-mac61wdz",
+            "label": "Parameters (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Git ref (branch, tag, or commit SHA) to fetch. Required; pin a commit SHA or tag for production (see the setup runbook). Scaffolded blueprints set a default and hide this field.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-0rgdz6la",
+            "label": "Ref",
+            "name": "ref",
+            "placeholder": "main",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "GitHub repository holding the Bicep template, in owner/repo format (e.g. contoso/infra-templates).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-8v24ttjw",
+            "label": "Repository",
+            "name": "repo",
+            "placeholder": "owner/repo",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure resource group to deploy into. Required for resource-group-scoped templates; leave blank for subscription-scoped templates (e.g. one that creates resource groups) \u2014 the build detects the template's scope after compiling it and ignores this field then.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a363"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "resource_group_a363"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-fhk9tp1i",
+            "label": "Resource Group",
+            "name": "resource_group",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Path to the Bicep template within the repository (e.g. main.bicep or envs/prod/main.bicep).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-54afgks0",
+            "label": "Template Path",
+            "name": "template_path",
+            "placeholder": "main.bicep",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "env_id",
+        "resource_group",
+        "repo",
+        "template_path",
+        "ref",
+        "parameters"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eybr4hgz",
+            "shared_modules/SHM-bbswv27r"
+        ]
+    },
+    "description": "Generic Bicep build plugin: fetches a template from GitHub, compiles it, detects its target scope (resource group or subscription), assembles and validates parameters against the compiled schema, previews with what-if behind an approval gate, and deploys an Azure deployment stack at that scope. No template-specific code.",
+    "id": "OHK-gqvi9kv4",
+    "max_retries": 0,
+    "name": "Deploy Bicep Template",
+    "resource_technologies": [],
+    "script_filename": "OHK-gqvi9kv4_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

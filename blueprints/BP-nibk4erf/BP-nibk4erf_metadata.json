@@ -1,0 +1,102 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-84n18crj"
+    },
+    "deployment_items": [
+        {
+            "action_name": "Deploy Bicep Template",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-gqvi9kv4"
+            },
+            "deploy_seq": 1,
+            "description": "Fetches a Bicep template from GitHub, compiles it, and deploys it as an Azure deployment stack with a what-if approval gate.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-86lrvthi",
+            "name": "Deploy Bicep Template",
+            "parameter_defaults": [
+                {
+                    "label": "Ref",
+                    "name": "ref_a363",
+                    "value": "main"
+                },
+                {
+                    "label": "Repository",
+                    "name": "repo_a363",
+                    "value": "mbomb67/cloudbolt-as-code"
+                },
+                {
+                    "label": "Template Path",
+                    "name": "template_path_a363",
+                    "value": "docs/examples/bicep/storage-account/main.bicep"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploy infrastructure from an Azure Bicep template hosted in GitHub. CloudBolt fetches the template, compiles it with a self-bootstrapping Bicep binary, previews changes with what-if behind an approval gate, and provisions it as an Azure deployment stack. RBAC is enforced through Environment selection; the Azure resource handler is never exposed on the order form. This is the generic engine exemplar; scaffold-bicep generates typed, curated blueprints wired to the same plugins.",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": "azure_bicep_logo_55VuQR6_DdIXRqt_0jKRIAa.png",
+    "id": "BP-nibk4erf",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-06-12",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-fa7r7cg7"
+            },
+            "enabled": true,
+            "label": "Update Bicep Deployment"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-5jeixn92"
+            },
+            "enabled": true,
+            "label": "Drift Check"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Bicep Deployment",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-cloud",
+        "id": "RT-dxc1gy8r",
+        "internal_only": false,
+        "label": "Bicep Deployment",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "bicep_deployment",
+        "plural_label": "Bicep Deployments"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown Bicep Deployment",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-t2gs5caq"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the Azure deployment stack (delete-all) backing this resource.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-5lchjj7v",
+            "name": "Teardown Bicep Deployment",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "OHK-ez6r3rqe",
+  "name": "AWS S3 Bucket",
+  "type": "CloudBolt Plug-in",
+  "description": "",
+  "max_retries": 0,
+  "shared": false,
+  "script_filename": "OHK-ez6r3rqe_script.py",
+  "minimum_version_required": "8.6",
+  "maximum_version_required": "",
+  "resource_technologies": [],
+  "target_os_families": []
+}

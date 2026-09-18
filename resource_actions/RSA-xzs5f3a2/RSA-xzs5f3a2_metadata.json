@@ -1,0 +1,63 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Blob container name: 3-63 chars, lowercase letters, numbers and single hyphens; must start and end with a letter or number.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-bv4chhmg",
+            "label": "Container Name",
+            "name": "container_name",
+            "placeholder": "my-container",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Anonymous public access level. 'none' keeps the container private (requires the account to allow public access for blob/container).",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-zd2wa7zv",
+            "label": "Public Access Level",
+            "name": "public_access",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-l25x6wd8"
+    },
+    "dialog_message": "",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-folder-plus",
+    "id": "RSA-xzs5f3a2",
+    "is_synchronous": true,
+    "label": "Create Blob Container",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 1,
+    "submit_button_label": ""
+}

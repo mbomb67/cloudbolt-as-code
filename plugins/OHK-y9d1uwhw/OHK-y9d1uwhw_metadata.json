@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Teardown plugin: decommissions the HCP Terraform no-code deployment backing the resource. Fails fast if a live CloudBolt job still owns the resource (resource-level attribution -- the auto-queued run's message is TFC-authored), else discards orphaned non-final runs, creates an auto-confirmed destroy run, then deletes the workspace via the safe-delete endpoint only -- never force-delete. Idempotent: no resource, no workspace (by stored ID or by cb-nc-<global_id> name), or an already-deleted workspace returns WARNING, not FAILURE.",
+    "id": "OHK-y9d1uwhw",
+    "max_retries": 0,
+    "name": "Teardown HCP Terraform No-Code Module",
+    "resource_technologies": [],
+    "script_filename": "OHK-y9d1uwhw_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

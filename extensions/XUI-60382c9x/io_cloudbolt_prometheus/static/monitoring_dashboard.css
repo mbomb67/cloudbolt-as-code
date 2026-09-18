@@ -1,0 +1,134 @@
+/* Prometheus monitoring tab — scoped to avoid clashing with CloudBolt global styles */
+.io-prom-dash {
+    --prom-surface: #ffffff;
+    --prom-surface-muted: #f8fafc;
+    --prom-border: #e2e8f0;
+    --prom-text: #0f172a;
+    --prom-text-muted: #64748b;
+    --prom-accent: #0ea5e9;
+    --prom-gap: 4px;
+    margin: -4px -2px 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.io-prom-dash .prom-chart-row {
+    margin-left: calc(var(--prom-gap) * -1);
+    margin-right: calc(var(--prom-gap) * -1);
+}
+
+.io-prom-dash .prom-chart-cell {
+    padding: var(--prom-gap);
+}
+
+.io-prom-dash .prom-health-card {
+    /* --prom-health-bg set at runtime from button.cb-btn-link (50% opacity) */
+    background: var(--prom-health-bg, var(--prom-surface-muted));
+    border: 1px solid var(--prom-border);
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+    margin-bottom: var(--prom-gap);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.io-prom-dash .prom-health-heading {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--prom-text-muted);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--prom-border);
+}
+
+.io-prom-dash .prom-health-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: stretch;
+    justify-content: space-between;
+}
+
+.io-prom-dash .prom-health-metric {
+    flex: 1 1 90px;
+    min-width: 0;
+    text-align: center;
+    padding: 4px 2px;
+}
+
+.io-prom-dash .prom-health-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--prom-text-muted);
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.io-prom-dash .prom-health-value {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--prom-text);
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+}
+
+.io-prom-dash .prom-chart-card {
+    background: var(--prom-surface);
+    border: 1px solid var(--prom-border);
+    border-radius: 10px;
+    padding: 6px 8px 4px;
+    height: 100%;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.io-prom-dash .prom-chart-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.io-prom-dash .prom-refresh-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 2px;
+    min-height: 26px;
+}
+
+.io-prom-dash .prom-refresh-btn {
+    appearance: none;
+    border: 1px solid var(--prom-border);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: var(--prom-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.3;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.io-prom-dash .prom-refresh-btn:hover {
+    color: var(--prom-accent);
+    border-color: #7dd3fc;
+    background: #f0f9ff;
+}
+
+.io-prom-dash .prom-refresh-btn:active {
+    transform: translateY(1px);
+}
+
+.io-prom-dash node-health,
+.io-prom-dash cpu-load-graph,
+.io-prom-dash disk-io-graph,
+.io-prom-dash iops-graph,
+.io-prom-dash disk-usage-graph,
+.io-prom-dash mem-usage-graph,
+.io-prom-dash net-io-graph {
+    display: block;
+}

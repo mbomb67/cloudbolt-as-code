@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% load helper_tags %}
+{% block topnav %}Monitoring{% endblock %}
+{% block title %}Monitoring Admin{% endblock %}
+
+{% block content %}
+    <span class="uplink"><a href="{% url 'admin_home' %}">Admin</a></span>
+    <h1>Monitoring Integration Admin</h1>
+
+    <div class="panel panel-default">
+        <div class="panel-heading"><h3>Monitoring Usage</h3></div>
+        <div class="panel-body">
+            <pre>
+                {{ docstring }}
+            </pre>
+        </div>
+    </div>
+
+{% endblock content %}

@@ -1,0 +1,136 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-i9zadhpc"
+    },
+    "deployment_items": [
+        {
+            "action_name": "Deploy Bicep Template",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-gqvi9kv4"
+            },
+            "deploy_seq": 1,
+            "description": "Fetches the public create-rg Bicep template from Azure Quickstart Templates, compiles it, detects its subscription scope, previews with what-if behind an approval gate, and creates the resource group as a subscription-scoped Azure deployment stack.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-zzzup54q",
+            "name": "Create Resource Group",
+            "parameter_defaults": [
+                {
+                    "label": "Ref",
+                    "name": "ref_a363",
+                    "value": "master"
+                },
+                {
+                    "label": "Repository",
+                    "name": "repo_a363",
+                    "value": "Azure/azure-quickstart-templates"
+                },
+                {
+                    "label": "Template Path",
+                    "name": "template_path_a363",
+                    "value": "subscription-deployments/create-rg/main.bicep"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Add Resource Group to Environment",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-r1imfgdx"
+            },
+            "deploy_seq": 2,
+            "description": "Optional: adds the created resource group as a Resource Group option on the Environment this order provisioned into.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-zn2hr65z",
+            "name": "Add Resource Group to Environment",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Create an Azure resource group from Microsoft's public Azure Quickstart Templates repository (subscription-deployments/create-rg/main.bicep, a subscription-scoped Bicep template). CloudBolt fetches the template, compiles it, detects that it targets the subscription (so no resource group is asked for), previews the change with what-if behind an approval gate, and provisions it as a subscription-scoped Azure deployment stack. Optionally adds the new resource group to the provisioning Environment's Resource Group options. Deleting the resource deletes the stack and the resource group it created, and removes the option again. RBAC is enforced through Environment selection; the Azure resource handler is never exposed on the order form. Built on the same shared Bicep engine plugins as the generic Bicep Deployment blueprint.",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": "azure_bicep_logo_55VuQR6_DdIXRqt_0jKRIAa_LBdDp1b.png",
+    "id": "BP-p7zmh96m",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-18",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-5jeixn92"
+            },
+            "enabled": true,
+            "label": "Drift Check"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-fa7r7cg7"
+            },
+            "enabled": true,
+            "label": "Update Bicep Deployment"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Resource Group - Bicep",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-layer-group",
+        "id": "RT-l5z0vt90",
+        "internal_only": false,
+        "label": "Azure Resource Group",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "azure_resource_group",
+        "plural_label": "Azure Resource Groups"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Remove Resource Group from Environments",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-vm5p34w3"
+            },
+            "deploy_seq": -2,
+            "description": "Removes the deleted resource group from the Resource Group options of every environment on the same subscription that offers it.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-b8bh33j1",
+            "name": "Remove Resource Group from Environments",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        },
+        {
+            "action_name": "Teardown Bicep Deployment",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-t2gs5caq"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the subscription-scoped Azure deployment stack backing this resource (delete-all), which removes the resource group it created.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-1e3dm0ww",
+            "name": "Teardown Bicep Deployment",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

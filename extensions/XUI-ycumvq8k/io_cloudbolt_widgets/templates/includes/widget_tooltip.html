@@ -1,0 +1,35 @@
+<script>
+(function () {
+    var tooltipId = "{{ tooltip_id }}";
+    var tooltipText = "{{ tooltip_text|escapejs }}";
+    var attempts = 0;
+
+    function trySetTooltip() {
+        var marker = document.getElementById(tooltipId);
+        if (!marker) {
+            if (++attempts < 30) setTimeout(trySetTooltip, 200);
+            return;
+        }
+        var el = marker.parentElement;
+        while (el && el !== document.body) {
+            var title = el.querySelector(".widget-head__title");
+            if (title) {
+                title.setAttribute("title", tooltipText);
+                title.style.cursor = "help";
+                return;
+            }
+            var heading = el.querySelector(".panel-heading");
+            if (heading) {
+                heading.setAttribute("title", tooltipText);
+                heading.style.cursor = "help";
+                return;
+            }
+            el = el.parentElement;
+        }
+        if (++attempts < 30) setTimeout(trySetTooltip, 200);
+    }
+
+    setTimeout(trySetTooltip, 100);
+})();
+</script>
+<span id="{{ tooltip_id }}" style="display: none"></span>

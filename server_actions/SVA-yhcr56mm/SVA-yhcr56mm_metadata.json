@@ -1,0 +1,178 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Target OpenShift namespace to import the VM into. Each CloudBolt environment maps 1:1 to an OpenShift namespace.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "storage_class_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "network_name_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-4ox63hhw",
+            "label": "Target Namespace",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "NetworkAttachmentDefinition to attach the VM's NICs to. Leave blank to use the pod network.",
+            "field-dependency-controlling-set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "network_name_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-okkxyj3f",
+            "label": "Network Name",
+            "name": "network_name",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "KubeVirt RunStrategy for the imported VirtualMachine.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-01pw5kee",
+            "label": "Run Strategy",
+            "name": "run_strategy",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Start the VM immediately after import and wait for it to reach Running.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-v0i0u45z",
+            "label": "Start VM",
+            "name": "start_vm",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "StorageClass for the DataVolume PVCs. Leave blank to use the cluster default.",
+            "field-dependency-controlling-set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "storage_class_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-bgdzeyos",
+            "label": "Storage Class",
+            "name": "storage_class",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "base_action_name": "Migrate VM to OpenShift",
+    "dangerous": true,
+    "dependencies": {
+        "hook": "plugins/OHK-kx3qcgmy"
+    },
+    "dialog_message": "This performs a cold migration: the VM will be powered off, its disks exported through vCenter and converted to QCOW2 on the CloudBolt appliance, then imported into OpenShift Virtualization. The VM stays off for the duration of the transfer.",
+    "dialog_title_template": "Run {{action.label}} on {{server.hostname}}",
+    "enabled": true,
+    "extra_classes": "fas fa-cloud-upload-alt",
+    "id": "SVA-yhcr56mm",
+    "is_synchronous": false,
+    "label": "Migrate VM to OpenShift",
+    "last_updated": "2026-07-29",
+    "list_view_visible": true,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": null,
+    "submit_button_label": ""
+}

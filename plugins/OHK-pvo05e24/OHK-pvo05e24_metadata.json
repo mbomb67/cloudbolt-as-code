@@ -1,0 +1,320 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "JSON object of Terraform template variable name/value pairs, funneled from the order form's Dynamic Panel (field names match the template's variables, and the panel includes vm_name -- e.g. {\"vm_name\": \"tfc-demo-vm-01\", \"vm_size\": \"Standard_B2s\", \"location\": \"eastus\"}). Supplied by the custom form; leave blank to fall back to the template defaults (an empty payload parses to {}). Blank/None values are dropped so a left-blank field stays unset rather than being written as an empty string.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-8tnrihuf",
+            "label": "Template Variables (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "VCS branch the workspace tracks. Pinned per blueprint.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-hnmhbo4x",
+            "label": "TFC VCS Branch",
+            "name": "tfc_branch",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Terraform Cloud/Enterprise connection to provision through. Lists every CloudBolt ConnectionInfo carrying the 'tf-cloud' label (host in the ip field, HCP Terraform TEAM token in the password field). Controls the Organization, Project, and VCS Repo dropdowns.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-y79wklhu",
+            "label": "TF Cloud Connection",
+            "name": "tfc_connection_info",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "HCP Terraform organization the deployment's workspace is created in. Options are listed live from the selected TF Cloud Connection's token (GET /organizations).",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-hawzc1px",
+            "label": "TFC Organization",
+            "name": "tfc_organization",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "HCP Terraform project that holds the deployment's workspace (a project-scoped variable set supplies the cloud credentials). Options are listed live from the selected connection and organization.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-001ev6uh",
+            "label": "TFC Project",
+            "name": "tfc_project",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "VCS repo (org/name) holding the parameterized Terraform configuration the workspace tracks. Options are the distinct repos already tracked by workspaces in the selected project (falling back to the whole organization) -- HCP Terraform's public API has no endpoint listing every repo the VCS connection could reach.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "tfc_connection_info_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_organization_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "tfc_project_a352"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "tfc_repo_identifier_a352"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-yvfxnek9",
+            "label": "TFC VCS Repo",
+            "name": "tfc_repo_identifier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Terraform working directory within the VCS repo (empty for the repo root). Pinned per blueprint.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-q2ooodaj",
+            "label": "TFC Working Directory",
+            "name": "tfc_working_directory",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "tfc_connection_info",
+        "tfc_organization",
+        "tfc_project",
+        "tfc_repo_identifier",
+        "parameters"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Build plugin: provisions a VM through HCP Terraform. The TFC connection (ConnectionInfos labeled 'tf-cloud'), organization, project, and VCS repo are picked from cascading live dropdowns on the order form. Ensures a dedicated TFC workspace per deployment (ID-first get-or-adopt), funnels the order form's template variables (one generic parameters input, vm_name included in the panel) into the workspace variables, runs with a human plan-approval pause (Continue approves, Cancel rejects and discards the run), and stores the run URL, EVERY Terraform state output (auto-discovered, no declared allowlist), and variable mirrors on the resource.",
+    "id": "OHK-pvo05e24",
+    "max_retries": 0,
+    "name": "HCP Terraform VM",
+    "resource_technologies": [],
+    "script_filename": "OHK-pvo05e24_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

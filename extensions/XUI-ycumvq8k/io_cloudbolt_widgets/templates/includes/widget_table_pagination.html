@@ -1,0 +1,47 @@
+<script type="text/javascript">
+jQuery(function ($) {
+    $(".io-cbw-paginate").not(".io-cbw-paginate-initialized").each(function () {
+        var $box = $(this).addClass("io-cbw-paginate-initialized");
+        var pageSize = parseInt($box.data("page-size"), 10) || 5;
+        var $rows = $box.find("tbody tr.io-cbw-page-row");
+        var $pager = $box.find(".io-cbw-pager");
+        if ($rows.length <= pageSize) {
+            $pager.hide();
+            return;
+        }
+        var totalPages = Math.ceil($rows.length / pageSize);
+        var page = 0;
+
+        function render() {
+            var start = page * pageSize;
+            $rows.hide().slice(start, start + pageSize).show();
+            $pager
+                .find(".io-cbw-pager-info")
+                .text("Page " + (page + 1) + " of " + totalPages);
+            $pager.find(".io-cbw-pager-prev").prop("disabled", page === 0);
+            $pager
+                .find(".io-cbw-pager-next")
+                .prop("disabled", page >= totalPages - 1);
+        }
+
+        $pager.html(
+            '<button type="button" class="btn btn-default btn-xs io-cbw-pager-prev">Previous</button> ' +
+                '<span class="io-cbw-pager-info"></span> ' +
+                '<button type="button" class="btn btn-default btn-xs io-cbw-pager-next">Next</button>'
+        );
+        $pager.on("click", ".io-cbw-pager-prev", function () {
+            if (page > 0) {
+                page--;
+                render();
+            }
+        });
+        $pager.on("click", ".io-cbw-pager-next", function () {
+            if (page < totalPages - 1) {
+                page++;
+                render();
+            }
+        });
+        render();
+    });
+});
+</script>

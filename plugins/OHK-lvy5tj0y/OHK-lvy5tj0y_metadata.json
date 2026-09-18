@@ -1,0 +1,38 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "JSON object of Terraform variable name/value pairs to apply. Pre-filled with this deployment's current variable values; edit any you want to change. Only variables this deployment already manages may be set here (unknown keys are rejected before anything is written); removing a key leaves that variable unchanged. Do not paste secrets into this plaintext field.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-se26j0xi",
+            "label": "Parameters (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Day-2 action: generic JSON Terraform Update for an HCP Terraform VM deployment. Re-presents the deployment's current variable values as one editable JSON object (pre-filled from the tfc_var_* custom-field mirrors), rejects any key the deployment does not already manage and any non-object payload, fails fast if the workspace already has a non-final run pending, snapshots the prior values, upserts the FULL variable set (snapshot overlaid with the submitted values, blanks/removals riding along unchanged), and runs with a human plan-approval pause: 'Continue Job' approves and applies, canceling rejects -- the run is discarded and the workspace variables are reverted to the snapshot.",
+    "id": "OHK-lvy5tj0y",
+    "max_retries": 0,
+    "name": "Terraform Update",
+    "resource_technologies": [],
+    "script_filename": "OHK-lvy5tj0y_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

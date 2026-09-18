@@ -1,0 +1,80 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Enter the IP address that the A record should target.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-tp03n192",
+            "label": "Ip",
+            "name": "ip",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-v5tjc83n",
+            "label": "DNS Zone",
+            "name": "ldap_utility",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Input the hostname (not FQDN). Instead of myhost.example.com, just enter myhost",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-w4regjc1",
+            "label": "Record",
+            "name": "record",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        }
+    ],
+    "action_inputs_sequence": [
+        "ldap_utility",
+        "record",
+        "ip"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dnsldap1"
+        ]
+    },
+    "description": "DNS Record blueprint build: create an AD-integrated DNS A record from an order. Order-form inputs: LDAP Utility (generated options), Record, and IP. The DNS zone is derived from the chosen LDAP Utility (its ldap_domain), not prompted. Writes over LDAPS via the ldap_dns shared module (the same path the Post-Provision orchestration plugin uses) and names the resource after the FQDN. No-clobber by default.",
+    "id": "OHK-dnsbld01",
+    "max_retries": 0,
+    "name": "DNS Record - Build",
+    "resource_technologies": [],
+    "script_filename": "OHK-dnsbld01_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

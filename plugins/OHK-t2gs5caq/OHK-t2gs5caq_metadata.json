@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-bbswv27r"
+        ]
+    },
+    "description": "Generic Bicep teardown plugin: deletes the Azure deployment stack backing the resource (delete-all) at its recorded scope \u2014 resource group or subscription, where it also removes the resource group(s) the template created. Idempotent and PROVFAILED-tolerant. Never force-deletes.",
+    "id": "OHK-t2gs5caq",
+    "max_retries": 0,
+    "name": "Teardown Bicep Deployment",
+    "resource_technologies": [],
+    "script_filename": "OHK-t2gs5caq_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,95 @@
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_styles.html" %}
+<style>
+    @media (max-width: 1330px) {
+        .col-hide {
+            display: none !important;
+        }
+    }
+</style>
+
+<div class="io-cbw-paginate" data-page-size="5">
+    <table class="table small table-striped io-cbw-widget-table">
+        <colgroup>
+            <col class="col-hide" style="width: 44px" />
+            <col />
+            <col />
+            <col class="col-hide" style="width: 58px" />
+            <col class="col-hide" style="width: 90px" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="col-hide"></th>
+                <th>Resource Handler</th>
+                <th>Environment</th>
+                <th class="col-hide">Server Count</th>
+                <th class="col-hide">Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rh in rh_status %}
+                {% if rh.envs %}
+                {% for env in rh.envs %}
+                <tr class="io-cbw-page-row">
+                    <td class="col-hide">
+                        {% if forloop.first %}
+                            {% if rh.name != "unassigned" %}
+                            <span
+                                class="icon icon-30 icon-handler-{{ rh.tech_slug }}"
+                                title="{{ rh.tech_name }}"
+                            ></span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="io-cbw-td-clip">
+                        {% if forloop.first %}
+                            {% if rh.name != "unassigned" %}
+                                {% if is_super_admin %}
+                                <a
+                                    href="/admin/resourcehandlers/{{ rh.id }}/#tab-overview"
+                                    class="io-cbw-truncate"
+                                    title="{{ rh.name }}"
+                                    >{{ rh.name }}</a
+                                >
+                                {% else %}
+                                <span class="io-cbw-truncate" title="{{ rh.name }}">{{ rh.name }}</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="io-cbw-td-clip">
+                        {% if is_super_admin %}
+                        <a
+                            href="/environments/{{ env.id }}/#tab-overview"
+                            class="io-cbw-truncate"
+                            title="{{ env.name }}"
+                            >{{ env.name }}</a
+                        >
+                        {% else %}
+                        <span class="io-cbw-truncate" title="{{ env.name }}">{{ env.name }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-hide">
+                        {% if is_super_admin %}
+                        <a href="/environments/{{ env.id }}/#tab-servers">{{ env.server_count }}</a>
+                        {% else %}
+                        {{ env.server_count }}
+                        {% endif %}
+                    </td>
+                    <td class="col-hide io-cbw-td-clip">
+                        <span class="io-cbw-truncate" title="{{ env.rate }}">{{ env.rate }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            {% empty %}
+            <tr>
+                <td colspan="5">No Resource Handlers found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="io-cbw-pager text-right small" style="margin-top: 8px"></div>
+</div>
+
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_pagination.html" %}
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-rh-stats" tooltip_text="Active server counts by resource handler and environment, with associated costs." %}

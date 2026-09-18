@@ -1,0 +1,90 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Azure Network Security Group Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-7987st2p"
+            },
+            "deploy_seq": 1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-w6j6eisz",
+            "name": "Azure Network Security Group Build",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Create, delete and synchronise Azure Network Security Groups",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-kdne1t5s"
+        },
+        "href": "/api/v3/cmp/actions/OHK-kdne1t5s/",
+        "title": "Azure Network Security Group Sync"
+    },
+    "favorited": false,
+    "icon": "imagesa040026w_nRnPsaJ_sfLCSn3_BbbLK8c_ubmJBFG_VfFBhMB.png",
+    "id": "BP-3fdhnw54",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": null,
+            "icon": "azure2.png",
+            "id": "TAG-0r4q7b80",
+            "image": "/static/uploads/tags/azure2.png",
+            "name": "Azure",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "icon": "cloud.png",
+                "id": "TAG-cvblowou",
+                "image": "/static/uploads/tags/cloud.png",
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-07-02",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Network Security Group",
+    "resource_name_template": "",
+    "resource_type": {
+        "icon": "",
+        "id": "RT-3vsv1jd0",
+        "internal_only": false,
+        "label": "Network",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "Network",
+        "plural_label": "Networks"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Network Security Group Teardown",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-9jouejv8"
+            },
+            "deploy_seq": -1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-bvcg6f19",
+            "name": "Network Security Group Teardown",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

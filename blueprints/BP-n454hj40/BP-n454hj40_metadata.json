@@ -1,0 +1,195 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Set VPC Name",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-50ntkska"
+            },
+            "deploy_seq": 1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-id8oomy2",
+            "name": "Set VPC Name",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Ansible Ad-Hoc",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-xdjd5o9b"
+            },
+            "deploy_seq": 2,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-oguskj46",
+            "name": "Ansible Ad-Hoc",
+            "parameter_defaults": [
+                {
+                    "label": "Ansible Manager",
+                    "name": "ansible_manager_a332",
+                    "value": "FILL-ME (ID of your Ansible Configuration Manager)"
+                },
+                {
+                    "label": "Playbook Path",
+                    "name": "playbook_path_a332",
+                    "value": "/home/ec2-user/create-vpc-from-vars.yml"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Create Environment",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yd1af0eu"
+            },
+            "deploy_seq": 3,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-5oontwdd",
+            "name": "Create Environment",
+            "parameter_defaults": [
+                {
+                    "label": "Aws Handler",
+                    "name": "aws_handler_a336",
+                    "value": "FILL-ME (ID of your AWS resource handler)"
+                },
+                {
+                    "label": "Env Name Field Name",
+                    "name": "env_name_field_name_a336",
+                    "value": "ansible_vpc_name"
+                },
+                {
+                    "label": "Region Field Name",
+                    "name": "region_field_name_a336",
+                    "value": "ansible_aws_region"
+                },
+                {
+                    "label": "Vpc Id Field Name",
+                    "name": "vpc_id_field_name_a336",
+                    "value": "ansible_vpc_id"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates an AWS VPC with Ansible Playbook",
+    "favorited": false,
+    "icon": "Ansible_Icon.png",
+    "id": "BP-n454hj40",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-06-10",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Create VPC",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [
+                "us-east-1",
+                "us-east-2",
+                "us-west-1",
+                "us-west-2"
+            ],
+            "id": "CF-1035zwau",
+            "label": "AWS Region",
+            "name": "ansible_aws_region",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-uu8qos4g",
+            "label": "VPC Name",
+            "name": "ansible_vpc_name",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": "VPC-00X",
+    "resource_type": {
+        "icon": "fab fa-aws",
+        "id": "RT-q3x4phh5",
+        "internal_only": false,
+        "label": "AWS VPC",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "aws_vpc",
+        "plural_label": "AWS VPCs"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Ansible Ad-Hoc",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-xdjd5o9b"
+            },
+            "deploy_seq": -1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-swy3h70v",
+            "name": "Ansible Ad-Hoc",
+            "parameter_defaults": [
+                {
+                    "label": "Ansible Manager",
+                    "name": "ansible_manager_a332",
+                    "value": "FILL-ME (ID of your Ansible Configuration Manager)"
+                },
+                {
+                    "label": "Playbook Path",
+                    "name": "playbook_path_a332",
+                    "value": "/home/ec2-user/teardown-vpc.yml"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

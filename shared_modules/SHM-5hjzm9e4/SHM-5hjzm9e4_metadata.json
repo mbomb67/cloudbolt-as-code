@@ -1,0 +1,12 @@
+{
+    "description": "",
+    "id": "SHM-5hjzm9e4",
+    "label": "Azure Subscription Helpers",
+    "max_retries": 0,
+    "module_name": "azure_subscription_helpers",
+    "name": "azure_subscription_helpers",
+    "resource_technologies": [],
+    "script_filename": "SHM-5hjzm9e4_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -1,0 +1,15 @@
+{
+    "description": "",
+    "id": "SHM-newmivt6",
+    "label": "VMware",
+    "last_updated": "2026-07-29",
+    "max_retries": 0,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "module_name": "vmware",
+    "name": "vmware",
+    "resource_technologies": [],
+    "script_filename": "SHM-newmivt6_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

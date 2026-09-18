@@ -1,0 +1,52 @@
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_styles.html" %}
+<style>
+    @media (max-width: 1330px) {
+        .col-hide {
+            display: none !important;
+        }
+    }
+</style>
+
+<div class="io-cbw-paginate" data-page-size="5">
+    <table class="table small table-striped io-cbw-widget-table">
+        <colgroup>
+            <col style="width: 8px" />
+            <col />
+            <col style="width: 58px" />
+            <col class="col-hide" style="width: 68px" />
+            <col class="col-hide" style="width: 90px" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th></th>
+                <th>Group</th>
+                <th>Server Count</th>
+                <th class="col-hide">Resource Count</th>
+                <th class="col-hide">Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in group_stats %}
+            <tr class="io-cbw-page-row">
+                <td></td>
+                <td class="io-cbw-td-clip">
+                    <span class="io-cbw-truncate" title="{{ row.name }}">{{ row.name }}</span>
+                </td>
+                <td>{{ row.server_count }}</td>
+                <td class="col-hide">{{ row.resource_count }}</td>
+                <td class="col-hide io-cbw-td-clip">
+                    <span class="io-cbw-truncate" title="{{ row.cost }}">{{ row.cost }}</span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No group statistics available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="io-cbw-pager text-right small" style="margin-top: 8px"></div>
+</div>
+
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_pagination.html" %}
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-group-stats" tooltip_text="Server and resource counts with cost summaries for each top-level group." %}

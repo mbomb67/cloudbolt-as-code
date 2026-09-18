@@ -1,0 +1,24 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-3kp5czyb"
+    },
+    "dialog_message": "",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-list",
+    "id": "RSA-h93k53ld",
+    "is_synchronous": true,
+    "label": "List Blob Containers",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 2,
+    "submit_button_label": ""
+}

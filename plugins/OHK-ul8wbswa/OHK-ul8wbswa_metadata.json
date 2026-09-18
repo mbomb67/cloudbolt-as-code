@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-nubxb8sn"
+        ]
+    },
+    "description": "Day-2 action for the Request Certificate (Windows CA) blueprint: re-poll the AD CS Web Enrollment pages for a certificate request previously left pending by a manager-approval template (CA Request ID stored on the resource), and store the issued PEM certificate once approved.",
+    "id": "OHK-ul8wbswa",
+    "max_retries": 0,
+    "name": "Retrieve Pending Certificate",
+    "resource_technologies": [],
+    "script_filename": "OHK-ul8wbswa_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

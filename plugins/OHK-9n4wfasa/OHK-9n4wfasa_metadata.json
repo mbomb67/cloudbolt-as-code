@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eybr4hgz",
+            "shared_modules/SHM-bbswv27r"
+        ]
+    },
+    "description": "Generic Bicep day-2 Drift Check: runs a read-only what-if (plus stack managed-resource diff) with the deployment's current parameters and reports the change set. Applies nothing.",
+    "id": "OHK-9n4wfasa",
+    "max_retries": 0,
+    "name": "Drift Check",
+    "resource_technologies": [],
+    "script_filename": "OHK-9n4wfasa_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

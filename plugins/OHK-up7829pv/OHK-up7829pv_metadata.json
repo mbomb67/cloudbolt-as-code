@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Installs the Windows File Server Role on a Windows Server",
+    "execution_timeout": 1200,
+    "id": "OHK-up7829pv",
+    "max_retries": 0,
+    "name": "Install Windows File Server",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-up7829pv_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

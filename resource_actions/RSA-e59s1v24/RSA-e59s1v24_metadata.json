@@ -1,0 +1,44 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Azure VM size applied by the Terraform template, e.g. Standard_B2s.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": false,
+            "id": "CF-5uhbkrvd",
+            "label": "VM Size",
+            "name": "vm_size",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-9xffkz53"
+    },
+    "dialog_message": "Choose a new Azure VM size for this deployment; the current size is pre-selected. Only the size changes -- every other Terraform variable keeps its current value. The change is planned in the deployment's HCP Terraform workspace, then the job PAUSES for plan review before anything is applied. 'Continue Job' approves and applies the plan; canceling the job rejects it and reverts the workspace variables to their pre-action values. Warning: applying a size change may restart the VM (depends on the Terraform template).",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-expand-arrows-alt",
+    "id": "RSA-e59s1v24",
+    "is_synchronous": false,
+    "label": "Resize",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 6,
+    "submit_button_label": ""
+}

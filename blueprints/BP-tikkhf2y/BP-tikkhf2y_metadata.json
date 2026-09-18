@@ -1,0 +1,127 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "OpenShift Project Landing Zone",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-prew0osh"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the OpenShift project with quota, limits, network isolation, and team access, then pins a CloudBolt environment to it and entitles your group.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-vsch9p6q",
+            "name": "OpenShift Project Landing Zone",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Get a governed OpenShift project for your team. Pick a cluster and a size tier; you get a namespace with quota, default limits, and network isolation, and your CloudBolt group is entitled to deploy VMs and containers into it. Day-2: request a quota change (approval required), manage team access, extend the expiration.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-e7albpni"
+        },
+        "href": "/api/v3/cmp/actions/OHK-e7albpni/",
+        "title": "Discover OpenShift Project Landing Zones"
+    },
+    "favorited": false,
+    "icon": "OpenShift_Logo_a0RM62N.png",
+    "id": "BP-tikkhf2y",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-09",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-yj1c4b5s"
+            },
+            "enabled": true,
+            "label": "Manage Team Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-4e8lmj2r"
+            },
+            "enabled": true,
+            "label": "Request Quota Change"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-kx7mdgva"
+            },
+            "enabled": true,
+            "label": "Extend Expiration"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "OpenShift Project Landing Zone",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-project-diagram",
+        "id": "RT-oa1rb75s",
+        "internal_only": false,
+        "label": "OpenShift Project",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "openshift_project",
+        "plural_label": "OpenShift Projects"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown OpenShift Project Landing Zone",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-mpe8fl3d"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the OpenShift project and everything in it, then removes the CloudBolt environment. Refuses while CloudBolt-managed servers remain.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-9i9e7ptf",
+            "name": "Teardown OpenShift Project Landing Zone",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

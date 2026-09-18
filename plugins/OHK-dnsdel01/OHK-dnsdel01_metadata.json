@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dnsldap1"
+        ]
+    },
+    "description": "Pre-Delete: tombstone the AD-integrated DNS A record CloudBolt registered for each server being decommissioned, over LDAP via the ldap_dns shared module. Uses only the identity stored on the server at create time and tombstones only when the live A value still matches (ownership-verified). Idempotent and PROVFAILED-safe: nothing recorded, already gone, or a record now pointing elsewhere all return WARNING, not FAILURE.",
+    "id": "OHK-dnsdel01",
+    "max_retries": 0,
+    "name": "AD DNS - Delete A Record",
+    "resource_technologies": [],
+    "script_filename": "OHK-dnsdel01_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

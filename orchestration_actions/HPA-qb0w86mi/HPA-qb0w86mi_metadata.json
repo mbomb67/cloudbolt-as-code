@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-cfciy0fo"
+    },
+    "description": null,
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-qb0w86mi",
+    "last_updated": null,
+    "name": "Generate options for 'Expiration Date'",
+    "run_on_statuses": "",
+    "run_seq": 21
+}

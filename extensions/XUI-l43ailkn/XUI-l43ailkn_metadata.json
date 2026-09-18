@@ -1,0 +1,23 @@
+{
+    "description": null,
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-l43ailkn",
+    "label": "Ssm Inventory",
+    "last_updated": "2026-04-14",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "ssm_inventory",
+    "package_contents": [
+        "patch_hook.py",
+        "urls.py",
+        "__init__.py",
+        "forms.py",
+        "views.py",
+        "templates/server_tab.html",
+        "templates/server_patches.html",
+        "images/img_1.png",
+        "images/img.png"
+    ],
+    "version": ""
+}

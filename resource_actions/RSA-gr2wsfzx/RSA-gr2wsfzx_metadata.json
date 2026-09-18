@@ -1,0 +1,44 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "New replication SKU. Note: Azure does not permit every conversion (e.g. between Standard and Premium); invalid changes are rejected by Azure.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-rhwyyz0i",
+            "label": "Replication / SKU",
+            "name": "sku",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-fel441xh"
+    },
+    "dialog_message": "Changing the replication SKU may trigger a data migration and can affect redundancy, cost, and performance.",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-copy",
+    "id": "RSA-gr2wsfzx",
+    "is_synchronous": true,
+    "label": "Change SKU",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 4,
+    "submit_button_label": ""
+}

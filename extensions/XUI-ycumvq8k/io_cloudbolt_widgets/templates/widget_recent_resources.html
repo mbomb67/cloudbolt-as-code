@@ -1,0 +1,50 @@
+{% load helper_tags %}
+
+{% include "io_cloudbolt_widgets/templates/includes/widget_table_styles.html" %}
+<style>
+    @media (max-width: 1330px) {
+        .col-hide {
+            display: none !important;
+        }
+    }
+</style>
+
+<table class="table small table-striped io-cbw-widget-table">
+    <colgroup>
+        <col style="width: 40px" />
+        <col />
+        <col class="col-hide" style="width: 132px; min-width: 132px" />
+    </colgroup>
+    <thead>
+        <tr>
+            <th></th>
+            <th>Name</th>
+            <th class="col-hide">Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in resources %}
+        <tr>
+            <td>
+                {% if r.resource_type.icon %}
+                <span class="{{ r.resource_type.icon }}"></span>
+                {% endif %}
+            </td>
+            <td class="io-cbw-td-clip">
+                <a
+                    href="/resources/{{ r.id }}/"
+                    class="io-cbw-truncate"
+                    title="{{ r.name }}"
+                    >{{ r.name }}</a
+                >
+            </td>
+            <td class="col-hide">{{ r.created | how_long_ago }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No Resources found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-recent-resources" tooltip_text="The most recently created active resources in your scope." %}
