@@ -5,10 +5,21 @@ Sample blueprints, plugins, actions, shared modules, forms, and UI extensions fo
 ## Using this repo
 
 1. Fork or clone it. CloudBolt treats the repo as the source of truth, so keep your copy under source control.
-2. In CloudBolt, add the repo under **Admin > Source Control Repos** and sync the content you want. Each content folder's README lists what syncs with it.
-3. Edit every value marked `FILL-ME` or `<placeholder>` for your environment before ordering.
-4. Re-enter secrets after each sync. CloudBolt redacts passwords and tokens on export, so ConnectionInfo credentials do not round-trip.
-5. Validate each piece in a non-production CloudBolt instance first.
+2. In CloudBolt, go to **Admin > All Admin > CloudBolt** and add a new Source Code Repository:
+
+   | Field | Value |
+   |---|---|
+   | Label | Any name, for example `CloudBolt as Code` |
+   | Repository URL | `https://github.com/mbomb67/cloudbolt-as-code.git`, or your fork |
+   | Auto import branch | Leave blank to import manually |
+   | Path to blueprints | `blueprints/` (the default) |
+   | Auth method | Personal Access Token |
+   | Username / Password or Token | Your GitHub username and a token; store it locally or in a vault |
+
+3. Sync the content you want. Each content folder's README lists what syncs with it.
+4. Edit every value marked `FILL-ME` or `<placeholder>` for your environment before ordering.
+5. Re-enter secrets after each sync. CloudBolt redacts passwords and tokens on export, so ConnectionInfo credentials do not round-trip.
+6. Validate each piece in a non-production CloudBolt instance first.
 
 ## What is here
 
