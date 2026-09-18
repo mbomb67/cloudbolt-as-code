@@ -11,7 +11,7 @@ Sample blueprints, plugins, actions, shared modules, forms, and UI extensions fo
    |---|---|
    | Label | Any name, for example `CloudBolt as Code` |
    | Repository URL | `https://github.com/mbomb67/cloudbolt-as-code.git`, or your fork |
-   | Auto import branch | Leave blank to import manually |
+   | Auto import branch | Leave blank to import manually. If you set one, use a branch or tag you have validated, not `main`; content on `main` changes and runs on your appliance at the next sync |
    | Path to blueprints | `blueprints/` (the default) |
    | Auth method | Personal Access Token |
    | Username / Password or Token | Your GitHub username and a token; store it locally or in a vault |
@@ -43,7 +43,7 @@ Clone the repo to build your own content in the same layout. [docs/dev-environme
 
 ## Caveats
 
-- This is sample content. Use, copy, and modify it freely.
+- This is sample content under the [Apache License 2.0](LICENSE). Use, copy, and modify it freely.
 - It is not part of the CloudBolt product and is not covered by CloudBolt support.
 - It calls cloud provider and third-party APIs (Azure, AWS, HCP Terraform, OpenShift, GitHub, Active Directory). Those APIs change, so content here can and will break over time. Test before relying on it.
 - Content was exported with CloudBolt metadata version 2026.1.0. Older CloudBolt releases may not import every content type.

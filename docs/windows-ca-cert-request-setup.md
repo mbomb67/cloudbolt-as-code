@@ -284,7 +284,7 @@ The appliance must trust the HTTPS cert on `/certsrv`. Either:
 
 **A. Reach the pages over HTTPS with Basic auth** (from the appliance):
 ```bash
-curl -sk -u 'LAB\svc-cbca:PASSWORD' https://ca01.lab.example.com/certsrv/ | head
+curl -sk -u 'LAB\svc-cbca:<password>' https://ca01.lab.example.com/certsrv/ | head
 # Expect HTTP 200 and the "Microsoft Active Directory Certificate Services" page.
 ```
 
@@ -297,13 +297,13 @@ openssl req -newkey rsa:2048 -nodes -keyout test.key -out test.csr \
 
 # 2. Submit via certfnsh.asp (URL-encode the CSR + template attribute)
 CSR=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(open('test.csr').read()))")
-curl -sk -u 'LAB\svc-cbca:PASSWORD' \
+curl -sk -u 'LAB\svc-cbca:<password>' \
   --data "Mode=newreq&CertRequest=${CSR}&CertAttrib=CertificateTemplate:CloudBoltWebServer&TargetStoreFlags=0&SaveCert=yes" \
   https://ca01.lab.example.com/certsrv/certfnsh.asp -D - -o resp.html
 # Find the ReqID in resp.html (location: certnew.cer?ReqID=N...)
 
 # 3. Download the issued cert
-curl -sk -u 'LAB\svc-cbca:PASSWORD' \
+curl -sk -u 'LAB\svc-cbca:<password>' \
   "https://ca01.lab.example.com/certsrv/certnew.cer?ReqID=<N>&Enc=b64" -o issued.cer
 openssl x509 -in issued.cer -noout -subject -issuer -dates
 ```

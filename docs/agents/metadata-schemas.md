@@ -938,7 +938,7 @@ HTTP methods are not stored — the IWH dispatches at runtime to `inbound_web_ho
     "label": "Provision Trigger Webhook",
     "uri_path": "provision-trigger",
     "authentication_method": "token",
-    "token": "kJ3n_xQ8...redacted...",
+    "token": "<redacted>",
     "description": "Inbound webhook that kicks off a provision",
     "enabled": true,
     "base_action_name": "Provision Trigger Hook",

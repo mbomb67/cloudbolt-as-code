@@ -1,0 +1,6 @@
+# Accepted findings in history (placeholders, not secrets). Format: commit:file:rule:line
+ccf6c9321708996665ee6e36ddc86744af4b7545:blueprints/BP-00meiwwz/BP-00meiwwz_metadata.json:hcp-terraform-object-id:39
+ccf6c9321708996665ee6e36ddc86744af4b7545:docs/windows-ca-cert-request-setup.md:curl-auth-user:287
+ccf6c9321708996665ee6e36ddc86744af4b7545:docs/windows-ca-cert-request-setup.md:curl-auth-user:300
+ccf6c9321708996665ee6e36ddc86744af4b7545:docs/windows-ca-cert-request-setup.md:curl-auth-user:306
+ccf6c9321708996665ee6e36ddc86744af4b7545:docs/agents/metadata-schemas.md:generic-api-key:941
