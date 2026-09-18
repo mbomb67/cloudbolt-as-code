@@ -1,0 +1,20 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-newmivt6"
+        ]
+    },
+    "description": "Cold-export a VMware VM's disks through vCenter (443-only, via the Export API) to QCOW2 for OpenShift import.",
+    "id": "SHM-so5r7cau",
+    "label": "VMware Export",
+    "last_updated": "2026-07-29",
+    "max_retries": 0,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "module_name": "vmware_export",
+    "name": "vmware_export",
+    "resource_technologies": [],
+    "script_filename": "SHM-so5r7cau_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

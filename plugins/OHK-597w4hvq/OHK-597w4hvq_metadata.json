@@ -1,0 +1,11 @@
+{
+    "description": "Cancel Azure subscription (soft delete - can be reactivated within 90 days)",
+    "id": "OHK-597w4hvq",
+    "max_retries": 0,
+    "name": "Teardown Azure Subscription",
+    "resource_technologies": [],
+    "script_filename": "OHK-597w4hvq_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

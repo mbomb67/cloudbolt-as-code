@@ -1,0 +1,11 @@
+{
+    "description": "Find servers that have expired and execute appropriate orchestration action",
+    "id": "OHK-59t2apzf",
+    "max_retries": 0,
+    "name": "Expire Servers",
+    "resource_technologies": [],
+    "script_filename": "OHK-59t2apzf_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

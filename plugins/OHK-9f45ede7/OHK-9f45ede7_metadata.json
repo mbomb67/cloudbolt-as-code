@@ -1,0 +1,38 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "JSON object of parameter values to apply. Pre-filled with the deployment's current editable values; edit any you want to change. Pinned parameters do not appear. Provide @secure() values only via scaffold-generated typed (masked) inputs, not in this plaintext field.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-01b1r0r7",
+            "label": "Parameters (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        }
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eybr4hgz",
+            "shared_modules/SHM-bbswv27r"
+        ]
+    },
+    "description": "Generic Bicep day-2 Update: re-presents current parameters, re-fetches and compiles the template, previews with what-if behind the approval gate, and applies any changes as a stack update.",
+    "id": "OHK-9f45ede7",
+    "max_retries": 0,
+    "name": "Update Bicep Deployment",
+    "resource_technologies": [],
+    "script_filename": "OHK-9f45ede7_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

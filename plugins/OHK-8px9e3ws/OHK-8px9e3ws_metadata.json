@@ -1,0 +1,11 @@
+{
+    "description": "Teardown plugin: deletes the Azure Storage Account backing the resource. Idempotent.",
+    "id": "OHK-8px9e3ws",
+    "max_retries": 0,
+    "name": "Teardown Azure Storage Account",
+    "resource_technologies": [],
+    "script_filename": "OHK-8px9e3ws_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

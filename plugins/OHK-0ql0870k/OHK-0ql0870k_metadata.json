@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Installs IIS on Windows",
+    "execution_timeout": 1200,
+    "id": "OHK-0ql0870k",
+    "max_retries": 0,
+    "name": "Install IIS Windows",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-0ql0870k_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

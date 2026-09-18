@@ -1,0 +1,11 @@
+{
+    "description": "Discovery plugin: inventories existing Azure Storage Accounts across all Azure handlers.",
+    "id": "OHK-h9lmvlkb",
+    "max_retries": 0,
+    "name": "Discover Azure Storage Accounts",
+    "resource_technologies": [],
+    "script_filename": "OHK-h9lmvlkb_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,184 @@
+/* =========================================================================
+   CloudBolt Custom Form — layout cleanup + brand color
+   Scoped under #surveyContainer (SurveyJS jQuery renderer). Loaded after the
+   theme + CloudBolt defaults, so these win. !important is used defensively
+   because the minified SurveyJS theme is specific.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. SHARED WIDTH — header and fields share one centered column.
+   Change 900px to taste (e.g. 760px tighter, 1100px wider).
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-root-modern,
+#surveyContainer .sd-container-modern {
+  max-width: 900px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Make the field rows fill that column instead of staying narrow/centered */
+#surveyContainer .sd-body,
+#surveyContainer .sd-body__page,
+#surveyContainer .sd-page,
+#surveyContainer .sd-row {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* -------------------------------------------------------------------------
+   2. COMPRESS SPACING — one variable drives most of SurveyJS's padding.
+   ------------------------------------------------------------------------- */
+#surveyContainer {
+  --sjs-base-unit: 6px;   /* default 8px — scales down internal spacing */
+}
+
+/* Tighten the page's top padding (default block sets this to 20px) */
+#surveyContainer .sd-body .sd-page {
+  padding-top: 8px !important;
+}
+
+/* Less air between each field card */
+#surveyContainer .sd-row {
+  margin-top: 8px !important;
+}
+#surveyContainer .sd-row:first-of-type {
+  margin-top: 0 !important;
+}
+
+/* -------------------------------------------------------------------------
+   3. SLIM DOWN EACH CARD — less internal padding, lighter shadow.
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-element--with-frame {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Pull the input closer to its label */
+#surveyContainer .sd-question__content {
+  padding-top: 4px !important;
+}
+
+/* -------------------------------------------------------------------------
+   4. HEADER — tighter banner padding.
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-title.sd-container-modern__title {
+  padding: 16px 24px !important;
+}
+
+/* -------------------------------------------------------------------------
+   5. BRAND COLOR — title text + the line under the description.
+   rgba(0,149,152,1)
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-header__text .sd-title {
+  color: rgba(0, 149, 152, 1) !important;
+}
+
+/* The underline: override both border-bottom and box-shadow so it recolors
+   regardless of which one the SurveyJS theme uses. Drop whichever is unused. */
+#surveyContainer .sd-title.sd-container-modern__title {
+  border-bottom: 2px solid rgba(0, 149, 152, 1) !important;
+  box-shadow: inset 0 -2px 0 0 rgba(0, 149, 152, 1) !important;
+}
+
+
+/* =========================================================================
+   6. UNIFORM FIELD COLUMNS — label 30% / input 70% of the white section.
+   The SurveyJS defaultV2 theme lays left-titled questions out as
+   inline-block with an auto-width label (so inputs start wherever the
+   label ends). We convert each left-titled question to a 2-column flex row
+   and re-enable the wrapping the row otherwise suppresses.
+   ------------------------------------------------------------------------- */
+
+/* The flex row: center labels against the MIDDLE of the input (was flex-start) */
+#surveyContainer .sd-question:has(> .sd-question__header--location--left) {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;     /* was: flex-start */
+}
+
+/* Label column: 30%, right-aligned so the text sits next to the input */
+#surveyContainer .sd-question__header--location--left {
+  flex: 0 0 30% !important;
+  width: 30% !important;
+  max-width: 30% !important;
+  box-sizing: border-box !important;
+  padding-right: 12px !important;
+  text-align: right !important;       /* push label toward the input */
+  white-space: normal !important;
+  word-break: break-word !important;
+  margin-top: 0 !important;           /* was 6px — center handles alignment now */
+}
+
+/* Also let the inner title text wrap (it inherits the row's nowrap otherwise) */
+#surveyContainer .sd-question__header--location--left .sd-question__title {
+  white-space: normal !important;
+}
+
+/* Input column: uniform 70% for every field, regardless of label length. */
+#surveyContainer .sd-question__content--left {
+  flex: 0 0 70% !important;
+  width: 70% !important;
+  max-width: 70% !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure the actual input/select/dropdown fills its 70% column */
+#surveyContainer .sd-question__content--left .sd-input,
+#surveyContainer .sd-question__content--left .sd-dropdown,
+#surveyContainer .sd-question__content--left .sd-selectbase,
+#surveyContainer .sd-question__content--left input,
+#surveyContainer .sd-question__content--left select,
+#surveyContainer .sd-question__content--left textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* =========================================================================
+   7. BOLD FIELD NAMES  (replaces the earlier section 7)
+   The default block sets .sd-body .sd-title to font-weight:300 !important at
+   specificity 1,0,3,0. Match it with extra class specificity so bold wins.
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-root-modern .sd-body .sd-title.sd-question__title {
+  font-weight: 700 !important;
+}
+
+/* =========================================================================
+   8. INPUT PADDING — keep inputs off the card edge.
+   The theme's negative right margin on the content box cancels the card
+   padding, so the input reaches the border. Neutralize it and give the
+   card breathing room on both sides.
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-question__content--left {
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+#surveyContainer .sd-element--with-frame {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* =========================================================================
+   9. PANEL SEPARATOR — keep the "Input Parameters" divider inside the card.
+   The theme bleeds the panel header + its 1px separator outward by
+   --sd-base-padding to reach the default card edge. Our custom card padding
+   broke that math, so the line overhangs. Pin the header and the separator
+   line to the content width.
+   ------------------------------------------------------------------------- */
+#surveyContainer .sd-element--with-frame > .sd-element__header {
+  margin-inline-start: 0 !important;
+  margin-inline-end: 0 !important;
+  width: 100% !important;
+}
+
+#surveyContainer .sd-element__header:after,
+#surveyContainer .sd-element--complex.sd-element--with-frame
+  > .sd-element__header--location-top:after {
+  inset-inline-start: 0 !important;
+  width: 100% !important;
+}

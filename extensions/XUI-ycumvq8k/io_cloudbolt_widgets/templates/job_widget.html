@@ -1,0 +1,32 @@
+<div id="chart"></div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+	var options = {
+		title: null,
+		chart: {
+			type: "pie",
+			renderTo: "chart",
+		},
+		series: [{}],
+		plotOptions: {
+			pie: {
+				point: {
+					events: {
+						click: function() {
+							window.location = '/environments/' + this.id;
+						}
+					}
+				}
+			}
+		}
+	};
+	var url = "/xui/io_cloudbolt_widgets/api/envs";
+	$.getJSON(url, function(data) {
+		options.series[0].data = data;
+		options.series[0].name = "# Servers";
+		new Highcharts.Chart(options); 
+	});
+});
+</script>
+

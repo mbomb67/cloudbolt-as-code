@@ -1,0 +1,265 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "AD CS certificate template to enroll against (Enterprise CA). Defaults to CloudBoltWebServer when left blank. Ignored by a Standalone CA.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-abv7ti9k",
+            "label": "Certificate Template",
+            "name": "certificate_template",
+            "placeholder": "CloudBoltWebServer",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Subject Common Name for the certificate, e.g. app1.lab.example.com. Used when CloudBolt generates the CSR.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "common_name_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-wy2mfl3x",
+            "label": "Common Name",
+            "name": "common_name",
+            "placeholder": "app1.lab.example.com",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Paste your own PEM certificate signing request (-----BEGIN CERTIFICATE REQUEST-----). Used when 'Generate the CSR for me' is off.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "HIDE",
+                    "dependent-field": {
+                        "name": "customer_csr_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-k9orql42",
+            "label": "Your CSR (PEM)",
+            "name": "customer_csr",
+            "placeholder": "-----BEGIN CERTIFICATE REQUEST-----",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Let CloudBolt generate the private key and CSR for you. Leave off to paste your own CSR (the private key never touches CloudBolt).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "HIDE",
+                    "dependent-field": {
+                        "name": "customer_csr_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "generated_pk_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "subject_alt_names_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "common_name_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-icmtisuk",
+            "label": "Generate the CSR for me",
+            "name": "generate_csr",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Generated private key (PEM). Pre-filled with a freshly generated key when CloudBolt generates the CSR \u2014 COPY AND STORE IT before submitting. A new key is generated each time the form renders.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "generated_pk_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-qukng11c",
+            "label": "Generated Private Key",
+            "name": "generated_pk",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "ETXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Optional comma-separated DNS Subject Alternative Names, e.g. app1.lab.example.com, www.lab.example.com. Used when CloudBolt generates the CSR.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "generate_csr_a378"
+                    },
+                    "custom-field-options": [
+                        "True"
+                    ],
+                    "dependency-type": "SHOWHIDE",
+                    "dependent-field": {
+                        "name": "subject_alt_names_a378"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-595hbee2",
+            "label": "Subject Alternative Names",
+            "name": "subject_alt_names",
+            "placeholder": "san1.example.com, san2.example.com",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "generate_csr",
+        "common_name",
+        "subject_alt_names",
+        "generated_pk",
+        "customer_csr",
+        "certificate_template"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-nubxb8sn"
+        ]
+    },
+    "description": "Request a certificate from a Microsoft AD CS Windows CA via Web Enrollment. Branches on generate_csr: build a CSR from a generated key (pre-filled for the user to copy) or accept a user-supplied CSR, then submit to the CA and store the issued PEM certificate on the resource. Pending (manager-approval) templates are completed by the Retrieve Pending Certificate day-2 action.",
+    "id": "OHK-67bw7wgu",
+    "max_retries": 0,
+    "name": "Request Certificate (Windows CA)",
+    "resource_technologies": [],
+    "script_filename": "OHK-67bw7wgu_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

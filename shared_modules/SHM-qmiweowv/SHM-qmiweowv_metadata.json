@@ -1,0 +1,12 @@
+{
+    "description": "Shared helpers for the OpenShift Project Landing Zone blueprint: a thin OpenShift/Kubernetes REST client built from an OpenShift Virtualization resource handler, the size-tier catalog, and CloudBolt-side helpers that pin an Environment to a namespace, entitle Groups to it, and mirror the namespace ResourceQuota into the Environment quota.",
+    "id": "SHM-qmiweowv",
+    "label": "OpenShift Landing Zone",
+    "max_retries": 0,
+    "module_name": "openshift_landing_zone",
+    "name": "openshift_landing_zone",
+    "resource_technologies": [],
+    "script_filename": "SHM-qmiweowv_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

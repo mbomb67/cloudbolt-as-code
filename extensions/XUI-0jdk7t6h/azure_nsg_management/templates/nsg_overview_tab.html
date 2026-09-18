@@ -1,0 +1,110 @@
+{% load helper_tags %}
+{% load tab_tags %}
+{% load i18n %}
+
+<div class="container-fluid">
+
+    {# ---- Essentials -------------------------------------------------- #}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table width="100%" class="table table-condensed">
+                <tbody>
+                    <tr>
+                        <td class="shrink"><b>{% trans 'Network security group' %}</b></td>
+                        <td>{{ resource.azure_network_security_group }}</td>
+                        <td class="shrink"><b>{% trans 'Resource group' %}</b></td>
+                        <td>{{ resource.resource_group_name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="shrink"><b>{% trans 'Location' %}</b></td>
+                        <td>{{ resource.azure_location }}</td>
+                        <td class="shrink"><b>{% trans 'Resource ID' %}</b></td>
+                        <td><small>{{ resource.azure_network_security_group_id }}</small></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Inbound security rules -------------------------------------- #}
+    <div class="panel panel-default">
+        <div class="panel-heading clearfix">
+            <h4 class="panel-title pull-left" style="padding-top: 6px;">
+                <i class="fa fa-sign-in"></i> {% trans 'Inbound Security Rules' %}
+            </h4>
+            <a class="btn btn-primary btn-sm pull-right open-dialog"
+               href="{{ inbound_add_url }}">
+                <i class="fa fa-plus"></i> {% trans 'Add Security Rule' %}
+            </a>
+        </div>
+        <div class="panel-body">
+            <table id="nsg-inbound-rules-table"
+                   class="table table-striped"
+                   width="100%"
+                   data-table
+                   data-table-no-auto-init
+                   data-table-source="{{ inbound_source }}">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Priority' %}</th>
+                        <th>{% trans 'Name' %}</th>
+                        <th>{% trans 'Port' %}</th>
+                        <th>{% trans 'Protocol' %}</th>
+                        <th>{% trans 'Source' %}</th>
+                        <th>{% trans 'Destination' %}</th>
+                        <th>{% trans 'Action' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# loaded asynchronously #}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Outbound security rules ------------------------------------- #}
+    <div class="panel panel-default">
+        <div class="panel-heading clearfix">
+            <h4 class="panel-title pull-left" style="padding-top: 6px;">
+                <i class="fa fa-sign-out"></i> {% trans 'Outbound Security Rules' %}
+            </h4>
+            <a class="btn btn-primary btn-sm pull-right open-dialog"
+               href="{{ outbound_add_url }}">
+                <i class="fa fa-plus"></i> {% trans 'Add Security Rule' %}
+            </a>
+        </div>
+        <div class="panel-body">
+            <table id="nsg-outbound-rules-table"
+                   class="table table-striped"
+                   width="100%"
+                   data-table
+                   data-table-no-auto-init
+                   data-table-source="{{ outbound_source }}">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Priority' %}</th>
+                        <th>{% trans 'Name' %}</th>
+                        <th>{% trans 'Port' %}</th>
+                        <th>{% trans 'Protocol' %}</th>
+                        <th>{% trans 'Source' %}</th>
+                        <th>{% trans 'Destination' %}</th>
+                        <th>{% trans 'Action' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# loaded asynchronously #}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    $(function () {
+        c2.dataTables.init('#nsg-inbound-rules-table');
+        c2.dataTables.init('#nsg-outbound-rules-table');
+    });
+</script>

@@ -1,0 +1,42 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "When true, after writing each A record the action polls the CloudBolt appliance's own resolver until the record resolves to the registered IP, retrying on the ldap_dns DNS_RESOLUTION_POLL_SECS interval up to DNS_RESOLUTION_TIMEOUT_SECS (defaults: every 10s, up to 15 min). A record that never becomes resolvable within the timeout fails the action for that server. When false (default), the action returns as soon as the record is written.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-8h2sg8vt",
+            "label": "Wait for DNS Resolution",
+            "name": "wait_for_resolution",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "wait_for_resolution"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dnsldap1"
+        ]
+    },
+    "description": "Post-Provision: ensure an AD-integrated DNS A record for each provisioned server (record name from hostname, IPv4 from NIC). Resolves the directory/zone from the server's LDAPUtility and writes over LDAPS via the ldap_dns shared module, then stores the registered identity on the server for the paired Pre-Delete teardown. Idempotent and ownership-aware (no-clobber by default).",
+    "id": "OHK-dnsadd01",
+    "max_retries": 0,
+    "name": "AD DNS - Create A Record",
+    "resource_technologies": [],
+    "script_filename": "OHK-dnsadd01_script.py",
+    "shared": true,
+    "target_os_families": [
+        "Linux"
+    ],
+    "type": "CloudBolt Plug-in"
+}

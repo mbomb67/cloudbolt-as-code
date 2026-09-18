@@ -1,0 +1,11 @@
+{
+    "description": "Day-2 action: list every Azure resource inside the resource group and record the count on the resource.",
+    "id": "OHK-iy92hhvh",
+    "max_retries": 0,
+    "name": "List Resources in Group",
+    "resource_technologies": [],
+    "script_filename": "OHK-iy92hhvh_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

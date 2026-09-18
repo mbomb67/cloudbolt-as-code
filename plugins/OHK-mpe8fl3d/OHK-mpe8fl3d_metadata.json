@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-qmiweowv"
+        ]
+    },
+    "description": "Teardown plugin: deletes the OpenShift project (namespace) behind a landing zone and removes its CloudBolt Environment, refusing to run while CloudBolt-managed servers still live in the project.",
+    "id": "OHK-mpe8fl3d",
+    "max_retries": 0,
+    "name": "Teardown OpenShift Project Landing Zone",
+    "resource_technologies": [],
+    "script_filename": "OHK-mpe8fl3d_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

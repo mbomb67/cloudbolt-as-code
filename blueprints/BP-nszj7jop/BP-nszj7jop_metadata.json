@@ -1,0 +1,109 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "blueprint_image": null,
+    "deployment_items": [
+        {
+            "action_name": "Azure Storage Account",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-qev70tpa"
+            },
+            "deploy_seq": 1,
+            "description": "Provisions an Azure Storage Account in the selected environment.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-6112i1ie",
+            "name": "Azure Storage Account",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Manage the full lifecycle of Azure Storage Accounts: provision (build), delete (teardown), and inventory existing accounts (discovery). RBAC is enforced through Environment selection; the Azure resource handler is never exposed directly on the order form.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-h9lmvlkb"
+        },
+        "href": "/api/v3/cmp/actions/OHK-h9lmvlkb/",
+        "title": "Discover Azure Storage Accounts"
+    },
+    "favorited": false,
+    "id": "BP-nszj7jop",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-06-01",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-xzs5f3a2"
+            },
+            "enabled": "True",
+            "label": "Create Blob Container"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-h93k53ld"
+            },
+            "enabled": "True",
+            "label": "List Blob Containers"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-zmi15uts"
+            },
+            "enabled": "True",
+            "label": "Delete Blob Container"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-0ldsokuc"
+            },
+            "enabled": "True",
+            "label": "Change Access Tier"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-gr2wsfzx"
+            },
+            "enabled": "True",
+            "label": "Change SKU"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Storage Account",
+    "resource_name_template": "",
+    "resource_type": {
+        "icon": "fas fa-cloud",
+        "id": "RT-pv54e9l1",
+        "internal_only": false,
+        "label": "Azure Storage Account",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "azure_storage_account",
+        "plural_label": "Azure Storage Accounts"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown Azure Storage Account",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-8px9e3ws"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the Azure Storage Account backing this resource.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-hjkdfiul",
+            "name": "Teardown Azure Storage Account",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

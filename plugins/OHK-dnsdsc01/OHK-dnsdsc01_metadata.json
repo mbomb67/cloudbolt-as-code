@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dnsldap1"
+        ]
+    },
+    "description": "DNS Record blueprint discovery: inventory AD-integrated DNS A records across all configured LDAPUtilities (each utility's domain zone) into CloudBolt resources, via the ldap_dns shared module. RESOURCE_IDENTIFIER = addns_fqdn. Utilities that can't be reached or whose bind password was redacted by a sync are skipped, not failed.",
+    "id": "OHK-dnsdsc01",
+    "max_retries": 0,
+    "name": "DNS Record - Discover",
+    "resource_technologies": [],
+    "script_filename": "OHK-dnsdsc01_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

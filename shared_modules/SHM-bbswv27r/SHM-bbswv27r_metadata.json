@@ -1,0 +1,12 @@
+{
+    "description": "Bicep deployment engine: self-bootstrapping Bicep compiler, ARM-JSON parameter-schema extraction, parameter assembly/validation, Azure deployment-stack REST client (create/update/delete, what-if, managed-resource diff), and the what-if approval run engine. Consumed by the generic Bicep build, day-2, and teardown plugins.",
+    "id": "SHM-bbswv27r",
+    "label": "Bicep Engine",
+    "max_retries": 0,
+    "module_name": "bicep_engine",
+    "name": "bicep_engine",
+    "resource_technologies": [],
+    "script_filename": "SHM-bbswv27r_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

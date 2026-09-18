@@ -1,0 +1,20 @@
+{
+    "description": null,
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-6nzs882l",
+    "label": "Azure Patches",
+    "last_updated": "2026-04-14",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "azure_patches",
+    "package_contents": [
+        "views.py",
+        "urls.py",
+        "__init__.py",
+        "actions/scan_for_patches.py",
+        "templates/server_patches.html",
+        "readme.md"
+    ],
+    "version": ""
+}

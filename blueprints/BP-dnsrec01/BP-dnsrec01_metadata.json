@@ -1,0 +1,73 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "DNS Record - Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-dnsbld01"
+            },
+            "deploy_seq": 1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-dnsbld01",
+            "name": "DNS Record",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Order an Active Directory-integrated DNS A record. Build creates the record over LDAP from a chosen LDAP Utility (the zone is derived from it), a record name, and an IP; teardown tombstones it; discovery inventories existing A records across configured LDAP utilities. All directory access goes through the ldap_dns shared module (LDAPS + SIMPLE bind; credentials from the LDAP Utility).",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-dnsdsc01"
+        },
+        "href": "/api/v3/cmp/actions/OHK-dnsdsc01/",
+        "title": "DNS Record - Discover"
+    },
+    "favorited": false,
+    "icon": "Blank_diagram_-_Page_1_30.png",
+    "id": "BP-dnsrec01",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-06-16",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "DNS A Record",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-globe",
+        "id": "RT-7uma4swj",
+        "internal_only": false,
+        "label": "DNS Record",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "dns_record",
+        "plural_label": "DNS Records"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "DNS Record - Teardown",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-dnstrd01"
+            },
+            "deploy_seq": -1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-dnstrd01",
+            "name": "Teardown DNS Record",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

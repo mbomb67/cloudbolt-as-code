@@ -1,0 +1,23 @@
+{
+    "action_input_default_values": [],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-ul8wbswa"
+    },
+    "dialog_message": "If this certificate request is awaiting CA manager approval, this checks the CA for the issued certificate using the stored Request ID. Run it again until the certificate is issued.",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-certificate",
+    "id": "RSA-7cjsqrwy",
+    "is_synchronous": true,
+    "label": "Retrieve Pending Certificate",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 5,
+    "submit_button_label": ""
+}

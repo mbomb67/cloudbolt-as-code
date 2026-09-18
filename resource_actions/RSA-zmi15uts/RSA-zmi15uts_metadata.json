@@ -1,0 +1,44 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Name of the blob container to delete. All blobs in the container are permanently removed.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-xhpheoan",
+            "label": "Container Name",
+            "name": "container_name",
+            "placeholder": "my-container",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": true,
+    "dependencies": {
+        "hook": "plugins/OHK-y1120h61"
+    },
+    "dialog_message": "Deleting a blob container permanently removes the container and all blobs it contains. This cannot be undone.",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-folder-minus",
+    "id": "RSA-zmi15uts",
+    "is_synchronous": true,
+    "label": "Delete Blob Container",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 2,
+    "submit_button_label": ""
+}

@@ -1,0 +1,60 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Business justification for the change. Recorded in the job history for approvers and auditors.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-p8uccpru",
+            "label": "Reason",
+            "name": "change_reason",
+            "placeholder": "Load test for Q4 release needs 2x memory",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "New size tier for the project. Resizes the namespace ResourceQuota and the matching CloudBolt environment quota.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-inth6th5",
+            "label": "New Size Tier",
+            "name": "new_size_tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "new_size_tier",
+        "change_reason"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-qmiweowv"
+        ]
+    },
+    "description": "Day-2 plugin: moves a landing-zone project to a different size tier by replacing its ResourceQuota and mirroring the new limits into the pinned CloudBolt environment.",
+    "id": "OHK-ug53cdbx",
+    "max_retries": 0,
+    "name": "Request Quota Change",
+    "resource_technologies": [],
+    "script_filename": "OHK-ug53cdbx_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

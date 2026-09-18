@@ -1,0 +1,148 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Grant adds access; revoke removes it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-jdyqqw1s",
+            "label": "Action",
+            "name": "access_action",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "OpenShift project role bound to the subject: admin (manage the project), edit (change workloads), or view (read only).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-5mtcix6k",
+            "label": "OpenShift Role",
+            "name": "access_role",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt group to entitle to (or remove from) the project's environment, so its members can (or can no longer) order blueprints into this project.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-3h3nu8qd",
+            "label": "CloudBolt Group",
+            "name": "cloudbolt_group_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Kind of OpenShift subject for direct oc/console access. Changing it reloads the subject list.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "openshift_subject_kind_a419"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "openshift_subject_name_a419"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-znujn4u5",
+            "label": "OpenShift Subject Kind",
+            "name": "openshift_subject_kind",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Pick the OpenShift group, user, or service account (listed from the cluster for the chosen kind). Leave as None to change CloudBolt entitlement only.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "openshift_subject_kind_a419"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "openshift_subject_name_a419"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-h8xzno1a",
+            "label": "OpenShift Subject Name",
+            "name": "openshift_subject_name",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "access_action",
+        "cloudbolt_group_id",
+        "openshift_subject_kind",
+        "openshift_subject_name",
+        "access_role"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-qmiweowv"
+        ]
+    },
+    "description": "Day-2 plugin: grants or revokes access to a landing-zone project, either by entitling a CloudBolt group to the project's environment or by binding an OpenShift group/user/service account to a project role.",
+    "id": "OHK-9zzqqz7t",
+    "max_retries": 0,
+    "name": "Manage Team Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-9zzqqz7t_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

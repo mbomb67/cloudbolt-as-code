@@ -1,0 +1,32 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-amhfngum",
+            "label": "Port Field Name",
+            "name": "port_field_name",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Sets the URL for the website on the Web Application Resource",
+    "id": "OHK-1rel6s64",
+    "max_retries": 0,
+    "name": "Set URL Parameter",
+    "resource_technologies": [],
+    "script_filename": "OHK-1rel6s64_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "",
+    "execution_timeout": 180,
+    "id": "OHK-2evtyysr",
+    "max_retries": 0,
+    "name": "Initialize Windows Disk",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-2evtyysr_script.ps1",
+    "shared": true,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

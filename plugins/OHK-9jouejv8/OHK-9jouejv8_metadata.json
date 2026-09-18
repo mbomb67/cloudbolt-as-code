@@ -1,0 +1,14 @@
+{
+    "description": "",
+    "id": "OHK-9jouejv8",
+    "max_retries": 0,
+    "name": "Network Security Group Teardown",
+    "resource_technologies": [
+        "Azure",
+        "Azure Stack"
+    ],
+    "script_filename": "OHK-9jouejv8_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

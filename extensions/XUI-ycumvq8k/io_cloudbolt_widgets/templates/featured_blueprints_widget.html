@@ -1,0 +1,167 @@
+<style>
+    .io-cbw-bp-wrap {
+        display: flex;
+        align-items: center;
+    }
+
+    .io-cbw-bp-arrow {
+        flex-shrink: 0;
+        width: 24px;
+        background: none;
+        border: none;
+        font-size: 20px;
+        color: #999;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        transition: color 0.15s;
+    }
+
+    .io-cbw-bp-arrow:hover:not(:disabled) {
+        color: #0db7c4;
+    }
+
+    .io-cbw-bp-arrow:disabled {
+        opacity: 0.2;
+        cursor: default;
+    }
+
+    .io-cbw-bp-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        padding: 4px 0;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .io-cbw-bp-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 90px;
+        padding: 8px 4px;
+        border: 1px solid #e8e8e8;
+        border-radius: 6px;
+        text-decoration: none;
+        color: inherit;
+        transition: box-shadow 0.15s, border-color 0.15s;
+        cursor: pointer;
+    }
+
+    .io-cbw-bp-card:hover {
+        border-color: #0db7c4;
+        box-shadow: 0 2px 8px rgba(13, 183, 196, 0.18);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .io-cbw-bp-icon {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        margin-bottom: 6px;
+        border-radius: 4px;
+    }
+
+    .io-cbw-bp-placeholder {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 6px;
+        border-radius: 4px;
+        background: #e8e8e8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: #aaa;
+    }
+
+    .io-cbw-bp-name {
+        font-size: 11px;
+        line-height: 1.25;
+        text-align: center;
+        word-break: break-word;
+        max-height: 2.5em;
+        overflow: hidden;
+        width: 100%;
+    }
+</style>
+
+<div class="io-cbw-bp-wrap" id="io-cbw-bp-wrap">
+    <button type="button" class="io-cbw-bp-arrow" id="io-cbw-bp-prev" disabled>&#8249;</button>
+    <div class="io-cbw-bp-grid" id="io-cbw-bp-grid">
+        {% for bp in blueprints %}
+        <a class="io-cbw-bp-card" href="{{ bp.order_url }}" title="{{ bp.name }}">
+            {% if bp.image_url %}
+            <img class="io-cbw-bp-icon" src="{{ bp.image_url }}" alt="{{ bp.name }}" />
+            {% else %}
+            <div class="io-cbw-bp-placeholder">&#9881;</div>
+            {% endif %}
+            <div class="io-cbw-bp-name">{{ bp.name }}</div>
+        </a>
+        {% empty %}
+        <div style="opacity: 0.5; font-size: small; padding: 8px;">
+            No favorited blueprints found.
+        </div>
+        {% endfor %}
+    </div>
+    <button type="button" class="io-cbw-bp-arrow" id="io-cbw-bp-next" disabled>&#8250;</button>
+</div>
+
+<script>
+(function () {
+    var ROWS = 2;
+    var CARD_W = 100;
+    var grid = document.getElementById("io-cbw-bp-grid");
+    var prev = document.getElementById("io-cbw-bp-prev");
+    var next = document.getElementById("io-cbw-bp-next");
+    if (!grid || !prev || !next) return;
+
+    var cards = grid.querySelectorAll(".io-cbw-bp-card");
+    if (!cards.length) { prev.style.display = "none"; next.style.display = "none"; return; }
+
+    var page = 0;
+    var pageSize = cards.length;
+    var totalPages = 1;
+
+    function calcPageSize() {
+        var w = grid.offsetWidth;
+        var perRow = Math.max(1, Math.floor((w + 10) / CARD_W));
+        pageSize = perRow * ROWS;
+        totalPages = Math.ceil(cards.length / pageSize);
+        if (page >= totalPages) page = totalPages - 1;
+    }
+
+    function render() {
+        var start = page * pageSize;
+        var end = start + pageSize;
+        for (var i = 0; i < cards.length; i++) {
+            cards[i].style.display = (i >= start && i < end) ? "" : "none";
+        }
+        if (totalPages <= 1) {
+            prev.style.visibility = "hidden";
+            next.style.visibility = "hidden";
+        } else {
+            prev.style.visibility = "";
+            next.style.visibility = "";
+            prev.disabled = page === 0;
+            next.disabled = page >= totalPages - 1;
+        }
+    }
+
+    prev.addEventListener("click", function () { if (page > 0) { page--; render(); } });
+    next.addEventListener("click", function () { if (page < totalPages - 1) { page++; render(); } });
+
+    function init() { calcPageSize(); render(); }
+
+    init();
+    var ro = window.ResizeObserver
+        ? new ResizeObserver(function () { calcPageSize(); render(); })
+        : null;
+    if (ro) ro.observe(grid);
+})();
+</script>
+
+{% include "io_cloudbolt_widgets/templates/includes/widget_tooltip.html" with tooltip_id="io-cbw-tip-featured-bp" tooltip_text="Favorited blueprints from the service catalog, ready to deploy." %}

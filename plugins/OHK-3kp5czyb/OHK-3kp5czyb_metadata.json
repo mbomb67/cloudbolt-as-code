@@ -1,0 +1,11 @@
+{
+    "description": "Day-2 action: list the blob containers in the resource's Azure storage account.",
+    "id": "OHK-3kp5czyb",
+    "max_retries": 0,
+    "name": "List Blob Containers",
+    "resource_technologies": [],
+    "script_filename": "OHK-3kp5czyb_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

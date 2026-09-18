@@ -1,0 +1,12 @@
+{
+    "description": "Azure VM pricing engine for the rate hook. Reuses the Resource Handler service principal to read NEGOTIATED prices from the customer's Azure Price Sheet (EA download-by-billing-account / MCA download-by-billing-profile, cached on disk by the companion recurring job) keyed by meterId, and falls back to the public unauthenticated Azure Retail Prices API (the Pricing Calculator's data source) for CSP/Partner subscriptions and whenever no usable negotiated sheet exists. Resolves compute, OS + data disks (by provisioned tier), Standard public IP, and the separate RHEL/SLES per-vCPU license meter, normalizing each meter's unitOfMeasure to the global rate time unit. Raw REST via requests (no Cost Management/Billing SDK in the venv). Billing-scope role (EA EnrollmentReader / MCA Billing Profile Reader) must be granted to the handler SPN for negotiated pricing.",
+    "id": "SHM-6gtujb8t",
+    "label": "Azure Pricing",
+    "max_retries": 0,
+    "module_name": "azure_pricing",
+    "name": "azure_pricing",
+    "resource_technologies": [],
+    "script_filename": "SHM-6gtujb8t_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

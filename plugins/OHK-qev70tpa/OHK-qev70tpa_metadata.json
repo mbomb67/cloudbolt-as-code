@@ -1,0 +1,163 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Blob access tier for StorageV2/BlobStorage accounts: Hot or Cool.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-5t9t8doo",
+            "label": "Access Tier",
+            "name": "access_tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Storage account kind, e.g. StorageV2 (default), BlobStorage, FileStorage.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-gkurx8iu",
+            "label": "Account Kind",
+            "name": "account_kind",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure environment to provision into. Gates resource-handler access for RBAC and determines the region (env.node_location).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a344"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "resource_group_a344"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-r3bl7ehv",
+            "label": "Environment",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure resource group that will contain the storage account.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a344"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "resource_group_a344"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-ymuisz7u",
+            "label": "Resource Group",
+            "name": "resource_group",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Storage account SKU, e.g. Standard_LRS, Standard_GRS, Premium_LRS.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-v4xplaqi",
+            "label": "Replication / SKU",
+            "name": "sku",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Globally unique name: 3-24 chars, lowercase letters and numbers only.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-jxdkdz2f",
+            "label": "Storage Account Name",
+            "name": "storage_account_name",
+            "placeholder": "mystorageacct01",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "env_id",
+        "resource_group",
+        "storage_account_name",
+        "account_kind",
+        "access_tier",
+        "sku"
+    ],
+    "description": "Build plugin: provisions an Azure Storage Account via the Azure Storage management SDK.",
+    "id": "OHK-qev70tpa",
+    "max_retries": 0,
+    "name": "Azure Storage Account",
+    "resource_technologies": [],
+    "script_filename": "OHK-qev70tpa_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

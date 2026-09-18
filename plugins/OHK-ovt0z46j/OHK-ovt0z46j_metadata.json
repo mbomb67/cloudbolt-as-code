@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5hjzm9e4"
+        ]
+    },
+    "description": "Lists role assignments at subscription scope with principal type and resolved display names. Inherited assignments from management groups or tenant root are not shown.",
+    "id": "OHK-ovt0z46j",
+    "max_retries": 0,
+    "name": "List Subscription Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-ovt0z46j_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

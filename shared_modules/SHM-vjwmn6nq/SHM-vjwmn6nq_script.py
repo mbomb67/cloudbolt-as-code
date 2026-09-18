@@ -1,0 +1,767 @@
+"""
+azure_disk_encryption — shared helpers for per-VM customer-managed-key (CMK)
+encryption of Azure managed disks from CloudBolt orchestration actions.
+
+One Key Vault key + one Disk Encryption Set (DES) per VM, applied to the VM's
+OS and data disks (server-side encryption with CMK), optional encryption at
+host, and the matching teardown. Used by:
+
+  - plugins/OHK-vklpnqhq  (Post-Provision: create key + DES, encrypt disks)
+  - plugins/OHK-2vpg4pff  (Post-Delete: delete DES, revoke grant, delete key)
+
+Why raw REST (requests) and not the Azure SDKs: the CloudBolt appliance venv
+ships azure-mgmt-compute/network/storage/resource, but azure-keyvault-keys,
+azure-mgmt-keyvault and azure-mgmt-authorization are not confirmed present.
+Every call here is anchored to Microsoft's current REST reference (URL cited
+at each call site) per docs/agents/external-apis.md, and authenticates with
+the Resource Handler's own service principal (client_id / secret /
+azure_tenant_id) — the same pattern as the azure_pricing shared module.
+
+Azure facts this module relies on (all from the cited docs):
+  - A DES cannot be attached to disks at VM-create time by CloudBolt's Azure
+    handler (TechnologyWrapper.create_node has no DES parameter), so CMK is
+    applied post-create: disks "must not be attached to a running VM" to be
+    re-encrypted, hence deallocate -> PATCH disks -> start.
+  - The DES key URL must be the *versioned* kid "regardless of
+    rotationToLatestKeyVersionEnabled".
+  - Key Vault must have soft delete AND purge protection enabled ("mandatory
+    when using a Key Vault for encrypting managed disks"), and must be in the
+    same region as the DES (a different subscription is allowed).
+  - The DES system-assigned identity must be granted key get/wrapKey/unwrapKey:
+    an access policy on policy-mode vaults, or the "Key Vault Crypto Service
+    Encryption User" role (e147488a-f6f5-4113-8e2d-b22465e65bf6) on RBAC vaults.
+  - Encryption at host needs the Microsoft.Compute/EncryptionAtHost feature
+    registered on the subscription and a deallocated VM.
+"""
+import re
+import time
+import uuid
+
+import requests
+
+from infrastructure.models import CustomField
+from utilities.logger import ThreadLogger
+
+logger = ThreadLogger(__name__)
+
+REQUEST_TIMEOUT = 60
+
+# --- API versions (pinned to the docs consulted on 2026-09-15) ----------------
+DISK_API = "2024-03-02"       # Microsoft.Compute disks + diskEncryptionSets
+VM_API = "2024-07-01"         # Microsoft.Compute virtualMachines
+KV_MGMT_API = "2024-11-01"    # Microsoft.KeyVault vaults (ARM control plane)
+KV_DATA_API = "7.4"           # Key Vault keys data plane
+AUTHZ_API = "2022-04-01"      # Microsoft.Authorization roleAssignments
+
+# --- Endpoints per Azure cloud, keyed by AzureARMHandler.cloud_environment -----
+_CLOUDS = {
+    "PUBLIC": {
+        "login": "https://login.microsoftonline.com",
+        "arm": "https://management.azure.com",
+        "vault": "https://vault.azure.net",
+    },
+    "US_GOV": {
+        "login": "https://login.microsoftonline.us",
+        "arm": "https://management.usgovcloudapi.net",
+        "vault": "https://vault.usgovcloudapi.net",
+    },
+    "CHINA": {
+        "login": "https://login.chinacloudapi.cn",
+        "arm": "https://management.chinacloudapi.cn",
+        "vault": "https://vault.azure.cn",
+    },
+    "GERMAN": {
+        "login": "https://login.microsoftonline.de",
+        "arm": "https://management.microsoftazure.de",
+        "vault": "https://vault.microsoftazure.de",
+    },
+}
+
+# Built-in role: Key Vault Crypto Service Encryption User (keys/read, wrap, unwrap).
+# https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/security#key-vault-crypto-service-encryption-user
+ROLE_KV_CRYPTO_SERVICE_ENCRYPTION_USER = "e147488a-f6f5-4113-8e2d-b22465e65bf6"
+
+# Access-policy key permissions for the DES identity (CLI doc: "--key-permissions wrapkey unwrapkey get").
+DES_KEY_PERMISSIONS = ["get", "wrapKey", "unwrapKey"]
+
+ENCRYPTION_TYPES = ("EncryptionAtRestWithCustomerKey", "EncryptionAtRestWithPlatformAndCustomerKeys")
+KEY_TYPES = ("RSA", "RSA-HSM")
+KEY_SIZES = (2048, 3072, 4096)
+
+# How long to keep retrying steps that depend on Entra/RBAC propagation.
+GRANT_PROPAGATION_TIMEOUT_SECS = 600
+GRANT_PROPAGATION_POLL_SECS = 20
+DES_INUSE_RETRY_TIMEOUT_SECS = 300
+DES_INUSE_POLL_SECS = 15
+LRO_TIMEOUT_SECS = 1800
+
+# --- Custom fields ---------------------------------------------------------------
+# Input (also honoured as a per-server override so an Environment/Group parameter
+# can point different servers at different vaults).
+CF_KEY_VAULT_ID = "azure_cmk_key_vault_id"
+# Traceability written on the Server by the build plugin; the teardown plugin
+# treats these as the sole authority for what it may delete.
+CF_DES_ID = "azure_cmk_des_id"
+CF_DES_PRINCIPAL_ID = "azure_cmk_des_principal_id"
+CF_KEY_ID = "azure_cmk_key_id"
+CF_APPLIED_VAULT_ID = "azure_cmk_applied_key_vault_id"
+CF_ENCRYPTED_DISKS = "azure_cmk_encrypted_disks"
+CF_GRANT_REF = "azure_cmk_grant_ref"
+CF_EAH_APPLIED = "azure_cmk_encryption_at_host_applied"
+
+# grant_ref marker for DESes that use a shared user-assigned identity (nothing to grant/revoke per DES).
+GRANT_REF_UAMI_PREFIX = "userAssignedIdentity:"
+
+_CF_DEFS = [
+    (CF_KEY_VAULT_ID, "Azure CMK Key Vault (Resource ID)", "STR",
+     "ARM resource ID of the Key Vault that holds per-VM disk-encryption keys. "
+     "Set on an Environment/Group to override the orchestration-action default."),
+    (CF_DES_ID, "Azure CMK Disk Encryption Set (Resource ID)", "STR",
+     "Per-VM Disk Encryption Set created by CloudBolt for this server."),
+    (CF_DES_PRINCIPAL_ID, "Azure CMK DES Identity (Principal ID)", "STR",
+     "Object ID of the DES system-assigned managed identity."),
+    (CF_KEY_ID, "Azure CMK Key (Versioned Key URL)", "STR",
+     "Key Vault key backing this server's Disk Encryption Set."),
+    (CF_APPLIED_VAULT_ID, "Azure CMK Key Vault Applied (Resource ID)", "STR",
+     "Key Vault the per-VM key was created in."),
+    (CF_ENCRYPTED_DISKS, "Azure CMK Encrypted Disks", "TXT",
+     "Comma-separated managed-disk names re-encrypted with the per-VM DES."),
+    (CF_GRANT_REF, "Azure CMK Key Access Grant", "STR",
+     "Role-assignment resource ID (RBAC vaults), accessPolicy:<objectId> (policy vaults), or "
+     "userAssignedIdentity:<resourceId> when the DES uses a pre-authorised user-assigned identity."),
+    (CF_EAH_APPLIED, "Azure CMK Encryption At Host Applied", "BOOL",
+     "True when encryption at host was enabled on the VM by CloudBolt."),
+]
+
+
+def ensure_custom_fields():
+    """Idempotently create every custom field this feature reads or writes."""
+    for name, label, cf_type, description in _CF_DEFS:
+        CustomField.objects.get_or_create(
+            name=name,
+            defaults=dict(label=label, description=description, type=cf_type, show_on_servers=True),
+        )
+
+
+class AzureCMKError(Exception):
+    """A hard failure for one server (surfaced as FAILURE by the caller)."""
+
+
+class AzureCMKSkip(Exception):
+    """A benign reason to skip one server (surfaced as a skip, not a failure)."""
+
+
+# =============================================================================
+# Small helpers
+# =============================================================================
+def parse_resource_id(resource_id):
+    """
+    Split an ARM resource ID into its parts. Index layout per
+    docs/agents/common-patterns.md (Parsing Azure Resource IDs):
+    /subscriptions/{sub}/resourceGroups/{rg}/providers/{ns}/{type}/{name}
+    """
+    parts = (resource_id or "").strip("/").split("/")
+    if len(parts) < 8 or parts[0].lower() != "subscriptions" or parts[2].lower() != "resourcegroups":
+        raise AzureCMKError(f"'{resource_id}' is not a full ARM resource ID")
+    return {
+        "subscription": parts[1],
+        "resource_group": parts[3],
+        "namespace": parts[5],
+        "type": parts[6],
+        "name": parts[7],
+    }
+
+
+def validate_user_assigned_identity_id(uami_id):
+    """A user-assigned managed identity ARM ID: .../providers/Microsoft.ManagedIdentity/userAssignedIdentities/{name}."""
+    parts = parse_resource_id(uami_id)
+    if parts["namespace"].lower() != "microsoft.managedidentity" or parts["type"].lower() != "userassignedidentities":
+        raise AzureCMKError(f"'{uami_id}' is not a Microsoft.ManagedIdentity/userAssignedIdentities resource ID")
+    return uami_id
+
+
+def user_assigned_principal_id(des, uami_id):
+    """principalId of `uami_id` from a DES body's identity.userAssignedIdentities (case-insensitive key match)."""
+    identities = (des.get("identity") or {}).get("userAssignedIdentities") or {}
+    for rid, info in identities.items():
+        if rid.lower() == uami_id.lower():
+            return (info or {}).get("principalId") or ""
+    return ""
+
+
+def sanitize_name(base, allowed=r"[^0-9A-Za-z-]", max_len=80):
+    """Replace characters Azure rejects with '-' and trim (DES: a-z A-Z 0-9 _ -; key: 0-9 a-z A-Z -)."""
+    cleaned = re.sub(allowed, "-", base or "").strip("-")
+    return cleaned[:max_len].rstrip("-") or "cloudbolt"
+
+
+def key_url_without_version(key_url):
+    """https://v.vault.azure.net/keys/name/version -> https://v.vault.azure.net/keys/name"""
+    parts = (key_url or "").rstrip("/").split("/")
+    if len(parts) >= 6 and parts[-3] == "keys":
+        return "/".join(parts[:-1])
+    return key_url
+
+
+def _err_text(resp):
+    try:
+        body = resp.json()
+    except Exception:
+        body = None
+    if isinstance(body, dict):
+        err = body.get("error") or body
+        code = err.get("code", "")
+        msg = err.get("message", "")
+        return f"{resp.status_code} {code}: {msg}".strip()
+    text = (resp.text or "").replace("\n", " ")
+    return f"{resp.status_code}: {text[:500]}"
+
+
+def _err_code(resp):
+    try:
+        err = (resp.json() or {}).get("error") or {}
+        return str(err.get("code", ""))
+    except Exception:
+        return ""
+
+
+def server_azure_coords(server):
+    """
+    Return (rh, subscription_id, resource_group, vm_name) for a CloudBolt Azure
+    server. Confirmed against platform source: AzureARMServerInfo.resource_group
+    holds the RG; the VM's Azure name equals server.hostname (azure_object calls
+    get_vm_object(resource_group_name=self.resource_group, vm_name=self.server.hostname));
+    the subscription id is the handler's inherited `serviceaccount`.
+    """
+    from resourcehandlers.azure_arm.models import AzureARMHandler
+
+    rh = server.resource_handler.cast() if server.resource_handler else None
+    if not isinstance(rh, AzureARMHandler):
+        raise AzureCMKSkip("not an Azure VM (no AzureARMHandler)")
+    info = getattr(server, "azurearmserverinfo", None)
+    resource_group = getattr(info, "resource_group", None)
+    if not resource_group or not server.hostname:
+        raise AzureCMKError("could not resolve the Azure resource group / VM name for this server")
+    return rh, getattr(rh, "serviceaccount", None), resource_group, server.hostname
+
+
+# =============================================================================
+# REST client bound to one Resource Handler's service principal
+# =============================================================================
+class AzureCMKClient:
+    def __init__(self, rh):
+        self.rh = rh
+        cloud = getattr(rh, "cloud_environment", "PUBLIC") or "PUBLIC"
+        self.endpoints = _CLOUDS.get(cloud, _CLOUDS["PUBLIC"])
+        self.arm_base = self.endpoints["arm"]
+        self.subscription_id = getattr(rh, "serviceaccount", None)
+        self.tenant_id = getattr(rh, "azure_tenant_id", None)
+        self._tokens = {}
+
+    # --- auth ---------------------------------------------------------------
+    def token(self, audience):
+        """
+        Client-credentials bearer token for `audience` (ARM base or Key Vault
+        resource). Mirrors the repo's existing raw-REST Azure auth (v1 endpoint,
+        `resource=`), see shared_modules/SHM-6gtujb8t. Falls back to the handler
+        wrapper's SDK credential when the handler is not secret-based.
+        OAuth doc: https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow
+        """
+        cached = self._tokens.get(audience)
+        if cached and cached[1] - 60 > time.time():
+            return cached[0]
+        client_id = getattr(self.rh, "client_id", None)
+        secret = getattr(self.rh, "secret", None)
+        token, expires_in = None, 3000
+        if client_id and secret and self.tenant_id:
+            # ARM expects the trailing-slash resource; Key Vault expects the bare host.
+            resource = audience if audience == self.endpoints["vault"] else audience.rstrip("/") + "/"
+            resp = requests.post(
+                f"{self.endpoints['login']}/{self.tenant_id}/oauth2/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": secret,
+                    "resource": resource,
+                },
+                timeout=REQUEST_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                raise AzureCMKError(f"token request for {audience} failed: {_err_text(resp)}")
+            body = resp.json()
+            token = body["access_token"]
+            expires_in = int(body.get("expires_in", expires_in))
+        else:
+            # Handler configured without a client secret (e.g. managed identity):
+            # use the SDK credential CloudBolt already built for this handler.
+            try:
+                cred = self.rh.get_api_wrapper().credentials
+                access = cred.get_token(f"{audience.rstrip('/')}/.default")
+                token, expires_in = access.token, max(60, int(access.expires_on - time.time()))
+            except Exception as exc:  # noqa: BLE001
+                raise AzureCMKError(f"could not obtain a token for {audience} from the handler credential: {exc}")
+        self._tokens[audience] = (token, time.time() + expires_in)
+        return token
+
+    # --- generic request with retry on throttling / transient 5xx -----------
+    def request(self, method, url, audience, body=None, params=None, ok=(200, 201, 202, 204), retries=4):
+        delay = 5
+        resp = None
+        for attempt in range(retries + 1):
+            headers = {"Authorization": f"Bearer {self.token(audience)}", "Content-Type": "application/json"}
+            resp = requests.request(method, url, headers=headers, json=body, params=params, timeout=REQUEST_TIMEOUT)
+            if resp.status_code in ok:
+                return resp
+            if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+                wait = int(resp.headers.get("Retry-After") or delay)
+                logger.warning("Azure %s %s -> %s; retrying in %ss", method, url, resp.status_code, wait)
+                time.sleep(wait)
+                delay = min(delay * 2, 60)
+                continue
+            return resp
+        return resp
+
+    def arm(self, method, path, api_version, body=None, ok=(200, 201, 202, 204), params=None):
+        url = path if path.startswith("http") else f"{self.arm_base}{path}"
+        params = dict(params or {})
+        params["api-version"] = api_version
+        return self.request(method, url, self.arm_base, body=body, params=params, ok=ok)
+
+    def _json(self, resp):
+        try:
+            return resp.json() if resp.content else {}
+        except Exception:
+            return {}
+
+    # --- long-running operations ------------------------------------------
+    def wait_lro(self, resp, timeout=LRO_TIMEOUT_SECS):
+        """
+        Follow an ARM async operation to completion. 202/201 responses carry
+        Azure-AsyncOperation (JSON with `status`) and/or Location (poll until
+        not 202) headers per the ARM async conventions:
+        https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/async-operations
+        Returns the final JSON body (may be empty).
+        """
+        if resp.status_code not in (201, 202):
+            return self._json(resp)
+        async_url = resp.headers.get("Azure-AsyncOperation")
+        location = resp.headers.get("Location")
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            wait = int(resp.headers.get("Retry-After") or 10)
+            time.sleep(min(max(wait, 5), 60))
+            if async_url:
+                poll = self.request("GET", async_url, self.arm_base)
+                if poll.status_code not in (200, 202):
+                    raise AzureCMKError(f"async operation poll failed: {_err_text(poll)}")
+                status = str(self._json(poll).get("status", "")).lower()
+                if status == "succeeded":
+                    if location:
+                        final = self.request("GET", location, self.arm_base)
+                        return self._json(final) if final.status_code == 200 else {}
+                    return self._json(poll)
+                if status in ("failed", "canceled", "cancelled"):
+                    raise AzureCMKError(f"async operation {status}: {self._json(poll).get('error')}")
+                resp = poll
+                continue
+            if location:
+                poll = self.request("GET", location, self.arm_base)
+                if poll.status_code == 202:
+                    resp = poll
+                    continue
+                if poll.status_code in (200, 201, 204):
+                    return self._json(poll)
+                raise AzureCMKError(f"async operation failed: {_err_text(poll)}")
+            return self._json(resp)  # no polling headers: treat as complete
+        raise AzureCMKError("timed out waiting for an Azure operation to complete")
+
+    def wait_provisioning(self, resource_id, api_version, timeout=LRO_TIMEOUT_SECS):
+        """Poll a resource until properties.provisioningState is Succeeded (or fails)."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            resp = self.arm("GET", resource_id, api_version)
+            if resp.status_code != 200:
+                raise AzureCMKError(f"GET {resource_id} failed: {_err_text(resp)}")
+            body = self._json(resp)
+            state = str((body.get("properties") or {}).get("provisioningState", "")).lower()
+            if state in ("", "succeeded"):
+                return body
+            if state in ("failed", "canceled"):
+                raise AzureCMKError(f"{resource_id} provisioning {state}")
+            time.sleep(10)
+        raise AzureCMKError(f"timed out waiting for {resource_id} to finish provisioning")
+
+    # =========================================================================
+    # Key Vault — control plane
+    # =========================================================================
+    def get_vault(self, vault_id):
+        """
+        GET the vault resource. Fields used: properties.vaultUri,
+        enableRbacAuthorization, enableSoftDelete, enablePurgeProtection, tenantId, location.
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keyvault/vaults/get
+        """
+        parts = parse_resource_id(vault_id)
+        if parts["namespace"].lower() != "microsoft.keyvault" or parts["type"].lower() != "vaults":
+            raise AzureCMKError(
+                f"'{vault_id}' is not a Microsoft.KeyVault/vaults resource (Managed HSM is not supported by this action)"
+            )
+        resp = self.arm("GET", vault_id, KV_MGMT_API)
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault lookup failed for {vault_id}: {_err_text(resp)}")
+        return self._json(resp)
+
+    def validate_vault_for_des(self, vault, des_location):
+        """Enforce Azure's mandatory vault settings for DES use (see module docstring)."""
+        props = vault.get("properties") or {}
+        problems = []
+        if not props.get("enableSoftDelete", True):
+            problems.append("soft delete is disabled")
+        if not props.get("enablePurgeProtection"):
+            problems.append("purge protection is disabled")
+        vault_loc = (vault.get("location") or "").replace(" ", "").lower()
+        if vault_loc and des_location and vault_loc != des_location.replace(" ", "").lower():
+            problems.append(f"vault region '{vault.get('location')}' differs from the VM region '{des_location}'")
+        if problems:
+            raise AzureCMKError(
+                "Key Vault '%s' cannot back a Disk Encryption Set: %s. Azure requires soft delete + purge "
+                "protection and the same region as the DES." % (vault.get("name"), "; ".join(problems))
+            )
+
+    # =========================================================================
+    # Key Vault — data plane (keys)
+    # =========================================================================
+    def _vault_audience(self):
+        return self.endpoints["vault"]
+
+    def get_key(self, vault_uri, key_name):
+        """
+        GET a key's current version (None when absent). Requires keys/get.
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-key/get-key
+        """
+        url = f"{vault_uri.rstrip('/')}/keys/{key_name}"
+        resp = self.request("GET", url, self._vault_audience(), params={"api-version": KV_DATA_API}, ok=(200, 404))
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault get-key '{key_name}' failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def create_key(self, vault_uri, key_name, key_type, key_size, tags=None):
+        """
+        POST {vaultBaseUrl}/keys/{key-name}/create — RSA/RSA-HSM, wrap/unwrap ops.
+        Requires keys/create. Returns the KeyBundle (key.kid is the versioned URL).
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/create-key/create-key
+        """
+        if key_type not in KEY_TYPES:
+            raise AzureCMKError(f"unsupported key type '{key_type}' (use one of {', '.join(KEY_TYPES)})")
+        if int(key_size) not in KEY_SIZES:
+            raise AzureCMKError(f"unsupported RSA key size {key_size} (Azure Disk Storage supports 2048/3072/4096)")
+        url = f"{vault_uri.rstrip('/')}/keys/{key_name}/create"
+        body = {
+            "kty": key_type,
+            "key_size": int(key_size),
+            "key_ops": ["wrapKey", "unwrapKey"],
+            "attributes": {"enabled": True},
+            "tags": tags or {},
+        }
+        resp = self.request("POST", url, self._vault_audience(), body=body, params={"api-version": KV_DATA_API}, ok=(200,))
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault create-key '{key_name}' failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def delete_key(self, vault_uri, key_name):
+        """
+        DELETE {vaultBaseUrl}/keys/{key-name} — soft-deletes the key (recoverable for
+        the vault's retention window; purge is blocked by purge protection, which
+        DES vaults must have). Requires keys/delete. Returns True if deleted, False if absent.
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/delete-key/delete-key
+        """
+        url = f"{vault_uri.rstrip('/')}/keys/{key_name}"
+        resp = self.request("DELETE", url, self._vault_audience(), params={"api-version": KV_DATA_API}, ok=(200, 404))
+        if resp.status_code == 404:
+            return False
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault delete-key '{key_name}' failed: {_err_text(resp)}")
+        return True
+
+    # =========================================================================
+    # Disk Encryption Sets
+    # =========================================================================
+    def des_path(self, subscription_id, resource_group, name):
+        return (f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+                f"/providers/Microsoft.Compute/diskEncryptionSets/{name}")
+
+    def get_des(self, des_id):
+        """GET a DES; None when it does not exist. Docs: https://learn.microsoft.com/en-us/rest/api/compute/disk-encryption-sets/get"""
+        resp = self.arm("GET", des_id, DISK_API, ok=(200, 404))
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise AzureCMKError(f"GET DES {des_id} failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def create_des(self, subscription_id, resource_group, name, location, vault_id, key_url,
+                   encryption_type, auto_rotate, tags=None, user_assigned_identity_id=None):
+        """
+        PUT .../diskEncryptionSets/{name} with the versioned key URL and
+        (same-subscription only) sourceVault.id. Identity:
+          - default: SystemAssigned (the caller then grants it key access per DES);
+          - `user_assigned_identity_id`: UserAssigned, pointing at a pre-existing managed
+            identity that must already hold get/wrapKey/unwrapKey on the vault (no per-DES
+            grant). This is also the identity mode Azure uses for cross-tenant vaults.
+        Docs: https://learn.microsoft.com/en-us/rest/api/compute/disk-encryption-sets/create-or-update
+              "keyUrl: Fully versioned Key Url ... Version segment of the Url is required
+               regardless of rotationToLatestKeyVersionEnabled value."
+              "sourceVault ... cannot be used if the KeyVault subscription is not the
+               same as the Disk Encryption Set subscription."
+              identity.userAssignedIdentities keys are the identity ARM resource IDs.
+        Returns the DES body after provisioning (identity.principalId populated for
+        SystemAssigned; identity.userAssignedIdentities[id].principalId for UserAssigned).
+        """
+        if encryption_type not in ENCRYPTION_TYPES:
+            raise AzureCMKError(f"unsupported encryptionType '{encryption_type}' (use one of {', '.join(ENCRYPTION_TYPES)})")
+        active_key = {"keyUrl": key_url}
+        if parse_resource_id(vault_id)["subscription"].lower() == subscription_id.lower():
+            active_key["sourceVault"] = {"id": vault_id}
+        if user_assigned_identity_id:
+            validate_user_assigned_identity_id(user_assigned_identity_id)
+            identity = {"type": "UserAssigned", "userAssignedIdentities": {user_assigned_identity_id: {}}}
+        else:
+            identity = {"type": "SystemAssigned"}
+        body = {
+            "location": location,
+            "identity": identity,
+            "properties": {
+                "activeKey": active_key,
+                "encryptionType": encryption_type,
+                "rotationToLatestKeyVersionEnabled": bool(auto_rotate),
+            },
+            "tags": tags or {},
+        }
+        path = self.des_path(subscription_id, resource_group, name)
+        resp = self.arm("PUT", path, DISK_API, body=body, ok=(200, 201, 202))
+        if resp.status_code not in (200, 201, 202):
+            raise AzureCMKError(f"create DES '{name}' failed: {_err_text(resp)}")
+        self.wait_lro(resp)
+        des = self.wait_provisioning(path, DISK_API)
+        if user_assigned_identity_id:
+            # Pre-existing identity: nothing to wait for or grant per DES.
+            return des
+        # The system-assigned identity can lag a little behind the resource; poll until principalId shows up.
+        deadline = time.time() + 300
+        while not ((des.get("identity") or {}).get("principalId")) and time.time() < deadline:
+            time.sleep(10)
+            des = self.get_des(path) or des
+        if not (des.get("identity") or {}).get("principalId"):
+            raise AzureCMKError(f"DES '{name}' was created but its managed identity never appeared")
+        return des
+
+    def delete_des(self, des_id):
+        """
+        DELETE a DES (200/202 deleted, 204 absent). Disk deletion can lag behind the
+        VM delete, so an in-use conflict is retried for DES_INUSE_RETRY_TIMEOUT_SECS.
+        Docs: https://learn.microsoft.com/en-us/rest/api/compute/disk-encryption-sets/delete
+        Returns True if deleted, False if it did not exist.
+        """
+        deadline = time.time() + DES_INUSE_RETRY_TIMEOUT_SECS
+        while True:
+            resp = self.arm("DELETE", des_id, DISK_API, ok=(200, 202, 204))
+            if resp.status_code == 204:
+                return False
+            if resp.status_code in (200, 202):
+                self.wait_lro(resp)
+                return True
+            code = _err_code(resp)
+            in_use = resp.status_code in (400, 409) and (
+                "inuse" in code.lower() or "in use" in resp.text.lower() or "OperationNotAllowed" in code
+            )
+            if in_use and time.time() < deadline:
+                logger.info("DES %s still referenced by disks; retrying delete in %ss", des_id, DES_INUSE_POLL_SECS)
+                time.sleep(DES_INUSE_POLL_SECS)
+                continue
+            raise AzureCMKError(f"delete DES {des_id} failed: {_err_text(resp)}")
+
+    # =========================================================================
+    # Granting the DES identity access to the key
+    # =========================================================================
+    def grant_des_key_access(self, vault, des_principal_id):
+        """
+        Give the DES identity get/wrapKey/unwrapKey on the vault:
+          - RBAC vaults (enableRbacAuthorization=true): role assignment of
+            Key Vault Crypto Service Encryption User at vault scope.
+          - Policy vaults: accessPolicies/add with keys get/wrapKey/unwrapKey.
+        Returns an opaque grant reference the teardown uses to revoke.
+        """
+        vault_id = vault["id"]
+        props = vault.get("properties") or {}
+        if props.get("enableRbacAuthorization"):
+            return self._assign_role(vault_id, des_principal_id)
+        return self._add_access_policy(vault_id, props.get("tenantId") or self.tenant_id, des_principal_id)
+
+    def _assign_role(self, scope, principal_id):
+        """
+        PUT {scope}/providers/Microsoft.Authorization/roleAssignments/{guid}.
+        principalType=ServicePrincipal lets ARM accept a just-created managed
+        identity without a directory lookup (avoids PrincipalNotFound during
+        replication). The GUID is deterministic so re-runs are idempotent.
+        Docs: https://learn.microsoft.com/en-us/rest/api/authorization/role-assignments/create
+        Requires Microsoft.Authorization/roleAssignments/write on the vault
+        (e.g. "Key Vault Data Access Administrator" or User Access Administrator).
+        """
+        sub = parse_resource_id(scope)["subscription"]
+        role_def = f"/subscriptions/{sub}/providers/Microsoft.Authorization/roleDefinitions/{ROLE_KV_CRYPTO_SERVICE_ENCRYPTION_USER}"
+        name = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{scope}|{principal_id}|{ROLE_KV_CRYPTO_SERVICE_ENCRYPTION_USER}"))
+        path = f"{scope}/providers/Microsoft.Authorization/roleAssignments/{name}"
+        body = {"properties": {"roleDefinitionId": role_def, "principalId": principal_id, "principalType": "ServicePrincipal"}}
+        deadline = time.time() + GRANT_PROPAGATION_TIMEOUT_SECS
+        while True:
+            resp = self.arm("PUT", path, AUTHZ_API, body=body, ok=(200, 201, 409))
+            if resp.status_code in (200, 201):
+                return path
+            if resp.status_code == 409 and "RoleAssignmentExists" in _err_code(resp):
+                return path
+            if "PrincipalNotFound" in _err_code(resp) and time.time() < deadline:
+                time.sleep(GRANT_PROPAGATION_POLL_SECS)
+                continue
+            raise AzureCMKError(f"role assignment on {scope} failed: {_err_text(resp)}")
+
+    def revoke_role(self, role_assignment_id):
+        """DELETE a role assignment (200/204). Docs: https://learn.microsoft.com/en-us/rest/api/authorization/role-assignments/delete"""
+        resp = self.arm("DELETE", role_assignment_id, AUTHZ_API, ok=(200, 204))
+        if resp.status_code not in (200, 204):
+            raise AzureCMKError(f"delete role assignment failed: {_err_text(resp)}")
+
+    def _add_access_policy(self, vault_id, tenant_id, principal_id):
+        """
+        PUT .../vaults/{name}/accessPolicies/add
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keyvault/vaults/update-access-policy
+        Requires Microsoft.KeyVault/vaults/accessPolicies/write.
+        """
+        body = {"properties": {"accessPolicies": [
+            {"tenantId": tenant_id, "objectId": principal_id, "permissions": {"keys": DES_KEY_PERMISSIONS}}
+        ]}}
+        resp = self.arm("PUT", f"{vault_id}/accessPolicies/add", KV_MGMT_API, body=body, ok=(200, 201))
+        if resp.status_code not in (200, 201):
+            raise AzureCMKError(f"access-policy add on {vault_id} failed: {_err_text(resp)}")
+        return f"accessPolicy:{principal_id}"
+
+    def remove_access_policy(self, vault_id, tenant_id, principal_id):
+        """PUT .../accessPolicies/remove for the DES identity (same doc as add)."""
+        body = {"properties": {"accessPolicies": [
+            {"tenantId": tenant_id, "objectId": principal_id, "permissions": {"keys": DES_KEY_PERMISSIONS}}
+        ]}}
+        resp = self.arm("PUT", f"{vault_id}/accessPolicies/remove", KV_MGMT_API, body=body, ok=(200, 201))
+        if resp.status_code not in (200, 201):
+            raise AzureCMKError(f"access-policy remove on {vault_id} failed: {_err_text(resp)}")
+
+    def revoke_grant(self, grant_ref, vault_id, tenant_id):
+        """Undo whatever grant_des_key_access recorded."""
+        if not grant_ref:
+            return "no grant recorded"
+        if grant_ref.startswith(GRANT_REF_UAMI_PREFIX):
+            # Shared user-assigned identity pre-authorised by the customer: never touch its access.
+            return "shared user-assigned identity; nothing to revoke"
+        if grant_ref.startswith("accessPolicy:"):
+            self.remove_access_policy(vault_id, tenant_id, grant_ref.split(":", 1)[1])
+            return "access policy removed"
+        self.revoke_role(grant_ref)
+        return "role assignment removed"
+
+    # =========================================================================
+    # Virtual machines and disks
+    # =========================================================================
+    def vm_path(self, subscription_id, resource_group, vm_name):
+        return (f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
+                f"/providers/Microsoft.Compute/virtualMachines/{vm_name}")
+
+    def get_vm(self, subscription_id, resource_group, vm_name, instance_view=False):
+        """GET the VM model (optionally $expand=instanceView for power state). Docs: https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/get"""
+        params = {"$expand": "instanceView"} if instance_view else None
+        resp = self.arm("GET", self.vm_path(subscription_id, resource_group, vm_name), VM_API, params=params)
+        if resp.status_code != 200:
+            raise AzureCMKError(f"GET VM '{vm_name}' failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def vm_power_state(self, vm_with_instance_view):
+        statuses = ((vm_with_instance_view.get("properties") or {}).get("instanceView") or {}).get("statuses") or []
+        for status in statuses:
+            code = str(status.get("code", ""))
+            if code.startswith("PowerState/"):
+                return code.split("/", 1)[1]
+        return "unknown"
+
+    def vm_disk_ids(self, vm):
+        """(os_disk_id, [data_disk_ids]) from properties.storageProfile; raises for unmanaged OS disks."""
+        storage = (vm.get("properties") or {}).get("storageProfile") or {}
+        os_disk = storage.get("osDisk") or {}
+        managed = os_disk.get("managedDisk") or {}
+        if os_disk.get("diffDiskSettings"):
+            raise AzureCMKError("the VM uses an ephemeral OS disk, which cannot be encrypted with a customer-managed key")
+        if not managed.get("id"):
+            raise AzureCMKError("the VM's OS disk is not a managed disk; customer-managed keys require managed disks")
+        data_ids = [(d.get("managedDisk") or {}).get("id") for d in storage.get("dataDisks") or []]
+        return managed["id"], [d for d in data_ids if d]
+
+    def deallocate_vm(self, subscription_id, resource_group, vm_name):
+        """POST .../deallocate then follow the LRO. Docs: https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/deallocate"""
+        resp = self.arm("POST", f"{self.vm_path(subscription_id, resource_group, vm_name)}/deallocate", VM_API, ok=(200, 202))
+        if resp.status_code not in (200, 202):
+            raise AzureCMKError(f"deallocate VM '{vm_name}' failed: {_err_text(resp)}")
+        self.wait_lro(resp)
+
+    def start_vm(self, subscription_id, resource_group, vm_name):
+        """POST .../start then follow the LRO. Docs: https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/start"""
+        resp = self.arm("POST", f"{self.vm_path(subscription_id, resource_group, vm_name)}/start", VM_API, ok=(200, 202))
+        if resp.status_code not in (200, 202):
+            raise AzureCMKError(f"start VM '{vm_name}' failed: {_err_text(resp)}")
+        self.wait_lro(resp)
+
+    def set_encryption_at_host(self, subscription_id, resource_group, vm_name, enabled=True):
+        """
+        PATCH the VM with properties.securityProfile.encryptionAtHost. The VM must be
+        deallocated and the subscription must have Microsoft.Compute/EncryptionAtHost registered.
+        Docs: https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/update
+              https://learn.microsoft.com/en-us/azure/virtual-machines/disks-enable-host-based-encryption-portal
+        """
+        body = {"properties": {"securityProfile": {"encryptionAtHost": bool(enabled)}}}
+        resp = self.arm("PATCH", self.vm_path(subscription_id, resource_group, vm_name), VM_API, body=body, ok=(200, 201, 202))
+        if resp.status_code not in (200, 201, 202):
+            raise AzureCMKError(f"enable encryption at host on '{vm_name}' failed: {_err_text(resp)}")
+        self.wait_lro(resp)
+
+    def get_disk(self, disk_id):
+        """GET a managed disk. Docs: https://learn.microsoft.com/en-us/rest/api/compute/disks/get"""
+        resp = self.arm("GET", disk_id, DISK_API)
+        if resp.status_code != 200:
+            raise AzureCMKError(f"GET disk {disk_id} failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def disk_current_des(self, disk):
+        enc = (disk.get("properties") or {}).get("encryption") or {}
+        return (enc.get("diskEncryptionSetId") or ""), (enc.get("type") or "")
+
+    def set_disk_encryption(self, disk_id, des_id, encryption_type):
+        """
+        PATCH .../disks/{name} with properties.encryption = {diskEncryptionSetId, type}.
+        The disk must not be attached to a running VM. Key Vault authorization for the
+        freshly-granted DES identity can lag, so Key-Vault access errors are retried
+        for GRANT_PROPAGATION_TIMEOUT_SECS.
+        Docs: https://learn.microsoft.com/en-us/rest/api/compute/disks/update
+        """
+        body = {"properties": {"encryption": {"diskEncryptionSetId": des_id, "type": encryption_type}}}
+        deadline = time.time() + GRANT_PROPAGATION_TIMEOUT_SECS
+        while True:
+            resp = self.arm("PATCH", disk_id, DISK_API, body=body, ok=(200, 202))
+            if resp.status_code in (200, 202):
+                self.wait_lro(resp)
+                self.wait_provisioning(disk_id, DISK_API)
+                return
+            text = resp.text or ""
+            kv_lag = resp.status_code in (400, 403, 409) and (
+                "KeyVault" in text or "Key Vault" in text or "Forbidden" in text or "does not have" in text
+            )
+            if kv_lag and time.time() < deadline:
+                logger.info("disk %s: Key Vault access for the DES identity not yet effective; retrying", disk_id)
+                time.sleep(GRANT_PROPAGATION_POLL_SECS)
+                continue
+            raise AzureCMKError(f"encrypt disk {disk_id.rsplit('/', 1)[-1]} failed: {_err_text(resp)}")

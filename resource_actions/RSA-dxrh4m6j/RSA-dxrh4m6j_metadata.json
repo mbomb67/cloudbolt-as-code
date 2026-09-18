@@ -1,0 +1,44 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "JSON object of Terraform variable name/value pairs to apply. Pre-filled with this deployment's current variable values; edit any you want to change. Only variables this deployment already manages may be set here (unknown keys are rejected before anything is written); removing a key leaves that variable unchanged. Do not paste secrets into this plaintext field. Sensitive variables are excluded and rejected if added; edit them in the TFC workspace instead.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": false,
+            "id": "CF-se26j0xi",
+            "label": "Parameters (JSON)",
+            "name": "parameters",
+            "placeholder": "{}",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "TXT",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-lvy5tj0y"
+    },
+    "dialog_message": "This deployment's current Terraform variable values are pre-filled below as a single JSON object of variable name -> value. Edit any values you want to change and submit: the full variable set is written to the deployment's HCP Terraform workspace and planned there, then the job PAUSES for plan review before anything is applied. 'Continue Job' approves and applies the plan; canceling the job rejects it and reverts the workspace variables to their pre-action values. Only variables this deployment already manages may be set -- an unknown key is rejected before any change is made; removing a key from the object leaves that variable unchanged (its current value rides along), and a blank value is treated as no change for this run. Do NOT paste secrets into this plaintext field. Tip: to change only the VM size, use the 'Resize' action, which pre-selects the current size and validates your choice. Sensitive variables (e.g. admin_password) are never shown here and cannot be edited through this action; update them directly on the deployment's TFC workspace (Variables tab).",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-sync-alt",
+    "id": "RSA-dxrh4m6j",
+    "is_synchronous": false,
+    "label": "Terraform Update",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 5,
+    "submit_button_label": ""
+}

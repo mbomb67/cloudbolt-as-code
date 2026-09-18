@@ -1,0 +1,11 @@
+{
+    "description": "A Script that tests the connection to the Postgres Database verifying that the Database is up and responding",
+    "id": "OHK-wr079u8q",
+    "max_retries": 0,
+    "name": "Test Postgres Connection",
+    "resource_technologies": [],
+    "script_filename": "OHK-wr079u8q_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

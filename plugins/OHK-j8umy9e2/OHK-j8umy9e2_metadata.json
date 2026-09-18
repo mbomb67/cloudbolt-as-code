@@ -1,0 +1,13 @@
+{
+  "id": "OHK-j8umy9e2",
+  "name": "Discover S3 Buckets",
+  "type": "CloudBolt Plug-in",
+  "description": "",
+  "max_retries": 0,
+  "shared": false,
+  "script_filename": "OHK-j8umy9e2_script.py",
+  "minimum_version_required": "8.6",
+  "maximum_version_required": "",
+  "resource_technologies": [],
+  "target_os_families": []
+}

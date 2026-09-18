@@ -1,0 +1,56 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Request Certificate (Windows CA)",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-67bw7wgu"
+            },
+            "deploy_seq": 1,
+            "description": "Build a CSR (generated or user-supplied) and submit it to the Windows CA via Web Enrollment, storing the issued certificate on the resource.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-jl4n6r14",
+            "name": "Request Certificate (Windows CA)",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Ad-hoc certificate requests against a Microsoft AD CS (Windows) Certificate Authority via Web Enrollment. Either paste your own CSR (the private key never touches CloudBolt) or let CloudBolt generate the key and CSR (the generated key is pre-filled for you to copy before submitting). CloudBolt submits the CSR over HTTPS with Basic auth and stores the issued PEM certificate on the resource; manager-approval templates are completed with the Retrieve Pending Certificate action. Demo content \u2014 see docs/windows-ca-cert-request-setup.md for the recommended CA configuration and lab build.",
+    "favorited": false,
+    "icon": "Blank_diagram_-_Page_1_31.png",
+    "id": "BP-lt6a3yzf",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-06-17",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-7cjsqrwy"
+            },
+            "enabled": true,
+            "label": "Retrieve Pending Certificate"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Request Certificate (Windows CA)",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-certificate",
+        "id": "RT-byhyzgw8",
+        "internal_only": false,
+        "label": "Windows CA Certificate",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "windows_ca_certificate",
+        "plural_label": "Windows CA Certificates"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

@@ -1,0 +1,51 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Blob container name: 3-63 chars, lowercase letters, numbers and single hyphens; must start and end with a letter or number.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-bv4chhmg",
+            "label": "Container Name",
+            "name": "container_name",
+            "placeholder": "my-container",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Anonymous public access level. 'none' keeps the container private (requires the account to allow public access for blob/container).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-zd2wa7zv",
+            "label": "Public Access Level",
+            "name": "public_access",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Day-2 action: create a blob container in the resource's Azure storage account.",
+    "id": "OHK-l25x6wd8",
+    "max_retries": 0,
+    "name": "Create Blob Container",
+    "resource_technologies": [],
+    "script_filename": "OHK-l25x6wd8_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

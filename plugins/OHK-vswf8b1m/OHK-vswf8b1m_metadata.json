@@ -1,0 +1,11 @@
+{
+    "description": "Generated Parameter Options plugin for the azure_nsg parameter. Reads the selected Environment from order-form context, casts it to its Azure resource handler, and returns the Network Security Groups in that subscription/region as (NSG Resource ID, NSG name) options. Attach to the azure_nsg custom field via Parameter > Options > Generated.",
+    "id": "OHK-vswf8b1m",
+    "max_retries": 0,
+    "name": "Azure NSG - Generate Options",
+    "resource_technologies": [],
+    "script_filename": "OHK-vswf8b1m_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

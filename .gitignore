@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Cursor  
+#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to 
+#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
+#  refer to https://docs.cursor.com/context/ignore-files
+.cursorignore
+.cursorindexingignore
+
+**/typings/
+
+# Claude Code per-subagent worktrees
+.claude/worktrees/
+
+# Local Claude Code state (skills are shared; settings and memory are per-user)
+.claude/settings.json
+.claude/settings.local.json
+.claude/memory/
+
+# Editor state
+.vscode/

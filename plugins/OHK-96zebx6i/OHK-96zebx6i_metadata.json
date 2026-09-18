@@ -1,0 +1,265 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "source_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "billing_account_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "billing_account_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "invoice_section_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-pv6b4cc1",
+            "label": "Billing Account",
+            "name": "billing_account",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "destination_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "management_group_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-qhq7xb3u",
+            "label": "Destination Tenant",
+            "name": "destination_tenant",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "source_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "invoice_section_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "billing_account_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "invoice_section_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-on2ofw6o",
+            "label": "Invoice Section",
+            "name": "invoice_section",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "destination_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "management_group_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-c4lx86hb",
+            "label": "Management Group",
+            "name": "management_group",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-lah30i2h",
+            "label": "Owner Email",
+            "name": "owner_email",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "source_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "billing_account_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "source_tenant_a299"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "invoice_section_a299"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-n1u1e0gi",
+            "label": "Source Tenant",
+            "name": "source_tenant",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-rnkkizgl",
+            "label": "Subscription Name",
+            "name": "subscription_name",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "source_tenant",
+        "billing_account",
+        "invoice_section",
+        "destination_tenant",
+        "management_group",
+        "owner_email",
+        "subscription_name"
+    ],
+    "description": "Creates Azure subscription with cross-tenant billing support",
+    "id": "OHK-96zebx6i",
+    "max_retries": 0,
+    "name": "Build Azure Subscription",
+    "resource_technologies": [],
+    "script_filename": "OHK-96zebx6i_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

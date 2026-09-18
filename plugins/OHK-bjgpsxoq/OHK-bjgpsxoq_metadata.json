@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-6gtujb8t"
+        ]
+    },
+    "description": "Recurring-job hook: for each Azure handler, detect the billing agreement type and download the negotiated Azure Price Sheet (EA download-by-billing-account / MCA download-by-billing-profile) using the handler service principal, caching it on disk by meterId for the Azure rate hook. Skips CSP/MOSP/no-access subscriptions (those use retail). Wired to the 'Azure Price Sheet Refresh' recurring job.",
+    "id": "OHK-bjgpsxoq",
+    "max_retries": 0,
+    "name": "Azure Price Sheet Refresh",
+    "resource_technologies": [],
+    "script_filename": "OHK-bjgpsxoq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

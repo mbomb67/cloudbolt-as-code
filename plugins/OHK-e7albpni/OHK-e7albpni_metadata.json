@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-qmiweowv"
+        ]
+    },
+    "description": "Discovery plugin: inventories landing-zone projects (namespaces carrying the cloudbolt.io/landing-zone label) across all OpenShift Virtualization resource handlers, including their quota tier, lease, team bindings, and pinned CloudBolt environment.",
+    "id": "OHK-e7albpni",
+    "max_retries": 0,
+    "name": "Discover OpenShift Project Landing Zones",
+    "resource_technologies": [],
+    "script_filename": "OHK-e7albpni_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

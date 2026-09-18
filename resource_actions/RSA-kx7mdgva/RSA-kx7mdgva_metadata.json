@@ -1,0 +1,52 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Days to add. Counted from the current expiration, or from today if it has passed or was never set.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-vbmq2hgr",
+            "label": "Extend By (days)",
+            "name": "extend_days",
+            "placeholder": "30",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "INT",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-3w9nejn3"
+    },
+    "dialog_message": "",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-calendar-plus",
+    "hide_from_mcp": false,
+    "id": "RSA-kx7mdgva",
+    "is_synchronous": true,
+    "label": "Extend Expiration",
+    "last_updated": null,
+    "list_view_visible": true,
+    "mcp_destructive_hint": null,
+    "mcp_idempotent_hint": null,
+    "mcp_open_world_hint": null,
+    "mcp_read_only_hint": null,
+    "mcp_tool_description": "",
+    "mcp_tool_name": "",
+    "mcp_tool_title": "",
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 3,
+    "submit_button_label": ""
+}

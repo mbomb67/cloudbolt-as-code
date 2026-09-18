@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-vg0rmi7i"
+    },
+    "description": null,
+    "enabled": true,
+    "hook_point": "Compute Server Rate",
+    "id": "HPA-t7hlyvyy",
+    "last_updated": null,
+    "name": "Azure Resource Manager Rate Hook",
+    "run_on_statuses": "",
+    "run_seq": 5
+}

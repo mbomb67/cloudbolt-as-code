@@ -1,0 +1,112 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-t3v8zpb7"
+    },
+    "deployment_items": [
+        {
+            "action_name": "HCP Terraform VM",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-pvo05e24"
+            },
+            "deploy_seq": 1,
+            "description": "Provisions the VM through HCP Terraform with a plan-approval pause: 'Continue Job' approves and applies the plan; canceling the job rejects it and discards the TFC run.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-lwys1ug9",
+            "name": "HCP Terraform VM",
+            "parameter_defaults": [
+                {
+                    "label": "TFC VCS Branch",
+                    "name": "tfc_branch_a352",
+                    "value": "main"
+                },
+                {
+                    "label": "TF Cloud Connection",
+                    "name": "tfc_connection_info_a352",
+                    "value": "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
+                },
+                {
+                    "label": "TFC Organization",
+                    "name": "tfc_organization_a352",
+                    "value": "FILL-ME (HCP Terraform organization name)"
+                },
+                {
+                    "label": "TFC Project",
+                    "name": "tfc_project_a352",
+                    "value": "FILL-ME (HCP Terraform project name)"
+                },
+                {
+                    "label": "TFC VCS Repo",
+                    "name": "tfc_repo_identifier_a352",
+                    "value": "FILL-ME (VCS repo identifier, e.g. my-org/my-terraform-repo)"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Provisions a VM through HCP Terraform using one dedicated TFC workspace per deployment: the order form's cascading dropdowns pick the Terraform connection (ConnectionInfos labeled 'tf-cloud'), organization, project, and VCS repo live from the TFC APIs; the build plugin creates (or adopts) the workspace, sets workspace variables from the form's Template Variables panel (vm_name included), triggers a run, pauses the job for human plan review before any apply, and stores the workspace ID plus EVERY Terraform state output (auto-discovered) on the resource. HCP Terraform owns state and the Azure credentials (project-scoped variable set), so no environment or resource handler appears on the order form. Requires at least one 'tf-cloud'-labeled ConnectionInfo and the tfc_api shared module config block (see docs/hcp-terraform-setup.md).",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": "terraform_q83MTYB_XnNGUg2.png",
+    "id": "BP-b0qm83lh",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-07-16",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-dxrh4m6j"
+            },
+            "enabled": true,
+            "label": "Terraform Update"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-e59s1v24"
+            },
+            "enabled": true,
+            "label": "Resize"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "HCP Terraform VM",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-cloud",
+        "id": "RT-lgz3aozx",
+        "internal_only": false,
+        "label": "HCP Terraform VM",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "hcp_terraform_vm",
+        "plural_label": "HCP Terraform VMs"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown HCP Terraform VM",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-2b9qu490"
+            },
+            "deploy_seq": -1,
+            "description": "Destroys the deployment's infrastructure via an auto-confirmed TFC destroy run, then deletes its dedicated workspace via the safe-delete endpoint. Idempotent and PROVFAILED-tolerant: a missing or already-deleted workspace is a warning, not a failure.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-urzkt8rn",
+            "name": "Teardown HCP Terraform VM",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

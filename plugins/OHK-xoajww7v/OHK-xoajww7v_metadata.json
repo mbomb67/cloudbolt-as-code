@@ -1,0 +1,11 @@
+{
+    "description": "Shared build plugin: evaluates the Taggable Attributes (tag map) configured on the deployment Environment's resource handler against the parameters set on the Resource, the arguments captured on the order, and single-valued Group/Environment parameter defaults, and stores the resulting tag dictionary as JSON in the Resource custom field cb_generated_tags. Declares no action inputs; the Environment is resolved from the order (env_id / environment_id / environment). Run it before the plugin that creates the cloud object and merge cb_generated_tags into that object's tags.",
+    "id": "OHK-xoajww7v",
+    "max_retries": 0,
+    "name": "Generate Tags from Resource Handler Tag Map",
+    "resource_technologies": [],
+    "script_filename": "OHK-xoajww7v_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

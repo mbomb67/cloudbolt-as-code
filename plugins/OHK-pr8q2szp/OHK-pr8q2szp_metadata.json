@@ -1,0 +1,37 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-94rsod74",
+            "label": "User Email",
+            "name": "user_email",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5hjzm9e4"
+        ]
+    },
+    "description": "Grants a named user the CloudBolt Restricted Contributor role on this subscription -- Contributor capabilities minus public-exposure operations and minus RBAC self-modification. Pair with Apply Public-Exposure Policy for full coverage.",
+    "id": "OHK-pr8q2szp",
+    "max_retries": 0,
+    "name": "Grant Restricted Contributor Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-pr8q2szp_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,99 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-1dxfulvq"
+    },
+    "deployment_items": [
+        {
+            "action_name": "HCP Terraform No-Code Module",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-axtt0yqq"
+            },
+            "deploy_seq": 1,
+            "description": "Provisions infrastructure through HCP Terraform's no-code provisioning workflow: creates a dedicated workspace from the pinned no-code module, sets the workspace variables from the form's Module Variables panel, adopts the auto-queued run, and pauses the job for human plan review before any apply. 'Continue Job' approves and applies the plan; canceling the job rejects it and discards the TFC run.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-t474vto9",
+            "name": "HCP Terraform No-Code Module",
+            "parameter_defaults": [
+                {
+                    "label": "TF Cloud Connection",
+                    "name": "tfc_connection_info_a1",
+                    "value": "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
+                },
+                {
+                    "label": "TFC Organization",
+                    "name": "tfc_organization_a1",
+                    "value": "FILL-ME (HCP Terraform organization name)"
+                },
+                {
+                    "label": "TFC Project",
+                    "name": "tfc_project_a1",
+                    "value": "FILL-ME (HCP Terraform project name)"
+                },
+                {
+                    "label": "TFC No-Code Module ID",
+                    "name": "tfc_nocode_module_id_a1",
+                    "value": "FILL-ME (no-code module ID, e.g. nocode-xxxxxxxxxxxxxxxx)"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Provisions infrastructure through HCP Terraform using its no-code provisioning workflow: one blueprint targets one pinned no-code registry module, and a static custom form collects that module's input variables. Per deployment, the build plugin creates a dedicated workspace FROM the module, sets the workspace variables from the form (sensitive/HCL supported), adopts the run HCP auto-queues into a human plan-approval pause, and stores the workspace ID plus EVERY Terraform state output (auto-discovered) on the resource. HCP Terraform owns state and the cloud credentials (project-scoped variable set), so no environment or resource handler appears on the order form. The TFC connection, organization, project, and no-code module ID are pinned per blueprint via parameter_defaults. Requires at least one 'tf-cloud'-labeled ConnectionInfo (TEAM or user token -- org tokens are rejected by the no-code endpoints) and the tfc_api shared module config block (see docs/hcp-no-code-setup.md).",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": null,
+    "id": "BP-00meiwwz",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-07-17",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-qofayikp"
+            },
+            "enabled": true,
+            "label": "Update Variables"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "HCP Terraform No-Code Module",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-cloud",
+        "internal_only": false,
+        "label": "HCP Terraform No-Code Module",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "hcp_terraform_no_code_module",
+        "plural_label": "HCP Terraform No-Code Modules"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown HCP Terraform No-Code Module",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-y9d1uwhw"
+            },
+            "deploy_seq": -1,
+            "description": "Destroys the deployment's infrastructure via an auto-confirmed TFC destroy run, then deletes its dedicated workspace via the safe-delete endpoint. Idempotent and PROVFAILED-tolerant: a missing or already-deleted workspace is a warning, not a failure.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-kouqj7km",
+            "name": "Teardown HCP Terraform No-Code Module",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

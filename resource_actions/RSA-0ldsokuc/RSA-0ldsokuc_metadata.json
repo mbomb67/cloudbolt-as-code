@@ -1,0 +1,44 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Default blob access tier. Only valid for StorageV2 and BlobStorage accounts.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-o6icmxrb",
+            "label": "Access Tier",
+            "name": "access_tier",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-stdxttnw"
+    },
+    "dialog_message": "",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-layer-group",
+    "id": "RSA-0ldsokuc",
+    "is_synchronous": true,
+    "label": "Change Access Tier",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 3,
+    "submit_button_label": ""
+}

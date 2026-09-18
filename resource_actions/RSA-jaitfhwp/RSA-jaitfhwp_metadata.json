@@ -1,0 +1,58 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "SQL Command",
+            "name": "SQLCMD_a229",
+            "value": "CREATE TABLE IF NOT EXISTS sample_inventory (\r\n    id          serial PRIMARY KEY,\r\n    asset_tag   text NOT NULL,\r\n    model       text NOT NULL,\r\n    site        text NOT NULL,\r\n    created_at  timestamptz NOT NULL DEFAULT now()\r\n);\r\n\r\nINSERT INTO sample_inventory (asset_tag, model, site) VALUES\r\n    ('AST-0001', 'Rack Server',  'Site A'),\r\n    ('AST-0002', 'Blade Server', 'Site A'),\r\n    ('AST-0003', 'Edge Node',    'Site B');\r\n\r\nSELECT * FROM sample_inventory ORDER BY id;"
+        }
+    ],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Input your SQL Command here",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": false,
+            "id": "CF-5f6ft2rz",
+            "label": "SQL Command",
+            "name": "SQLCMD",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "CODE",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-4w05hdd3"
+    },
+    "dialog_message": "",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fa-brands fa-postgresql",
+    "hide_from_mcp": false,
+    "id": "RSA-jaitfhwp",
+    "is_synchronous": false,
+    "label": "Run SQL Command",
+    "last_updated": null,
+    "list_view_visible": true,
+    "mcp_destructive_hint": null,
+    "mcp_idempotent_hint": null,
+    "mcp_open_world_hint": null,
+    "mcp_read_only_hint": null,
+    "mcp_tool_description": "",
+    "mcp_tool_name": "",
+    "mcp_tool_title": "",
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": null,
+    "submit_button_label": ""
+}

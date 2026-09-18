@@ -1,0 +1,182 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": true,
+            "allowed_os_families": [
+                "Windows"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "wfs-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-hqenhkff",
+            "name": "Windows File Server",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-35y5mshd/",
+                "title": "Windows 2025"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Initialize Windows Disk",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-2evtyysr"
+            },
+            "deploy_seq": 2,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-sin59f6i",
+            "name": "Initialize Windows Disk",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        },
+        {
+            "action_name": "Install Windows File Server",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-up7829pv"
+            },
+            "deploy_seq": 3,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-y0r48mmf",
+            "name": "Install Windows File Server",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploys a Windows Server, then installs the File Server Role. Installing the File Server and Management Tools can take 10+ minutes.",
+    "favorited": false,
+    "icon": "Blank_diagram_-_Page_1_50.png",
+    "id": "BP-psw7rclb",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-09-08",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Windows File Server",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-pai7wi1z",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter the description to be shown on the File Share",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-dpkfyeeg",
+            "label": "File Share Description",
+            "name": "share_description",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter the desired name for the new File Share",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-hza6e2o0",
+            "label": "File Share Name",
+            "name": "share_name",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Enter a valid File Share Path where the share will be hosted",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-6olf3727",
+            "label": "File Share Path",
+            "name": "share_path",
+            "options": [],
+            "placeholder": "D:\\Shares\\ProjectData",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": "fs-00X",
+    "resource_type": {
+        "icon": "bi bi-folder2-open",
+        "id": "RT-if42wlra",
+        "internal_only": false,
+        "label": "File Server",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "file_server",
+        "plural_label": "File Servers"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}
