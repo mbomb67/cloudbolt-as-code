@@ -26,10 +26,13 @@ keywords = ["ws-", "run-", "nocode-", "mod-", "cv-", "team-", "org-"]
 
 [allowlist]
 description = "Placeholders, the nil GUID, this configuration, and the lint that carries the same patterns"
+# Match against the whole line so a placeholder anywhere on it clears the finding.
+regexTarget = "line"
 regexes = [
   '''FILL-ME''',
   '''<[a-z][a-z-]*>''',
-  '''^[a-z]+-x{16}$''',
+  '''\b[a-z]+-x{16}\b''',
+  '''YOUR_[A-Z_]+''',
   '''00000000-0000-0000-0000-000000000000''',
 ]
 paths = ['''^\.gitleaks\.toml$''', '''^tools/validate_metadata\.py$''']
