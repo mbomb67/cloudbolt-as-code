@@ -1,0 +1,19 @@
+{
+    "description": "Technology Reference XUI.\n\nAdds a \"Technology Reference\" tab to every Resource Handler page and to every Environment\nthat has a resource handler: the custom fields, actions and field dependencies of that\ntechnology, discovered live from this instance and exportable as one .xlsx. Read-only.\n\n",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-vwrd15py",
+    "label": "Technology Reference",
+    "last_updated": "2026-09-21",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "technology_reference",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "utilities.py",
+        "templates/technology_reference_tab.html"
+    ],
+    "version": ""
+}
