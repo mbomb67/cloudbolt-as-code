@@ -4,7 +4,7 @@
             "shared_modules/SHM-nubxb8sn"
         ]
     },
-    "description": "Day-2 action for the Request Certificate (Windows CA) blueprint: re-poll the AD CS Web Enrollment pages for a certificate request previously left pending by a manager-approval template (CA Request ID stored on the resource), and store the issued PEM certificate once approved.",
+    "description": "Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource.",
     "id": "OHK-ul8wbswa",
     "max_retries": 0,
     "name": "Retrieve Pending Certificate",

@@ -1,5 +1,5 @@
 {
-    "description": "Discovery plugin: inventories Azure Resource Groups across all Azure resource handlers, including tags and management-lock state.",
+    "description": "Discovers Azure resource groups across all Azure resource handlers, including tags and lock state.",
     "id": "OHK-e5a4m2bm",
     "max_retries": 0,
     "name": "Discover Azure Resource Groups",

@@ -4,7 +4,7 @@
             "shared_modules/SHM-qmiweowv"
         ]
     },
-    "description": "Discovery plugin: inventories landing-zone projects (namespaces carrying the cloudbolt.io/landing-zone label) across all OpenShift Virtualization resource handlers, including their quota tier, lease, team bindings, and pinned CloudBolt environment.",
+    "description": "Discovers landing-zone projects across all OpenShift Virtualization resource handlers.",
     "id": "OHK-e7albpni",
     "max_retries": 0,
     "name": "Discover OpenShift Project Landing Zones",

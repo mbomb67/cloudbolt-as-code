@@ -161,10 +161,11 @@
     "dependencies": {
         "sharedModules": [
             "shared_modules/SHM-f98ek4p6",
-            "shared_modules/SHM-so5r7cau"
+            "shared_modules/SHM-so5r7cau",
+            "shared_modules/SHM-newmivt6"
         ]
     },
-    "description": "Cold-migrate a VMware VM into OpenShift Virtualization (vCenter 443-only export, then CDI upload)",
+    "description": "Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI.",
     "id": "OHK-kx3qcgmy",
     "max_retries": 0,
     "name": "Migrate VM to OpenShift",

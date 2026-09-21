@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Ad-hoc certificate requests against a Microsoft AD CS (Windows) Certificate Authority via Web Enrollment. Either paste your own CSR (the private key never touches CloudBolt) or let CloudBolt generate the key and CSR (the generated key is pre-filled for you to copy before submitting). CloudBolt submits the CSR over HTTPS with Basic auth and stores the issued PEM certificate on the resource; manager-approval templates are completed with the Retrieve Pending Certificate action. Demo content \u2014 see docs/windows-ca-cert-request-setup.md for the recommended CA configuration and lab build.",
+    "description": "Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource.",
     "favorited": false,
     "icon": "Blank_diagram_-_Page_1_31.png",
     "id": "BP-lt6a3yzf",

@@ -4,7 +4,7 @@
             "shared_modules/SHM-dnsldap1"
         ]
     },
-    "description": "DNS Record blueprint teardown: tombstone the AD-integrated DNS A record this resource created, over LDAP via the ldap_dns shared module. Uses the addns_* identity stored on the resource at build time and the same ownership-verified tombstone path as the Pre-Delete orchestration plugin. Idempotent: missing identity, already-gone, or an IP mismatch return WARNING.",
+    "description": "Tombstones the AD-integrated DNS A record created by the resource.",
     "id": "OHK-dnstrd01",
     "max_retries": 0,
     "name": "DNS Record - Teardown",

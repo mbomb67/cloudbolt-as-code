@@ -1,5 +1,5 @@
 {
-    "description": null,
+    "description": "Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-60382c9x",

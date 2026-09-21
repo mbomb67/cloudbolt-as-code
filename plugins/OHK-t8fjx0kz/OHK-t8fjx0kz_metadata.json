@@ -1,5 +1,5 @@
 {
-    "description": "Post-Provision orchestration plugin: for each provisioned server, reads the azure_nsg custom field (an Azure NSG Resource ID set from the Azure NSG - Generate Options plug-in). If unset, exits successfully; if set, attaches the VM's network interface(s) to that NSG via the Azure Compute/Network SDKs.",
+    "description": "Attaches a provisioned Azure VM's network interfaces to the network security group in its azure_nsg field.",
     "id": "OHK-t8fjx0kz",
     "max_retries": 0,
     "name": "Azure NSG - Attach VM to NSG",

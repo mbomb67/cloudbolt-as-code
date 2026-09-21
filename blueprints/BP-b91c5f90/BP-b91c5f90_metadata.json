@@ -67,7 +67,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "",
+    "description": "Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role.",
     "favorited": false,
     "icon": "postgres.png",
     "id": "BP-b91c5f90",

@@ -28,7 +28,7 @@
             "shared_modules/SHM-dnsldap1"
         ]
     },
-    "description": "Post-Provision: ensure an AD-integrated DNS A record for each provisioned server (record name from hostname, IPv4 from NIC). Resolves the directory/zone from the server's LDAPUtility and writes over LDAPS via the ldap_dns shared module, then stores the registered identity on the server for the paired Pre-Delete teardown. Idempotent and ownership-aware (no-clobber by default).",
+    "description": "Creates an AD-integrated DNS A record for each provisioned server over LDAPS and records its identity for teardown.",
     "id": "OHK-dnsadd01",
     "max_retries": 0,
     "name": "AD DNS - Create A Record",

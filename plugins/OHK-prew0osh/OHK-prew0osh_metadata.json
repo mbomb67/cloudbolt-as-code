@@ -176,7 +176,7 @@
             "shared_modules/SHM-qmiweowv"
         ]
     },
-    "description": "Build plugin: creates an OpenShift project with a tiered quota, LimitRange, isolation NetworkPolicies, and optional team RoleBinding; then creates a CloudBolt Environment pinned to the namespace, entitles the ordering group, and mirrors the quota into it.",
+    "description": "Creates an OpenShift project with quota, limits, network policies, and an optional role binding, then pins a CloudBolt environment to it.",
     "id": "OHK-prew0osh",
     "max_retries": 0,
     "name": "OpenShift Project Landing Zone",

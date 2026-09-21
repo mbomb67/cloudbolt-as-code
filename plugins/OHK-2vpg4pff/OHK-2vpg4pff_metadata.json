@@ -4,7 +4,7 @@
             "shared_modules/SHM-vjwmn6nq"
         ]
     },
-    "description": "Post-Delete: for each decommissioned Azure server, delete the per-VM Disk Encryption Set, revoke the DES identity's Key Vault grant, and soft-delete the per-VM key, using only the identifiers the Post-Provision plug-in recorded on the server (azure_cmk_des_id, azure_cmk_key_id, azure_cmk_applied_key_vault_id, azure_cmk_grant_ref). Ownership-verified (DES must still use the recorded key), idempotent and PROVFAILED-safe. Logic in the azure_disk_encryption shared module.",
+    "description": "Deletes the per-VM disk encryption set, revokes its key grant, and soft-deletes the key recorded on a decommissioned Azure server.",
     "id": "OHK-2vpg4pff",
     "max_retries": 0,
     "name": "Azure CMK - Remove Per-VM Disk Encryption Set",

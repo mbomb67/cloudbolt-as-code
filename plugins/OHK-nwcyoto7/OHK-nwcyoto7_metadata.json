@@ -43,7 +43,7 @@
         "rg_tags",
         "rg_tag_mode"
     ],
-    "description": "Day-2 action: merge or replace the Azure tags on the resource group.",
+    "description": "Merges or replaces the tags on the Azure resource group.",
     "id": "OHK-nwcyoto7",
     "max_retries": 0,
     "name": "Update Tags",

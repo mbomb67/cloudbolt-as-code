@@ -68,7 +68,7 @@
             "shared_modules/SHM-dnsldap1"
         ]
     },
-    "description": "DNS Record blueprint build: create an AD-integrated DNS A record from an order. Order-form inputs: LDAP Utility (generated options), Record, and IP. The DNS zone is derived from the chosen LDAP Utility (its ldap_domain), not prompted. Writes over LDAPS via the ldap_dns shared module (the same path the Post-Provision orchestration plugin uses) and names the resource after the FQDN. No-clobber by default.",
+    "description": "Creates an AD-integrated DNS A record from order-form inputs over LDAPS.",
     "id": "OHK-dnsbld01",
     "max_retries": 0,
     "name": "DNS Record - Build",

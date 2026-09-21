@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Day-2 action: change the default blob access tier (Hot/Cool) of the storage account.",
+    "description": "Changes the default blob access tier of the Azure storage account.",
     "id": "OHK-stdxttnw",
     "max_retries": 0,
     "name": "Change Access Tier",

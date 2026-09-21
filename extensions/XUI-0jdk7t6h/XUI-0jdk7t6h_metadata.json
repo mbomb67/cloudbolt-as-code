@@ -1,5 +1,5 @@
 {
-    "description": "Adds a Security Rules tab to Azure Network Security Group resources, showing Inbound and Outbound security rules with add/edit/delete actions. Companion to the Azure Network Security Group blueprint (BP-3fdhnw54).",
+    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-0jdk7t6h",

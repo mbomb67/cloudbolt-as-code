@@ -1,5 +1,5 @@
 {
-    "description": null,
+    "description": "Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-ycumvq8k",

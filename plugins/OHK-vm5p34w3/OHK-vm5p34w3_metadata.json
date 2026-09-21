@@ -1,5 +1,5 @@
 {
-    "description": "Teardown counterpart of Add Resource Group to Environment: removes the deleted resource group's resource_group_arm option from every Environment on the same Azure subscription (resource handler) that offers it, plus the environments the build step recorded. Removes only the environment link; never deletes the shared CustomFieldValue. Idempotent.",
+    "description": "Removes the deleted resource group's resource_group_arm option from environments on the same subscription.",
     "id": "OHK-vm5p34w3",
     "max_retries": 0,
     "name": "Remove Resource Group from Environments",

@@ -58,7 +58,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Runs helm install on the resource's server tagged controller.",
     "id": "OHK-tb703wqx",
     "max_retries": 0,
     "name": "Launch Helm Chart (2)",

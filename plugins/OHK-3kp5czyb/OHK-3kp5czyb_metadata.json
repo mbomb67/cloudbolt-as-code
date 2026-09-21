@@ -1,5 +1,5 @@
 {
-    "description": "Day-2 action: list the blob containers in the resource's Azure storage account.",
+    "description": "Lists the blob containers in the resource's Azure storage account.",
     "id": "OHK-3kp5czyb",
     "max_retries": 0,
     "name": "List Blob Containers",

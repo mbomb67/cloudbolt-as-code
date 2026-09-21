@@ -67,7 +67,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Deploys a Microsoft IIS Web Application",
+    "description": "Deploys a Windows server and installs an IIS web application.",
     "favorited": false,
     "icon": "Microsoft_IIS_1.png",
     "id": "BP-122nbdt5",

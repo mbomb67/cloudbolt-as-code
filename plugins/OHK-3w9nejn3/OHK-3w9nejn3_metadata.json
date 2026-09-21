@@ -28,7 +28,7 @@
             "shared_modules/SHM-qmiweowv"
         ]
     },
-    "description": "Extend this project's expiration date. Updates the resource's expiration and the matching annotation on the namespace.",
+    "description": "Extends a landing-zone project's expiration date on the resource and the namespace annotation.",
     "id": "OHK-3w9nejn3",
     "max_retries": 0,
     "name": "Extend Expiration",

@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Deletes the Azure network security group behind the resource.",
     "id": "OHK-9jouejv8",
     "max_retries": 0,
     "name": "Network Security Group Teardown",

@@ -1,5 +1,5 @@
 {
-    "description": "Discovery plugin: inventories existing Azure Storage Accounts across all Azure handlers.",
+    "description": "Discovers Azure storage accounts across all Azure resource handlers.",
     "id": "OHK-h9lmvlkb",
     "max_retries": 0,
     "name": "Discover Azure Storage Accounts",

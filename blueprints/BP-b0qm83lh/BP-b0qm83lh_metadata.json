@@ -51,7 +51,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Provisions a VM through HCP Terraform using one dedicated TFC workspace per deployment: the order form's cascading dropdowns pick the Terraform connection (ConnectionInfos labeled 'tf-cloud'), organization, project, and VCS repo live from the TFC APIs; the build plugin creates (or adopts) the workspace, sets workspace variables from the form's Template Variables panel (vm_name included), triggers a run, pauses the job for human plan review before any apply, and stores the workspace ID plus EVERY Terraform state output (auto-discovered) on the resource. HCP Terraform owns state and the Azure credentials (project-scoped variable set), so no environment or resource handler appears on the order form. Requires at least one 'tf-cloud'-labeled ConnectionInfo and the tfc_api shared module config block (see docs/hcp-terraform-setup.md).",
+    "description": "Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply.",
     "favorited": false,
     "has_custom_form": true,
     "icon": "terraform_q83MTYB_XnNGUg2.png",

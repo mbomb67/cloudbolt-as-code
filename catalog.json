@@ -1,0 +1,2144 @@
+[
+  {
+    "id": "BP-00meiwwz",
+    "type": "blueprints",
+    "name": "HCP Terraform No-Code Module",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
+    "path": "blueprints/BP-00meiwwz",
+    "readme": "blueprints/BP-00meiwwz/README.md",
+    "uses": [
+      "forms/FRM-1dxfulvq",
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-y9d1uwhw",
+      "resource_actions/RSA-qofayikp"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-122nbdt5",
+    "type": "blueprints",
+    "name": "IIS Web Application",
+    "description": "Deploys a Windows server and installs an IIS web application.",
+    "path": "blueprints/BP-122nbdt5",
+    "readme": "blueprints/BP-122nbdt5/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-0ql0870k",
+      "plugins/OHK-1rel6s64"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-3fdhnw54",
+    "type": "blueprints",
+    "name": "Azure Network Security Group",
+    "description": "Creates, deletes, and discovers Azure network security groups.",
+    "path": "blueprints/BP-3fdhnw54",
+    "readme": "blueprints/BP-3fdhnw54/README.md",
+    "uses": [
+      "plugins/OHK-7987st2p",
+      "plugins/OHK-9jouejv8",
+      "plugins/OHK-kdne1t5s"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-5pei9cno",
+    "type": "blueprints",
+    "name": "Azure Cross-Tenant Subscription",
+    "description": "Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections.",
+    "path": "blueprints/BP-5pei9cno",
+    "readme": "blueprints/BP-5pei9cno/README.md",
+    "uses": [
+      "plugins/OHK-597w4hvq",
+      "plugins/OHK-96zebx6i",
+      "plugins/OHK-av52dzqm",
+      "resource_actions/RSA-1kpl3w0d",
+      "resource_actions/RSA-8zwsrcbv",
+      "resource_actions/RSA-f7wb11ny",
+      "resource_actions/RSA-mgh3dn9p"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-anonytrx",
+    "type": "blueprints",
+    "name": "NGINX Web Application",
+    "description": "Deploys an Oracle Linux 8 server and installs an NGINX web application.",
+    "path": "blueprints/BP-anonytrx",
+    "readme": "blueprints/BP-anonytrx/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-1rel6s64",
+      "plugins/OHK-2vdm93hu"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-b0qm83lh",
+    "type": "blueprints",
+    "name": "HCP Terraform VM",
+    "description": "Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply.",
+    "path": "blueprints/BP-b0qm83lh",
+    "readme": "blueprints/BP-b0qm83lh/README.md",
+    "uses": [
+      "forms/FRM-t3v8zpb7",
+      "plugins/OHK-2b9qu490",
+      "plugins/OHK-pvo05e24",
+      "resource_actions/RSA-dxrh4m6j",
+      "resource_actions/RSA-e59s1v24"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-b91c5f90",
+    "type": "blueprints",
+    "name": "Postgres Database",
+    "description": "Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role.",
+    "path": "blueprints/BP-b91c5f90",
+    "readme": "blueprints/BP-b91c5f90/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-29uent0x",
+      "plugins/OHK-yw0klpjg",
+      "resource_actions/RSA-9tfwebk7",
+      "resource_actions/RSA-jaitfhwp"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-dnsrec01",
+    "type": "blueprints",
+    "name": "DNS A Record",
+    "description": "Creates, discovers, and removes Active Directory-integrated DNS A records over LDAPS.",
+    "path": "blueprints/BP-dnsrec01",
+    "readme": "blueprints/BP-dnsrec01/README.md",
+    "uses": [
+      "plugins/OHK-dnsbld01",
+      "plugins/OHK-dnsdsc01",
+      "plugins/OHK-dnstrd01"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-lt6a3yzf",
+    "type": "blueprints",
+    "name": "Request Certificate (Windows CA)",
+    "description": "Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource.",
+    "path": "blueprints/BP-lt6a3yzf",
+    "readme": "blueprints/BP-lt6a3yzf/README.md",
+    "uses": [
+      "plugins/OHK-67bw7wgu",
+      "resource_actions/RSA-7cjsqrwy"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-n454hj40",
+    "type": "blueprints",
+    "name": "Create VPC",
+    "description": "Creates an AWS VPC with an Ansible playbook and a matching CloudBolt environment.",
+    "path": "blueprints/BP-n454hj40",
+    "readme": "blueprints/BP-n454hj40/README.md",
+    "uses": [
+      "plugins/OHK-50ntkska",
+      "plugins/OHK-xdjd5o9b",
+      "plugins/OHK-yd1af0eu"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-nibk4erf",
+    "type": "blueprints",
+    "name": "Bicep Deployment",
+    "description": "Deploys an Azure deployment stack from a Bicep template hosted in GitHub, with a what-if preview and approval gate.",
+    "path": "blueprints/BP-nibk4erf",
+    "readme": "blueprints/BP-nibk4erf/README.md",
+    "uses": [
+      "forms/FRM-84n18crj",
+      "plugins/OHK-gqvi9kv4",
+      "plugins/OHK-t2gs5caq",
+      "resource_actions/RSA-5jeixn92",
+      "resource_actions/RSA-fa7r7cg7"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-nszj7jop",
+    "type": "blueprints",
+    "name": "Azure Storage Account",
+    "description": "Creates, deletes, and discovers Azure storage accounts, with day-2 actions for SKU, access tier, and blob containers.",
+    "path": "blueprints/BP-nszj7jop",
+    "readme": "blueprints/BP-nszj7jop/README.md",
+    "uses": [
+      "plugins/OHK-8px9e3ws",
+      "plugins/OHK-h9lmvlkb",
+      "plugins/OHK-qev70tpa",
+      "resource_actions/RSA-0ldsokuc",
+      "resource_actions/RSA-gr2wsfzx",
+      "resource_actions/RSA-h93k53ld",
+      "resource_actions/RSA-xzs5f3a2",
+      "resource_actions/RSA-zmi15uts"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-p7zmh96m",
+    "type": "blueprints",
+    "name": "Azure Resource Group - Bicep",
+    "description": "Creates an Azure resource group from Microsoft's subscription-scoped create-rg Bicep quickstart template as a deployment stack.",
+    "path": "blueprints/BP-p7zmh96m",
+    "readme": "blueprints/BP-p7zmh96m/README.md",
+    "uses": [
+      "forms/FRM-i9zadhpc",
+      "plugins/OHK-gqvi9kv4",
+      "plugins/OHK-r1imfgdx",
+      "plugins/OHK-t2gs5caq",
+      "plugins/OHK-vm5p34w3",
+      "resource_actions/RSA-5jeixn92",
+      "resource_actions/RSA-fa7r7cg7"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-psw7rclb",
+    "type": "blueprints",
+    "name": "Windows File Server",
+    "description": "Deploys a Windows server and installs the File Server role.",
+    "path": "blueprints/BP-psw7rclb",
+    "readme": "blueprints/BP-psw7rclb/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-2evtyysr",
+      "plugins/OHK-up7829pv"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-tikkhf2y",
+    "type": "blueprints",
+    "name": "OpenShift Project Landing Zone",
+    "description": "Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it.",
+    "path": "blueprints/BP-tikkhf2y",
+    "readme": "blueprints/BP-tikkhf2y/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-e7albpni",
+      "plugins/OHK-mpe8fl3d",
+      "plugins/OHK-prew0osh",
+      "resource_actions/RSA-4e8lmj2r",
+      "resource_actions/RSA-kx7mdgva",
+      "resource_actions/RSA-yj1c4b5s"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-zmeot1ff",
+    "type": "blueprints",
+    "name": "Azure Resource Group",
+    "description": "Creates, deletes, and discovers Azure resource groups, with day-2 actions for tags, delete locks, and contents.",
+    "path": "blueprints/BP-zmeot1ff",
+    "readme": "blueprints/BP-zmeot1ff/README.md",
+    "uses": [
+      "plugins/OHK-4xqzbdtx",
+      "plugins/OHK-7c5xywbx",
+      "plugins/OHK-e5a4m2bm",
+      "plugins/OHK-xoajww7v",
+      "resource_actions/RSA-a38h23ms",
+      "resource_actions/RSA-kbikieh7",
+      "resource_actions/RSA-qwku9lip"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "XUI-0jdk7t6h",
+    "type": "extensions",
+    "name": "Azure NSG Management",
+    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
+    "path": "extensions/XUI-0jdk7t6h",
+    "readme": "extensions/XUI-0jdk7t6h/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-60382c9x",
+    "type": "extensions",
+    "name": "Io Cloudbolt Prometheus",
+    "description": "Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor.",
+    "path": "extensions/XUI-60382c9x",
+    "readme": "extensions/XUI-60382c9x/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-6nzs882l",
+    "type": "extensions",
+    "name": "Azure Patches",
+    "description": "Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs.",
+    "path": "extensions/XUI-6nzs882l",
+    "readme": "extensions/XUI-6nzs882l/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-i4kzuy3y",
+    "type": "extensions",
+    "name": "Openscap",
+    "description": "Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports.",
+    "path": "extensions/XUI-i4kzuy3y",
+    "readme": "extensions/XUI-i4kzuy3y/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-l43ailkn",
+    "type": "extensions",
+    "name": "Ssm Inventory",
+    "description": "Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager.",
+    "path": "extensions/XUI-l43ailkn",
+    "readme": "extensions/XUI-l43ailkn/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-ycumvq8k",
+    "type": "extensions",
+    "name": "Io Cloudbolt Widgets",
+    "description": "Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries.",
+    "path": "extensions/XUI-ycumvq8k",
+    "readme": "extensions/XUI-ycumvq8k/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "FRM-1dxfulvq",
+    "type": "forms",
+    "name": "HCP Terraform No-Code Module",
+    "description": "Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply.",
+    "path": "forms/FRM-1dxfulvq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ]
+  },
+  {
+    "id": "FRM-84n18crj",
+    "type": "forms",
+    "name": "Bicep Deployment",
+    "description": "Deploys an Azure deployment stack from a Bicep template hosted in GitHub after a what-if preview and approval.",
+    "path": "forms/FRM-84n18crj",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-nibk4erf"
+    ]
+  },
+  {
+    "id": "FRM-i9zadhpc",
+    "type": "forms",
+    "name": "Azure Resource Group - Bicep",
+    "description": "Creates an Azure resource group from Microsoft's create-rg Bicep quickstart template after a what-if preview and approval.",
+    "path": "forms/FRM-i9zadhpc",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-p7zmh96m"
+    ]
+  },
+  {
+    "id": "FRM-t3v8zpb7",
+    "type": "forms",
+    "name": "HCP Terraform VM",
+    "description": "Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply.",
+    "path": "forms/FRM-t3v8zpb7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-b0qm83lh"
+    ]
+  },
+  {
+    "id": "HPA-dnscrt01",
+    "type": "orchestration_actions",
+    "name": "AD DNS - Create A Record",
+    "description": "Registers an AD-integrated DNS A record for each provisioned server at Post-Provision.",
+    "path": "orchestration_actions/HPA-dnscrt01",
+    "readme": "orchestration_actions/HPA-dnscrt01/README.md",
+    "uses": [
+      "plugins/OHK-dnsadd01"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": false
+  },
+  {
+    "id": "HPA-dnsdec01",
+    "type": "orchestration_actions",
+    "name": "AD DNS - Delete A Record",
+    "description": "Tombstones the AD-integrated DNS A record CloudBolt registered for each server at Pre-Delete.",
+    "path": "orchestration_actions/HPA-dnsdec01",
+    "readme": "orchestration_actions/HPA-dnsdec01/README.md",
+    "uses": [
+      "plugins/OHK-dnsdel01"
+    ],
+    "used_by": [],
+    "hook_point": "Pre-Delete",
+    "enabled": false
+  },
+  {
+    "id": "HPA-h7g0i0dx",
+    "type": "orchestration_actions",
+    "name": "Azure CMK - Remove Per-VM Disk Encryption Set",
+    "description": "Removes the per-VM disk encryption set, key-access grant, and Key Vault key at Post-Delete after an Azure VM is destroyed.",
+    "path": "orchestration_actions/HPA-h7g0i0dx",
+    "readme": "orchestration_actions/HPA-h7g0i0dx/README.md",
+    "uses": [
+      "plugins/OHK-2vpg4pff"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Delete",
+    "enabled": false
+  },
+  {
+    "id": "HPA-o6ctckmt",
+    "type": "orchestration_actions",
+    "name": "Join Linux Server to AD Domain",
+    "description": "Joins newly provisioned Linux servers to their Active Directory domain at Post-Provision.",
+    "path": "orchestration_actions/HPA-o6ctckmt",
+    "readme": "orchestration_actions/HPA-o6ctckmt/README.md",
+    "uses": [
+      "plugins/OHK-exqmrl0e"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true
+  },
+  {
+    "id": "HPA-qb0w86mi",
+    "type": "orchestration_actions",
+    "name": "Generate options for 'Expiration Date'",
+    "description": "Pre-fills the Expiration Date order-form parameter with a default of seven days from now.",
+    "path": "orchestration_actions/HPA-qb0w86mi",
+    "readme": "orchestration_actions/HPA-qb0w86mi/README.md",
+    "uses": [
+      "plugins/OHK-cfciy0fo"
+    ],
+    "used_by": [
+      "blueprints/BP-122nbdt5",
+      "blueprints/BP-anonytrx",
+      "blueprints/BP-tikkhf2y",
+      "blueprints/BP-b91c5f90",
+      "blueprints/BP-psw7rclb"
+    ],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true
+  },
+  {
+    "id": "HPA-t7hlyvyy",
+    "type": "orchestration_actions",
+    "name": "Azure Resource Manager Rate Hook",
+    "description": "Computes Azure server rates from negotiated Price Sheet prices, falling back to public retail prices.",
+    "path": "orchestration_actions/HPA-t7hlyvyy",
+    "readme": "orchestration_actions/HPA-t7hlyvyy/README.md",
+    "uses": [
+      "plugins/OHK-vg0rmi7i"
+    ],
+    "used_by": [],
+    "hook_point": "Compute Server Rate",
+    "enabled": true
+  },
+  {
+    "id": "HPA-vo2ghe4x",
+    "type": "orchestration_actions",
+    "name": "Azure NSG - Attach VM to NSG",
+    "description": "Attaches each provisioned Azure VM to the network security group selected on the order form at Post-Provision.",
+    "path": "orchestration_actions/HPA-vo2ghe4x",
+    "readme": "orchestration_actions/HPA-vo2ghe4x/README.md",
+    "uses": [
+      "plugins/OHK-t8fjx0kz"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": false
+  },
+  {
+    "id": "HPA-w1dmx20b",
+    "type": "orchestration_actions",
+    "name": "Azure CMK - Per-VM Disk Encryption Set",
+    "description": "Encrypts each provisioned Azure VM's disks with a per-VM customer-managed key and disk encryption set at Post-Provision.",
+    "path": "orchestration_actions/HPA-w1dmx20b",
+    "readme": "orchestration_actions/HPA-w1dmx20b/README.md",
+    "uses": [
+      "plugins/OHK-vklpnqhq"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": false
+  },
+  {
+    "id": "OHK-0ql0870k",
+    "type": "plugins",
+    "name": "Install IIS Windows",
+    "description": "Installs IIS on a Windows server.",
+    "path": "plugins/OHK-0ql0870k",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-122nbdt5"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-1rel6s64",
+    "type": "plugins",
+    "name": "Set URL Parameter",
+    "description": "Sets the website URL parameter on the web application resource.",
+    "path": "plugins/OHK-1rel6s64",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-122nbdt5",
+      "blueprints/BP-anonytrx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-29uent0x",
+    "type": "plugins",
+    "name": "Install Postgres",
+    "description": "Installs PostgreSQL on an Oracle Linux 8 server.",
+    "path": "plugins/OHK-29uent0x",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-b91c5f90"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2b9qu490",
+    "type": "plugins",
+    "name": "Teardown HCP Terraform VM",
+    "description": "Destroys the HCP Terraform workspace behind a VM deployment with a destroy run and a safe workspace delete.",
+    "path": "plugins/OHK-2b9qu490",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "blueprints/BP-b0qm83lh"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-2evtyysr",
+    "type": "plugins",
+    "name": "Initialize Windows Disk",
+    "description": "Initializes, partitions, and formats newly attached raw disks in a Windows guest.",
+    "path": "plugins/OHK-2evtyysr",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-psw7rclb"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2vdm93hu",
+    "type": "plugins",
+    "name": "Install NGINX OEL8",
+    "description": "Installs NGINX on an Oracle Linux 8 server.",
+    "path": "plugins/OHK-2vdm93hu",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-anonytrx"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2vpg4pff",
+    "type": "plugins",
+    "name": "Azure CMK - Remove Per-VM Disk Encryption Set",
+    "description": "Deletes the per-VM disk encryption set, revokes its key grant, and soft-deletes the key recorded on a decommissioned Azure server.",
+    "path": "plugins/OHK-2vpg4pff",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-vjwmn6nq"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-h7g0i0dx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-3kp5czyb",
+    "type": "plugins",
+    "name": "List Blob Containers",
+    "description": "Lists the blob containers in the resource's Azure storage account.",
+    "path": "plugins/OHK-3kp5czyb",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-h93k53ld"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-3w9nejn3",
+    "type": "plugins",
+    "name": "Extend Expiration",
+    "description": "Extends a landing-zone project's expiration date on the resource and the namespace annotation.",
+    "path": "plugins/OHK-3w9nejn3",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "resource_actions/RSA-kx7mdgva"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-4w05hdd3",
+    "type": "plugins",
+    "name": "Run SQL Command",
+    "description": "Runs a SQL command against the PostgreSQL server.",
+    "path": "plugins/OHK-4w05hdd3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-jaitfhwp"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-4xqzbdtx",
+    "type": "plugins",
+    "name": "Teardown Azure Resource Group",
+    "description": "Deletes the Azure resource group behind the resource, refusing while a management lock is present.",
+    "path": "plugins/OHK-4xqzbdtx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-50ntkska",
+    "type": "plugins",
+    "name": "Set VPC Name",
+    "description": "Renames the resource to the VPC name returned by the Ansible playbook.",
+    "path": "plugins/OHK-50ntkska",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-597w4hvq",
+    "type": "plugins",
+    "name": "Teardown Azure Subscription",
+    "description": "Cancels the Azure subscription, which can be reactivated within 90 days.",
+    "path": "plugins/OHK-597w4hvq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-59t2apzf",
+    "type": "plugins",
+    "name": "Expire Servers",
+    "description": "Finds expired servers and runs the configured expiration orchestration action on them.",
+    "path": "plugins/OHK-59t2apzf",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "recurring_jobs/RJB-nsx4v2s1"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-5wpzgw68",
+    "type": "plugins",
+    "name": "Deploy AWS App Migration Agent",
+    "description": "Installs the AWS Application Migration Service replication agent on a Linux server.",
+    "path": "plugins/OHK-5wpzgw68",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "server_actions/SVA-mwbtjfr0"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-67bw7wgu",
+    "type": "plugins",
+    "name": "Request Certificate (Windows CA)",
+    "description": "Submits a generated or supplied CSR to a Microsoft AD CS certificate authority and stores the issued PEM certificate.",
+    "path": "plugins/OHK-67bw7wgu",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-nubxb8sn"
+    ],
+    "used_by": [
+      "blueprints/BP-lt6a3yzf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-7987st2p",
+    "type": "plugins",
+    "name": "Azure Network Security Group Build",
+    "description": "Creates an Azure network security group.",
+    "path": "plugins/OHK-7987st2p",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-3fdhnw54"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-7c5xywbx",
+    "type": "plugins",
+    "name": "Azure Resource Group",
+    "description": "Creates an Azure resource group in the selected environment's subscription and region with generated and order-form tags.",
+    "path": "plugins/OHK-7c5xywbx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-8px9e3ws",
+    "type": "plugins",
+    "name": "Teardown Azure Storage Account",
+    "description": "Deletes the Azure storage account behind the resource.",
+    "path": "plugins/OHK-8px9e3ws",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-96zebx6i",
+    "type": "plugins",
+    "name": "Build Azure Subscription",
+    "description": "Creates an Azure subscription with cross-tenant billing.",
+    "path": "plugins/OHK-96zebx6i",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9csbq3zd",
+    "type": "plugins",
+    "name": "Node Size - Generate Options by OS Build Architecture",
+    "description": "Generates node_size options limited to sizes matching the selected OS build's processor architecture.",
+    "path": "plugins/OHK-9csbq3zd",
+    "readme": "plugins/OHK-9csbq3zd/README.md",
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9f45ede7",
+    "type": "plugins",
+    "name": "Update Bicep Deployment",
+    "description": "Updates a Bicep deployment stack with changed parameters after a what-if preview and approval.",
+    "path": "plugins/OHK-9f45ede7",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-bbswv27r",
+      "shared_modules/SHM-eybr4hgz"
+    ],
+    "used_by": [
+      "resource_actions/RSA-fa7r7cg7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9jouejv8",
+    "type": "plugins",
+    "name": "Network Security Group Teardown",
+    "description": "Deletes the Azure network security group behind the resource.",
+    "path": "plugins/OHK-9jouejv8",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-3fdhnw54"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9n4wfasa",
+    "type": "plugins",
+    "name": "Drift Check",
+    "description": "Reports drift between a Bicep deployment stack and its template with a read-only what-if.",
+    "path": "plugins/OHK-9n4wfasa",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-bbswv27r",
+      "shared_modules/SHM-eybr4hgz"
+    ],
+    "used_by": [
+      "resource_actions/RSA-5jeixn92"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9xffkz53",
+    "type": "plugins",
+    "name": "Resize",
+    "description": "Resizes an HCP Terraform VM by updating the vm_size variable and running with a plan-approval pause.",
+    "path": "plugins/OHK-9xffkz53",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "resource_actions/RSA-e59s1v24"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9zzqqz7t",
+    "type": "plugins",
+    "name": "Manage Team Access",
+    "description": "Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding.",
+    "path": "plugins/OHK-9zzqqz7t",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "resource_actions/RSA-yj1c4b5s"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-av52dzqm",
+    "type": "plugins",
+    "name": "Discover Azure Subscriptions",
+    "description": "Discovers Azure subscriptions visible to each Azure resource handler's service principal.",
+    "path": "plugins/OHK-av52dzqm",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5hjzm9e4"
+    ],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-axtt0yqq",
+    "type": "plugins",
+    "name": "HCP Terraform No-Code Module",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace with a plan-approval pause.",
+    "path": "plugins/OHK-axtt0yqq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-b2az2bn6",
+    "type": "plugins",
+    "name": "Apply Public-Exposure Policy",
+    "description": "Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription.",
+    "path": "plugins/OHK-b2az2bn6",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5hjzm9e4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-mgh3dn9p"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-bjgpsxoq",
+    "type": "plugins",
+    "name": "Azure Price Sheet Refresh",
+    "description": "Downloads each Azure handler's negotiated Price Sheet and caches it on disk for the rate hook.",
+    "path": "plugins/OHK-bjgpsxoq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-6gtujb8t"
+    ],
+    "used_by": [
+      "recurring_jobs/RJB-reblryol"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-cfciy0fo",
+    "type": "plugins",
+    "name": "Generate options for 'Expiration Date'",
+    "description": "Returns an initial Expiration Date value of seven days from now.",
+    "path": "plugins/OHK-cfciy0fo",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-qb0w86mi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-dnsadd01",
+    "type": "plugins",
+    "name": "AD DNS - Create A Record",
+    "description": "Creates an AD-integrated DNS A record for each provisioned server over LDAPS and records its identity for teardown.",
+    "path": "plugins/OHK-dnsadd01",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dnsldap1"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-dnscrt01"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-dnsbld01",
+    "type": "plugins",
+    "name": "DNS Record - Build",
+    "description": "Creates an AD-integrated DNS A record from order-form inputs over LDAPS.",
+    "path": "plugins/OHK-dnsbld01",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dnsldap1"
+    ],
+    "used_by": [
+      "blueprints/BP-dnsrec01"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-dnsdel01",
+    "type": "plugins",
+    "name": "AD DNS - Delete A Record",
+    "description": "Tombstones the AD-integrated DNS A record recorded on each decommissioned server.",
+    "path": "plugins/OHK-dnsdel01",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dnsldap1"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-dnsdec01"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-dnsdsc01",
+    "type": "plugins",
+    "name": "DNS Record - Discover",
+    "description": "Discovers AD-integrated DNS A records across all configured LDAP utilities.",
+    "path": "plugins/OHK-dnsdsc01",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dnsldap1"
+    ],
+    "used_by": [
+      "blueprints/BP-dnsrec01"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-dnstrd01",
+    "type": "plugins",
+    "name": "DNS Record - Teardown",
+    "description": "Tombstones the AD-integrated DNS A record created by the resource.",
+    "path": "plugins/OHK-dnstrd01",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dnsldap1"
+    ],
+    "used_by": [
+      "blueprints/BP-dnsrec01"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-e5a4m2bm",
+    "type": "plugins",
+    "name": "Discover Azure Resource Groups",
+    "description": "Discovers Azure resource groups across all Azure resource handlers, including tags and lock state.",
+    "path": "plugins/OHK-e5a4m2bm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-e7albpni",
+    "type": "plugins",
+    "name": "Discover OpenShift Project Landing Zones",
+    "description": "Discovers landing-zone projects across all OpenShift Virtualization resource handlers.",
+    "path": "plugins/OHK-e7albpni",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-exqmrl0e",
+    "type": "plugins",
+    "name": "Join Linux Server to AD Domain",
+    "description": "Joins a Linux server to Active Directory with realmd, SSSD, and adcli using its LDAP utility's credentials.",
+    "path": "plugins/OHK-exqmrl0e",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-o6ctckmt"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-fel441xh",
+    "type": "plugins",
+    "name": "Change SKU",
+    "description": "Changes the replication SKU of the Azure storage account.",
+    "path": "plugins/OHK-fel441xh",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-gr2wsfzx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-gqvi9kv4",
+    "type": "plugins",
+    "name": "Deploy Bicep Template",
+    "description": "Deploys an Azure deployment stack from a GitHub-hosted Bicep template after a what-if preview and approval.",
+    "path": "plugins/OHK-gqvi9kv4",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-bbswv27r",
+      "shared_modules/SHM-eybr4hgz"
+    ],
+    "used_by": [
+      "blueprints/BP-p7zmh96m",
+      "blueprints/BP-nibk4erf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-h9lmvlkb",
+    "type": "plugins",
+    "name": "Discover Azure Storage Accounts",
+    "description": "Discovers Azure storage accounts across all Azure resource handlers.",
+    "path": "plugins/OHK-h9lmvlkb",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-iy92hhvh",
+    "type": "plugins",
+    "name": "List Resources in Group",
+    "description": "Lists the Azure resources in the resource group and records the count on the resource.",
+    "path": "plugins/OHK-iy92hhvh",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-a38h23ms"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-kdne1t5s",
+    "type": "plugins",
+    "name": "Azure Network Security Group Sync",
+    "description": "Discovers Azure network security groups across all Azure resource handlers.",
+    "path": "plugins/OHK-kdne1t5s",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-3fdhnw54"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-kujhsds0",
+    "type": "plugins",
+    "name": "Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities)",
+    "description": "Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings.",
+    "path": "plugins/OHK-kujhsds0",
+    "readme": "plugins/OHK-kujhsds0/README.md",
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-kx3qcgmy",
+    "type": "plugins",
+    "name": "Migrate VM to OpenShift",
+    "description": "Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI.",
+    "path": "plugins/OHK-kx3qcgmy",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-f98ek4p6",
+      "shared_modules/SHM-newmivt6",
+      "shared_modules/SHM-so5r7cau"
+    ],
+    "used_by": [
+      "server_actions/SVA-yhcr56mm"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-l25x6wd8",
+    "type": "plugins",
+    "name": "Create Blob Container",
+    "description": "Creates a blob container in the resource's Azure storage account.",
+    "path": "plugins/OHK-l25x6wd8",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-xzs5f3a2"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-lvy5tj0y",
+    "type": "plugins",
+    "name": "Terraform Update",
+    "description": "Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "path": "plugins/OHK-lvy5tj0y",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "resource_actions/RSA-dxrh4m6j"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-mpe8fl3d",
+    "type": "plugins",
+    "name": "Teardown OpenShift Project Landing Zone",
+    "description": "Deletes the OpenShift project behind a landing zone and its CloudBolt environment once no managed servers remain.",
+    "path": "plugins/OHK-mpe8fl3d",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-myrfeogg",
+    "type": "plugins",
+    "name": "Revoke Restricted Contributor Access",
+    "description": "Removes the CloudBolt Restricted Contributor role from a user on the subscription.",
+    "path": "plugins/OHK-myrfeogg",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5hjzm9e4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-8zwsrcbv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-nwcyoto7",
+    "type": "plugins",
+    "name": "Update Tags",
+    "description": "Merges or replaces the tags on the Azure resource group.",
+    "path": "plugins/OHK-nwcyoto7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-kbikieh7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-oj87ukle",
+    "type": "plugins",
+    "name": "Update Variables",
+    "description": "Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "path": "plugins/OHK-oj87ukle",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "resource_actions/RSA-qofayikp"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ovt0z46j",
+    "type": "plugins",
+    "name": "List Subscription Access",
+    "description": "Lists role assignments at subscription scope with resolved principal names.",
+    "path": "plugins/OHK-ovt0z46j",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5hjzm9e4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-f7wb11ny"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-pr8q2szp",
+    "type": "plugins",
+    "name": "Grant Restricted Contributor Access",
+    "description": "Grants a user the CloudBolt Restricted Contributor role on the subscription.",
+    "path": "plugins/OHK-pr8q2szp",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5hjzm9e4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-1kpl3w0d"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-prew0osh",
+    "type": "plugins",
+    "name": "OpenShift Project Landing Zone",
+    "description": "Creates an OpenShift project with quota, limits, network policies, and an optional role binding, then pins a CloudBolt environment to it.",
+    "path": "plugins/OHK-prew0osh",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-pvo05e24",
+    "type": "plugins",
+    "name": "HCP Terraform VM",
+    "description": "Provisions a VM through HCP Terraform in a dedicated workspace with a plan-approval pause before apply.",
+    "path": "plugins/OHK-pvo05e24",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "blueprints/BP-b0qm83lh"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-qev70tpa",
+    "type": "plugins",
+    "name": "Azure Storage Account",
+    "description": "Creates an Azure storage account.",
+    "path": "plugins/OHK-qev70tpa",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-r1imfgdx",
+    "type": "plugins",
+    "name": "Add Resource Group to Environment",
+    "description": "Adds the created resource group as a resource_group_arm option on the provisioning environment.",
+    "path": "plugins/OHK-r1imfgdx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-p7zmh96m"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-sf6w5pfn",
+    "type": "plugins",
+    "name": "Manage Delete Lock",
+    "description": "Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group.",
+    "path": "plugins/OHK-sf6w5pfn",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-qwku9lip"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-stdxttnw",
+    "type": "plugins",
+    "name": "Change Access Tier",
+    "description": "Changes the default blob access tier of the Azure storage account.",
+    "path": "plugins/OHK-stdxttnw",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-0ldsokuc"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-t2gs5caq",
+    "type": "plugins",
+    "name": "Teardown Bicep Deployment",
+    "description": "Deletes the Azure deployment stack behind the resource and the resources it manages.",
+    "path": "plugins/OHK-t2gs5caq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-bbswv27r"
+    ],
+    "used_by": [
+      "blueprints/BP-p7zmh96m",
+      "blueprints/BP-nibk4erf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-t8fjx0kz",
+    "type": "plugins",
+    "name": "Azure NSG - Attach VM to NSG",
+    "description": "Attaches a provisioned Azure VM's network interfaces to the network security group in its azure_nsg field.",
+    "path": "plugins/OHK-t8fjx0kz",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-vo2ghe4x"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-tb703wqx",
+    "type": "plugins",
+    "name": "Launch Helm Chart (2)",
+    "description": "Runs helm install on the resource's server tagged controller.",
+    "path": "plugins/OHK-tb703wqx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-tqy61754"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ug53cdbx",
+    "type": "plugins",
+    "name": "Request Quota Change",
+    "description": "Moves a landing-zone project to a different size tier and mirrors the new quota into its environment.",
+    "path": "plugins/OHK-ug53cdbx",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qmiweowv"
+    ],
+    "used_by": [
+      "resource_actions/RSA-4e8lmj2r"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ul8wbswa",
+    "type": "plugins",
+    "name": "Retrieve Pending Certificate",
+    "description": "Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource.",
+    "path": "plugins/OHK-ul8wbswa",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-nubxb8sn"
+    ],
+    "used_by": [
+      "resource_actions/RSA-7cjsqrwy"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-up7829pv",
+    "type": "plugins",
+    "name": "Install Windows File Server",
+    "description": "Installs the File Server role on a Windows server.",
+    "path": "plugins/OHK-up7829pv",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-psw7rclb"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-vg0rmi7i",
+    "type": "plugins",
+    "name": "Azure Resource Manager Rate Hook",
+    "description": "Computes an Azure VM's rate from negotiated Price Sheet prices, falling back to the public Retail Prices API.",
+    "path": "plugins/OHK-vg0rmi7i",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-6gtujb8t"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-t7hlyvyy"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-vklpnqhq",
+    "type": "plugins",
+    "name": "Azure CMK - Per-VM Disk Encryption Set",
+    "description": "Creates a per-VM Key Vault key and disk encryption set and re-encrypts a provisioned Azure VM's disks with it.",
+    "path": "plugins/OHK-vklpnqhq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-vjwmn6nq"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-w1dmx20b"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-vm5p34w3",
+    "type": "plugins",
+    "name": "Remove Resource Group from Environments",
+    "description": "Removes the deleted resource group's resource_group_arm option from environments on the same subscription.",
+    "path": "plugins/OHK-vm5p34w3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-p7zmh96m"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-vswf8b1m",
+    "type": "plugins",
+    "name": "Azure NSG - Generate Options",
+    "description": "Generates azure_nsg options from the network security groups in the selected environment's subscription and region.",
+    "path": "plugins/OHK-vswf8b1m",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-wr079u8q",
+    "type": "plugins",
+    "name": "Test Postgres Connection",
+    "description": "Tests the connection to the PostgreSQL database.",
+    "path": "plugins/OHK-wr079u8q",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-9tfwebk7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-xdjd5o9b",
+    "type": "plugins",
+    "name": "Ansible Ad-Hoc",
+    "description": "Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields.",
+    "path": "plugins/OHK-xdjd5o9b",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-xoajww7v",
+    "type": "plugins",
+    "name": "Generate Tags from Resource Handler Tag Map",
+    "description": "Evaluates the resource handler's tag map against order and resource parameters and stores the result in cb_generated_tags.",
+    "path": "plugins/OHK-xoajww7v",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-y1120h61",
+    "type": "plugins",
+    "name": "Delete Blob Container",
+    "description": "Deletes a blob container from the resource's Azure storage account.",
+    "path": "plugins/OHK-y1120h61",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-zmi15uts"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-y9d1uwhw",
+    "type": "plugins",
+    "name": "Teardown HCP Terraform No-Code Module",
+    "description": "Destroys the HCP Terraform workspace behind a no-code deployment with a destroy run and a safe workspace delete.",
+    "path": "plugins/OHK-y9d1uwhw",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yd1af0eu",
+    "type": "plugins",
+    "name": "Create Environment",
+    "description": "Creates a CloudBolt environment on an AWS handler with the region and VPC stored as custom field values.",
+    "path": "plugins/OHK-yd1af0eu",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yw0klpjg",
+    "type": "plugins",
+    "name": "Set Resource Name From Field",
+    "description": "Renames the resource from a chosen field value and the first server's hostname.",
+    "path": "plugins/OHK-yw0klpjg",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-b91c5f90"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "RJB-nsx4v2s1",
+    "type": "recurring_jobs",
+    "name": "Expire Servers",
+    "description": "Finds expired servers daily and runs the configured expiration orchestration action on them.",
+    "path": "recurring_jobs/RJB-nsx4v2s1",
+    "readme": "recurring_jobs/RJB-nsx4v2s1/README.md",
+    "uses": [
+      "plugins/OHK-59t2apzf"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "schedule": "0 0 * * *"
+  },
+  {
+    "id": "RJB-reblryol",
+    "type": "recurring_jobs",
+    "name": "Azure Price Sheet Refresh",
+    "description": "Downloads each Azure subscription's negotiated Price Sheet daily and caches it for the rate hook.",
+    "path": "recurring_jobs/RJB-reblryol",
+    "readme": "recurring_jobs/RJB-reblryol/README.md",
+    "uses": [
+      "plugins/OHK-bjgpsxoq"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "schedule": "0 2 * * *"
+  },
+  {
+    "id": "RSA-0ldsokuc",
+    "type": "resource_actions",
+    "name": "Change Access Tier",
+    "description": "Changes the default blob access tier of the Azure storage account.",
+    "path": "resource_actions/RSA-0ldsokuc",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-stdxttnw"
+    ],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-1kpl3w0d",
+    "type": "resource_actions",
+    "name": "Grant Access",
+    "description": "Grants a user the CloudBolt Restricted Contributor role on the subscription.",
+    "path": "resource_actions/RSA-1kpl3w0d",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-pr8q2szp"
+    ],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-4e8lmj2r",
+    "type": "resource_actions",
+    "name": "Request Quota Change",
+    "description": "Moves a landing-zone project to a different size tier and mirrors the new quota into its environment.",
+    "path": "resource_actions/RSA-4e8lmj2r",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ug53cdbx"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-5jeixn92",
+    "type": "resource_actions",
+    "name": "Drift Check",
+    "description": "Reports drift between a Bicep deployment stack and its template with a read-only what-if.",
+    "path": "resource_actions/RSA-5jeixn92",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-9n4wfasa"
+    ],
+    "used_by": [
+      "blueprints/BP-p7zmh96m",
+      "blueprints/BP-nibk4erf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-7cjsqrwy",
+    "type": "resource_actions",
+    "name": "Retrieve Pending Certificate",
+    "description": "Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource.",
+    "path": "resource_actions/RSA-7cjsqrwy",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ul8wbswa"
+    ],
+    "used_by": [
+      "blueprints/BP-lt6a3yzf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-8zwsrcbv",
+    "type": "resource_actions",
+    "name": "Revoke Access",
+    "description": "Removes the CloudBolt Restricted Contributor role from a user on the subscription.",
+    "path": "resource_actions/RSA-8zwsrcbv",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-myrfeogg"
+    ],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-9tfwebk7",
+    "type": "resource_actions",
+    "name": "Test Postgres Connection",
+    "description": "Tests the connection to the PostgreSQL database.",
+    "path": "resource_actions/RSA-9tfwebk7",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-wr079u8q"
+    ],
+    "used_by": [
+      "blueprints/BP-b91c5f90"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-a38h23ms",
+    "type": "resource_actions",
+    "name": "List Resources in Group",
+    "description": "Lists the Azure resources in the resource group and records the count on the resource.",
+    "path": "resource_actions/RSA-a38h23ms",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-iy92hhvh"
+    ],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-dxrh4m6j",
+    "type": "resource_actions",
+    "name": "Terraform Update",
+    "description": "Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "path": "resource_actions/RSA-dxrh4m6j",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-lvy5tj0y"
+    ],
+    "used_by": [
+      "blueprints/BP-b0qm83lh"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-e59s1v24",
+    "type": "resource_actions",
+    "name": "Resize",
+    "description": "Resizes an HCP Terraform VM by updating the vm_size variable and running with a plan-approval pause.",
+    "path": "resource_actions/RSA-e59s1v24",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-9xffkz53"
+    ],
+    "used_by": [
+      "blueprints/BP-b0qm83lh"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-f7wb11ny",
+    "type": "resource_actions",
+    "name": "List Access",
+    "description": "Lists role assignments at subscription scope with resolved principal names.",
+    "path": "resource_actions/RSA-f7wb11ny",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ovt0z46j"
+    ],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-fa7r7cg7",
+    "type": "resource_actions",
+    "name": "Update Bicep Deployment",
+    "description": "Updates a Bicep deployment stack with changed parameters after a what-if preview and approval.",
+    "path": "resource_actions/RSA-fa7r7cg7",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-9f45ede7"
+    ],
+    "used_by": [
+      "blueprints/BP-p7zmh96m",
+      "blueprints/BP-nibk4erf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-gr2wsfzx",
+    "type": "resource_actions",
+    "name": "Change SKU",
+    "description": "Changes the replication SKU of the Azure storage account.",
+    "path": "resource_actions/RSA-gr2wsfzx",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-fel441xh"
+    ],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-h93k53ld",
+    "type": "resource_actions",
+    "name": "List Blob Containers",
+    "description": "Lists the blob containers in the resource's Azure storage account.",
+    "path": "resource_actions/RSA-h93k53ld",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-3kp5czyb"
+    ],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-jaitfhwp",
+    "type": "resource_actions",
+    "name": "Run SQL Command",
+    "description": "Runs a SQL command against the PostgreSQL server.",
+    "path": "resource_actions/RSA-jaitfhwp",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-4w05hdd3"
+    ],
+    "used_by": [
+      "blueprints/BP-b91c5f90"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-kbikieh7",
+    "type": "resource_actions",
+    "name": "Update Tags",
+    "description": "Merges or replaces the tags on the Azure resource group.",
+    "path": "resource_actions/RSA-kbikieh7",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-nwcyoto7"
+    ],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-kx7mdgva",
+    "type": "resource_actions",
+    "name": "Extend Expiration",
+    "description": "Extends a landing-zone project's expiration date on the resource and the namespace annotation.",
+    "path": "resource_actions/RSA-kx7mdgva",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-3w9nejn3"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-mgh3dn9p",
+    "type": "resource_actions",
+    "name": "Apply Policy",
+    "description": "Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription.",
+    "path": "resource_actions/RSA-mgh3dn9p",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-b2az2bn6"
+    ],
+    "used_by": [
+      "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-qofayikp",
+    "type": "resource_actions",
+    "name": "Update Variables",
+    "description": "Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "path": "resource_actions/RSA-qofayikp",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-oj87ukle"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-qwku9lip",
+    "type": "resource_actions",
+    "name": "Manage Delete Lock",
+    "description": "Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group.",
+    "path": "resource_actions/RSA-qwku9lip",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-sf6w5pfn"
+    ],
+    "used_by": [
+      "blueprints/BP-zmeot1ff"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-tqy61754",
+    "type": "resource_actions",
+    "name": "Launch Helm Chart",
+    "description": "Runs helm install on the resource's server tagged controller.",
+    "path": "resource_actions/RSA-tqy61754",
+    "readme": "resource_actions/RSA-tqy61754/README.md",
+    "uses": [
+      "plugins/OHK-tb703wqx"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "RSA-xzs5f3a2",
+    "type": "resource_actions",
+    "name": "Create Blob Container",
+    "description": "Creates a blob container in the resource's Azure storage account.",
+    "path": "resource_actions/RSA-xzs5f3a2",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-l25x6wd8"
+    ],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-yj1c4b5s",
+    "type": "resource_actions",
+    "name": "Manage Team Access",
+    "description": "Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding.",
+    "path": "resource_actions/RSA-yj1c4b5s",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-9zzqqz7t"
+    ],
+    "used_by": [
+      "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-zmi15uts",
+    "type": "resource_actions",
+    "name": "Delete Blob Container",
+    "description": "Deletes a blob container from the resource's Azure storage account.",
+    "path": "resource_actions/RSA-zmi15uts",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-y1120h61"
+    ],
+    "used_by": [
+      "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "SVA-mwbtjfr0",
+    "type": "server_actions",
+    "name": "Deploy AWS App Migration Agent",
+    "description": "Installs the AWS Application Migration Service replication agent on a Linux server.",
+    "path": "server_actions/SVA-mwbtjfr0",
+    "readme": "server_actions/SVA-mwbtjfr0/README.md",
+    "uses": [
+      "plugins/OHK-5wpzgw68"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "SVA-yhcr56mm",
+    "type": "server_actions",
+    "name": "Migrate VM to OpenShift",
+    "description": "Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI.",
+    "path": "server_actions/SVA-yhcr56mm",
+    "readme": "server_actions/SVA-yhcr56mm/README.md",
+    "uses": [
+      "plugins/OHK-kx3qcgmy"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "SHM-5hjzm9e4",
+    "type": "shared_modules",
+    "name": "azure_subscription_helpers",
+    "description": "REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins.",
+    "path": "shared_modules/SHM-5hjzm9e4",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-b2az2bn6",
+      "plugins/OHK-av52dzqm",
+      "plugins/OHK-pr8q2szp",
+      "plugins/OHK-ovt0z46j",
+      "plugins/OHK-myrfeogg"
+    ]
+  },
+  {
+    "id": "SHM-6gtujb8t",
+    "type": "shared_modules",
+    "name": "azure_pricing",
+    "description": "Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API.",
+    "path": "shared_modules/SHM-6gtujb8t",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-bjgpsxoq",
+      "plugins/OHK-vg0rmi7i"
+    ]
+  },
+  {
+    "id": "SHM-bbswv27r",
+    "type": "shared_modules",
+    "name": "bicep_engine",
+    "description": "Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine.",
+    "path": "shared_modules/SHM-bbswv27r",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-gqvi9kv4",
+      "plugins/OHK-9n4wfasa",
+      "plugins/OHK-t2gs5caq",
+      "plugins/OHK-9f45ede7"
+    ]
+  },
+  {
+    "id": "SHM-dnsldap1",
+    "type": "shared_modules",
+    "name": "ldap_dns",
+    "description": "AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes.",
+    "path": "shared_modules/SHM-dnsldap1",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-dnsadd01",
+      "plugins/OHK-dnsdel01",
+      "plugins/OHK-dnsbld01",
+      "plugins/OHK-dnsdsc01",
+      "plugins/OHK-dnstrd01"
+    ]
+  },
+  {
+    "id": "SHM-eybr4hgz",
+    "type": "shared_modules",
+    "name": "github",
+    "description": "GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch.",
+    "path": "shared_modules/SHM-eybr4hgz",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-gqvi9kv4",
+      "plugins/OHK-9n4wfasa",
+      "plugins/OHK-9f45ede7"
+    ]
+  },
+  {
+    "id": "SHM-f98ek4p6",
+    "type": "shared_modules",
+    "name": "openshift_import",
+    "description": "Imports exported VM disk images and metadata into OpenShift Virtualization through CDI and the KubeVirt API.",
+    "path": "shared_modules/SHM-f98ek4p6",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-kx3qcgmy"
+    ]
+  },
+  {
+    "id": "SHM-jlguerjr",
+    "type": "shared_modules",
+    "name": "tfc_api",
+    "description": "HCP Terraform REST client and run engine for workspace-per-deployment provisioning.",
+    "path": "shared_modules/SHM-jlguerjr",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-pvo05e24",
+      "plugins/OHK-9xffkz53",
+      "plugins/OHK-y9d1uwhw",
+      "plugins/OHK-2b9qu490",
+      "plugins/OHK-lvy5tj0y",
+      "plugins/OHK-oj87ukle"
+    ]
+  },
+  {
+    "id": "SHM-newmivt6",
+    "type": "shared_modules",
+    "name": "vmware",
+    "description": "Common helpers for connecting to and operating on VMware vSphere through a CloudBolt resource handler.",
+    "path": "shared_modules/SHM-newmivt6",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-kx3qcgmy",
+      "shared_modules/SHM-so5r7cau"
+    ]
+  },
+  {
+    "id": "SHM-nubxb8sn",
+    "type": "shared_modules",
+    "name": "windows_ca",
+    "description": "Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation.",
+    "path": "shared_modules/SHM-nubxb8sn",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-67bw7wgu",
+      "plugins/OHK-ul8wbswa"
+    ]
+  },
+  {
+    "id": "SHM-qmiweowv",
+    "type": "shared_modules",
+    "name": "openshift_landing_zone",
+    "description": "OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint.",
+    "path": "shared_modules/SHM-qmiweowv",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-e7albpni",
+      "plugins/OHK-3w9nejn3",
+      "plugins/OHK-9zzqqz7t",
+      "plugins/OHK-prew0osh",
+      "plugins/OHK-ug53cdbx",
+      "plugins/OHK-mpe8fl3d"
+    ]
+  },
+  {
+    "id": "SHM-so5r7cau",
+    "type": "shared_modules",
+    "name": "vmware_export",
+    "description": "Cold-exports a VMware VM's disks through vCenter over port 443 to QCOW2 for OpenShift import.",
+    "path": "shared_modules/SHM-so5r7cau",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-newmivt6"
+    ],
+    "used_by": [
+      "plugins/OHK-kx3qcgmy"
+    ]
+  },
+  {
+    "id": "SHM-vjwmn6nq",
+    "type": "shared_modules",
+    "name": "azure_disk_encryption",
+    "description": "Per-VM customer-managed-key disk encryption helpers for Azure Key Vault and disk encryption sets.",
+    "path": "shared_modules/SHM-vjwmn6nq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-vklpnqhq",
+      "plugins/OHK-2vpg4pff"
+    ]
+  }
+]

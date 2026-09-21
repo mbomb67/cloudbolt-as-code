@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-2vpg4pff"
     },
-    "description": "Fires at Post-Delete (server decommission, after the Azure VM and its disks are destroyed) to remove the per-VM disk-encryption resources recorded by 'Azure CMK - Per-VM Disk Encryption Set': deletes the Disk Encryption Set (retrying while disks are still detaching), revokes the DES identity's key-access grant, and soft-deletes the per-VM Key Vault key (purge protection prevents a hard purge; Azure purges after the retention window). Uses only identifiers stored on the server; nothing recorded or already gone is a skip, not a failure. Ships disabled; enable together with the paired Post-Provision action.",
+    "description": "Removes the per-VM disk encryption set, key-access grant, and Key Vault key at Post-Delete after an Azure VM is destroyed.",
     "enabled": false,
     "hook_point": "Post-Delete",
     "id": "HPA-h7g0i0dx",

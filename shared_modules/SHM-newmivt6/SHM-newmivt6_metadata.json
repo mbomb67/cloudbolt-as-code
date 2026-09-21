@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Common helpers for connecting to and operating on VMware vSphere through a CloudBolt resource handler.",
     "id": "SHM-newmivt6",
     "label": "VMware",
     "last_updated": "2026-07-29",

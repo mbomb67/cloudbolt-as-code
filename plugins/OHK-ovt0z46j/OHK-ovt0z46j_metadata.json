@@ -4,7 +4,7 @@
             "shared_modules/SHM-5hjzm9e4"
         ]
     },
-    "description": "Lists role assignments at subscription scope with principal type and resolved display names. Inherited assignments from management groups or tenant root are not shown.",
+    "description": "Lists role assignments at subscription scope with resolved principal names.",
     "id": "OHK-ovt0z46j",
     "max_retries": 0,
     "name": "List Subscription Access",

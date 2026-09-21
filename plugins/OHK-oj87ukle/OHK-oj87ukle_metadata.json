@@ -26,7 +26,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Day-2 action: generic JSON variable update for an HCP Terraform No-Code Module deployment. Re-presents the deployment's current variable values as one editable JSON object (pre-filled from the tfc_var_* mirrors), rejects any key the deployment does not already manage, any sensitive key, and any non-object payload, fails fast if the workspace has a non-final run pending, snapshots the prior values, upserts the FULL variable set, and runs with a human plan-approval pause: 'Continue Job' approves and applies, canceling rejects -- the run is discarded and the workspace variables are reverted to the snapshot.",
+    "description": "Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause.",
     "id": "OHK-oj87ukle",
     "max_retries": 0,
     "name": "Update Variables",

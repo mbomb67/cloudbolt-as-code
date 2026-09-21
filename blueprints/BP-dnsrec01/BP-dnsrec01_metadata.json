@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Order an Active Directory-integrated DNS A record. Build creates the record over LDAP from a chosen LDAP Utility (the zone is derived from it), a record name, and an IP; teardown tombstones it; discovery inventories existing A records across configured LDAP utilities. All directory access goes through the ldap_dns shared module (LDAPS + SIMPLE bind; credentials from the LDAP Utility).",
+    "description": "Creates, discovers, and removes Active Directory-integrated DNS A records over LDAPS.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-dnsdsc01"

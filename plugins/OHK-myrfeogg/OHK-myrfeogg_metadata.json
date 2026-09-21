@@ -25,7 +25,7 @@
             "shared_modules/SHM-5hjzm9e4"
         ]
     },
-    "description": "Removes the CloudBolt Restricted Contributor role from a named user on this subscription. Other roles the user holds (Owner, Reader, etc.) are not touched and are listed in the action output.",
+    "description": "Removes the CloudBolt Restricted Contributor role from a user on the subscription.",
     "id": "OHK-myrfeogg",
     "max_retries": 0,
     "name": "Revoke Restricted Contributor Access",

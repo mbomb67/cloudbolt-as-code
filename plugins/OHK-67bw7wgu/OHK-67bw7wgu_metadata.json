@@ -253,7 +253,7 @@
             "shared_modules/SHM-nubxb8sn"
         ]
     },
-    "description": "Request a certificate from a Microsoft AD CS Windows CA via Web Enrollment. Branches on generate_csr: build a CSR from a generated key (pre-filled for the user to copy) or accept a user-supplied CSR, then submit to the CA and store the issued PEM certificate on the resource. Pending (manager-approval) templates are completed by the Retrieve Pending Certificate day-2 action.",
+    "description": "Submits a generated or supplied CSR to a Microsoft AD CS certificate authority and stores the issued PEM certificate.",
     "id": "OHK-67bw7wgu",
     "max_retries": 0,
     "name": "Request Certificate (Windows CA)",

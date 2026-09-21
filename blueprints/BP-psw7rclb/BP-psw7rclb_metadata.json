@@ -60,7 +60,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Deploys a Windows Server, then installs the File Server Role. Installing the File Server and Management Tools can take 10+ minutes.",
+    "description": "Deploys a Windows server and installs the File Server role.",
     "favorited": false,
     "icon": "Blank_diagram_-_Page_1_50.png",
     "id": "BP-psw7rclb",

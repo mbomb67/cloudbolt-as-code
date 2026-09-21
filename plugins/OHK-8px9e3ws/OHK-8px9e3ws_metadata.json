@@ -1,5 +1,5 @@
 {
-    "description": "Teardown plugin: deletes the Azure Storage Account backing the resource. Idempotent.",
+    "description": "Deletes the Azure storage account behind the resource.",
     "id": "OHK-8px9e3ws",
     "max_retries": 0,
     "name": "Teardown Azure Storage Account",

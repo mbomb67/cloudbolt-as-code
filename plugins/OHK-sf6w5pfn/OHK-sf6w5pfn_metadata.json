@@ -23,7 +23,7 @@
     "action_inputs_sequence": [
         "rg_lock_state"
     ],
-    "description": "Day-2 action: apply or release an Azure management lock (CanNotDelete / ReadOnly) on the resource group.",
+    "description": "Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group.",
     "id": "OHK-sf6w5pfn",
     "max_retries": 0,
     "name": "Manage Delete Lock",

@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Sets the URL for the website on the Web Application Resource",
+    "description": "Sets the website URL parameter on the web application resource.",
     "id": "OHK-1rel6s64",
     "max_retries": 0,
     "name": "Set URL Parameter",

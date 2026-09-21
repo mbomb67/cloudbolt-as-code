@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Imports exported VM disk images and metadata into OpenShift Virtualization through CDI and the KubeVirt API.",
     "id": "SHM-f98ek4p6",
     "label": "OpenShift Import",
     "last_updated": "2026-07-29",

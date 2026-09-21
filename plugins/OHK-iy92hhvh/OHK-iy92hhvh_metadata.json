@@ -1,5 +1,5 @@
 {
-    "description": "Day-2 action: list every Azure resource inside the resource group and record the count on the resource.",
+    "description": "Lists the Azure resources in the resource group and records the count on the resource.",
     "id": "OHK-iy92hhvh",
     "max_retries": 0,
     "name": "List Resources in Group",

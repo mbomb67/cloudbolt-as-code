@@ -4,7 +4,7 @@
             "shared_modules/SHM-6gtujb8t"
         ]
     },
-    "description": "Calculate Azure VM rate from negotiated Price Sheet prices when available (EA/MCA, cached by the Azure Price Sheet Refresh recurring job) with public Retail Prices API fallback (CSP/Partner and EA/MCA gaps). Prices compute, OS/data disks, public IP, and RHEL/SLES license. Logic in the azure_pricing shared module.",
+    "description": "Computes an Azure VM's rate from negotiated Price Sheet prices, falling back to the public Retail Prices API.",
     "id": "OHK-vg0rmi7i",
     "max_retries": 0,
     "name": "Azure Resource Manager Rate Hook",

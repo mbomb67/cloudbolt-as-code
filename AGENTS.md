@@ -61,6 +61,8 @@ Six Claude Code skills under `.claude/skills/cloudbolt-content/` automate the co
 | `validate-metadata` | Lint every `<GLOBAL_ID>_metadata.json` for required fields, dangling refs, enum violations, key casing, orphans |
 | `find-content-by-name` | Resolve human-readable name to ID-prefixed folder |
 
+`tools/build_catalog.py` regenerates `CATALOG.md`, `catalog.json`, and every top-level dir's index `README.md` from the metadata. Run it after adding, renaming, or re-describing content; never hand-edit those files (CI fails if they are stale). Keep every metadata `description` to one sentence stating what the content does, because the catalog prints it verbatim.
+
 ## Deep references — load on demand
 
 - **[docs/agents/metadata-schemas.md](docs/agents/metadata-schemas.md)** — every content type's required/optional fields, enums, cross-reference tables, navigation cookbooks, worked examples. Authoritative.

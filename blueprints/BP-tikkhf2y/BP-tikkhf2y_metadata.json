@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Get a governed OpenShift project for your team. Pick a cluster and a size tier; you get a namespace with quota, default limits, and network isolation, and your CloudBolt group is entitled to deploy VMs and containers into it. Day-2: request a quota change (approval required), manage team access, extend the expiration.",
+    "description": "Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-e7albpni"

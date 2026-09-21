@@ -16,7 +16,7 @@ Sample blueprints, plugins, actions, shared modules, forms, and UI extensions fo
    | Auth method | Personal Access Token |
    | Username / Password or Token | Your GitHub username and a token; store it locally or in a vault |
 
-3. Sync the content you want. Each content folder's README lists what syncs with it.
+3. Pick content from [CATALOG.md](CATALOG.md) and sync it. Each content folder's README lists what syncs with it.
 4. Edit every value marked `FILL-ME` or `<placeholder>` for your environment before ordering.
 5. Re-enter secrets after each sync. CloudBolt redacts passwords and tokens on export, so ConnectionInfo credentials do not round-trip.
 6. Validate each piece in a non-production CloudBolt instance first.
@@ -35,7 +35,7 @@ Sample blueprints, plugins, actions, shared modules, forms, and UI extensions fo
 | `extensions/` | UI extensions |
 | `docs/` | Setup runbooks for content that needs configuration outside CloudBolt |
 
-Each directory has an index README. Each content folder has a README with what it does, prerequisites, and setup steps.
+[CATALOG.md](CATALOG.md) lists every piece of content with a one-line description and a link; each directory has the same table as its index README. Each content folder has a README with what it does, prerequisites, and setup steps.
 
 ## Developing content
 

@@ -1,5 +1,5 @@
 {
-    "description": "GitHub API client (PAT or GitHub App auth) backed by a ConnectionInfo, extended with Contents-API directory listing / raw file download (sparse template fetch) and repository-archive (tarball) fetch. Backs the Bicep deployment engine; reusable for any GitHub access.",
+    "description": "GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch.",
     "id": "SHM-eybr4hgz",
     "label": "GitHub",
     "max_retries": 0,

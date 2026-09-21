@@ -1,5 +1,5 @@
 {
-    "description": "Joins newly provisioned Linux servers to Active Directory (realmd/SSSD/adcli), using the server's domain_to_join LDAPUtility for domain and bind credentials.",
+    "description": "Joins a Linux server to Active Directory with realmd, SSSD, and adcli using its LDAP utility's credentials.",
     "id": "OHK-exqmrl0e",
     "max_retries": 0,
     "name": "Join Linux Server to AD Domain",

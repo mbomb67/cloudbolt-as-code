@@ -136,7 +136,7 @@
             "shared_modules/SHM-qmiweowv"
         ]
     },
-    "description": "Day-2 plugin: grants or revokes access to a landing-zone project, either by entitling a CloudBolt group to the project's environment or by binding an OpenShift group/user/service account to a project role.",
+    "description": "Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding.",
     "id": "OHK-9zzqqz7t",
     "max_retries": 0,
     "name": "Manage Team Access",

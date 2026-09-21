@@ -1,5 +1,5 @@
 {
-    "description": "AD-integrated DNS A-record management over ldap3: MS-DNSP DNS_RPC_RECORD encoder/decoder, an AD-DNS LDAP client (partition resolution, zone-serial read, ownership-aware ensure-A, ownership-verified tombstone delete, read-back), and a CloudBolt seam that resolves a server's LDAPUtility into a bound LDAPS connection. Consumed by the Post-Provision create and Pre-Delete delete orchestration plugins. The bind password comes from the LDAPUtility (never stored in repo) and must be re-entered in the CloudBolt UI after each repo sync.",
+    "description": "AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes.",
     "id": "SHM-dnsldap1",
     "label": "AD DNS (LDAP)",
     "max_retries": 0,

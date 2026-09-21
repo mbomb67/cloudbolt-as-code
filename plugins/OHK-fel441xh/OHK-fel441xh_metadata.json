@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Day-2 action: change the replication SKU of the storage account.",
+    "description": "Changes the replication SKU of the Azure storage account.",
     "id": "OHK-fel441xh",
     "max_retries": 0,
     "name": "Change SKU",

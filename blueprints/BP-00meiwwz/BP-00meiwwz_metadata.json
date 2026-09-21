@@ -46,7 +46,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Provisions infrastructure through HCP Terraform using its no-code provisioning workflow: one blueprint targets one pinned no-code registry module, and a static custom form collects that module's input variables. Per deployment, the build plugin creates a dedicated workspace FROM the module, sets the workspace variables from the form (sensitive/HCL supported), adopts the run HCP auto-queues into a human plan-approval pause, and stores the workspace ID plus EVERY Terraform state output (auto-discovered) on the resource. HCP Terraform owns state and the cloud credentials (project-scoped variable set), so no environment or resource handler appears on the order form. The TFC connection, organization, project, and no-code module ID are pinned per blueprint via parameter_defaults. Requires at least one 'tf-cloud'-labeled ConnectionInfo (TEAM or user token -- org tokens are rejected by the no-code endpoints) and the tfc_api shared module config block (see docs/hcp-no-code-setup.md).",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
     "favorited": false,
     "has_custom_form": true,
     "icon": null,

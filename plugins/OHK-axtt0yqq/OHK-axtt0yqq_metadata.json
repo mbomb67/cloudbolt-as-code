@@ -108,7 +108,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Build plugin: provisions infrastructure through HCP Terraform's no-code provisioning workflow. The TFC connection, organization, project, and the target nocode-* module are pinned per blueprint via parameter_defaults (no order-form dropdowns). Creates a dedicated workspace FROM the module (name-primary ownership via cb-nc-<global_id>), funnels the order form's module variables (one generic parameters input) into the workspace variables, adopts the auto-queued run into a human plan-approval pause (Continue approves, Cancel rejects and discards), and stores the run URL, EVERY Terraform state output (auto-discovered), variable mirrors, and the run/module IDs on the resource.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace with a plan-approval pause.",
     "id": "OHK-axtt0yqq",
     "max_retries": 0,
     "name": "HCP Terraform No-Code Module",

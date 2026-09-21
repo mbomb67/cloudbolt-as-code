@@ -23,7 +23,7 @@
     "action_inputs_sequence": [
         "add_to_environment"
     ],
-    "description": "Optional second build step for the Bicep resource-group blueprint: when selected, adds the created resource group's name as a resource_group_arm option on the provisioning Environment (link to a shared CustomFieldValue; environments touched are recorded on the resource for teardown).",
+    "description": "Adds the created resource group as a resource_group_arm option on the provisioning environment.",
     "id": "OHK-r1imfgdx",
     "max_retries": 0,
     "name": "Add Resource Group to Environment",

@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-t8fjx0kz"
     },
-    "description": "Fires at Post-Provision to attach each provisioned Azure VM to the Network Security Group selected on the order form (the azure_nsg parameter). No-ops for servers with no azure_nsg value. Ships disabled; enable once the azure_nsg parameter is wired to the Azure NSG - Generate Options plug-in (OHK-vswf8b1m) and the Azure handler is reachable.",
+    "description": "Attaches each provisioned Azure VM to the network security group selected on the order form at Post-Provision.",
     "enabled": false,
     "hook_point": "Post-Provision",
     "id": "HPA-vo2ghe4x",

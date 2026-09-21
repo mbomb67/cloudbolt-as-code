@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Discovers Azure network security groups across all Azure resource handlers.",
     "id": "OHK-kdne1t5s",
     "max_retries": 0,
     "name": "Azure Network Security Group Sync",

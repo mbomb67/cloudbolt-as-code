@@ -39,7 +39,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Day-2 action: create a blob container in the resource's Azure storage account.",
+    "description": "Creates a blob container in the resource's Azure storage account.",
     "id": "OHK-l25x6wd8",
     "max_retries": 0,
     "name": "Create Blob Container",

@@ -1,5 +1,5 @@
 {
-    "description": "Ad-hoc certificate enrollment against a Microsoft AD CS (Windows) Certificate Authority via its Certification Authority Web Enrollment pages (/certsrv/certfnsh.asp), over HTTPS with Basic auth. Pure layer: cryptography-based private-key + CSR generation, issued-cert metadata parsing, and a WebEnrollClient (certfnsh.asp submit, certnew.cer retrieve, pending detection, chain). CloudBolt seam get_ca_client() resolves the ConnectionInfo named 'Demo Windows CA'. Consumed by the Request Certificate build plugin and the Retrieve Pending Certificate day-2 plugin. The service password comes from the ConnectionInfo (never stored in repo) and must be re-entered in the CloudBolt UI after each sync. Basic-auth-over-HTTPS is a demo posture; see docs/windows-ca-cert-request-setup.md.",
+    "description": "Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation.",
     "id": "SHM-nubxb8sn",
     "label": "Windows CA (Web Enrollment)",
     "max_retries": 0,

@@ -5,7 +5,7 @@
             "shared_modules/SHM-bbswv27r"
         ]
     },
-    "description": "Generic Bicep day-2 Drift Check: runs a read-only what-if (plus stack managed-resource diff) with the deployment's current parameters and reports the change set. Applies nothing.",
+    "description": "Reports drift between a Bicep deployment stack and its template with a read-only what-if.",
     "id": "OHK-9n4wfasa",
     "max_retries": 0,
     "name": "Drift Check",

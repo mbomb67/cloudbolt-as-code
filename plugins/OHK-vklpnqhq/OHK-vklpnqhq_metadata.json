@@ -188,7 +188,7 @@
             "shared_modules/SHM-vjwmn6nq"
         ]
     },
-    "description": "Post-Provision: for each Azure server on the job, create a per-VM Key Vault key and Disk Encryption Set (system-assigned identity, versioned key URL, optional auto key rotation), grant the DES identity key access (RBAC role Key Vault Crypto Service Encryption User, or an access policy), deallocate the VM, re-encrypt the OS and data disks with the DES, optionally enable encryption at host, start the VM, and record key/DES/grant identifiers on the server for the paired Post-Delete teardown (OHK-2vpg4pff). Non-Azure and Confidential VMs are skipped. Logic in the azure_disk_encryption shared module; raw REST with Microsoft doc citations.",
+    "description": "Creates a per-VM Key Vault key and disk encryption set and re-encrypts a provisioned Azure VM's disks with it.",
     "id": "OHK-vklpnqhq",
     "max_retries": 0,
     "name": "Azure CMK - Per-VM Disk Encryption Set",
