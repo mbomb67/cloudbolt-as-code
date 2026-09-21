@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Renames the resource to the VPC name returned by the Ansible playbook.",
     "id": "OHK-50ntkska",
     "max_retries": 0,
     "name": "Set VPC Name",

@@ -151,7 +151,7 @@
         "access_tier",
         "sku"
     ],
-    "description": "Build plugin: provisions an Azure Storage Account via the Azure Storage management SDK.",
+    "description": "Creates an Azure storage account.",
     "id": "OHK-qev70tpa",
     "max_retries": 0,
     "name": "Azure Storage Account",

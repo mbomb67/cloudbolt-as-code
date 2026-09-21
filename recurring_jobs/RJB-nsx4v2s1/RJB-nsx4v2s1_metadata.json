@@ -5,7 +5,7 @@
     "dependencies": {
         "hook": "plugins/OHK-59t2apzf"
     },
-    "description": "Find servers that have expired and execute appropriate orchestration action",
+    "description": "Finds expired servers daily and runs the configured expiration orchestration action on them.",
     "enabled": true,
     "id": "RJB-nsx4v2s1",
     "last_run": null,

@@ -77,7 +77,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Creates a CloudBolt environment on an AWS handler with the region and VPC stored as custom field values.",
     "id": "OHK-yd1af0eu",
     "max_retries": 0,
     "name": "Create Environment",

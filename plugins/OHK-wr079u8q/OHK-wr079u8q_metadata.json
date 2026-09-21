@@ -1,5 +1,5 @@
 {
-    "description": "A Script that tests the connection to the Postgres Database verifying that the Database is up and responding",
+    "description": "Tests the connection to the PostgreSQL database.",
     "id": "OHK-wr079u8q",
     "max_retries": 0,
     "name": "Test Postgres Connection",

@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-vg0rmi7i"
     },
-    "description": null,
+    "description": "Computes Azure server rates from negotiated Price Sheet prices, falling back to public retail prices.",
     "enabled": true,
     "hook_point": "Compute Server Rate",
     "id": "HPA-t7hlyvyy",

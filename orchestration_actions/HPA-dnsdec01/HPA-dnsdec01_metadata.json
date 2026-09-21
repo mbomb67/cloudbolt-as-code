@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-dnsdel01"
     },
-    "description": "Fires at Pre-Delete (server decommission) to tombstone the AD-integrated DNS A record CloudBolt registered for each server. Ships disabled; enable alongside the paired Create action.",
+    "description": "Tombstones the AD-integrated DNS A record CloudBolt registered for each server at Pre-Delete.",
     "enabled": false,
     "hook_point": "Pre-Delete",
     "id": "HPA-dnsdec01",

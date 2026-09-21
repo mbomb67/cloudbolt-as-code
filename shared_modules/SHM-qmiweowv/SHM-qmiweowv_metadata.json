@@ -1,5 +1,5 @@
 {
-    "description": "Shared helpers for the OpenShift Project Landing Zone blueprint: a thin OpenShift/Kubernetes REST client built from an OpenShift Virtualization resource handler, the size-tier catalog, and CloudBolt-side helpers that pin an Environment to a namespace, entitle Groups to it, and mirror the namespace ResourceQuota into the Environment quota.",
+    "description": "OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint.",
     "id": "SHM-qmiweowv",
     "label": "OpenShift Landing Zone",
     "max_retries": 0,

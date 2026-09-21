@@ -10,7 +10,7 @@
     "dependencies": {
         "hook": "plugins/OHK-dnsadd01"
     },
-    "description": "Fires at Post-Provision to register an AD-integrated DNS A record for each provisioned server. Ships disabled; enable after configuring the ldap_dns shared-module config block and confirming LDAPS reachability to the DC.",
+    "description": "Registers an AD-integrated DNS A record for each provisioned server at Post-Provision.",
     "enabled": false,
     "hook_point": "Post-Provision",
     "id": "HPA-dnscrt01",

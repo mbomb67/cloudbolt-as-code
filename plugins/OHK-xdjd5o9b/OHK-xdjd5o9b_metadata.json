@@ -39,7 +39,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields.",
     "id": "OHK-xdjd5o9b",
     "max_retries": 0,
     "name": "Ansible Ad-Hoc",

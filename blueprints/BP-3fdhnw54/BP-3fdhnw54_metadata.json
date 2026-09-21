@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Create, delete and synchronise Azure Network Security Groups",
+    "description": "Creates, deletes, and discovers Azure network security groups.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-kdne1t5s"

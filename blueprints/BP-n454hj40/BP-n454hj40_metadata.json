@@ -89,7 +89,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates an AWS VPC with Ansible Playbook",
+    "description": "Creates an AWS VPC with an Ansible playbook and a matching CloudBolt environment.",
     "favorited": false,
     "icon": "Ansible_Icon.png",
     "id": "BP-n454hj40",

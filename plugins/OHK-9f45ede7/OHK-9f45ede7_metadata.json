@@ -26,7 +26,7 @@
             "shared_modules/SHM-bbswv27r"
         ]
     },
-    "description": "Generic Bicep day-2 Update: re-presents current parameters, re-fetches and compiles the template, previews with what-if behind the approval gate, and applies any changes as a stack update.",
+    "description": "Updates a Bicep deployment stack with changed parameters after a what-if preview and approval.",
     "id": "OHK-9f45ede7",
     "max_retries": 0,
     "name": "Update Bicep Deployment",

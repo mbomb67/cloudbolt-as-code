@@ -91,7 +91,7 @@
         "resource_group",
         "network_security_group_name"
     ],
-    "description": "",
+    "description": "Creates an Azure network security group.",
     "id": "OHK-7987st2p",
     "max_retries": 0,
     "name": "Azure Network Security Group Build",

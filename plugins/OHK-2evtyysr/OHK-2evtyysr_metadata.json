@@ -1,7 +1,7 @@
 {
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "",
+    "description": "Initializes, partitions, and formats newly attached raw disks in a Windows guest.",
     "execution_timeout": 180,
     "id": "OHK-2evtyysr",
     "max_retries": 0,

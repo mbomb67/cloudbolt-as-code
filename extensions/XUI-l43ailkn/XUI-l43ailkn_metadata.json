@@ -1,5 +1,5 @@
 {
-    "description": null,
+    "description": "Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-l43ailkn",

@@ -1,5 +1,5 @@
 {
-    "description": "Teardown plugin: deletes the Azure Resource Group backing this resource, refusing to run while a management lock is in place.",
+    "description": "Deletes the Azure resource group behind the resource, refusing while a management lock is present.",
     "id": "OHK-4xqzbdtx",
     "max_retries": 0,
     "name": "Teardown Azure Resource Group",

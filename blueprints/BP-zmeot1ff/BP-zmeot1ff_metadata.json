@@ -38,7 +38,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Manage the full lifecycle of Azure Resource Groups: create (build), delete (teardown), and inventory existing groups (discovery), plus day-2 tagging, delete-lock, and contents actions. The order form prompts only for the environment, the group name and optional additional tags; the region and subscription come from the selected Environment, and governance tags are generated automatically from the resource handler's tag map (Taggable Attributes) by a shared first build step. RBAC is enforced through Environment selection; the Azure resource handler is never exposed on the order form.",
+    "description": "Creates, deletes, and discovers Azure resource groups, with day-2 actions for tags, delete locks, and contents.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-e5a4m2bm"

@@ -22,7 +22,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Manage the full lifecycle of Azure Storage Accounts: provision (build), delete (teardown), and inventory existing accounts (discovery). RBAC is enforced through Environment selection; the Azure resource handler is never exposed directly on the order form.",
+    "description": "Creates, deletes, and discovers Azure storage accounts, with day-2 actions for SKU, access tier, and blob containers.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-h9lmvlkb"

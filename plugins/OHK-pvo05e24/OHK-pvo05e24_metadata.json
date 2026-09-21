@@ -308,7 +308,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Build plugin: provisions a VM through HCP Terraform. The TFC connection (ConnectionInfos labeled 'tf-cloud'), organization, project, and VCS repo are picked from cascading live dropdowns on the order form. Ensures a dedicated TFC workspace per deployment (ID-first get-or-adopt), funnels the order form's template variables (one generic parameters input, vm_name included in the panel) into the workspace variables, runs with a human plan-approval pause (Continue approves, Cancel rejects and discards the run), and stores the run URL, EVERY Terraform state output (auto-discovered, no declared allowlist), and variable mirrors on the resource.",
+    "description": "Provisions a VM through HCP Terraform in a dedicated workspace with a plan-approval pause before apply.",
     "id": "OHK-pvo05e24",
     "max_retries": 0,
     "name": "HCP Terraform VM",

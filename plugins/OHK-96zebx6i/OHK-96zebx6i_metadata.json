@@ -253,7 +253,7 @@
         "owner_email",
         "subscription_name"
     ],
-    "description": "Creates Azure subscription with cross-tenant billing support",
+    "description": "Creates an Azure subscription with cross-tenant billing.",
     "id": "OHK-96zebx6i",
     "max_retries": 0,
     "name": "Build Azure Subscription",

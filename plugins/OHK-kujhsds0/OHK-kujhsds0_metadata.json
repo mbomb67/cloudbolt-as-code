@@ -1,5 +1,5 @@
 {
-    "description": "Generated Parameter Options plugin for node_size that expands the native limit_azure_node_size_by_storage_type hook. Starts from the sizes configured on the node_size parameter for the selected environment (same base set as the native hook), then filters them through live Azure Resource SKU capabilities so only sizes Azure can actually deploy survive: available/unrestricted in the region, matching the OS image's architecture and Hyper-V generation, the security_type_arm parameter (TrustedLaunch/ConfidentialVM), enable_accelerated_networking, encryption_at_host, availability_zone_arm, and (for Premium/Ultra storage) PremiumIO. Fails open per dimension when data is unavailable. Attach to the node_size custom field via Parameter > Options > Generated and wire os_build, the storage-type field, security_type_arm, availability_zone_arm, enable_accelerated_networking, and encryption_at_host as REGENOPTIONS controllers of node_size (safe even when some are absent from a given form).",
+    "description": "Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings.",
     "id": "OHK-kujhsds0",
     "max_retries": 0,
     "name": "Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities)",

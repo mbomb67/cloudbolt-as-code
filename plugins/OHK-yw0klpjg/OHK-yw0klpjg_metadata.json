@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Renames the resource from a chosen field value and the first server's hostname.",
     "id": "OHK-yw0klpjg",
     "max_retries": 0,
     "name": "Set Resource Name From Field",

@@ -2,7 +2,7 @@
     "action_inputs_sequence": [],
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Installs Postgres Database on an OEL8 Server",
+    "description": "Installs PostgreSQL on an Oracle Linux 8 server.",
     "execution_timeout": 3600,
     "id": "OHK-29uent0x",
     "max_retries": 0,

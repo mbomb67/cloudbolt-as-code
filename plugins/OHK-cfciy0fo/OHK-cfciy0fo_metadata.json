@@ -1,5 +1,5 @@
 {
-    "description": null,
+    "description": "Returns an initial Expiration Date value of seven days from now.",
     "id": "OHK-cfciy0fo",
     "max_retries": 0,
     "name": "Generate options for 'Expiration Date'",

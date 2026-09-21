@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins.",
     "id": "SHM-5hjzm9e4",
     "label": "Azure Subscription Helpers",
     "max_retries": 0,

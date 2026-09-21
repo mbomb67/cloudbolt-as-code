@@ -1,5 +1,5 @@
 {
-    "description": "Generated Parameter Options plugin for the node_size parameter. Starts from a customer-editable ALLOWED_NODE_SIZES allow-list (bucketed arm/amd/x64), resolves the selected OS Build's Azure VM image via the chosen Environment, classifies its processor architecture, and returns only the allowed sizes for that architecture. Attach to the node_size custom field via Parameter > Options > Generated, and wire os_build as a REGENOPTIONS controller of node_size.",
+    "description": "Generates node_size options limited to sizes matching the selected OS build's processor architecture.",
     "id": "OHK-9csbq3zd",
     "max_retries": 0,
     "name": "Node Size - Generate Options by OS Build Architecture",

@@ -4,7 +4,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Teardown plugin: decommissions the HCP Terraform deployment backing the resource. Clears orphaned non-final TFC runs (attribution-aware: only runs whose owning CloudBolt job is no longer running or paused; fails fast naming a live job; waits out a run mid-apply), creates an auto-confirmed destroy run, then deletes the workspace via the safe-delete endpoint only -- never force-delete. Idempotent: a missing workspace ID or already-deleted workspace returns WARNING, not FAILURE.",
+    "description": "Destroys the HCP Terraform workspace behind a VM deployment with a destroy run and a safe workspace delete.",
     "id": "OHK-2b9qu490",
     "max_retries": 0,
     "name": "Teardown HCP Terraform VM",

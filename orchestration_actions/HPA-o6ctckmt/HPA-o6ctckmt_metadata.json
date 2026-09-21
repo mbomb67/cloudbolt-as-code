@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-exqmrl0e"
     },
-    "description": "Joins newly provisioned Linux servers to their AD domain (from the server's domain_to_join) during post-provisioning. Runs late (run_seq 100) so it follows any DNS-configuring step.",
+    "description": "Joins newly provisioned Linux servers to their Active Directory domain at Post-Provision.",
     "enabled": true,
     "hook_point": "Post-Provision",
     "id": "HPA-o6ctckmt",

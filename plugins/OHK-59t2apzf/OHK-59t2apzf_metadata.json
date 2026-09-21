@@ -1,5 +1,5 @@
 {
-    "description": "Find servers that have expired and execute appropriate orchestration action",
+    "description": "Finds expired servers and runs the configured expiration orchestration action on them.",
     "id": "OHK-59t2apzf",
     "max_retries": 0,
     "name": "Expire Servers",

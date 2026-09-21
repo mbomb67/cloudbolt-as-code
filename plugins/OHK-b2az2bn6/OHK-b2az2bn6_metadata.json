@@ -4,7 +4,7 @@
             "shared_modules/SHM-5hjzm9e4"
         ]
     },
-    "description": "Installs the CloudBolt public-exposure Azure Policy initiative on this subscription. Closes gaps the Restricted Contributor role's notActions cannot cleanly express (subnet exposure, storage publicNetworkAccess). Opt-in, one-shot per subscription.",
+    "description": "Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription.",
     "id": "OHK-b2az2bn6",
     "max_retries": 0,
     "name": "Apply Public-Exposure Policy",

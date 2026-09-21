@@ -4,7 +4,7 @@
             "shared_modules/SHM-5hjzm9e4"
         ]
     },
-    "description": "Enumerates Azure subscriptions visible to every configured AzureARMHandler service principal and emits any not already represented as CloudBolt resources.",
+    "description": "Discovers Azure subscriptions visible to each Azure resource handler's service principal.",
     "id": "OHK-av52dzqm",
     "max_retries": 0,
     "name": "Discover Azure Subscriptions",

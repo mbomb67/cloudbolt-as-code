@@ -48,7 +48,7 @@
             "shared_modules/SHM-qmiweowv"
         ]
     },
-    "description": "Day-2 plugin: moves a landing-zone project to a different size tier by replacing its ResourceQuota and mirroring the new limits into the pinned CloudBolt environment.",
+    "description": "Moves a landing-zone project to a different size tier and mirrors the new quota into its environment.",
     "id": "OHK-ug53cdbx",
     "max_retries": 0,
     "name": "Request Quota Change",

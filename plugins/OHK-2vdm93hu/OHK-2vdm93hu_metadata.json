@@ -1,7 +1,7 @@
 {
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Installs NGINX on an Oracle Enterprise Linux 8 OS",
+    "description": "Installs NGINX on an Oracle Linux 8 server.",
     "execution_timeout": 600,
     "id": "OHK-2vdm93hu",
     "max_retries": 0,

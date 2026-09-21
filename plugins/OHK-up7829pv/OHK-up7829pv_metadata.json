@@ -1,7 +1,7 @@
 {
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Installs the Windows File Server Role on a Windows Server",
+    "description": "Installs the File Server role on a Windows server.",
     "execution_timeout": 1200,
     "id": "OHK-up7829pv",
     "max_retries": 0,

@@ -1,5 +1,5 @@
 {
-    "description": null,
+    "description": "Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-6nzs882l",

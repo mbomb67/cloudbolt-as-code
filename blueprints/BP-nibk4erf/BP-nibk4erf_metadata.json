@@ -41,7 +41,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Deploy infrastructure from an Azure Bicep template hosted in GitHub. CloudBolt fetches the template, compiles it with a self-bootstrapping Bicep binary, previews changes with what-if behind an approval gate, and provisions it as an Azure deployment stack. RBAC is enforced through Environment selection; the Azure resource handler is never exposed on the order form. This is the generic engine exemplar; scaffold-bicep generates typed, curated blueprints wired to the same plugins.",
+    "description": "Deploys an Azure deployment stack from a Bicep template hosted in GitHub, with a what-if preview and approval gate.",
     "favorited": false,
     "has_custom_form": true,
     "icon": "azure_bicep_logo_55VuQR6_DdIXRqt_0jKRIAa.png",

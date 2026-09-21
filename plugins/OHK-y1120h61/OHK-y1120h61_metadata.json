@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Day-2 action: delete a blob container from the resource's Azure storage account. Idempotent.",
+    "description": "Deletes a blob container from the resource's Azure storage account.",
     "id": "OHK-y1120h61",
     "max_retries": 0,
     "name": "Delete Blob Container",

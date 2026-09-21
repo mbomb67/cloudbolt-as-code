@@ -4,7 +4,7 @@
             "shared_modules/SHM-bbswv27r"
         ]
     },
-    "description": "Generic Bicep teardown plugin: deletes the Azure deployment stack backing the resource (delete-all) at its recorded scope \u2014 resource group or subscription, where it also removes the resource group(s) the template created. Idempotent and PROVFAILED-tolerant. Never force-deletes.",
+    "description": "Deletes the Azure deployment stack behind the resource and the resources it manages.",
     "id": "OHK-t2gs5caq",
     "max_retries": 0,
     "name": "Teardown Bicep Deployment",

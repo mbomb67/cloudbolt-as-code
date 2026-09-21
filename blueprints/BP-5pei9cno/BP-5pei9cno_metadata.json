@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Create Azure subscriptions with cross-tenant billing. Create subscription in dev tenant while billing goes to production tenant, with automatic cost center tagging via invoice sections.",
+    "description": "Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-av52dzqm"

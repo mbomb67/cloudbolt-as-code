@@ -20,6 +20,17 @@ jobs:
       - name: Validate metadata, cross-references, and default values
         run: python tools/validate_metadata.py
 
+  catalog:
+    name: Catalog freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check CATALOG.md, catalog.json, and the index READMEs match the metadata
+        run: python tools/build_catalog.py --check
+
   python-compile:
     name: Python compile
     runs-on: ubuntu-latest

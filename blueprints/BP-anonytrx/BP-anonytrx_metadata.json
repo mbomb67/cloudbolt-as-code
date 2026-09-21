@@ -67,7 +67,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates an NGINX Web Application",
+    "description": "Deploys an Oracle Linux 8 server and installs an NGINX web application.",
     "favorited": false,
     "icon": "nginx_icon.png",
     "id": "BP-anonytrx",

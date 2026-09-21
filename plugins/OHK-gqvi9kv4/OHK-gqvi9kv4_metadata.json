@@ -157,7 +157,7 @@
             "shared_modules/SHM-bbswv27r"
         ]
     },
-    "description": "Generic Bicep build plugin: fetches a template from GitHub, compiles it, detects its target scope (resource group or subscription), assembles and validates parameters against the compiled schema, previews with what-if behind an approval gate, and deploys an Azure deployment stack at that scope. No template-specific code.",
+    "description": "Deploys an Azure deployment stack from a GitHub-hosted Bicep template after a what-if preview and approval.",
     "id": "OHK-gqvi9kv4",
     "max_retries": 0,
     "name": "Deploy Bicep Template",

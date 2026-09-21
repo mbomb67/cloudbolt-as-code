@@ -1,5 +1,5 @@
 {
-    "description": "\nThis package includes a server tab extension:\n- OpenScap\n",
+    "description": "Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-i4kzuy3y",

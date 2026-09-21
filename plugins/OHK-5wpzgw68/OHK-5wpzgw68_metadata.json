@@ -39,7 +39,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Installs the AWS Application Migration Service replication agent on a Linux server.",
     "id": "OHK-5wpzgw68",
     "max_retries": 0,
     "name": "Deploy AWS App Migration Agent",

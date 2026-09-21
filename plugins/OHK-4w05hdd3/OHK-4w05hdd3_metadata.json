@@ -22,7 +22,7 @@
     ],
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Runs a SQL Command against the Postgres Server",
+    "description": "Runs a SQL command against the PostgreSQL server.",
     "execution_timeout": 3600,
     "id": "OHK-4w05hdd3",
     "max_retries": 0,

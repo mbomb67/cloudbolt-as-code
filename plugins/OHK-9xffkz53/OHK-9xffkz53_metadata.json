@@ -28,7 +28,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Day-2 action: targeted Resize for an HCP Terraform VM deployment. Presents only the vm_size variable with the deployment's current size pre-selected (read from the tfc_var_vm_size custom-field mirror), fails fast if the workspace already has a non-final run pending, snapshots the prior values of ALL allowlisted variables, upserts the FULL variable set (the snapshot overlaid with only the new size -- the other variables ride along unchanged), and runs with a human plan-approval pause: 'Continue Job' approves and applies, canceling rejects -- the run is discarded and the workspace variables are reverted to the snapshot. Depending on the Terraform template, applying a size change may restart the VM.",
+    "description": "Resizes an HCP Terraform VM by updating the vm_size variable and running with a plan-approval pause.",
     "id": "OHK-9xffkz53",
     "max_retries": 0,
     "name": "Resize",

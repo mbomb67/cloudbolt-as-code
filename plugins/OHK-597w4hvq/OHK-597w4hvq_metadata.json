@@ -1,5 +1,5 @@
 {
-    "description": "Cancel Azure subscription (soft delete - can be reactivated within 90 days)",
+    "description": "Cancels the Azure subscription, which can be reactivated within 90 days.",
     "id": "OHK-597w4hvq",
     "max_retries": 0,
     "name": "Teardown Azure Subscription",
