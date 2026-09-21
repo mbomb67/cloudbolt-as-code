@@ -7,11 +7,11 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 |---|---|
 | [Blueprints](#blueprints) | 16 |
 | [Resource actions](#resource-actions) | 24 |
-| [Server actions](#server-actions) | 2 |
+| [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
-| [Plugins](#plugins) | 77 |
-| [Shared modules](#shared-modules) | 12 |
+| [Plugins](#plugins) | 76 |
+| [Shared modules](#shared-modules) | 9 |
 | [UI extensions](#ui-extensions) | 6 |
 | [Forms](#forms) | 4 |
 
@@ -76,7 +76,6 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](server_actions/SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](plugins/OHK-5wpzgw68/) |
-| Migrate VM to OpenShift | [SVA-yhcr56mm](server_actions/SVA-yhcr56mm/README.md) | Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI. | [Migrate VM to OpenShift](plugins/OHK-kx3qcgmy/) |
 
 ## Orchestration actions
 
@@ -158,7 +157,6 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | List Subscription Access | [OHK-ovt0z46j](plugins/OHK-ovt0z46j/) | Lists role assignments at subscription scope with resolved principal names. | CloudBolt Plug-in | [List Access](resource_actions/RSA-f7wb11ny/) |
 | Manage Delete Lock | [OHK-sf6w5pfn](plugins/OHK-sf6w5pfn/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | CloudBolt Plug-in | [Manage Delete Lock](resource_actions/RSA-qwku9lip/) |
 | Manage Team Access | [OHK-9zzqqz7t](plugins/OHK-9zzqqz7t/) | Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding. | CloudBolt Plug-in | [Manage Team Access](resource_actions/RSA-yj1c4b5s/) |
-| Migrate VM to OpenShift | [OHK-kx3qcgmy](plugins/OHK-kx3qcgmy/) | Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI. | CloudBolt Plug-in | [Migrate VM to OpenShift](server_actions/SVA-yhcr56mm/README.md) |
 | Network Security Group Teardown | [OHK-9jouejv8](plugins/OHK-9jouejv8/) | Deletes the Azure network security group behind the resource. | CloudBolt Plug-in | [Azure Network Security Group](blueprints/BP-3fdhnw54/README.md) |
 | Node Size - Generate Options by OS Build Architecture | [OHK-9csbq3zd](plugins/OHK-9csbq3zd/README.md) | Generates node_size options limited to sizes matching the selected OS build's processor architecture. | CloudBolt Plug-in | standalone |
 | Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities) | [OHK-kujhsds0](plugins/OHK-kujhsds0/README.md) | Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings. | CloudBolt Plug-in | standalone |
@@ -198,11 +196,8 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
-| `openshift_import` | [SHM-f98ek4p6](shared_modules/SHM-f98ek4p6/) | Imports exported VM disk images and metadata into OpenShift Virtualization through CDI and the KubeVirt API. | [Migrate VM to OpenShift](plugins/OHK-kx3qcgmy/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
 | `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/), [Update Variables](plugins/OHK-oj87ukle/) |
-| `vmware` | [SHM-newmivt6](shared_modules/SHM-newmivt6/) | Common helpers for connecting to and operating on VMware vSphere through a CloudBolt resource handler. | [Migrate VM to OpenShift](plugins/OHK-kx3qcgmy/), [vmware_export](shared_modules/SHM-so5r7cau/) |
-| `vmware_export` | [SHM-so5r7cau](shared_modules/SHM-so5r7cau/) | Cold-exports a VMware VM's disks through vCenter over port 443 to QCOW2 for OpenShift import. | [Migrate VM to OpenShift](plugins/OHK-kx3qcgmy/) |
 | `windows_ca` | [SHM-nubxb8sn](shared_modules/SHM-nubxb8sn/) | Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation. | [Request Certificate (Windows CA)](plugins/OHK-67bw7wgu/), [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) |
 
 ## UI extensions

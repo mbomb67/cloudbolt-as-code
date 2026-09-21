@@ -6,4 +6,3 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](../plugins/OHK-5wpzgw68/) |
-| Migrate VM to OpenShift | [SVA-yhcr56mm](SVA-yhcr56mm/README.md) | Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI. | [Migrate VM to OpenShift](../plugins/OHK-kx3qcgmy/) |
