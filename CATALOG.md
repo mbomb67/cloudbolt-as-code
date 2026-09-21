@@ -12,7 +12,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Plugins](#plugins) | 76 |
 | [Shared modules](#shared-modules) | 9 |
-| [UI extensions](#ui-extensions) | 6 |
+| [UI extensions](#ui-extensions) | 7 |
 | [Forms](#forms) | 4 |
 
 ## Blueprints
@@ -212,6 +212,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |
 | Ssm Inventory | [XUI-l43ailkn](extensions/XUI-l43ailkn/README.md) | Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager. |
+| Technology Reference | [XUI-vwrd15py](extensions/XUI-vwrd15py/README.md) | Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx. |
 
 ## Forms
 

@@ -1,0 +1,144 @@
+<div class="d-flex align-items-end mb-3">
+  <ul class="nav nav-tabs flex-grow-1" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#techref-cfs">
+        Custom Fields <span class="badge text-bg-secondary rounded-pill">{{ cf_count }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#techref-actions">
+        Actions <span class="badge text-bg-secondary rounded-pill">{{ action_count }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#techref-deps">
+        Field Dependencies <span class="badge text-bg-secondary rounded-pill">{{ dep_count }}</span>
+      </button>
+    </li>
+  </ul>
+  <a href="{{ export_url }}" class="btn btn-primary btn-sm ms-3 mb-1 text-nowrap">
+    <i class="bi bi-download me-1"></i>Download Excel
+  </a>
+</div>
+
+<p class="text-body-secondary small">
+  Discovered live from this instance for <strong>{{ tech_name }}</strong>{% if environment %} via resource handler
+  <a href="{{ handler.get_absolute_url }}">{{ handler.name }}</a>{% endif %}.
+  Values are set on an Environment: tech parameters under its <strong>{{ tech_tab }}</strong> tab,
+  other parameters under <strong>Parameters</strong>.
+</p>
+
+<div class="tab-content">
+
+  <div class="tab-pane active" id="techref-cfs" role="tabpanel">
+    {% if fields %}
+    <table id="techref-cf-table" class="table table-striped table-sm align-middle w-100">
+      <thead>
+        <tr>
+          <th class="text-nowrap">Name</th><th>Label</th><th class="text-nowrap">Type</th>
+          <th>Req</th><th>Multi</th><th>Servers</th><th>Kind</th><th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cf in fields %}
+        <tr>
+          <td class="text-nowrap">{% if cf.url %}<a href="{{ cf.url }}" target="_blank" rel="noopener">{{ cf.name }}</a>{% else %}{{ cf.name }}{% endif %}</td>
+          <td>{{ cf.label }}</td>
+          <td class="text-nowrap">{{ cf.type }}</td>
+          <td>{% if cf.required %}&#10003;{% endif %}</td>
+          <td>{% if cf.allow_multiple %}&#10003;{% endif %}</td>
+          <td>{% if cf.show_on_servers %}&#10003;{% endif %}</td>
+          <td>
+            {% if cf.kind_key == "missing" %}<span class="text-warning-emphasis">{{ cf.kind }}</span>
+            {% elif cf.kind_key == "builtin" %}<span class="text-body-secondary">{{ cf.kind }}</span>
+            {% else %}<span class="text-success-emphasis">{{ cf.kind }}</span>{% endif %}
+          </td>
+          <td>{{ cf.description }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-body-secondary">No custom fields discovered for this handler.</p>
+    {% endif %}
+  </div>
+
+  <div class="tab-pane" id="techref-actions" role="tabpanel">
+    <p class="text-body-secondary small mb-2">
+      Actions filtered to {{ tech_name }}, plus every plug-in whose code names this handler
+      (<strong>How it's found</strong>). <strong>Used in</strong> links to each blueprint, server or
+      resource action, recurring job or orchestration trigger that runs the action.
+    </p>
+    {% if action_rows %}
+    <table id="techref-action-table" class="table table-striped table-sm align-middle w-100">
+      <thead>
+        <tr><th class="text-nowrap">Action</th><th>Used in</th><th class="text-nowrap">Trigger Point(s)</th><th class="text-nowrap">How it's found</th><th>Module</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        {% for a in action_rows %}
+        <tr>
+          <td><a href="{{ a.url }}">{{ a.name }}</a></td>
+          <td>
+            {% for u in a.usage %}
+            <div><span class="text-body-secondary">{{ u.label }}:</span> {% if u.url %}<a href="{{ u.url }}">{{ u.name }}</a>{% else %}{{ u.name }}{% endif %}{% if not u.enabled %} <span class="text-body-secondary">(disabled)</span>{% endif %}</div>
+            {% empty %}<span class="text-body-secondary">&mdash;</span>{% endfor %}
+          </td>
+          <td>{% if a.hook_points %}<code>{{ a.hook_points }}</code>{% endif %}</td>
+          <td class="text-nowrap">{{ a.how_found }}</td>
+          <td class="text-break"><small><code>{{ a.module }}</code></small></td>
+          <td>{{ a.description }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-body-secondary">No actions are filtered to or reference this resource technology.</p>
+    {% endif %}
+  </div>
+
+  <div class="tab-pane" id="techref-deps" role="tabpanel">
+    {% if dep_rows %}
+    <table id="techref-dep-table" class="table table-striped table-sm align-middle w-100">
+      <thead>
+        <tr><th>Dependent Field</th><th>Controlling Field</th><th>Dependency Type</th></tr>
+      </thead>
+      <tbody>
+        {% for d in dep_rows %}
+        <tr>
+          <td><code>{{ d.dependent }}</code></td>
+          <td><code>{{ d.controlling }}</code></td>
+          <td>{{ d.type }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-body-secondary">No field dependencies reference this technology's custom fields.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+(function () {
+  function initTables() {
+    if (!window.jQuery || !jQuery.fn || !jQuery.fn.DataTable) { return; }
+    var opts = { paging: true, pageLength: 25, searching: true, info: true, autoWidth: false,
+                 order: [], lengthChange: true, lengthMenu: [10, 25, 50, 100, 500] };
+    jQuery('#techref-cf-table, #techref-action-table, #techref-dep-table').each(function () {
+      if (!jQuery.fn.DataTable.isDataTable(this)) { jQuery(this).DataTable(opts); }
+    });
+  }
+  if (window.jQuery) {
+    jQuery(document).ready(initTables);
+    jQuery(document).on('shown.bs.tab', '[data-bs-toggle="tab"][data-bs-target^="#techref-"]', function () {
+      // querySelector is selector-only: unlike jQuery(string) it can never parse the value as HTML
+      var pane = document.querySelector(this.getAttribute('data-bs-target'));
+      if (!pane) { return; }
+      jQuery(pane).find('table').each(function () {
+        if (jQuery.fn.DataTable.isDataTable(this)) { jQuery(this).DataTable().columns.adjust(); }
+      });
+    });
+  }
+})();
+</script>
