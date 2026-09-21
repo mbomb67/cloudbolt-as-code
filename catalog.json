@@ -1107,23 +1107,6 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
-    "id": "OHK-kx3qcgmy",
-    "type": "plugins",
-    "name": "Migrate VM to OpenShift",
-    "description": "Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI.",
-    "path": "plugins/OHK-kx3qcgmy",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-f98ek4p6",
-      "shared_modules/SHM-newmivt6",
-      "shared_modules/SHM-so5r7cau"
-    ],
-    "used_by": [
-      "server_actions/SVA-yhcr56mm"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
     "id": "OHK-l25x6wd8",
     "type": "plugins",
     "name": "Create Blob Container",
@@ -1955,19 +1938,6 @@
     "enabled": true
   },
   {
-    "id": "SVA-yhcr56mm",
-    "type": "server_actions",
-    "name": "Migrate VM to OpenShift",
-    "description": "Cold-migrates a VMware VM into OpenShift Virtualization by exporting through vCenter and uploading through CDI.",
-    "path": "server_actions/SVA-yhcr56mm",
-    "readme": "server_actions/SVA-yhcr56mm/README.md",
-    "uses": [
-      "plugins/OHK-kx3qcgmy"
-    ],
-    "used_by": [],
-    "enabled": true
-  },
-  {
     "id": "SHM-5hjzm9e4",
     "type": "shared_modules",
     "name": "azure_subscription_helpers",
@@ -2042,18 +2012,6 @@
     ]
   },
   {
-    "id": "SHM-f98ek4p6",
-    "type": "shared_modules",
-    "name": "openshift_import",
-    "description": "Imports exported VM disk images and metadata into OpenShift Virtualization through CDI and the KubeVirt API.",
-    "path": "shared_modules/SHM-f98ek4p6",
-    "readme": null,
-    "uses": [],
-    "used_by": [
-      "plugins/OHK-kx3qcgmy"
-    ]
-  },
-  {
     "id": "SHM-jlguerjr",
     "type": "shared_modules",
     "name": "tfc_api",
@@ -2069,19 +2027,6 @@
       "plugins/OHK-2b9qu490",
       "plugins/OHK-lvy5tj0y",
       "plugins/OHK-oj87ukle"
-    ]
-  },
-  {
-    "id": "SHM-newmivt6",
-    "type": "shared_modules",
-    "name": "vmware",
-    "description": "Common helpers for connecting to and operating on VMware vSphere through a CloudBolt resource handler.",
-    "path": "shared_modules/SHM-newmivt6",
-    "readme": null,
-    "uses": [],
-    "used_by": [
-      "plugins/OHK-kx3qcgmy",
-      "shared_modules/SHM-so5r7cau"
     ]
   },
   {
@@ -2112,20 +2057,6 @@
       "plugins/OHK-prew0osh",
       "plugins/OHK-ug53cdbx",
       "plugins/OHK-mpe8fl3d"
-    ]
-  },
-  {
-    "id": "SHM-so5r7cau",
-    "type": "shared_modules",
-    "name": "vmware_export",
-    "description": "Cold-exports a VMware VM's disks through vCenter over port 443 to QCOW2 for OpenShift import.",
-    "path": "shared_modules/SHM-so5r7cau",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-newmivt6"
-    ],
-    "used_by": [
-      "plugins/OHK-kx3qcgmy"
     ]
   },
   {

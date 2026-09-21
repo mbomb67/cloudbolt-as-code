@@ -302,9 +302,8 @@ class LandingZoneError(Exception):
 class OpenShiftLandingZoneClient:
     """Minimal OpenShift API client for landing-zone objects.
 
-    Built the same way this repo's working ``openshift_import`` shared module
-    talks to the cluster: the OpenShift Virtualization handler's API wrapper
-    client exposes the API base URL and issues an OAuth bearer token.
+    The OpenShift Virtualization handler's API wrapper client exposes the API
+    base URL and issues an OAuth bearer token; this client reuses both.
     """
 
     def __init__(self, api_url, token, verify_ssl=False):
@@ -637,9 +636,8 @@ class OpenShiftLandingZoneClient:
     def get_console_url(self):
         """Best-effort OpenShift web console URL from the ``console`` Route.
 
-        Same Route lookup this repo's openshift_import module uses to find the
-        CDI upload proxy: GET /apis/route.openshift.io/v1/namespaces/{ns}/routes/{name}
-        and read spec.host. Returns '' if the route cannot be read.
+        GET /apis/route.openshift.io/v1/namespaces/{ns}/routes/{name} and read
+        spec.host. Returns '' if the route cannot be read.
         """
         try:
             route = self._request(
