@@ -306,6 +306,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-vwrd15py",
+    "type": "extensions",
+    "name": "Technology Reference",
+    "description": "Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx.",
+    "path": "extensions/XUI-vwrd15py",
+    "readme": "extensions/XUI-vwrd15py/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-ycumvq8k",
     "type": "extensions",
     "name": "Io Cloudbolt Widgets",

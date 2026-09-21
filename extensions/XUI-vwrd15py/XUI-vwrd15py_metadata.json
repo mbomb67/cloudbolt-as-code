@@ -1,5 +1,5 @@
 {
-    "description": "Technology Reference XUI.\n\nAdds a \"Technology Reference\" tab to every Resource Handler page and to every Environment\nthat has a resource handler: the custom fields, actions and field dependencies of that\ntechnology, discovered live from this instance and exportable as one .xlsx. Read-only.\n\n",
+    "description": "Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-vwrd15py",

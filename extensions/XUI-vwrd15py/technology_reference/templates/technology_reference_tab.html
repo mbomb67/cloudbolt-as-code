@@ -132,7 +132,10 @@
   if (window.jQuery) {
     jQuery(document).ready(initTables);
     jQuery(document).on('shown.bs.tab', '[data-bs-toggle="tab"][data-bs-target^="#techref-"]', function () {
-      jQuery(jQuery(this).attr('data-bs-target') + ' table').each(function () {
+      // querySelector is selector-only: unlike jQuery(string) it can never parse the value as HTML
+      var pane = document.querySelector(this.getAttribute('data-bs-target'));
+      if (!pane) { return; }
+      jQuery(pane).find('table').each(function () {
         if (jQuery.fn.DataTable.isDataTable(this)) { jQuery(this).DataTable().columns.adjust(); }
       });
     });
