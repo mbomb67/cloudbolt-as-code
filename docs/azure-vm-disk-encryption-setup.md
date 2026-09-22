@@ -21,7 +21,7 @@ Both actions ship **disabled**. Enable them together once the prerequisites belo
 | Outline step | Verdict | What actually happens |
 |---|---|---|
 | Create a DES per VM, same RG/region | ✅ as written | `<vm>` + `azure_cmk_des_suffix` (default `-DES`), VM's RG and region |
-| Unique key per VM in a shared vault | ✅ as written | `<vm>` + `azure_cmk_key_suffix` (default `-key`), RSA 2048/3072/4096 or RSA-HSM, ops wrapKey/unwrapKey |
+| Unique key per VM in a shared vault | ✅ as written | `<vm>` + `azure_cmk_key_suffix` (default `-key`), RSA 2048/3072/4096 or RSA-HSM, ops wrapKey/unwrapKey, expiry `azure_cmk_key_expiration_days` days out (default 89; the action rejects anything ≥ 90) |
 | Create key → DES → grant DES identity | ✅ order confirmed by Microsoft's CLI walkthrough | Grant is an RBAC role assignment on RBAC-mode vaults or an access policy on legacy vaults |
 | **"Provision the VM with the DES attached"** | ❌ not possible from a hook | CloudBolt's Azure handler (`TechnologyWrapper.create_node`) has `encryption_at_host` and `security_type` parameters but **no DES parameter**, so the DES cannot be injected into the create call. Azure also requires disks to be detached from a running VM to change encryption. The action therefore runs at **Post-Provision** and does deallocate → PATCH disks → start (adds a few minutes per VM). |
 | Encryption at host | ✅ but conditional | Enabled while the VM is deallocated **if** `Microsoft.Compute/EncryptionAtHost` is registered on the subscription and the size supports it; otherwise reported as WARNING and the VM is still restarted. CloudBolt can also set it natively at create time. |
@@ -61,7 +61,7 @@ Sovereign clouds are supported via the handler's `cloud_environment` (login/ARM/
 1. Sync the repo; the five content units above appear.
 2. On **Admin → Orchestration Actions → Post-Provision → Azure CMK - Per-VM Disk Encryption Set**, set the default value of **Azure CMK Key Vault (Resource ID)** to the vault's ARM ID:
    `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`
-   Adjust the other defaults if needed (key type/size, suffixes, encryption type, encryption at host, auto rotation).
+   Adjust the other defaults if needed (key type/size, key expiration days, suffixes, encryption type, encryption at host, auto rotation).
 3. Multi-region / multi-vault: add a parameter named `azure_cmk_key_vault_id` to each Environment (or Group) with that region's vault ID. A value on the server overrides the action default.
 3a. (Optional) **Azure CMK User-Assigned Identity (Resource ID)** — leave empty for the default behaviour (each DES gets a system-assigned identity that the action grants key access per DES). Set it to an existing user-assigned managed identity's ARM ID to have every DES use that shared identity instead:
    - The identity must already hold *Key Vault Crypto Service Encryption User* (or access-policy keys Get/Wrap Key/Unwrap Key) on the vault; the action does not grant or revoke anything for it.

@@ -21,6 +21,11 @@
             "value": "EncryptionAtRestWithPlatformAndCustomerKeys"
         },
         {
+            "label": "Azure CMK Key Expiration (Days)",
+            "name": "azure_cmk_key_expiration_days_a421",
+            "value": "89"
+        },
+        {
             "label": "Azure CMK Key Size",
             "name": "azure_cmk_key_size_a421",
             "value": "2048"
@@ -121,6 +126,25 @@
             "show-as-attribute": false,
             "show-on-servers": false,
             "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Number of days from creation until the per-VM Key Vault key expires (KeyAttributes.exp). Must be 1-89: keys are required to expire in less than 90 days. Default 89. Re-runs that reuse an existing key keep that key's original expiry.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-tb80h1ws",
+            "label": "Azure CMK Key Expiration (Days)",
+            "name": "azure_cmk_key_expiration_days",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "INT",
             "value-pattern-string": null
         },
         {
