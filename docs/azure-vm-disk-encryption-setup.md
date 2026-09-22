@@ -49,8 +49,8 @@ Both actions ship **disabled**. Enable them together once the prerequisites belo
 | Key Vault resource | read vault properties | Reader (included in Contributor) |
 | Key Vault resource, **RBAC-mode vault** | create/delete the DES role assignment | **Key Vault Data Access Administrator** (`8b54135c-b56d-4d72-a534-26097cfdc8d8`) or User Access Administrator |
 | Key Vault resource, **access-policy vault** | add/remove the DES access policy | Contributor on the vault (`Microsoft.KeyVault/vaults/accessPolicies/write`) |
-| Key Vault data plane, RBAC-mode vault | create/get/delete keys, set the rotation policy | **Key Vault Crypto Officer** (`14b46e9e-c2b7-41b4-b07b-48a6ebf60603`) |
-| Key Vault data plane, access-policy vault | same | Access policy: keys `get`, `create`, `delete`, `Rotate`, `Set Rotation Policy`, `Get Rotation Policy` |
+| Key Vault data plane, RBAC-mode vault | create/get/delete/recover keys, set the rotation policy | **Key Vault Crypto Officer** (`14b46e9e-c2b7-41b4-b07b-48a6ebf60603`) — its `keys/*` data action covers `keys/recover/action` |
+| Key Vault data plane, access-policy vault | same | Access policy: keys `get`, `create`, `delete`, `Recover`, `Rotate`, `Set Rotation Policy`, `Get Rotation Policy` |
 
 The DES identity itself receives only `get`/`wrapKey`/`unwrapKey` (role **Key Vault Crypto Service Encryption User**, `e147488a-f6f5-4113-8e2d-b22465e65bf6`). When the optional user-assigned identity input is set, that identity must hold this role already and the two "role assignment / access policy" rows above are not needed by the SPN.
 
@@ -80,6 +80,34 @@ Azure's minimums — ["The minimum value is seven days from creation and seven d
 The DES is still created with the **versioned** key URL — that is what Azure's auto-rotation walkthrough does (`-KeyUrl $key.Key.Kid` together with `-RotationToLatestKeyVersionEnabled $true`). The general Key Vault advice to use a versionless URI does not apply to disk encryption sets.
 
 Rotation is per-key, not per-version, so a re-run re-applies the policy to an existing `<vm>-key`. Note that [each scheduled rotation is billed](https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation#pricing), and that keys created before this action gained an expiry keep having none until they are rotated or replaced.
+
+### Rebuilding a VM on a hostname that was used before
+
+The Post-Delete action soft-deletes `<vm>-key`. Because DES vaults must have purge protection on, ["a vault or an object in the deleted state can't be purged until the retention period passes"](https://learn.microsoft.com/en-us/azure/key-vault/general/soft-delete-overview#purge-protection) and ["a key vault object can't be created in a given vault if that key vault contains an object with the same name and which is in a deleted state"](https://learn.microsoft.com/en-us/azure/key-vault/general/soft-delete-overview#soft-delete-retention-period). So the next VM to take that hostname used to fail:
+
+```
+409 Conflict: Key <vm>-key is currently in a deleted but recoverable state,
+and its name cannot be reused; in this state, the key can only be recovered or purged.
+```
+
+Purging is impossible by design here, so the action [recovers](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/recover-deleted-key/recover-deleted-key) the key instead. `ensure_key()` resolves the name whatever state it is in:
+
+| State of `<vm>-key` | What happens |
+|---|---|
+| Absent | Create it |
+| Live, enabled, expiry beyond the rotation lead | Reuse as-is |
+| Live but disabled, expired, or with no expiry | Add a fresh version under the same name |
+| Soft-deleted | Recover, then apply the same test |
+| Deleted between the check and the create | Recover, then retry once |
+
+Recovery is not instantaneous, so the action polls `GET /keys/{name}` until the key is retrievable again (5 minutes, then it fails the server).
+
+Two deliberate choices worth knowing:
+
+- **A stale version is never handed to a DES.** Azure [shuts the VM down when the key is disabled or expired](https://learn.microsoft.com/en-us/azure/virtual-machines/disk-encryption#full-control-of-your-keys), so a recovered key whose version already lapsed gets a new version rather than being reused. The same test retires keys created before this action set expiries at all.
+- **The rotation policy is re-applied on every run**, including reuse and recovery, because the policy lives on the key rather than on a version. A recovered key therefore comes back under the current policy even if it was created under a different one.
+
+Note that the recovered key is the *decommissioned VM's* key material. If your policy is that a new VM must never share key material with a previous tenant of that hostname, set a hostname scheme that does not recycle names, or add a step that purges the key once the retention window allows.
 
 ## CloudBolt configuration
 

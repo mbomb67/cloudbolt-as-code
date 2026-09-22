@@ -114,6 +114,8 @@ ROTATION_LEAD_DAYS_DEFAULT = 7
 # How long to keep retrying steps that depend on Entra/RBAC propagation.
 GRANT_PROPAGATION_TIMEOUT_SECS = 600
 GRANT_PROPAGATION_POLL_SECS = 20
+KEY_RECOVER_TIMEOUT_SECS = 300
+KEY_RECOVER_POLL_SECS = 10
 DES_INUSE_RETRY_TIMEOUT_SECS = 300
 DES_INUSE_POLL_SECS = 15
 LRO_TIMEOUT_SECS = 1800
@@ -168,6 +170,15 @@ def ensure_custom_fields():
 
 class AzureCMKError(Exception):
     """A hard failure for one server (surfaced as FAILURE by the caller)."""
+
+
+class AzureCMKKeyDeleted(AzureCMKError):
+    """
+    The key name is held by a soft-deleted key, so create-key returns 409 and the
+    name cannot be reused until the key is recovered or purged. DES vaults must
+    have purge protection on, which blocks purging for the whole retention
+    window, so recovery is the only way forward.
+    """
 
 
 class AzureCMKSkip(Exception):
@@ -239,6 +250,30 @@ def key_expiry_epoch(expiration_days, now=None):
             f"(policy: less than {KEY_EXPIRATION_DAYS_MAX} days); got {days}"
         )
     return int((now if now is not None else time.time()) + days * 86400)
+
+
+def key_is_usable(key, min_remaining_days=0, now=None):
+    """
+    Return (usable, reason) for a KeyBundle. A key version can only wrap/unwrap
+    while it is enabled and unexpired, and Azure shuts a VM down when the key
+    behind its disks is disabled or expired, so anything that fails here must be
+    replaced with a fresh version rather than handed to a DES.
+
+    A version with no expiry at all counts as unusable: this action's whole
+    premise is that keys expire inside the policy window, and keys created
+    before that rule (or recovered from an older build) carry none.
+    """
+    attrs = (key or {}).get("attributes") or {}
+    if attrs.get("enabled") is False:
+        return False, "disabled"
+    exp = attrs.get("exp")
+    if not exp:
+        return False, "no expiry set"
+    remaining = (int(exp) - (now if now is not None else time.time())) / 86400.0
+    if remaining <= min_remaining_days:
+        return False, ("already expired" if remaining <= 0
+                       else f"expires in {remaining:.1f} days, inside the rotation window")
+    return True, f"expires in {int(remaining)} days"
 
 
 def iso8601_days(days):
@@ -625,9 +660,95 @@ class AzureCMKClient:
         # idempotent=False: a repeated POST mints an extra key version.
         resp = self.request("POST", url, self._vault_audience(), body=body,
                             params={"api-version": KV_DATA_API}, ok=(200,), idempotent=False)
+        if resp.status_code == 409:
+            # "Key <name> is currently in a deleted but recoverable state, and its
+            # name cannot be reused" -- ensure_key() handles this by recovering.
+            raise AzureCMKKeyDeleted(f"key '{key_name}' is soft-deleted: {_err_text(resp)}")
         if resp.status_code != 200:
             raise AzureCMKError(f"Key Vault create-key '{key_name}' failed: {_err_text(resp)}")
         return self._json(resp)
+
+    def get_deleted_key(self, vault_uri, key_name):
+        """
+        GET {vaultBaseUrl}/deletedkeys/{key-name} — the soft-deleted key, or None
+        when the name is genuinely free. Requires keys/get.
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-deleted-key/get-deleted-key
+        """
+        url = f"{vault_uri.rstrip('/')}/deletedkeys/{key_name}"
+        resp = self.request("GET", url, self._vault_audience(), params={"api-version": KV_DATA_API},
+                            ok=(200, 404))
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault get-deleted-key '{key_name}' failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def recover_deleted_key(self, vault_uri, key_name, timeout=KEY_RECOVER_TIMEOUT_SECS):
+        """
+        POST {vaultBaseUrl}/deletedkeys/{key-name}/recover — "recovers the deleted key
+        back to its latest version under /keys". Requires keys/recover (covered by the
+        Key Vault Crypto Officer role's keys/* on RBAC vaults; access-policy vaults need
+        the Recover key permission). Recovery is not instantaneous -- every Azure SDK
+        models it as a long-running operation -- so poll GET /keys/{name} until the key
+        is retrievable again and return that bundle.
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/recover-deleted-key/recover-deleted-key
+        """
+        url = f"{vault_uri.rstrip('/')}/deletedkeys/{key_name}/recover"
+        resp = self.request("POST", url, self._vault_audience(), params={"api-version": KV_DATA_API},
+                            ok=(200,))
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault recover-key '{key_name}' failed: {_err_text(resp)}")
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            key = self.get_key(vault_uri, key_name)
+            if key:
+                return key
+            time.sleep(KEY_RECOVER_POLL_SECS)
+        raise AzureCMKError(
+            f"key '{key_name}' was recovered but did not become retrievable within {timeout}s")
+
+    def ensure_key(self, vault_uri, key_name, key_type, key_size, tags=None,
+                   expiration_days=KEY_EXPIRATION_DAYS_DEFAULT, min_remaining_days=0):
+        """
+        Return (KeyBundle, description) for a key that is safe to hand to a DES,
+        whatever state the name is in:
+
+          - live and usable                 -> reuse it as-is
+          - live but disabled/expired/no exp -> add a fresh version under the same name
+          - soft-deleted                     -> recover, then apply the same test
+          - absent                           -> create it
+
+        Rebuilding a VM with a hostname that was used before is the common path
+        here: the teardown soft-deletes the key, so the name is taken but GET
+        /keys returns 404 and a plain create-key would 409. Purge protection is
+        mandatory on DES vaults, so the name cannot be freed -- recovery is the
+        only route, and the caller re-applies the rotation policy afterwards
+        either way (the policy lives on the key, not the version).
+        """
+        def _new_version(prefix, why):
+            key = self.create_key(vault_uri, key_name, key_type, key_size, tags, expiration_days)
+            return key, f"{prefix}new version ({why})"
+
+        key = self.get_key(vault_uri, key_name)
+        recovered = False
+        if key is None and self.get_deleted_key(vault_uri, key_name) is not None:
+            logger.info("Azure CMK: key '%s' is soft-deleted; recovering it", key_name)
+            key = self.recover_deleted_key(vault_uri, key_name)
+            recovered = True
+        if key is None:
+            try:
+                return self.create_key(vault_uri, key_name, key_type, key_size, tags, expiration_days), "created"
+            except AzureCMKKeyDeleted:
+                # Deleted between our check and the create; recover and try once more.
+                logger.warning("Azure CMK: key '%s' was deleted mid-flight; recovering it", key_name)
+                key = self.recover_deleted_key(vault_uri, key_name)
+                recovered = True
+
+        prefix = "recovered, " if recovered else ""
+        usable, why = key_is_usable(key, min_remaining_days)
+        if usable:
+            return key, f"{prefix}reused ({why})" if recovered else f"reused ({why})"
+        return _new_version(prefix, why)
 
     def set_key_rotation_policy(self, vault_uri, key_name, policy):
         """
