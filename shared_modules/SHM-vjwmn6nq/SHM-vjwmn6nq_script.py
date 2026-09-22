@@ -303,6 +303,31 @@ def key_url_without_version(key_url):
     return key_url
 
 
+def _never_sent(exc, _depth=12):
+    """
+    True when a transport failure happened before anything was written to the
+    socket (DNS failure, TCP connect refused/unreachable, connect timeout), so
+    the call provably never reached Azure and is safe to repeat even when the
+    operation is not idempotent. Walks the cause chain because requests wraps
+    urllib3, which wraps the OSError.
+    """
+    if isinstance(exc, requests.exceptions.ConnectTimeout):
+        return True
+    seen = exc
+    while seen is not None and _depth > 0:
+        if type(seen).__name__ in ("NewConnectionError", "NameResolutionError", "ConnectTimeoutError"):
+            return True
+        # requests raises ConnectionError(urllib3_error), so the cause is in args[0]
+        # as well as in __cause__/__context__; follow whichever is populated.
+        nxt = seen.__cause__ or seen.__context__
+        if nxt is None:
+            args = getattr(seen, "args", ())
+            nxt = args[0] if args and isinstance(args[0], BaseException) else None
+        seen = nxt
+        _depth -= 1
+    return False
+
+
 def _err_text(resp):
     try:
         body = resp.json()
@@ -376,16 +401,25 @@ class AzureCMKClient:
         if client_id and secret and self.tenant_id:
             # ARM expects the trailing-slash resource; Key Vault expects the bare host.
             resource = audience if audience == self.endpoints["vault"] else audience.rstrip("/") + "/"
-            resp = requests.post(
-                f"{self.endpoints['login']}/{self.tenant_id}/oauth2/token",
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": client_id,
-                    "client_secret": secret,
-                    "resource": resource,
-                },
-                timeout=REQUEST_TIMEOUT,
-            )
+            data = {
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": secret,
+                "resource": resource,
+            }
+            login_url = f"{self.endpoints['login']}/{self.tenant_id}/oauth2/token"
+            resp, delay = None, 5
+            for attempt in range(3):
+                try:
+                    resp = requests.post(login_url, data=data, timeout=REQUEST_TIMEOUT)
+                    break
+                except requests.exceptions.RequestException as exc:
+                    # Fetching a token has no side effects, so it is always safe to repeat.
+                    if attempt == 2:
+                        raise AzureCMKError(f"could not reach {login_url.split('/oauth2')[0]}: {exc}")
+                    logger.warning("Azure token request failed (%s); retrying in %ss", exc, delay)
+                    time.sleep(delay)
+                    delay *= 2
             if resp.status_code != 200:
                 raise AzureCMKError(f"token request for {audience} failed: {_err_text(resp)}")
             body = resp.json()
@@ -403,13 +437,35 @@ class AzureCMKClient:
         self._tokens[audience] = (token, time.time() + expires_in)
         return token
 
-    # --- generic request with retry on throttling / transient 5xx -----------
-    def request(self, method, url, audience, body=None, params=None, ok=(200, 201, 202, 204), retries=4):
+    # --- generic request with retry on throttling / transient 5xx / network --
+    def request(self, method, url, audience, body=None, params=None, ok=(200, 201, 202, 204),
+                retries=4, idempotent=True):
+        """
+        `idempotent` says whether repeating this call is harmless. Every ARM call
+        here is a GET or a PUT-by-name, so the default is True; Key Vault's
+        create-key is a POST that mints a new version each time, so it passes
+        False and is only repeated when the request provably never went out.
+        """
         delay = 5
         resp = None
         for attempt in range(retries + 1):
             headers = {"Authorization": f"Bearer {self.token(audience)}", "Content-Type": "application/json"}
-            resp = requests.request(method, url, headers=headers, json=body, params=params, timeout=REQUEST_TIMEOUT)
+            try:
+                resp = requests.request(method, url, headers=headers, json=body, params=params,
+                                        timeout=REQUEST_TIMEOUT)
+            except requests.exceptions.RequestException as exc:
+                # A blip on the appliance's link to Azure (the socket never opened,
+                # DNS failed, the connection dropped mid-flight) would otherwise fail
+                # the whole server on one packet's worth of bad luck.
+                if attempt < retries and (idempotent or _never_sent(exc)):
+                    logger.warning("Azure %s %s: %s; retrying in %ss", method, url, exc, delay)
+                    time.sleep(delay)
+                    delay = min(delay * 2, 60)
+                    continue
+                raise AzureCMKError(
+                    f"{method} {url.split('?')[0]} could not reach Azure after "
+                    f"{attempt + 1} attempt(s): {exc}"
+                )
             if resp.status_code in ok:
                 return resp
             if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
@@ -566,7 +622,9 @@ class AzureCMKClient:
             "attributes": {"enabled": True, "exp": key_expiry_epoch(expiration_days)},
             "tags": tags or {},
         }
-        resp = self.request("POST", url, self._vault_audience(), body=body, params={"api-version": KV_DATA_API}, ok=(200,))
+        # idempotent=False: a repeated POST mints an extra key version.
+        resp = self.request("POST", url, self._vault_audience(), body=body,
+                            params={"api-version": KV_DATA_API}, ok=(200,), idempotent=False)
         if resp.status_code != 200:
             raise AzureCMKError(f"Key Vault create-key '{key_name}' failed: {_err_text(resp)}")
         return self._json(resp)

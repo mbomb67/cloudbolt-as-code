@@ -252,6 +252,11 @@ def _process_server(job, server, cfg):
     if not key_url:
         raise AzureCMKError(f"Key Vault did not return a key id for '{key_name}'")
 
+    # Record the key before anything else can fail. The DES and grant below can
+    # leave the key behind, and Post-Delete only removes what is recorded here.
+    server.set_value_for_custom_field(CF_KEY_ID, key_url)
+    server.set_value_for_custom_field(CF_APPLIED_VAULT_ID, vault_id)
+
     # Rotation policy: attached to the key, so a re-run re-applies it even when
     # the key itself was reused. Paired with azure_cmk_auto_key_rotation on the
     # DES, this is what keeps the VM alive past the key's expiry.
@@ -289,12 +294,10 @@ def _process_server(job, server, cfg):
         set_progress(f"Azure CMK: {vm_name}: granting DES identity access to the vault")
         grant_ref = client.grant_des_key_access(vault, des_principal_id)
 
-    # Persist identifiers now, before touching disks, so a later failure can
-    # still be torn down (Post-Delete reads these).
+    # Persist the rest before touching disks, so a later failure can still be
+    # torn down (Post-Delete reads these).
     server.set_value_for_custom_field(CF_DES_ID, des_id)
     server.set_value_for_custom_field(CF_DES_PRINCIPAL_ID, des_principal_id)
-    server.set_value_for_custom_field(CF_KEY_ID, key_url)
-    server.set_value_for_custom_field(CF_APPLIED_VAULT_ID, vault_id)
     server.set_value_for_custom_field(CF_GRANT_REF, grant_ref)
 
     # --- 4. re-encrypt disks (needs a deallocated VM) ----------------------------
