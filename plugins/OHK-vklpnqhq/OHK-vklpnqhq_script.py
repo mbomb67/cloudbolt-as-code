@@ -11,10 +11,13 @@ job.server_set.all() like the OOTB hooks):
   2. Resolve the Key Vault: the server's azure_cmk_key_vault_id custom field
      (Environment/Group override) or this action's default input. Validate
      soft delete + purge protection (mandatory for DES) and same region.
-  3. Create the per-VM key  <vm>-key  (RSA 2048/3072/4096 or RSA-HSM, wrap/unwrap)
+  3. Resolve the per-VM key  <vm>-key  (RSA 2048/3072/4096 or RSA-HSM, wrap/unwrap)
      with an expiry azure_cmk_key_expiration_days from now — the policy ceiling
-     is under 90 days, so the input is capped at 89.
-     Re-uses an existing key of that name instead of minting a new version.
+     is under 90 days, so the input is capped at 89. A live, usable key of that
+     name is reused as-is; one that is soft-deleted (the usual case when a VM is
+     rebuilt on an old hostname, since the teardown deletes it and purge
+     protection stops the name being freed) is recovered first; one that is
+     disabled, expired, or carries no expiry gets a fresh version.
      Then PUT a Key Vault rotation policy derived from that same expiry, so
      Key Vault mints a fresh version azure_cmk_key_rotation_lead_days before
      the current one expires. The policy is per-key, not per-version, so it is
@@ -63,8 +66,6 @@ are still CMK-encrypted and the VM is restarted).
 Vendor APIs are wrapped in shared_modules/azure_disk_encryption, with the
 Microsoft REST reference cited at each call site.
 """
-import time
-
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
@@ -236,18 +237,19 @@ def _process_server(job, server, cfg):
 
     # --- 1. per-VM key (idempotent: reuse if present) ----------------------------
     key_name = sanitize_name(f"{vm_name}{cfg['key_suffix']}", allowed=r"[^0-9A-Za-z-]", max_len=127)
-    key = client.get_key(vault_uri, key_name)
-    if key:
-        # Reuse keeps re-runs idempotent, so the expiry is whatever the existing
-        # key already carries — report it rather than minting a new version.
-        existing_exp = (key.get("attributes") or {}).get("exp")
-        when = time.strftime("%Y-%m-%d", time.gmtime(existing_exp)) if existing_exp else "no expiry set"
-        set_progress(f"Azure CMK: {vm_name}: key '{key_name}' already exists; reusing (expires {when})")
-    else:
-        set_progress(f"Azure CMK: {vm_name}: creating key '{key_name}' "
-                     f"({cfg['key_type']} {cfg['key_size']}, expires in {cfg['key_expiration_days']} days)")
-        key = client.create_key(vault_uri, key_name, cfg["key_type"], cfg["key_size"], tags,
-                                expiration_days=cfg["key_expiration_days"])
+    # Create, reuse, or recover — rebuilding a VM on a previously used hostname
+    # finds the old key soft-deleted by the teardown, and the name cannot be
+    # reused until it is recovered. A version that is disabled, expired, or has
+    # no expiry is replaced with a fresh one rather than handed to the DES.
+    set_progress(f"Azure CMK: {vm_name}: resolving key '{key_name}' "
+                 f"({cfg['key_type']} {cfg['key_size']}, {cfg['key_expiration_days']}-day expiry)")
+    key, key_action = client.ensure_key(
+        vault_uri, key_name, cfg["key_type"], cfg["key_size"], tags,
+        expiration_days=cfg["key_expiration_days"],
+        # A version must outlive the window in which rotation is meant to replace it.
+        min_remaining_days=cfg["key_rotation_lead_days"] if cfg["rotation_policy_body"] else 0,
+    )
+    set_progress(f"Azure CMK: {vm_name}: key '{key_name}': {key_action}")
     key_url = ((key or {}).get("key") or {}).get("kid")
     if not key_url:
         raise AzureCMKError(f"Key Vault did not return a key id for '{key_name}'")
@@ -355,8 +357,8 @@ def _process_server(job, server, cfg):
     server.set_value_for_custom_field(CF_ENCRYPTED_DISKS, ",".join(all_disks))
     server.set_value_for_custom_field(CF_EAH_APPLIED, bool(eah_already))
 
-    message = "%s: key '%s' (%s), DES '%s', disks %s%s" % (
-        vm_name, key_name,
+    message = "%s: key '%s' %s (%s), DES '%s', disks %s%s" % (
+        vm_name, key_name, key_action,
         "rotation off" if cfg["key_rotation_policy"] == ROTATION_MODE_DISABLED
         else f"rotates {cfg['key_rotation_lead_days']}d before expiry",
         des_name,
