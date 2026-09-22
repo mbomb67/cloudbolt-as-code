@@ -8,9 +8,11 @@ job.server_set.all() like the OOTB hooks):
 
   1. Resolve the Azure coordinates (handler, subscription, resource group,
      VM name == hostname) and read the VM (region, security type, disks).
-  2. Resolve the Key Vault: the server's azure_cmk_key_vault_id custom field
-     (Environment/Group override) or this action's default input. Validate
-     soft delete + purge protection (mandatory for DES) and same region.
+  2. Resolve the Key Vault from the server's azure_cmk_key_vault_id parameter.
+     That parameter is the switch for this whole action: a server with no value
+     for it is skipped (SUCCESS), so CMK is opt-in per Environment, Group,
+     blueprint or server. Validate soft delete + purge protection (mandatory
+     for DES) and same region.
   3. Resolve the per-VM key  <vm>-key  (RSA 2048/3072/4096 or RSA-HSM, wrap/unwrap)
      with an expiry azure_cmk_key_expiration_days from now — the policy ceiling
      is under 90 days, so the input is capped at 89. A live, usable key of that
@@ -44,8 +46,12 @@ running VM to change their encryption, hence the deallocate/start cycle.
 This adds a few minutes to provisioning. Encryption at host can alternatively
 be set natively at create time by CloudBolt; this plugin only ensures it.
 
+The Key Vault is NOT an action input: it comes only from the
+azure_cmk_key_vault_id parameter on the server, which is what makes the action
+safe to enable globally.
+
 Inputs (declared on this plug-in; defaults supplied by the orchestration
-action HPA-w1dmx20b): azure_cmk_key_vault_id, azure_cmk_key_type,
+action HPA-w1dmx20b): azure_cmk_key_type,
 azure_cmk_key_size, azure_cmk_key_expiration_days,
 azure_cmk_key_rotation_policy, azure_cmk_key_rotation_lead_days,
 azure_cmk_des_suffix, azure_cmk_key_suffix, azure_cmk_encryption_type,
@@ -58,7 +64,8 @@ version (this rotation policy), and the DES follows it within about an hour
 policy nothing ever mints a new version and the key simply expires, which
 shuts the VM down; without the DES flag the new version is ignored.
 
-Return contract: (status, output, error). Non-Azure servers are skipped
+Return contract: (status, output, error). Servers with no
+azure_cmk_key_vault_id parameter, and non-Azure servers, are skipped
 (SUCCESS). Any per-server hard failure -> FAILURE for the job with the other
 servers still processed. Encryption-at-host problems are WARNING (the disks
 are still CMK-encrypted and the VM is restarted).
@@ -138,7 +145,6 @@ def _config():
             f"(keys must expire in less than {KEY_EXPIRATION_DAYS_MAX} days); got {expiration_days}"
         )
     return {
-        "key_vault_id": _str("{{ azure_cmk_key_vault_id }}"),
         "key_type": _str("{{ azure_cmk_key_type }}", "RSA"),
         "key_size": key_size,
         "key_expiration_days": expiration_days,
@@ -198,19 +204,18 @@ def run(job, *args, **kwargs):
 
 
 def _process_server(job, server, cfg):
+    # --- Key Vault: the azure_cmk_key_vault_id parameter is the on/off switch ---
+    # No value resolved for this server (no parameter on its Environment, Group,
+    # blueprint or the server itself) means CMK was not asked for here, so leave
+    # the server alone. This is the normal case for most servers, not an error.
+    vault_id = (server.get_value_for_custom_field(CF_KEY_VAULT_ID) or "").strip()
+    if not vault_id:
+        raise AzureCMKSkip(f"no {CF_KEY_VAULT_ID} parameter set for this server")
+
     rh, subscription_id, resource_group, vm_name = server_azure_coords(server)
     if not subscription_id:
         raise AzureCMKError("the Azure handler has no subscription id (serviceaccount)")
     client = AzureCMKClient(rh)
-
-    # --- Key Vault (per-server override wins over the action default) ----------
-    vault_id = (server.get_value_for_custom_field(CF_KEY_VAULT_ID) or "").strip() or cfg["key_vault_id"]
-    if not vault_id:
-        raise AzureCMKError(
-            "no Key Vault configured: set the azure_cmk_key_vault_id default on the "
-            "'Azure CMK - Per-VM Disk Encryption Set' orchestration action, or as a parameter "
-            "on the Environment/Group"
-        )
 
     set_progress(f"Azure CMK: {vm_name}: reading VM and Key Vault")
     vm = client.get_vm(subscription_id, resource_group, vm_name, instance_view=True)

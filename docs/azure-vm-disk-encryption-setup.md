@@ -30,6 +30,18 @@ Both actions ship **disabled**. Enable them together once the prerequisites belo
 
 **Why everything runs in one Post-Provision action.** Azure creates VMs running (an ARM VM PUT has no create-stopped option), so no "VM exists but not yet booted" hook window exists: `Pre-Network Configuration` is template-build only and `Pre-Create Resource` fires before the VM and its disks exist. A split design (key/DES/grant at Pre-Create Resource, disk cycle at Post-Provision) was considered and rejected in favour of a single, self-contained action; the only cost is that RBAC propagation is waited on inside the disk-PATCH retry instead of overlapping the VM build.
 
+## The Key Vault parameter is the switch
+
+This action has no Key Vault input and no global default. For each server it reads `server.get_value_for_custom_field("azure_cmk_key_vault_id")`, and:
+
+- **no value** — the server is skipped, and the job logs `no azure_cmk_key_vault_id parameter set for this server`. That is a SUCCESS, not a failure, and it is the expected outcome for most servers.
+- **a value** — that vault is used for this server's key and DES.
+
+Two consequences worth planning around:
+
+- Both actions can be enabled globally and stay dormant. CMK is opted into by scoping the parameter — the same mechanism operators already use for everything else — rather than by juggling hook enablement.
+- There is no fallback. Clearing the parameter does not decrypt anything (existing VMs keep their DES), but new servers under that scope silently stop getting keys. If you expect a server to be encrypted and it is not, check the job log for the skip line before looking at Azure.
+
 ## Azure prerequisites
 
 1. **Key Vault** (one per region you deploy into, shareable across VMs):
@@ -112,10 +124,10 @@ Note that the recovered key is the *decommissioned VM's* key material. If your p
 ## CloudBolt configuration
 
 1. Sync the repo; the five content units above appear.
-2. On **Admin → Orchestration Actions → Post-Provision → Azure CMK - Per-VM Disk Encryption Set**, set the default value of **Azure CMK Key Vault (Resource ID)** to the vault's ARM ID:
+2. Add the **`azure_cmk_key_vault_id`** parameter wherever CMK encryption should apply, with that region's vault ARM ID as the value:
    `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`
-   Adjust the other defaults if needed (key type/size, key expiration days, rotation policy and lead days, suffixes, encryption type, encryption at host, auto rotation).
-3. Multi-region / multi-vault: add a parameter named `azure_cmk_key_vault_id` to each Environment (or Group) with that region's vault ID. A value on the server overrides the action default.
+   The plug-in creates the parameter itself the first time it runs (`ensure_custom_fields()`); you can also add it under **Admin → Parameters**. Environment, Group, blueprint and server all work, resolved by CloudBolt's normal parameter precedence — so multi-region is a different value on each Environment, and there is no global default to keep in sync.
+3. On **Admin → Orchestration Actions → Post-Provision → Azure CMK - Per-VM Disk Encryption Set**, adjust the remaining defaults if needed (key type/size, key expiration days, rotation policy and lead days, suffixes, encryption type, encryption at host, auto rotation). The Key Vault is deliberately *not* among them.
 3a. (Optional) **Azure CMK User-Assigned Identity (Resource ID)** — leave empty for the default behaviour (each DES gets a system-assigned identity that the action grants key access per DES). Set it to an existing user-assigned managed identity's ARM ID to have every DES use that shared identity instead:
    - The identity must already hold *Key Vault Crypto Service Encryption User* (or access-policy keys Get/Wrap Key/Unwrap Key) on the vault; the action does not grant or revoke anything for it.
    - The handler SPN then no longer needs *Key Vault Data Access Administrator* / role-assignment rights on the vault, and there is no RBAC-propagation wait.
