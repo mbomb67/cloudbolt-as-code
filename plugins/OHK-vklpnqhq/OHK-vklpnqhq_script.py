@@ -11,7 +11,9 @@ job.server_set.all() like the OOTB hooks):
   2. Resolve the Key Vault: the server's azure_cmk_key_vault_id custom field
      (Environment/Group override) or this action's default input. Validate
      soft delete + purge protection (mandatory for DES) and same region.
-  3. Create the per-VM key  <vm>-key  (RSA 2048/3072/4096 or RSA-HSM, wrap/unwrap).
+  3. Create the per-VM key  <vm>-key  (RSA 2048/3072/4096 or RSA-HSM, wrap/unwrap)
+     with an expiry azure_cmk_key_expiration_days from now — the policy ceiling
+     is under 90 days, so the input is capped at 89.
      Re-uses an existing key of that name instead of minting a new version.
   4. Create the per-VM DES  <vm>-DES  in the VM's resource group/region with a
      system-assigned identity, the *versioned* key URL, and optional
@@ -37,8 +39,8 @@ be set natively at create time by CloudBolt; this plugin only ensures it.
 
 Inputs (declared on this plug-in; defaults supplied by the orchestration
 action HPA-w1dmx20b): azure_cmk_key_vault_id, azure_cmk_key_type,
-azure_cmk_key_size, azure_cmk_des_suffix, azure_cmk_key_suffix,
-azure_cmk_encryption_type, azure_cmk_encryption_at_host,
+azure_cmk_key_size, azure_cmk_key_expiration_days, azure_cmk_des_suffix,
+azure_cmk_key_suffix, azure_cmk_encryption_type, azure_cmk_encryption_at_host,
 azure_cmk_auto_key_rotation, azure_cmk_user_assigned_identity_id (optional).
 
 Return contract: (status, output, error). Non-Azure servers are skipped
@@ -49,6 +51,8 @@ are still CMK-encrypted and the VM is restarted).
 Vendor APIs are wrapped in shared_modules/azure_disk_encryption, with the
 Microsoft REST reference cited at each call site.
 """
+import time
+
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
@@ -66,6 +70,8 @@ from shared_modules.azure_disk_encryption import (
     CF_KEY_VAULT_ID,
     ENCRYPTION_TYPES,
     GRANT_REF_UAMI_PREFIX,
+    KEY_EXPIRATION_DAYS_DEFAULT,
+    KEY_EXPIRATION_DAYS_MAX,
     ensure_custom_fields,
     sanitize_name,
     server_azure_coords,
@@ -87,6 +93,16 @@ def _bool(raw, default):
     return raw in ("true", "1", "yes", "on")
 
 
+def _int(raw, default, name):
+    raw = (raw or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        raise AzureCMKError(f"{name} must be a whole number (got '{raw}')")
+
+
 def _config():
     """Read this action's inputs. Every value is quoted and cast (never eval'd)."""
     key_size_raw = _str("{{ azure_cmk_key_size }}", "2048")
@@ -94,10 +110,21 @@ def _config():
         key_size = int(key_size_raw)
     except ValueError:
         raise AzureCMKError(f"azure_cmk_key_size must be 2048, 3072 or 4096 (got '{key_size_raw}')")
+    # Key lifetime. The shared module re-validates and rejects anything that is
+    # not 1..KEY_EXPIRATION_DAYS_MAX-1, so an out-of-policy value never reaches Azure.
+    expiration_days = _int(
+        "{{ azure_cmk_key_expiration_days }}", KEY_EXPIRATION_DAYS_DEFAULT, "azure_cmk_key_expiration_days"
+    )
+    if expiration_days < 1 or expiration_days >= KEY_EXPIRATION_DAYS_MAX:
+        raise AzureCMKError(
+            f"azure_cmk_key_expiration_days must be between 1 and {KEY_EXPIRATION_DAYS_MAX - 1} "
+            f"(keys must expire in less than {KEY_EXPIRATION_DAYS_MAX} days); got {expiration_days}"
+        )
     return {
         "key_vault_id": _str("{{ azure_cmk_key_vault_id }}"),
         "key_type": _str("{{ azure_cmk_key_type }}", "RSA"),
         "key_size": key_size,
+        "key_expiration_days": expiration_days,
         "des_suffix": _str("{{ azure_cmk_des_suffix }}", "-DES"),
         "key_suffix": _str("{{ azure_cmk_key_suffix }}", "-key"),
         "encryption_type": _str("{{ azure_cmk_encryption_type }}", ENCRYPTION_TYPES[0]),
@@ -186,10 +213,16 @@ def _process_server(job, server, cfg):
     key_name = sanitize_name(f"{vm_name}{cfg['key_suffix']}", allowed=r"[^0-9A-Za-z-]", max_len=127)
     key = client.get_key(vault_uri, key_name)
     if key:
-        set_progress(f"Azure CMK: {vm_name}: key '{key_name}' already exists; reusing")
+        # Reuse keeps re-runs idempotent, so the expiry is whatever the existing
+        # key already carries — report it rather than minting a new version.
+        existing_exp = (key.get("attributes") or {}).get("exp")
+        when = time.strftime("%Y-%m-%d", time.gmtime(existing_exp)) if existing_exp else "no expiry set"
+        set_progress(f"Azure CMK: {vm_name}: key '{key_name}' already exists; reusing (expires {when})")
     else:
-        set_progress(f"Azure CMK: {vm_name}: creating key '{key_name}' ({cfg['key_type']} {cfg['key_size']})")
-        key = client.create_key(vault_uri, key_name, cfg["key_type"], cfg["key_size"], tags)
+        set_progress(f"Azure CMK: {vm_name}: creating key '{key_name}' "
+                     f"({cfg['key_type']} {cfg['key_size']}, expires in {cfg['key_expiration_days']} days)")
+        key = client.create_key(vault_uri, key_name, cfg["key_type"], cfg["key_size"], tags,
+                                expiration_days=cfg["key_expiration_days"])
     key_url = ((key or {}).get("key") or {}).get("kid")
     if not key_url:
         raise AzureCMKError(f"Key Vault did not return a key id for '{key_name}'")

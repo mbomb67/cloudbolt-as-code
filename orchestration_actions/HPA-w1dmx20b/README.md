@@ -21,12 +21,13 @@ Post-Provision orchestration action that gives every Azure VM CloudBolt builds i
 2. Set the default of **Azure CMK Key Vault (Resource ID)** (`azure_cmk_key_vault_id`). It ships as a `<placeholder>` path and every Azure order fails until it names a real vault: `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`.
 3. Multi-region: add a parameter named `azure_cmk_key_vault_id` on each Environment or Group; a server-level value overrides the action default.
 4. Optional: set **Azure CMK User-Assigned Identity (Resource ID)** to an existing identity that already holds Key Vault Crypto Service Encryption User on the vault. The per-DES grant is then skipped and the SPN needs no role-assignment rights.
-5. Review the other defaults: key type and size, `-key` and `-des` suffixes, encryption type, encryption at host, auto key rotation.
+5. Review the other defaults: key type and size, **Azure CMK Key Expiration (Days)** (`azure_cmk_key_expiration_days`, default 89 — keys must expire in under 90 days, so values outside 1-89 fail the server), `-key` and `-des` suffixes, encryption type, encryption at host, auto key rotation.
 6. Enable this action and HPA-h7g0i0dx together in Admin > Orchestration Actions. Both ship disabled.
 
 ## Notes
 - Adds several minutes per VM: Azure requires disks to be detached from a running VM to change their encryption, so the VM is deallocated and restarted. Set `run_seq` so this runs after other Post-Provision actions that expect a running VM.
-- Idempotent: re-runs reuse an existing `<vm>-key` (no new version), re-PUT the DES, tolerate an existing grant, and skip disks already on the DES.
+- Idempotent: re-runs reuse an existing `<vm>-key` (no new version, so it keeps its original expiry), re-PUT the DES, tolerate an existing grant, and skip disks already on the DES.
+- Keys expire. Nothing in this action creates a new key version, and DES auto-rotation only follows versions that already exist — so plan for rotation (a Key Vault rotation policy, or re-keying the DES) before `azure_cmk_key_expiration_days` elapses, or disk operations will fail once the key expires.
 - Encryption-at-host problems are WARNING (disks stay CMK-encrypted, VM restarted). A vault without purge protection, wrong region, Managed HSM, unmanaged or ephemeral OS disks, or any Azure API error fail the server; the VM is restarted first, and IDs are recorded before disks are touched so Post-Delete can still clean up.
 - The shipped default encryption type is `EncryptionAtRestWithPlatformAndCustomerKeys` (double encryption), which Ultra and Premium SSD v2 disks do not support; use `EncryptionAtRestWithCustomerKey` for those. Disks that ever used Azure Disk Encryption cannot use CMK.
 - Fields recorded on the server: `azure_cmk_des_id`, `azure_cmk_des_principal_id`, `azure_cmk_key_id`, `azure_cmk_applied_key_vault_id`, `azure_cmk_grant_ref`, `azure_cmk_encrypted_disks`, `azure_cmk_encryption_at_host_applied`.

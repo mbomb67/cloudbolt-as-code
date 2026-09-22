@@ -88,6 +88,12 @@ ENCRYPTION_TYPES = ("EncryptionAtRestWithCustomerKey", "EncryptionAtRestWithPlat
 KEY_TYPES = ("RSA", "RSA-HSM")
 KEY_SIZES = (2048, 3072, 4096)
 
+# Every per-VM key is created with an expiry (KeyAttributes.exp). Policy here is
+# "strictly less than 90 days", so the accepted range is 1..89 and the shipped
+# default is the longest life that still satisfies it.
+KEY_EXPIRATION_DAYS_MAX = 90    # exclusive upper bound
+KEY_EXPIRATION_DAYS_DEFAULT = 89
+
 # How long to keep retrying steps that depend on Entra/RBAC propagation.
 GRANT_PROPAGATION_TIMEOUT_SECS = 600
 GRANT_PROPAGATION_POLL_SECS = 20
@@ -193,6 +199,29 @@ def sanitize_name(base, allowed=r"[^0-9A-Za-z-]", max_len=80):
     """Replace characters Azure rejects with '-' and trim (DES: a-z A-Z 0-9 _ -; key: 0-9 a-z A-Z -)."""
     cleaned = re.sub(allowed, "-", base or "").strip("-")
     return cleaned[:max_len].rstrip("-") or "cloudbolt"
+
+
+def key_expiry_epoch(expiration_days, now=None):
+    """
+    Convert a lifetime in days into the Unix-epoch seconds Key Vault wants in
+    KeyAttributes.exp ("Expiry date in UTC", integer unixtime).
+    Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/create-key/create-key#keyattributes
+
+    Rejects anything outside 1..KEY_EXPIRATION_DAYS_MAX-1 so a misconfigured
+    input can never mint a key that outlives the policy window.
+    """
+    try:
+        days = int(expiration_days)
+    except (TypeError, ValueError):
+        raise AzureCMKError(
+            f"key expiration days must be a whole number of days (got '{expiration_days}')"
+        )
+    if days < 1 or days >= KEY_EXPIRATION_DAYS_MAX:
+        raise AzureCMKError(
+            f"key expiration days must be between 1 and {KEY_EXPIRATION_DAYS_MAX - 1} "
+            f"(policy: less than {KEY_EXPIRATION_DAYS_MAX} days); got {days}"
+        )
+    return int((now if now is not None else time.time()) + days * 86400)
 
 
 def key_url_without_version(key_url):
@@ -446,10 +475,12 @@ class AzureCMKClient:
             raise AzureCMKError(f"Key Vault get-key '{key_name}' failed: {_err_text(resp)}")
         return self._json(resp)
 
-    def create_key(self, vault_uri, key_name, key_type, key_size, tags=None):
+    def create_key(self, vault_uri, key_name, key_type, key_size, tags=None,
+                   expiration_days=KEY_EXPIRATION_DAYS_DEFAULT):
         """
         POST {vaultBaseUrl}/keys/{key-name}/create — RSA/RSA-HSM, wrap/unwrap ops.
         Requires keys/create. Returns the KeyBundle (key.kid is the versioned URL).
+        `expiration_days` becomes KeyAttributes.exp (integer unixtime, UTC).
         Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/create-key/create-key
         """
         if key_type not in KEY_TYPES:
@@ -461,7 +492,7 @@ class AzureCMKClient:
             "kty": key_type,
             "key_size": int(key_size),
             "key_ops": ["wrapKey", "unwrapKey"],
-            "attributes": {"enabled": True},
+            "attributes": {"enabled": True, "exp": key_expiry_epoch(expiration_days)},
             "tags": tags or {},
         }
         resp = self.request("POST", url, self._vault_audience(), body=body, params={"api-version": KV_DATA_API}, ok=(200,))
