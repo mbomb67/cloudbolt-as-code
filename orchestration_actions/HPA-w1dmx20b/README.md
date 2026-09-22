@@ -11,22 +11,21 @@ Post-Provision orchestration action that gives every Azure VM CloudBolt builds i
 | Paired teardown | HPA-h7g0i0dx | Azure CMK - Remove Per-VM Disk Encryption Set (Post-Delete) |
 
 ## Prerequisites
-- Azure Resource Manager resource handler. The plugin is filtered to `resource_technologies: ["Azure"]` and skips non-Azure and Confidential VMs.
+- Azure Resource Manager resource handler. The plugin is filtered to `resource_technologies: ["Azure"]` and skips servers with no `azure_cmk_key_vault_id` parameter, plus non-Azure and Confidential VMs.
 - A Key Vault per region with soft delete and purge protection enabled, in the same region as the VMs (another subscription is allowed; Managed HSM is not). Premium tier if the key type is `RSA-HSM`.
 - Handler service principal: Contributor on the VM resource group (DES, disk and VM operations); on the vault, key create/get/delete, **rotation-policy write and recover** (Key Vault Crypto Officer covers all of them via `keys/*`; on an access-policy vault add the `Rotate`, `Set Rotation Policy`, `Get Rotation Policy` and `Recover` key permissions) and, unless a user-assigned identity is supplied, rights to create role assignments (Key Vault Data Access Administrator) or edit access policies. Full role table in the runbook.
 - Encryption at host (default on) requires `Microsoft.Compute/EncryptionAtHost` registered on the subscription and a VM size that supports it.
 
 ## Setup
 1. Read [../../docs/azure-vm-disk-encryption-setup.md](../../docs/azure-vm-disk-encryption-setup.md) for Azure roles and behaviour.
-2. Set the default of **Azure CMK Key Vault (Resource ID)** (`azure_cmk_key_vault_id`). It ships as a `<placeholder>` path and every Azure order fails until it names a real vault: `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`.
-3. Multi-region: add a parameter named `azure_cmk_key_vault_id` on each Environment or Group; a server-level value overrides the action default.
-4. Optional: set **Azure CMK User-Assigned Identity (Resource ID)** to an existing identity that already holds Key Vault Crypto Service Encryption User on the vault. The per-DES grant is then skipped and the SPN needs no role-assignment rights.
-5. Review the key lifetime defaults:
+2. Add the **`azure_cmk_key_vault_id`** parameter wherever CMK encryption should apply, with that region's vault ARM ID as the value: `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`. Environment, Group, blueprint and server all work, resolved by CloudBolt's normal parameter precedence. **This parameter is the on/off switch**: a server with no value is skipped, so the action is safe to enable globally, and multi-region is just a different value per Environment.
+3. Optional: set **Azure CMK User-Assigned Identity (Resource ID)** to an existing identity that already holds Key Vault Crypto Service Encryption User on the vault. The per-DES grant is then skipped and the SPN needs no role-assignment rights.
+4. Review the key lifetime defaults:
    - **Azure CMK Key Expiration (Days)** (`azure_cmk_key_expiration_days`, default 89) — keys must expire in under 90 days, so values outside 1-89 fail the job.
    - **Azure CMK Key Rotation Policy** (`azure_cmk_key_rotation_policy`, default `TimeBeforeExpiry`) — `TimeBeforeExpiry`, `TimeAfterCreate`, or `Disabled`. Both triggers express the same schedule; pick whichever your auditors read more easily.
    - **Azure CMK Key Rotation Lead (Days)** (`azure_cmk_key_rotation_lead_days`, default 7) — how far ahead of expiry Key Vault mints the new version.
-6. Review the rest: key type and size, `-key` and `-des` suffixes, encryption type, encryption at host, **Azure CMK Auto Key Rotation** (leave on — see below).
-7. Enable this action and HPA-h7g0i0dx together in Admin > Orchestration Actions. Both ship disabled.
+5. Review the rest: key type and size, `-key` and `-des` suffixes, encryption type, encryption at host, **Azure CMK Auto Key Rotation** (leave on — see below).
+6. Enable this action and HPA-h7g0i0dx together in Admin > Orchestration Actions. Both ship disabled. Enabling them does nothing on its own — only servers that resolve an `azure_cmk_key_vault_id` are touched.
 
 ## Notes
 - Adds several minutes per VM: Azure requires disks to be detached from a running VM to change their encryption, so the VM is deallocated and restarted. Set `run_seq` so this runs after other Post-Provision actions that expect a running VM.

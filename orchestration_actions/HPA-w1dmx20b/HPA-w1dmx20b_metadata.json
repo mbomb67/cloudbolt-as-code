@@ -51,11 +51,6 @@
             "value": "RSA"
         },
         {
-            "label": "Azure CMK Key Vault (Resource ID)",
-            "name": "azure_cmk_key_vault_id_a421",
-            "value": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.KeyVault/vaults/<key-vault-name>"
-        },
-        {
             "label": "Azure CMK User-Assigned Identity (Resource ID)",
             "name": "azure_cmk_user_assigned_identity_id_a421",
             "value": ""
@@ -247,25 +242,6 @@
             "placeholder": null,
             "relevant-osfamilies": [],
             "required": false,
-            "show-as-attribute": false,
-            "show-on-servers": false,
-            "type": "STR",
-            "value-pattern-string": null
-        },
-        {
-            "allow-multiple": false,
-            "available-all-servers": false,
-            "description": "ARM resource ID of the Key Vault holding per-VM disk-encryption keys (/subscriptions/.../providers/Microsoft.KeyVault/vaults/<name>). Must have soft delete AND purge protection enabled and be in the same region as the VM (a different subscription is allowed; Managed HSM is not). A parameter of the same name on the Environment/Group overrides this default per server.",
-            "field-dependency-controlling-set": [],
-            "field-dependency-dependent-set": [],
-            "global-options": [],
-            "hide-if-default-value": true,
-            "id": "CF-p16mmkdq",
-            "label": "Azure CMK Key Vault (Resource ID)",
-            "name": "azure_cmk_key_vault_id",
-            "placeholder": null,
-            "relevant-osfamilies": [],
-            "required": true,
             "show-as-attribute": false,
             "show-on-servers": false,
             "type": "STR",
