@@ -15,6 +15,10 @@ job.server_set.all() like the OOTB hooks):
      with an expiry azure_cmk_key_expiration_days from now — the policy ceiling
      is under 90 days, so the input is capped at 89.
      Re-uses an existing key of that name instead of minting a new version.
+     Then PUT a Key Vault rotation policy derived from that same expiry, so
+     Key Vault mints a fresh version azure_cmk_key_rotation_lead_days before
+     the current one expires. The policy is per-key, not per-version, so it is
+     re-applied on the reuse path too.
   4. Create the per-VM DES  <vm>-DES  in the VM's resource group/region with a
      system-assigned identity, the *versioned* key URL, and optional
      auto-rotation to the latest key version.
@@ -39,9 +43,17 @@ be set natively at create time by CloudBolt; this plugin only ensures it.
 
 Inputs (declared on this plug-in; defaults supplied by the orchestration
 action HPA-w1dmx20b): azure_cmk_key_vault_id, azure_cmk_key_type,
-azure_cmk_key_size, azure_cmk_key_expiration_days, azure_cmk_des_suffix,
-azure_cmk_key_suffix, azure_cmk_encryption_type, azure_cmk_encryption_at_host,
-azure_cmk_auto_key_rotation, azure_cmk_user_assigned_identity_id (optional).
+azure_cmk_key_size, azure_cmk_key_expiration_days,
+azure_cmk_key_rotation_policy, azure_cmk_key_rotation_lead_days,
+azure_cmk_des_suffix, azure_cmk_key_suffix, azure_cmk_encryption_type,
+azure_cmk_encryption_at_host, azure_cmk_auto_key_rotation,
+azure_cmk_user_assigned_identity_id (optional).
+
+Rotation is two halves that must both be on: Key Vault creates the new key
+version (this rotation policy), and the DES follows it within about an hour
+(azure_cmk_auto_key_rotation -> rotationToLatestKeyVersionEnabled). Without the
+policy nothing ever mints a new version and the key simply expires, which
+shuts the VM down; without the DES flag the new version is ignored.
 
 Return contract: (status, output, error). Non-Azure servers are skipped
 (SUCCESS). Any per-server hard failure -> FAILURE for the job with the other
@@ -72,7 +84,11 @@ from shared_modules.azure_disk_encryption import (
     GRANT_REF_UAMI_PREFIX,
     KEY_EXPIRATION_DAYS_DEFAULT,
     KEY_EXPIRATION_DAYS_MAX,
+    ROTATION_LEAD_DAYS_DEFAULT,
+    ROTATION_MODE_BEFORE_EXPIRY,
+    ROTATION_MODE_DISABLED,
     ensure_custom_fields,
+    plan_rotation_policy,
     sanitize_name,
     server_azure_coords,
     user_assigned_principal_id,
@@ -125,6 +141,12 @@ def _config():
         "key_type": _str("{{ azure_cmk_key_type }}", "RSA"),
         "key_size": key_size,
         "key_expiration_days": expiration_days,
+        # Validated in plan_rotation_policy() against the Azure minimums, which
+        # depend on the expiry above.
+        "key_rotation_policy": _str("{{ azure_cmk_key_rotation_policy }}", ROTATION_MODE_BEFORE_EXPIRY),
+        "key_rotation_lead_days": _int(
+            "{{ azure_cmk_key_rotation_lead_days }}", ROTATION_LEAD_DAYS_DEFAULT,
+            "azure_cmk_key_rotation_lead_days"),
         "des_suffix": _str("{{ azure_cmk_des_suffix }}", "-DES"),
         "key_suffix": _str("{{ azure_cmk_key_suffix }}", "-key"),
         "encryption_type": _str("{{ azure_cmk_encryption_type }}", ENCRYPTION_TYPES[0]),
@@ -142,6 +164,9 @@ def run(job, *args, **kwargs):
 
     ensure_custom_fields()
     cfg = _config()
+    # Fail the whole job on a bad rotation config rather than once per server.
+    cfg["rotation_policy_body"] = plan_rotation_policy(
+        cfg["key_rotation_policy"], cfg["key_rotation_lead_days"], cfg["key_expiration_days"])
 
     applied, skipped, warnings, failures = [], [], [], []
     for server in servers:
@@ -226,6 +251,18 @@ def _process_server(job, server, cfg):
     key_url = ((key or {}).get("key") or {}).get("kid")
     if not key_url:
         raise AzureCMKError(f"Key Vault did not return a key id for '{key_name}'")
+
+    # Rotation policy: attached to the key, so a re-run re-applies it even when
+    # the key itself was reused. Paired with azure_cmk_auto_key_rotation on the
+    # DES, this is what keeps the VM alive past the key's expiry.
+    if cfg["rotation_policy_body"]:
+        set_progress(f"Azure CMK: {vm_name}: setting rotation policy on '{key_name}' "
+                     f"({cfg['key_rotation_policy']}, {cfg['key_rotation_lead_days']} days before expiry)")
+        client.set_key_rotation_policy(vault_uri, key_name, cfg["rotation_policy_body"])
+        if not cfg["auto_key_rotation"]:
+            logger.warning(
+                "Azure CMK: %s: Key Vault will rotate '%s' but the DES has auto key rotation off, "
+                "so disks stay on the old version and will fail when it expires", vm_name, key_name)
 
     # --- 2. per-VM DES (PUT is idempotent) -------------------------------------
     des_name = sanitize_name(f"{vm_name}{cfg['des_suffix']}", allowed=r"[^0-9A-Za-z_-]", max_len=80)
@@ -315,8 +352,11 @@ def _process_server(job, server, cfg):
     server.set_value_for_custom_field(CF_ENCRYPTED_DISKS, ",".join(all_disks))
     server.set_value_for_custom_field(CF_EAH_APPLIED, bool(eah_already))
 
-    message = "%s: key '%s', DES '%s', disks %s%s" % (
-        vm_name, key_name, des_name,
+    message = "%s: key '%s' (%s), DES '%s', disks %s%s" % (
+        vm_name, key_name,
+        "rotation off" if cfg["key_rotation_policy"] == ROTATION_MODE_DISABLED
+        else f"rotates {cfg['key_rotation_lead_days']}d before expiry",
+        des_name,
         ", ".join(encrypted) if encrypted else "already encrypted",
         ", encryption at host on" if eah_already else "",
     )

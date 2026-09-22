@@ -94,6 +94,23 @@ KEY_SIZES = (2048, 3072, 4096)
 KEY_EXPIRATION_DAYS_MAX = 90    # exclusive upper bound
 KEY_EXPIRATION_DAYS_DEFAULT = 89
 
+# Key Vault rotation policy. Azure allows exactly one Rotate action, triggered
+# either a fixed time after a version is created or a fixed time before it
+# expires; "Disabled" means this action writes no policy at all.
+# Docs: https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation#key-rotation-policy
+ROTATION_MODE_DISABLED = "Disabled"
+ROTATION_MODE_BEFORE_EXPIRY = "TimeBeforeExpiry"
+ROTATION_MODE_AFTER_CREATE = "TimeAfterCreate"
+ROTATION_MODES = (ROTATION_MODE_DISABLED, ROTATION_MODE_BEFORE_EXPIRY, ROTATION_MODE_AFTER_CREATE)
+
+# Azure minimums, both quoted from the docs:
+#   "Rotation time: key rotation interval. The minimum value is seven days from
+#    creation and seven days from expiration time."
+#   expiryTime "should be at least 28 days".
+ROTATION_MIN_DAYS = 7
+ROTATION_MIN_EXPIRY_DAYS = 28
+ROTATION_LEAD_DAYS_DEFAULT = 7
+
 # How long to keep retrying steps that depend on Entra/RBAC propagation.
 GRANT_PROPAGATION_TIMEOUT_SECS = 600
 GRANT_PROPAGATION_POLL_SECS = 20
@@ -222,6 +239,60 @@ def key_expiry_epoch(expiration_days, now=None):
             f"(policy: less than {KEY_EXPIRATION_DAYS_MAX} days); got {days}"
         )
     return int((now if now is not None else time.time()) + days * 86400)
+
+
+def iso8601_days(days):
+    """ISO 8601 duration for a whole number of days, e.g. 82 -> "P82D"."""
+    return f"P{int(days)}D"
+
+
+def plan_rotation_policy(mode, lead_days, expiration_days):
+    """
+    Turn (mode, lead_days, expiration_days) into the Update Key Rotation Policy
+    body, or None when rotation is disabled. Both triggers describe the same
+    schedule -- rotate `lead_days` before the version expires -- so the policy
+    always follows the key's expiry rather than drifting from it.
+
+    Azure constraints enforced here rather than letting Key Vault 400:
+      - policy expiryTime must be at least ROTATION_MIN_EXPIRY_DAYS;
+      - the rotate trigger must be at least ROTATION_MIN_DAYS from both
+        creation and expiry, so lead_days and (expiration_days - lead_days)
+        both have to clear that floor.
+    Docs: https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation#key-rotation-policy
+    """
+    if mode == ROTATION_MODE_DISABLED:
+        return None
+    if mode not in ROTATION_MODES:
+        raise AzureCMKError(
+            f"unsupported key rotation policy '{mode}' (use one of {', '.join(ROTATION_MODES)})"
+        )
+    try:
+        lead = int(lead_days)
+    except (TypeError, ValueError):
+        raise AzureCMKError(f"key rotation lead days must be a whole number (got '{lead_days}')")
+    expiry = int(expiration_days)
+
+    if expiry < ROTATION_MIN_EXPIRY_DAYS:
+        raise AzureCMKError(
+            f"a rotation policy needs a key expiry of at least {ROTATION_MIN_EXPIRY_DAYS} days "
+            f"(Azure minimum for the policy expiryTime); got {expiry}. Raise the expiration days "
+            f"or set the rotation policy to {ROTATION_MODE_DISABLED}."
+        )
+    if lead < ROTATION_MIN_DAYS or (expiry - lead) < ROTATION_MIN_DAYS:
+        raise AzureCMKError(
+            f"key rotation lead days must be between {ROTATION_MIN_DAYS} and "
+            f"{expiry - ROTATION_MIN_DAYS} for a {expiry}-day key (Azure requires the rotate "
+            f"trigger to be at least {ROTATION_MIN_DAYS} days from both creation and expiry); got {lead}"
+        )
+
+    if mode == ROTATION_MODE_BEFORE_EXPIRY:
+        trigger = {"timeBeforeExpiry": iso8601_days(lead)}
+    else:
+        trigger = {"timeAfterCreate": iso8601_days(expiry - lead)}
+    return {
+        "lifetimeActions": [{"trigger": trigger, "action": {"type": "Rotate"}}],
+        "attributes": {"expiryTime": iso8601_days(expiry)},
+    }
 
 
 def key_url_without_version(key_url):
@@ -498,6 +569,22 @@ class AzureCMKClient:
         resp = self.request("POST", url, self._vault_audience(), body=body, params={"api-version": KV_DATA_API}, ok=(200,))
         if resp.status_code != 200:
             raise AzureCMKError(f"Key Vault create-key '{key_name}' failed: {_err_text(resp)}")
+        return self._json(resp)
+
+    def set_key_rotation_policy(self, vault_uri, key_name, policy):
+        """
+        PUT {vaultBaseUrl}/keys/{key-name}/rotationpolicy — schedules Key Vault to
+        create new versions of the key on its own. The policy lives on the key
+        (not on a version), so re-PUTting it is how a re-run brings an existing
+        key back in line. Requires keys/update (role Key Vault Crypto Officer; on
+        access-policy vaults, key permissions Rotate + Set/Get Rotation Policy).
+        Docs: https://learn.microsoft.com/en-us/rest/api/keyvault/keys/update-key-rotation-policy/update-key-rotation-policy
+        """
+        url = f"{vault_uri.rstrip('/')}/keys/{key_name}/rotationpolicy"
+        resp = self.request("PUT", url, self._vault_audience(), body=policy,
+                            params={"api-version": KV_DATA_API}, ok=(200,))
+        if resp.status_code != 200:
+            raise AzureCMKError(f"Key Vault set rotation policy '{key_name}' failed: {_err_text(resp)}")
         return self._json(resp)
 
     def delete_key(self, vault_uri, key_name):

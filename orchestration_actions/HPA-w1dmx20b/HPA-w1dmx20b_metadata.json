@@ -26,6 +26,16 @@
             "value": "89"
         },
         {
+            "label": "Azure CMK Key Rotation Lead (Days)",
+            "name": "azure_cmk_key_rotation_lead_days_a421",
+            "value": "7"
+        },
+        {
+            "label": "Azure CMK Key Rotation Policy",
+            "name": "azure_cmk_key_rotation_policy_a421",
+            "value": "TimeBeforeExpiry"
+        },
+        {
             "label": "Azure CMK Key Size",
             "name": "azure_cmk_key_size_a421",
             "value": "2048"
@@ -145,6 +155,44 @@
             "show-as-attribute": false,
             "show-on-servers": false,
             "type": "INT",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Days before expiry that Key Vault rotates the key. Azure requires the rotate trigger to be at least 7 days from both creation and expiry, so with the default 89-day expiry this must be 7-82. Ignored when the rotation policy is Disabled. Default 7.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-r7j09vdi",
+            "label": "Azure CMK Key Rotation Lead (Days)",
+            "name": "azure_cmk_key_rotation_lead_days",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "INT",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Key Vault rotation policy written on the per-VM key: TimeBeforeExpiry (default) rotates the key that many days before the current version expires, TimeAfterCreate rotates that many days after it was created, Disabled writes no policy. Anything other than Disabled needs an expiration of at least 28 days. Pair with Azure CMK Auto Key Rotation so the DES picks up the new version.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-gub46tct",
+            "label": "Azure CMK Key Rotation Policy",
+            "name": "azure_cmk_key_rotation_policy",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
             "value-pattern-string": null
         },
         {

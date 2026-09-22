@@ -49,19 +49,44 @@ Both actions ship **disabled**. Enable them together once the prerequisites belo
 | Key Vault resource | read vault properties | Reader (included in Contributor) |
 | Key Vault resource, **RBAC-mode vault** | create/delete the DES role assignment | **Key Vault Data Access Administrator** (`8b54135c-b56d-4d72-a534-26097cfdc8d8`) or User Access Administrator |
 | Key Vault resource, **access-policy vault** | add/remove the DES access policy | Contributor on the vault (`Microsoft.KeyVault/vaults/accessPolicies/write`) |
-| Key Vault data plane, RBAC-mode vault | create/get/delete keys | **Key Vault Crypto Officer** (`14b46e9e-c2b7-41b4-b07b-48a6ebf60603`) |
-| Key Vault data plane, access-policy vault | same | Access policy: keys `get`, `create`, `delete` |
+| Key Vault data plane, RBAC-mode vault | create/get/delete keys, set the rotation policy | **Key Vault Crypto Officer** (`14b46e9e-c2b7-41b4-b07b-48a6ebf60603`) |
+| Key Vault data plane, access-policy vault | same | Access policy: keys `get`, `create`, `delete`, `Rotate`, `Set Rotation Policy`, `Get Rotation Policy` |
 
 The DES identity itself receives only `get`/`wrapKey`/`unwrapKey` (role **Key Vault Crypto Service Encryption User**, `e147488a-f6f5-4113-8e2d-b22465e65bf6`). When the optional user-assigned identity input is set, that identity must hold this role already and the two "role assignment / access policy" rows above are not needed by the SPN.
 
 Sovereign clouds are supported via the handler's `cloud_environment` (login/ARM/vault endpoints for US Gov, China, Germany).
+
+## Key expiry and rotation
+
+Each per-VM key is created with an expiry (`KeyAttributes.exp`) of `azure_cmk_key_expiration_days` — default 89, capped under 90 — and Key Vault is given a rotation policy derived from that same number, so the two never drift apart.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `azure_cmk_key_expiration_days` | 89 | 1-89. Rotation additionally needs >= 28 (Azure's minimum policy `expiryTime`). |
+| `azure_cmk_key_rotation_policy` | `TimeBeforeExpiry` | Or `TimeAfterCreate`, or `Disabled` to write no policy. |
+| `azure_cmk_key_rotation_lead_days` | 7 | 7..(expiration - 7); 7-82 at the default expiry. |
+
+Azure offers exactly one `Rotate` action with one of two triggers, so those are the only rotation options that exist:
+
+- **`TimeBeforeExpiry`** → `lifetimeActions[].trigger.timeBeforeExpiry = P<lead>D`. What Microsoft's own disk-CMK walkthrough uses. Reads as "rotate a week before it dies".
+- **`TimeAfterCreate`** → `trigger.timeAfterCreate = P<expiration - lead>D`. The portal's default. Reads as "rotate every 82 days".
+
+Both produce the same schedule at the same settings; the choice is presentational. `attributes.expiryTime` is set to `P<expiration>D` either way, which is the expiry stamped on each *new* version Key Vault mints.
+
+Azure's minimums — ["The minimum value is seven days from creation and seven days from expiration time"](https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation#key-rotation-policy) and an `expiryTime` of "at least 28 days" — are checked before the job touches any server, so a bad combination fails fast with the valid range in the message instead of a Key Vault 400 per VM.
+
+**Both halves are required.** The rotation policy only creates the new version. `azure_cmk_auto_key_rotation` sets `rotationToLatestKeyVersionEnabled` on the DES, which is what makes disks move to it — [within one hour, no reboot](https://learn.microsoft.com/en-us/azure/virtual-machines/disk-encryption#automatic-rotation-of-customer-managed-keys). If the policy is `Disabled`, or the DES flag is off, the key reaches its expiry with nothing to succeed it and [Azure shuts the VM down; disk I/O starts failing about an hour after expiry](https://learn.microsoft.com/en-us/azure/virtual-machines/disk-encryption#full-control-of-your-keys). The plug-in logs a warning when a rotation policy is written while the DES flag is off.
+
+The DES is still created with the **versioned** key URL — that is what Azure's auto-rotation walkthrough does (`-KeyUrl $key.Key.Kid` together with `-RotationToLatestKeyVersionEnabled $true`). The general Key Vault advice to use a versionless URI does not apply to disk encryption sets.
+
+Rotation is per-key, not per-version, so a re-run re-applies the policy to an existing `<vm>-key`. Note that [each scheduled rotation is billed](https://learn.microsoft.com/en-us/azure/key-vault/keys/how-to-configure-key-rotation#pricing), and that keys created before this action gained an expiry keep having none until they are rotated or replaced.
 
 ## CloudBolt configuration
 
 1. Sync the repo; the five content units above appear.
 2. On **Admin → Orchestration Actions → Post-Provision → Azure CMK - Per-VM Disk Encryption Set**, set the default value of **Azure CMK Key Vault (Resource ID)** to the vault's ARM ID:
    `/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<name>`
-   Adjust the other defaults if needed (key type/size, key expiration days, suffixes, encryption type, encryption at host, auto rotation).
+   Adjust the other defaults if needed (key type/size, key expiration days, rotation policy and lead days, suffixes, encryption type, encryption at host, auto rotation).
 3. Multi-region / multi-vault: add a parameter named `azure_cmk_key_vault_id` to each Environment (or Group) with that region's vault ID. A value on the server overrides the action default.
 3a. (Optional) **Azure CMK User-Assigned Identity (Resource ID)** — leave empty for the default behaviour (each DES gets a system-assigned identity that the action grants key access per DES). Set it to an existing user-assigned managed identity's ARM ID to have every DES use that shared identity instead:
    - The identity must already hold *Key Vault Crypto Service Encryption User* (or access-policy keys Get/Wrap Key/Unwrap Key) on the vault; the action does not grant or revoke anything for it.
