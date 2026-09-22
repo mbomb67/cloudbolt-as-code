@@ -140,7 +140,9 @@ GRANT_REF_UAMI_PREFIX = "userAssignedIdentity:"
 _CF_DEFS = [
     (CF_KEY_VAULT_ID, "Azure CMK Key Vault (Resource ID)", "STR",
      "ARM resource ID of the Key Vault that holds per-VM disk-encryption keys. "
-     "Set on an Environment/Group to override the orchestration-action default."),
+     "This parameter is what switches per-VM CMK encryption on: set it on an "
+     "Environment, Group, blueprint or server to encrypt servers there, and leave "
+     "it unset everywhere else. Servers with no value are skipped."),
     (CF_DES_ID, "Azure CMK Disk Encryption Set (Resource ID)", "STR",
      "Per-VM Disk Encryption Set created by CloudBolt for this server."),
     (CF_DES_PRINCIPAL_ID, "Azure CMK DES Identity (Principal ID)", "STR",

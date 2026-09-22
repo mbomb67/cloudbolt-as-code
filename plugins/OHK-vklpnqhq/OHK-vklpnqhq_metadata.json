@@ -193,25 +193,6 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "ARM resource ID of the Key Vault holding per-VM disk-encryption keys (/subscriptions/.../providers/Microsoft.KeyVault/vaults/<name>). Must have soft delete AND purge protection enabled and be in the same region as the VM (a different subscription is allowed; Managed HSM is not). A parameter of the same name on the Environment/Group overrides this default per server.",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [],
-            "hide_if_default_value": true,
-            "id": "CF-p16mmkdq",
-            "label": "Azure CMK Key Vault (Resource ID)",
-            "name": "azure_cmk_key_vault_id",
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": true,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "STR",
-            "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
             "description": "Optional. ARM resource ID of an existing user-assigned managed identity (/subscriptions/.../providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>). When set, each per-VM Disk Encryption Set is created with this identity instead of a system-assigned one and the per-DES key-access grant is skipped; the identity must already hold Get/Wrap Key/Unwrap Key (role Key Vault Crypto Service Encryption User, or an access policy) on the Key Vault. Leave empty for the default system-assigned identity + per-DES grant.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -230,7 +211,6 @@
         }
     ],
     "action_inputs_sequence": [
-        "azure_cmk_key_vault_id",
         "azure_cmk_key_type",
         "azure_cmk_key_size",
         "azure_cmk_key_expiration_days",
