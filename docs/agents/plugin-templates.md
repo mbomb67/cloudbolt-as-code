@@ -795,7 +795,7 @@ Rules:
 
 ### Custom forms and pinned defaults
 
-Which value reaches the plugin when a custom form field and a deployment-item `parameter_default` both exist for the same input depends on the input's `hide_if_default_value` (default **true**): with `true`, the pinned default wins and a same-named form value is silently dropped; with `false`, the form value wins unless it is empty. Pin per-blueprint coordinates on the BDI with `hide_if_default_value: true` and keep them **out** of the form; declare user-chosen inputs with `hide_if_default_value: false`.
+**Observed on a live instance (2026-09): when a custom form is attached, a deployment item's `parameter_defaults` are not applied to the plugin's inputs.** Every pinned coordinate must therefore also appear in the form as a hidden text question with a `defaultValue`, e.g. `{"type": "text", "name": "plugin-bdi-<id>.tfc_project", "visible": false, "defaultValue": "...", "isRequired": true}` (see `forms/FRM-t3v8zpb7`, `forms/FRM-84n18crj`). Keep the BDI `parameter_defaults` too (they document the pin and serve the native order form), and keep the two copies identical. Server-side code that needs a pinned value (e.g. an inbound webhook) should read the BDI's `input_mappings` rather than trust the form.
 
 Two ways a custom form fills a dropdown:
 - **A declared plugin input** → `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<id>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<id>[&inputs={"env_id": "{plugin-bdi-<id>.env_id}"}]`, which runs the plugin's `generate_options_for_<input>`. `inputs` is parsed into `control_value_dict`; `control_value` is set only when exactly one controller exists, and only REGENOPTIONS dependencies count.

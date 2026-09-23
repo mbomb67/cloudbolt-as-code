@@ -154,7 +154,9 @@ Edit the `value` of each `parameter_defaults` entry on the build item (names end
 | `tfc_branch` | the tracked branch (ships `main`) |
 | `tfc_working_directory` | subdirectory holding the configuration; add the entry only if not the repo root |
 
-The build plugin refuses to run while any value contains `FILL-ME`. These inputs are `hide_if_default_value`, so the pinned default is what reaches the plugin even if a form carries a same-named field: one source of truth, nothing mirrored in the form.
+The build plugin refuses to run while any value contains `FILL-ME`.
+
+**Edit the same values in the form too.** When a custom form is attached, CloudBolt does not apply the deployment item's `parameter_defaults`, so `forms/FRM-t3v8zpb7` carries each coordinate as a hidden `plugin-bdi-lwys1ug9.<name>` text field with a `defaultValue`. Keep the two copies identical; the form copy is the one the plugin actually receives.
 
 ### 8c. The environment and the order form
 

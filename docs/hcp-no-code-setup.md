@@ -65,6 +65,12 @@ integer is arbitrary but must be `_a<integer>`; a non-integer suffix is silently
 dropped.) The build plugin refuses to run while any value still contains
 `FILL-ME`.
 
+**Edit the same four values in the form too.** With a custom form attached,
+CloudBolt does not apply the deployment item's `parameter_defaults`, so
+`forms/FRM-1dxfulvq` carries each coordinate as a hidden
+`plugin-bdi-t474vto9.<name>` text field with a `defaultValue`. Keep both copies
+identical; the form copy is what the build plugin receives.
+
 **The order form** (`forms/FRM-1dxfulvq`) has two parts:
 
 - An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the
@@ -80,7 +86,7 @@ dropped.) The build plugin refuses to run while any value still contains
     `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>`
     (`path: options`, `valueName: value`, `titleName: title`). The webhook
     reads the connection and module ID from this blueprint's pinned
-    `parameter_defaults`, so the form carries neither.
+    `parameter_defaults` (the webhook reads the BDI, not the form).
   - For a variable that should come from the CloudBolt environment (resource
     group, subnet, size, image, location, or any env-scoped custom field),
     use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`

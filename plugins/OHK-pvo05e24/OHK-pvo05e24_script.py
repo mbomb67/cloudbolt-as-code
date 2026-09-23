@@ -44,9 +44,9 @@ Expected Action Inputs (declared in OHK-pvo05e24_metadata.json):
                                  itself is never exposed (cardinal rule 4).
   - six pinned per-blueprint inputs (tfc_connection_info, tfc_organization,
     tfc_project, tfc_repo_identifier, tfc_branch, tfc_working_directory),
-    set via parameter_defaults on the build deployment item. They are
-    hide_if_default_value inputs, so the BDI default is what reaches run()
-    even if a form carries a same-named field.
+    set via parameter_defaults on the build deployment item AND mirrored as
+    hidden defaultValue fields in the custom form (a custom form does not
+    receive BDI parameter_defaults). Keep the two copies identical.
 
 State outputs are NOT declared anywhere: after apply, EVERY output in the
 workspace's current Terraform state is discovered and recorded on the

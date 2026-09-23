@@ -1088,6 +1088,8 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 
 > ⚠️ **Export-only at top level.** `forms/` appears in the export registry (`model_repo_mapping`) but NOT in the sync registry (`OBJECT_TYPE_MAPPINGS`). Forms are imported **only as transitive dependencies** of a parent blueprint or action. A `forms/FRM-*/` folder not referenced anywhere will never import — it just sits on disk.
 
+> ⚠️ **A custom form bypasses the deployment item's `parameter_defaults`** (observed live, 2026-09). The plugin receives only what the form submits. Mirror every pinned BDI default in the form as a hidden text question — `{"type": "text", "name": "plugin-bdi-<item>.<input>", "visible": false, "defaultValue": "<same value as the BDI>", "isRequired": true}` — and keep both copies identical (see `forms/FRM-t3v8zpb7`, `forms/FRM-84n18crj`). Dropdowns: a **declared plugin input** uses `choicesByUrl` against `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<item>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<item>` (runs `generate_options_for_<input>`); a field **inside a Dynamic Panel** is not a plugin input and needs an inbound webhook (§9) — `webhooks/IWH-yj93is5z` is the generic one. Element names in a panel named `plugin-bdi-<item>.parameters` are the keys of the dict the plugin's `parameters` input receives.
+
 - **Django model:** `customforms.CustomForm` at `customforms/models.py:13`.
 - **Serializer:** `CustomFormSerializer` at `customforms/api/v3/serializers/custom_forms.py:35`.
 - **Top-level sync target?** No — transitive import only.

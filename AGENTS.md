@@ -40,6 +40,8 @@ Resource/server/orchestration/flowcontrol actions, recurring jobs, CIT tests, an
 
 `forms/` and `form_functions/` are different: CloudBolt exports them as top-level folders but imports them **only as transitive dependencies** of a parent (via `dependencies.custom_form` or `dependencies.form_functions[]`). An orphan form will never sync.
 
+**A custom form replaces the native order form completely.** When a blueprint has a custom form, the deployment item's `parameter_defaults` are **not** applied to the plugin's inputs — the plugin receives only what the form submits. Every pinned per-blueprint value (connection, repo, branch, module ID, …) must therefore also exist in the form as a hidden text question `plugin-bdi-<item>.<input>` with a `defaultValue` equal to the BDI default, and the two copies must stay identical. Fields inside a Dynamic Panel are not plugin inputs, so their dropdowns cannot use `generate_options_for_*`; use `parameterOptions` for declared inputs and an inbound webhook for panel fields. Details: [plugin-templates.md → Custom forms and pinned defaults](docs/agents/plugin-templates.md#custom-forms-and-pinned-defaults).
+
 ## Round-trip is not lossless
 
 When CloudBolt exports content to a repo, secrets are redacted to placeholder strings (`"YOUR_CREDENTIALS"`, `"YOUR_AUTH_INFO"`, `"YOUR_EMAIL_INFO"`, `"SOURCE_CODE_URL Redacted"`) and the importer skips them on re-sync. Customers must re-enter secrets after every sync. Instance-specific bindings (groups, environments) are also dropped. Full caveats: [metadata-schemas.md](docs/agents/metadata-schemas.md).

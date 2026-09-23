@@ -55,6 +55,7 @@ Ask the user:
    - The form folder (and CSS / function folders if any).
    - The parent metadata file you modified and the exact `dependencies.custom_form` line you added.
    - Reminder that `json` is an empty SurveyJS schema — the agent's next step is to fill it; consult SurveyJS docs per [external-apis.md](../../../docs/agents/external-apis.md), do NOT guess the schema.
+   - **Pinned defaults must be mirrored.** A custom form bypasses the parent deployment item's `parameter_defaults`: the plugin receives only what the form submits. When filling the schema, add a hidden text question for every pinned input — `{"type": "text", "name": "plugin-bdi-<item>.<input>", "visible": false, "defaultValue": "<the BDI value>", "isRequired": true}` — and tell the user both copies must stay identical. Dropdowns for declared inputs use `parameterOptions`; fields inside a Dynamic Panel need an inbound webhook (`webhooks/IWH-yj93is5z`). See [plugin-templates.md → Custom forms and pinned defaults](../../../docs/agents/plugin-templates.md#custom-forms-and-pinned-defaults).
    - For each FJS scaffolded: the `code` field is a stub.
    - Suggestion to run `validate-metadata`.
 
@@ -64,4 +65,5 @@ Ask the user:
 - The form MUST be referenced from at least one parent before completion (per §12 transitive-only rule). Orphan forms never sync.
 - Refuse to overwrite an existing form (`forms/FRM-<id>/` exists) — regenerate the ID.
 - The SurveyJS schema in `json` is intentionally empty in the stub; do not pre-populate guessed pages/elements.
+- When the schema is later filled, every BDI `parameter_default` of the parent must appear as a hidden `defaultValue` question with the same value (custom forms do not receive BDI defaults).
 - `form_functions[]` `code` field is the complete function body as a string; do NOT pre-write business logic.
