@@ -767,6 +767,10 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     group = resolve_group(parameters.get("group"))          # href, global ID or name
     if group is None or not profile_may_act_for_group(profile, group):
         return _fail(403, "Not a member of that group.")
+    if not parameters.get("env_id"):
+        # SurveyJS fires every choicesByUrl on load, before controllers have
+        # values: return one empty-value option as guidance, not an error.
+        return {"options": [{"value": "", "title": "------ First, select an Environment ------"}]}
     env = entitled_environment(group, parameters.get("env_id"), profile=profile)
     if env is None:
         return _fail(403, "Group is not entitled to that environment.")
