@@ -29,8 +29,7 @@ Query parameters (all strings; 'filter' and 'last' are reserved by the API):
 Response: {"options": [{"value": ..., "title": ...}, ...]} -- the form uses
   choicesByUrl {"path": "options", "valueName": "value", "titleName": "title"}.
   A dependent source called before env_id has a value (SurveyJS fires every
-  choicesByUrl on load) returns 200 with one empty-value placeholder option
-  ("First, select an Environment") so the field shows guidance, not an error.
+  choicesByUrl on load) returns 200 with an empty options list, not an error.
   Bad parameters -> 400, anonymous or non-member caller -> 403, both with
   {"options": [], "error": "..."} as the body so a failure is visible in the
   browser's network tab without breaking the form.
@@ -71,13 +70,6 @@ TFC_VARIABLE_OPTIONS_SOURCE = "tfc_variable_options"
 
 def _respond(options):
     return {"options": options}
-
-
-def _placeholder(text):
-    """A single unselectable (empty-value) option carrying a hint. Used when
-    a dependent dropdown renders before its controller has a value, so the
-    form shows guidance instead of a request error."""
-    return _respond([{"value": "", "title": text}])
 
 
 def _fail(status, message):
@@ -141,8 +133,9 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
         env_id = _param(parameters, "env_id")
         if not env_id:
             # SurveyJS fires every choicesByUrl on load, before the
-            # Environment dropdown has a value; guide rather than refuse.
-            return _placeholder("------ First, select an Environment ------")
+            # Environment dropdown has a value: answer with no options (an
+            # empty-value hint option renders as "[object Object]").
+            return _respond([])
         env = entitled_environment(group, env_id, profile=profile)
         if env is None:
             return _fail(403, "Group '{}' is not entitled to that environment.".format(group.name))
