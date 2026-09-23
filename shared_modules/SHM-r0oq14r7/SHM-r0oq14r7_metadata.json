@@ -1,0 +1,12 @@
+{
+    "description": "RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins.",
+    "id": "SHM-r0oq14r7",
+    "label": "Environment Options",
+    "max_retries": 0,
+    "module_name": "env_options",
+    "name": "env_options",
+    "resource_technologies": [],
+    "script_filename": "SHM-r0oq14r7_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

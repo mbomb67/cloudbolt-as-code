@@ -15,6 +15,7 @@ Before starting, confirm you have:
 - [ ] The Terraform configuration repo ("template repo") on a VCS host TFC supports, plus **admin rights on that repo** so you can restrict who has write access.
 - [ ] A VCS account able to authorize an OAuth connection from TFC to that repo (a personal account is acceptable for the POC; a dedicated service-account identity is a named follow-up).
 - [ ] CloudBolt administrator (`cb_admin`) access on the target instance, with this repo already synced via Source Control Repos.
+- [ ] At least one CloudBolt **Environment** on an Azure resource handler for the sandbox subscription, entitled to the ordering group, with resource groups and subnets imported, VM sizes enabled and an OS build available (section 8c).
 
 ## 1. Read this first: the POC trust model
 
@@ -42,7 +43,7 @@ The POC controls, restated as a table:
 Docs: [Organizations](https://developer.hashicorp.com/terraform/cloud-docs/users-teams-organizations/organizations)
 
 1. Sign in at [app.terraform.io](https://app.terraform.io) and create a **new** organization (e.g. `acme-cloudbolt-poc`). Never reuse an existing organization, no matter how convenient.
-2. No need to record the name for CloudBolt config — the order form lists the organizations the token can see in a live dropdown ([Organizations API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/organizations)).
+2. Record the organization name; it is pinned on the blueprint as `tfc_organization` (section 8b).
 3. Keep this organization permanently single-purpose: **only** this POC's project, ever. If someone later wants to add an unrelated project, that is the signal to revisit the token model first (least-privilege team token, paid tier).
 
 The free tier works: the POC uses only the built-in **Owners** team. Custom teams with scoped permissions (the production-hardening path) require a paid tier.
@@ -52,7 +53,7 @@ The free tier works: the POC uses only the built-in **Owners** team. Custom team
 Docs: [Manage projects](https://developer.hashicorp.com/terraform/cloud-docs/projects/manage); API reference: [Projects API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/projects)
 
 1. In the new organization, create one project. Suggested name: **`cloudbolt-vm-deployments`**.
-2. No need to record the name for CloudBolt config — the order form lists the selected organization's projects in a live dropdown ([Projects API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/projects)); the build plugin resolves the project ID by the selected name at runtime.
+2. Record the project name; it is pinned on the blueprint as `tfc_project` (section 8b). The build plugin resolves the project ID by name at runtime ([Projects API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/projects)).
 3. Create **no workspaces**. CloudBolt creates one workspace per deployment via the [Workspaces API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces), named `cb-vm-<resource global ID>`, tagged `cmp:resource-id` (see [workspace tags](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/tags)), with VCS-triggered and speculative runs disabled — every run is API-driven by CloudBolt. Do not hand-create workspaces in this project, and do not hand-edit the settings or variables of the ones CloudBolt creates; the POC does not reconcile manual TFC-side edits.
 
 ## 4. Create the project-scoped variable set (Azure credentials)
@@ -70,7 +71,9 @@ The Azure credentials live **only** here — in TFC, never in CloudBolt, never i
    | `ARM_CLIENT_ID` | sandbox service-principal application (client) ID | Environment | yes |
    | `ARM_CLIENT_SECRET` | sandbox service-principal secret | Environment | yes |
    | `ARM_TENANT_ID` | sandbox tenant ID | Environment | yes |
-   | `ARM_SUBSCRIPTION_ID` | **sandbox** subscription ID | Environment | yes |
+   | `ARM_SUBSCRIPTION_ID` | **sandbox** subscription ID | Environment | no |
+
+   `ARM_SUBSCRIPTION_ID` is an identifier, not a secret; leaving it non-sensitive keeps it readable for troubleshooting. Do **not** flag the variable set as *priority*: CloudBolt writes `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` on each workspace from the chosen CloudBolt environment (section 8c), and a priority set would override them. The service principal needs a role in every subscription those environments point at.
 
 4. The backing subscription must be **sandbox-only** — disposable resource groups, no production data, no peering or trust toward anything that matters.
 
@@ -82,8 +85,7 @@ Docs: [Connect to VCS Providers](https://developer.hashicorp.com/terraform/cloud
 
 1. In **Organization Settings → Version Control → Providers**, add the provider hosting the template repo (GitHub, GitLab, etc.) and complete the OAuth authorization flow. A personal VCS account is acceptable for the POC; a dedicated service account is a named follow-up.
 2. Grant the connection access to the template repo (if your VCS host supports per-repository app installs, grant only that repo).
-3. Record the branch the workspaces should track — it is pinned on the blueprint's build item (§8b). The repo itself is picked on the order form: the **TFC VCS Repo dropdown lists the distinct repos already tracked by workspaces in the selected project** (falling back to the whole organization) via the [Workspaces API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces) `vcs-repo` attribute — HCP Terraform's public API has no endpoint that lists every repo the OAuth connection *could* reach (the UI's repo picker uses an undocumented internal endpoint this integration deliberately avoids).
-   **Bootstrap note (fresh organization):** with zero workspaces the repo dropdown is empty. Seed it once by creating a single throwaway workspace in TFC that tracks the template repo (any name **not** starting with `cb-vm-`; no runs needed). After the first CloudBolt deployment exists, its workspace keeps the repo in the list and the seed workspace can be deleted.
+3. Record the repo identifier (`owner/repo`) and the branch the workspaces should track; both are pinned on the blueprint's build item (section 8b). CloudBolt attaches the repo to every workspace it creates through this connection, resolving the connection's OAuth token at runtime by listing the organization's OAuth clients ([OAuth clients API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/oauth-clients)). **Keep exactly one VCS provider configured in the organization**; a second one makes that resolution ambiguous.
    CloudBolt attaches the selected repo to every workspace it creates through this connection, resolving the connection's OAuth token at runtime by listing the organization's OAuth clients. **Keep exactly one VCS provider configured in the organization** — a second one makes that resolution ambiguous, and the POC needs only the one template repo.
 4. **Restrict write access on the template repo — this is a credential-protection control, not housekeeping** (Fact 2 in §1):
    - Collaborator list cut to the minimum set of template maintainers.
@@ -117,66 +119,56 @@ In the CloudBolt UI, create a Connection Info record (*Admin → Connection Info
 
 Leave the username blank (TFC bearer-token auth ignores it) and leave the **headers field empty**. The `password` field is the only masked, vault-resolvable ConnectionInfo field; the headers field renders unmasked in the UI. The shared module builds the `Authorization: Bearer <token>` header at runtime from the password field — putting the token anywhere else both breaks the lookup and displays it in cleartext.
 
-**Multiple connections are supported:** every ConnectionInfo carrying the `tf-cloud` label appears in the order form's **TF Cloud Connection** dropdown (e.g. one for HCP Terraform, one for an on-prem Terraform Enterprise). The build plugin stores the selected connection's global ID on the resource so day-2 and teardown actions go back through the same connection. The label is enforced at run time too — removing the label from a ConnectionInfo immediately takes it out of service for this integration.
+**Multiple connections are supported:** label each `tf-cloud`; a blueprint pins the one it uses via `tfc_connection_info` in its `parameter_defaults` (section 8b), and the build plugin stores that global ID on the resource so day-2 and teardown reuse it. The label is enforced at run time; removing it takes the connection out of service.
 
 If TFC requests start failing with 401/403, the plugin error message names the selected ConnectionInfo. Check, in order: the token was redacted by a repo sync (§9), the token was regenerated in TFC (§6.3), the Owners team membership changed.
 
-## 8. Configure the integration (two places, config-as-code)
+## 8. Configure the integration (config-as-code)
 
-Configuration is **config-as-code**: edit it **in this repo**, commit, and let the instance sync — do not edit on the instance, because the repo is the source of truth and the next sync overwrites instance-side edits. Most TFC coordinates are no longer pinned at all — they are **selected on the order form** through cascading live dropdowns:
+Edit configuration **in this repo**, commit, and let the instance sync. The next sync overwrites instance-side edits.
 
-- **Order-form selections (no config):** the TF Cloud Connection (`tf-cloud`-labeled ConnectionInfos, §7), the TFC **organization**, **project**, and **VCS repo**. Each dropdown re-queries TFC as its controllers change (connection → organizations; connection+org → projects; connection+org+project → repos). The build plugin stores all four on the resource so day-2/teardown reuse them.
-- **Account-level settings** live in the shared module `tfc_api`, because they are the same for the whole CloudBolt instance.
-- **Per-blueprint pins:** only the VCS **branch** and **working directory** remain pinned on the blueprint (`parameter_defaults` on the build item) — they are properties of the template repo layout, not of who is ordering.
-- **State outputs need no configuration anywhere:** after every apply, CloudBolt discovers **every** output in the workspace's current Terraform state and records each as a `tfc_output_<name>` custom field on the resource (fields are created on the fly). See §12 for the security consequence.
+Where each value lives:
 
-### 8a. Account-level: the `tfc_api` config block
-
-A clearly marked constants block at the top of `shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py`:
-
-| Setting | Set it to | From |
+| Value | Where | Who sets it |
 |---|---|---|
-| `CLOUDBOLT_PORTAL_URL` | base URL of this CloudBolt instance, e.g. `https://cloudbolt.example.com` — recorded on each workspace as its source link so TFC users can navigate back to the owning CMP. Ships as a `FILL-ME` placeholder and **must** be replaced (every TFC-backed job fails fast naming it while it remains). | your instance |
-| `CONNECTION_INFO_LABEL` | ships preset to `tf-cloud`; change only if your instance standardizes on a different label for Terraform connections | §7 |
+| CloudBolt portal URL | `CLOUDBOLT_PORTAL_URL` in `shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py` | operator, once per instance |
+| ConnectionInfo, organization, project, repo, branch, working directory | `parameter_defaults` on the build deployment item in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` | operator, once per blueprint |
+| Environment (subscription, tenant) | chosen on the order form; derived from the environment's Azure resource handler | orderer |
+| Template variables | the order form's variables panel | orderer |
+| State outputs | none: every output in the applied state is recorded as `tfc_output_<name>` | - |
 
-The block also carries operational constants (poll timeouts, plan-log line cap, the log-host allowlist, list-endpoint pagination caps, the workspace name prefix, the `cmp:resource-id` tag key). Leave those at their defaults unless an error message directs you to them. The block holds **no** org/project/repo/branch values — those come from the order form or the blueprint (§8b).
+### 8a. Account-level: `CLOUDBOLT_PORTAL_URL`
 
-### 8b. Per-blueprint: pinned branch and working directory
+Set it to this instance's base URL (e.g. `https://cloudbolt.example.com`). It is recorded on each workspace as the source link back to CloudBolt. Every TFC-backed job fails fast while it still reads `FILL-ME`. Leave the other constants in that block alone unless an error message points at one.
 
-The blueprint pins the two repo-layout coordinates via `parameter_defaults` on its **build deployment item** (the `plugins/OHK-pvo05e24` tier in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json`). They are hidden from the order form and read by the build plugin, which seeds them onto the resource. Edit the `value` of each entry:
+### 8b. Per-blueprint: pinned TFC coordinates
 
-| `parameter_defaults` name | Set it to | From |
-|---|---|---|
-| `tfc_branch_a434` | the tracked branch of the template repo (ships `main`) | §5 |
-| `tfc_working_directory_a434` | subdirectory holding the configuration (empty for the repo root) | template repo |
+Edit the `value` of each `parameter_defaults` entry on the build item (names end in `_a<n>`; the suffix is rewritten on import):
 
-The **variable set** is not configured here — it is collected by the blueprint's custom order form (§8c). The form's variable panel funnels the template's variables (including `vm_name`) through a single generic `parameters` input on the build plugin; the build plugin writes exactly what the form submitted, dropping blanks, and records the resulting key set on the resource as `tfc_variable_names` so the day-2 actions stay in sync automatically. Variables are primitives only (string / number / bool) and non-sensitive: every write pins `hcl: false` and `sensitive: false`. Booleans and numbers round-trip through the string pipeline (a form `true` becomes the workspace string `"True"`, which Terraform coerces back for a `bool`/`number` variable) — list/map variables (which need `hcl: true`) and `sensitive`-marked variables are out of scope for now.
+| Name | Set it to |
+|---|---|
+| `tfc_connection_info` | the `tf-cloud` ConnectionInfo's global ID (`CON-...`, section 7) |
+| `tfc_organization` | the organization name (section 2) |
+| `tfc_project` | the project name (section 3) |
+| `tfc_repo_identifier` | `owner/repo` of the template repo (section 5) |
+| `tfc_branch` | the tracked branch (ships `main`) |
+| `tfc_working_directory` | subdirectory holding the configuration; add the entry only if not the repo root |
 
-If the template repo's variable schema changes, update the form's variable panel in the same change set (outputs need nothing — they are auto-discovered). To pin a **different** blueprint to a **different** branch/working directory, copy `BP-b0qm83lh` and its plugins and edit the copy's `parameter_defaults` — `tfc_api` needs no change.
+The build plugin refuses to run while any value contains `FILL-ME`. These inputs are `hide_if_default_value`, so the pinned default is what reaches the plugin even if a form carries a same-named field: one source of truth, nothing mirrored in the form.
 
-> **`validate-metadata` does not catch unfilled placeholders.** That linter scans metadata JSON structure, not values, so it passes clean even while `CLOUDBOLT_PORTAL_URL` (in `tfc_api`) still holds its `FILL-ME` value. The guards fail fast at runtime instead — `get_client()` raises `TFCConfigError` for the portal URL. If `validate-metadata` is green but TFC jobs fail that way, the placeholder was not replaced. To catch it before sync, add `grep -rn FILL-ME shared_modules/SHM-jlguerjr/` to CI.
+### 8c. The environment and the order form
 
-### 8c. The custom order form
+The orderer picks a **CloudBolt Environment**; nothing else about Azure is typed by hand:
 
-The blueprint's order experience is a hand-authored **SurveyJS custom form** (`forms/FRM-t3v8zpb7`), wired to `BP-b0qm83lh` via `dependencies.custom_form` + `has_custom_form: true`. It is what makes the backend template-agnostic: the form collects the template's variables, and the build plugin passes them through without per-template code.
+- The environment's Azure resource handler supplies the subscription and tenant. The build plugin writes them to the workspace as `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` environment variables, which override the same keys inherited from the project's variable set (section 4). The handler is never shown to the user; the dropdown is built from `group.get_available_environments()`.
+- Resource group, subnet, VM size and OS image dropdowns are filled from that environment by the **Form Options** inbound webhook (`webhooks/IWH-yj93is5z`, `GET /api/v3/cmp/inboundWebHooks/form-options/run/?source=...&group=...&env_id=...`). It uses the orderer's session, checks group membership and environment entitlement, and reads resource groups (`resource_group_arm` env options, falling back to a live subscription listing), subnets (imported on the environment, returned as full ARM IDs), sizes (`node_size` env options) and images (OS builds available on the environment, as `publisher:offer:sku:version`).
+- The template's variables live in a Dynamic Panel named `plugin-bdi-lwys1ug9.parameters` in `forms/FRM-t3v8zpb7`; each element name is the exact Terraform variable name. The panel is funneled into the build plugin's single `parameters` input. `vm_name` is inside the panel. The hidden `_sensitive` checkbox lists variables written to HCP as sensitive (ships `["admin_password"]`).
 
-How it is built (mirror `forms/FRM-84n18crj`, the Bicep engine's form, if you author another):
+The environment must have what the dropdowns read: resource groups and subnets imported, sizes enabled, at least one OS build (*Admin > Environments > the env > Parameters / Networks / OS Builds*).
 
-- The `json` field of the FRM metadata is a **serialized JSON string** — not a literal JSON object. The importer calls `json.loads()` on it; a literal object fails the sync with a `TypeError`. `rendering_mode` is `jquery`.
-- Every deployment-item field is named `plugin-bdi-<build-item-id>.<input>` (here `plugin-bdi-lwys1ug9.…`). The template's variables live inside a **Dynamic Panel** (pinned to exactly one panel) named `plugin-bdi-lwys1ug9.parameters`; the panel's element names are the **exact Terraform variable names** (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`), and CloudBolt funnels the panel into the build plugin's single `parameters` input. `vm_name` lives **inside the panel** with the other template variables (with the Azure-name regex validator; the build plugin re-validates it server-side); `group` is the standard deployable-groups dropdown.
-- The four TFC coordinate dropdowns are **cascading `choicesByUrl` questions** against CloudBolt's `parameterOptions` endpoint (`/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-lwys1ug9.<input>/…`). Each dependent dropdown passes its controllers through the URL's `inputs={…}` argument (e.g. the project dropdown sends the selected connection and organization), which the endpoint feeds to the build plugin's `generate_options_for_<input>` generator — the same generators the native form would use via the metadata's `REGENOPTIONS` dependencies. SurveyJS re-fires the request whenever a referenced question changes, which is what makes the chain live.
-- The form is transitive-import only — it syncs **only** because the blueprint references it. An orphan form never syncs (the linter's Check G flags it).
+**Onboarding another Terraform template:** copy `BP-b0qm83lh` with fresh IDs, pin its `parameter_defaults`, and author a form whose panel elements match the new `variables.tf`. Reuse the webhook for any environment-derived field (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). No plugin or shared-module change. Freeze the build plugin's `action_inputs` before authoring: the form hardcodes the `plugin-bdi-<id>` names.
 
-**Onboarding a new Terraform template** (zero plugin or `tfc_api` changes):
-
-1. Copy `BP-b0qm83lh` to a new blueprint folder and give it fresh IDs; keep its deployment-item wiring to the generic build/teardown plugins and the two day-2 actions.
-2. Pin the new blueprint's `parameter_defaults` (§8b) at its branch/working-dir. (Connection, org, project, and repo are order-form selections; outputs are auto-discovered.)
-3. Author a new form whose Dynamic Panel elements are exactly the new template's `variables.tf` variables. **Exclude any variable the template marks `sensitive = true`** — sensitive collection is not supported yet, and a sensitive value entered here would be written to TFC in plaintext and mirrored to a cleartext custom field (see §12).
-4. Wire the new form to the new blueprint (`dependencies.custom_form` + `has_custom_form: true`).
-
-**Freeze the plugin inputs before authoring the form.** The form hardcodes the build plugin's input names and the `plugin-bdi-<id>` prefix. Editing the build plugin's `action_inputs` *after* the form exists can regenerate CloudBolt's internal `_a<hookid>` field-dependency suffix and silently break the form's bindings. Author the form last, and if you must change a plugin input afterward, re-verify the form against a live instance before relying on it.
-
-**Belt-and-braces coordinate pinning (unresolved — edit both).** The two pinned coordinates (branch, working directory) live in **two** places: the blueprint's `parameter_defaults` (§8b) *and* the form's hidden fields. Which one wins under a custom form has not yet been verified on a live instance, so both are shipped identical (mirroring the Bicep exemplar). **Until that live check is done, edit a coordinate in *both* places** — changing only one risks the unedited copy silently winning. Collapsing to a single source is a tracked follow-up.
+The template repo's `variables.tf` must match the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` itself, so the template declares no subscription variable; derive `location` from the subnet's VNet.
 
 ## 9. Re-enter the token after every repo sync
 
@@ -269,12 +261,13 @@ The control is **template hygiene**, owned by the template repo maintainers:
 Quick smoke checklist before handing the instance over (the full lifecycle pass — provision, update, resize, teardown, reject path — is the integration's acceptance test, driven from this repo's plan, not this runbook):
 
 - [ ] The TFC organization contains exactly one project (`cloudbolt-vm-deployments`) and no workspaces yet.
-- [ ] The variable set is scoped to that project and shows four **Environment**-category variables, all marked **Sensitive**.
+- [ ] The variable set is scoped to that project, is **not** flagged priority, and shows four **Environment**-category variables (`ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID` sensitive; `ARM_SUBSCRIPTION_ID` may be plain).
 - [ ] The VCS provider shows a healthy OAuth connection; the template repo's tracked branch has branch protection and a minimal collaborator list.
 - [ ] The Owners team API token exists; the value lives only in the CloudBolt ConnectionInfo.
 - [ ] At least one ConnectionInfo carries the **`tf-cloud` label** and reads `https` / `app.terraform.io` (or the TFE host) / `443`, password set, headers empty.
-- [ ] The `tfc_api` config block (`shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py`) has `CLOUDBOLT_PORTAL_URL` set (no `FILL-ME`), and the blueprint's build-item `parameter_defaults` (`blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json`) pin branch and working dir. Branch/working-dir are also mirrored in the form's hidden fields (§8c belt-and-braces) — keep both copies identical.
-- [ ] Ordering `BP-b0qm83lh` renders the **custom form** (not the default order form): the four cascading TFC dropdowns (Connection → Organization → Project → VCS Repo, each populating live once its controllers are set), a variables panel (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size` dropdown, `admin_username`, `admin_password`, `os_image` URN, `tags`), and a group selector; branch/working-dir stay hidden.
+- [ ] `CLOUDBOLT_PORTAL_URL` is set (no `FILL-ME`) and the build-item `parameter_defaults` in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` pin connection, organization, project, repo and branch.
+- [ ] Ordering `BP-b0qm83lh` renders the **custom form**: group, an **Environment** dropdown listing only Azure environments the group may use, and a variables panel whose Resource Group / Subnet / VM Size / OS Image dropdowns fill once an environment is chosen (browser network tab: `form-options/run/` returns 200 with `options`).
+- [ ] After approval, the workspace in HCP shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as workspace environment variables matching the chosen environment's subscription.
 - [ ] After a first successful provision, the resource shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere).
 - [ ] A `cb_admin` knows they own approvals (§10), reads the **⚠ Terraform warnings block** before approving (§10 — it is the only signal for a mistyped variable name), and knows where to find a paused job.
 - [ ] Whoever runs the jobengine knows the restart-recovery drill (§11).

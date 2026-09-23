@@ -10,8 +10,9 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
-| [Plugins](#plugins) | 76 |
-| [Shared modules](#shared-modules) | 9 |
+| [Webhooks](#webhooks) | 1 |
+| [Plugins](#plugins) | 77 |
+| [Shared modules](#shared-modules) | 10 |
 | [UI extensions](#ui-extensions) | 7 |
 | [Forms](#forms) | 4 |
 
@@ -101,6 +102,14 @@ Cron-scheduled jobs.
 | Azure Price Sheet Refresh | [RJB-reblryol](recurring_jobs/RJB-reblryol/README.md) | Downloads each Azure subscription's negotiated Price Sheet daily and caches it for the rate hook. | `0 2 * * *` | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/) |
 | Expire Servers | [RJB-nsx4v2s1](recurring_jobs/RJB-nsx4v2s1/README.md) | Finds expired servers daily and runs the configured expiration orchestration action on them. | `0 0 * * *` | [Expire Servers](plugins/OHK-59t2apzf/) |
 
+## Webhooks
+
+Inbound REST endpoints.
+
+| Action | ID | Description | Plugin |
+|---|---|---|---|
+| Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options. | [Form Options](plugins/OHK-fx500o2r/) |
+
 ## Plugins
 
 Python and remote-script actions. Plugins that belong to a blueprint or action are documented in that parent's README; standalone plugins have their own.
@@ -140,11 +149,12 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Drift Check | [OHK-9n4wfasa](plugins/OHK-9n4wfasa/) | Reports drift between a Bicep deployment stack and its template with a read-only what-if. | CloudBolt Plug-in | [Drift Check](resource_actions/RSA-5jeixn92/) |
 | Expire Servers | [OHK-59t2apzf](plugins/OHK-59t2apzf/) | Finds expired servers and runs the configured expiration orchestration action on them. | CloudBolt Plug-in | [Expire Servers](recurring_jobs/RJB-nsx4v2s1/README.md) |
 | Extend Expiration | [OHK-3w9nejn3](plugins/OHK-3w9nejn3/) | Extends a landing-zone project's expiration date on the resource and the namespace annotation. | CloudBolt Plug-in | [Extend Expiration](resource_actions/RSA-kx7mdgva/) |
+| Form Options | [OHK-fx500o2r](plugins/OHK-fx500o2r/) | Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options. | CloudBolt Plug-in | [Form Options](webhooks/IWH-yj93is5z/) |
 | Generate options for 'Expiration Date' | [OHK-cfciy0fo](plugins/OHK-cfciy0fo/) | Returns an initial Expiration Date value of seven days from now. | CloudBolt Plug-in | [Generate options for 'Expiration Date'](orchestration_actions/HPA-qb0w86mi/README.md) |
 | Generate Tags from Resource Handler Tag Map | [OHK-xoajww7v](plugins/OHK-xoajww7v/) | Evaluates the resource handler's tag map against order and resource parameters and stores the result in cb_generated_tags. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Grant Restricted Contributor Access | [OHK-pr8q2szp](plugins/OHK-pr8q2szp/) | Grants a user the CloudBolt Restricted Contributor role on the subscription. | CloudBolt Plug-in | [Grant Access](resource_actions/RSA-1kpl3w0d/) |
-| HCP Terraform No-Code Module | [OHK-axtt0yqq](plugins/OHK-axtt0yqq/) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace with a plan-approval pause. | CloudBolt Plug-in | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
-| HCP Terraform VM | [OHK-pvo05e24](plugins/OHK-pvo05e24/) | Provisions a VM through HCP Terraform in a dedicated workspace with a plan-approval pause before apply. | CloudBolt Plug-in | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
+| HCP Terraform No-Code Module | [OHK-axtt0yqq](plugins/OHK-axtt0yqq/) | Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply. | CloudBolt Plug-in | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
+| HCP Terraform VM | [OHK-pvo05e24](plugins/OHK-pvo05e24/) | Provisions a VM through HCP Terraform into a chosen CloudBolt environment's Azure subscription, in a dedicated workspace with a plan-approval pause before apply. | CloudBolt Plug-in | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Initialize Windows Disk | [OHK-2evtyysr](plugins/OHK-2evtyysr/) | Initializes, partitions, and formats newly attached raw disks in a Windows guest. | Remote Script | [Windows File Server](blueprints/BP-psw7rclb/README.md) |
 | Install IIS Windows | [OHK-0ql0870k](plugins/OHK-0ql0870k/) | Installs IIS on a Windows server. | Remote Script | [IIS Web Application](blueprints/BP-122nbdt5/README.md) |
 | Install NGINX OEL8 | [OHK-2vdm93hu](plugins/OHK-2vdm93hu/) | Installs NGINX on an Oracle Linux 8 server. | Remote Script | [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
@@ -194,10 +204,11 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
+| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
-| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/), [Update Variables](plugins/OHK-oj87ukle/) |
+| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/), [Update Variables](plugins/OHK-oj87ukle/) |
 | `windows_ca` | [SHM-nubxb8sn](shared_modules/SHM-nubxb8sn/) | Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation. | [Request Certificate (Windows CA)](plugins/OHK-67bw7wgu/), [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) |
 
 ## UI extensions

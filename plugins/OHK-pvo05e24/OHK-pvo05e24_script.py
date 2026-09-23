@@ -29,13 +29,24 @@ Expected Action Inputs (declared in OHK-pvo05e24_metadata.json):
                                  before the payload becomes the variable set;
                                  the named variables are written sensitive:true
                                  and NEVER mirrored to custom fields.
-  - four TFC coordinate dropdowns, selected on the order form via this
-    module's generate_options_for_* generators (REGENOPTIONS chain declared
-    in the metadata): tfc_connection_info (ConnectionInfos labeled
-    'tf-cloud') -> tfc_organization -> tfc_project -> tfc_repo_identifier.
-  - two pinned per-blueprint inputs (tfc_branch, tfc_working_directory), set
-    via parameter_defaults on the build item and mirrored as hidden fields in
-    the custom order form.
+  - env_id (STR, required)      : the CloudBolt Environment the user orders
+                                 into, RBAC-gated via generate_options_for_
+                                 env_id (group.get_available_environments()).
+                                 The env's Azure resource handler supplies
+                                 the subscription and tenant, written to the
+                                 workspace as ARM_SUBSCRIPTION_ID /
+                                 ARM_TENANT_ID environment variables (which
+                                 override the same keys inherited from the
+                                 project's credentials variable set), and
+                                 the env drives the form's resource-group /
+                                 subnet / image / size dropdowns through the
+                                 'form-options' inbound webhook. The handler
+                                 itself is never exposed (cardinal rule 4).
+  - six pinned per-blueprint inputs (tfc_connection_info, tfc_organization,
+    tfc_project, tfc_repo_identifier, tfc_branch, tfc_working_directory),
+    set via parameter_defaults on the build deployment item. They are
+    hide_if_default_value inputs, so the BDI default is what reaches run()
+    even if a form carries a same-named field.
 
 State outputs are NOT declared anywhere: after apply, EVERY output in the
 workspace's current Terraform state is discovered and recorded on the
@@ -45,12 +56,14 @@ Flow (the plan's provision diagram):
   parse the funneled parameters (BEFORE any TFC call, so a malformed payload
   fails fast with no workspace/run) -> pop the '_sensitive' marker ->
   validate the panel's vm_name, collapse tag rows, and drop blank values ->
-  ensure custom fields -> get client (from the selected
-  'tf-cloud' ConnectionInfo) -> ensure workspace (ID-first get-or-adopt keyed
-  on the resource's immutable global_id) -> store tfc_workspace_id /
-  tfc_workspace_name IMMEDIATELY, before variables, runs, or polling, so any
-  later failure leaves a cleanable, tracked resource -> upsert the workspace
-  variables -> wait for VCS config-version ingestion -> run_with_plan_approval
+  re-check the ordering group's entitlement to env_id and read the
+  subscription context from its handler -> ensure custom fields -> get
+  client (from the pinned 'tf-cloud' ConnectionInfo) -> ensure workspace
+  (ID-first get-or-adopt keyed on the resource's immutable global_id) ->
+  store tfc_workspace_id / tfc_workspace_name IMMEDIATELY, before variables,
+  runs, or polling, so any later failure leaves a cleanable, tracked resource
+  -> upsert the workspace variables (terraform) and ARM_* (env) -> wait for
+  VCS config-version ingestion -> run_with_plan_approval
   (writes the plan summary to job output and pauses; 'Continue Job' approves
   and applies, canceling rejects) -> store the run URL, every discovered
   tfc_output_* field, tfc_var_* mirrors, and name the resource after the
@@ -63,10 +76,11 @@ wraps the engine call in a handler that could swallow BaseException; a
 rejected provision re-raises out of run(), leaving the resource PROVFAILED
 with its workspace ID already stored -- teardown-cleanable.
 
-No environment / resource-handler coupling: TFC holds the Azure credentials
-(project-scoped variable set), so no env_id gating applies and no resource
-handler is ever exposed here (AGENTS.md cardinal rule 4 is structurally
-inapplicable to this blueprint).
+Credentials stay in HCP Terraform (the project-scoped variable set holds the
+client ID/secret); CloudBolt contributes only WHERE to deploy -- the
+subscription and tenant of the chosen environment's handler -- as workspace
+environment variables. The variable set must not be flagged "priority" in
+HCP, or its ARM_SUBSCRIPTION_ID would win over the workspace's.
 
 Returns a 3-tuple: (status, output_msg, error_msg)
   status: "SUCCESS" | "FAILURE"
@@ -79,6 +93,13 @@ from infrastructure.models import CustomField
 from utilities.logger import ThreadLogger
 from utilities.models import ConnectionInfo
 
+from shared_modules.env_options import (
+    EnvOptionsError,
+    entitled_environment,
+    environment_options,
+    resolve_group,
+    subscription_context,
+)
 from shared_modules.tfc_api import (
     CONNECTION_INFO_LABEL,
     RUN_CLASS_APPLIED,
@@ -89,7 +110,6 @@ from shared_modules.tfc_api import (
     collapse_key_value_rows,
     ensure_output_custom_fields,
     get_client,
-    get_options_client,
     parse_params_payload,
     pop_sensitive_marker,
     run_with_plan_approval,
@@ -119,32 +139,49 @@ BLUEPRINT_NAME = "HCP Terraform VM"
 VM_NAME_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,62}[a-zA-Z0-9])?$")
 
 
+# Provider environment variables written per workspace from the CloudBolt
+# Environment's Azure handler. Names are the azurerm provider's:
+# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret#configuring-the-service-principal-in-terraform
+ARM_ENV_VARIABLES = (("ARM_SUBSCRIPTION_ID", "subscription_id"), ("ARM_TENANT_ID", "tenant_id"))
+
+
 # -----------------------------------------------------------------------------
-# Order-form option generators. Each is wired to its action input by name and
-# fed its controller values through the REGENOPTIONS dependencies declared in
-# OHK-pvo05e24_metadata.json (the custom form passes the same values through
-# the customForms parameterOptions endpoint's inputs={...} argument).
-# Generators degrade gracefully -- they return a placeholder option instead of
-# raising, so a TFC/API hiccup cannot break form rendering.
+# Order-form option generators. Generators degrade gracefully -- they return a
+# placeholder option instead of raising, so a hiccup cannot break rendering.
 # -----------------------------------------------------------------------------
 
+def generate_options_for_env_id(field=None, **kwargs):
+    """RBAC-aware Environment selector restricted to Azure-backed
+    environments: everything group.get_available_environments() returns
+    (entitled + ancestor-entitled + unconstrained), narrowed by handler type.
+    The resource handler itself is never offered."""
+    group = resolve_group(kwargs.get("group"))
+    if group is None:
+        return []
+    options = [
+        (option["value"], option["title"])
+        for option in environment_options(group, profile=kwargs.get("profile"))
+    ]
+    return options or [("", "------ No Azure environments available ------")]
+
+
 def generate_options_for_tfc_connection_info(field=None, **kwargs):
-    """Dropdown of every ConnectionInfo labeled 'tf-cloud'. The option VALUE
-    is the ConnectionInfo global_id (stable across renames); get_client
-    re-verifies the label at run time, so a tampered value cannot reach an
-    unlabeled connection."""
+    """Every ConnectionInfo labeled 'tf-cloud' (used when the input is shown
+    on a native form; the shipped blueprint pins it via parameter_defaults).
+    The option VALUE is the ConnectionInfo global_id (stable across renames);
+    get_client re-verifies the label at run time, so a tampered value cannot
+    reach an unlabeled connection."""
     connection_infos = ConnectionInfo.objects.filter(
         labels__name=CONNECTION_INFO_LABEL
     ).order_by("name")
-    options = [("------ Select a TF Cloud Connection -----", "")]
-    options.extend(
+    options = [
         (ci.global_id, "{} ({})".format(ci.name, (ci.ip or "").strip() or "app.terraform.io"))
         for ci in connection_infos
-    )
+    ]
     if not options:
         return [("", "------ No ConnectionInfo labeled '{}' exists; create one "
                      "(see docs/hcp-terraform-setup.md) ------".format(CONNECTION_INFO_LABEL))]
-    return options
+    return [("", "------ Select a TF Cloud Connection ------")] + options
 
 
 def _ensure_custom_fields(variable_names, sensitive_names=()):
@@ -186,6 +223,15 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
          "VCS branch the deployment's workspace tracks."),
         ("tfc_working_directory", "TFC Working Directory",
          "Terraform working directory within the VCS repo."),
+        ("tfc_env_id", "TFC Environment ID",
+         "ID of the CloudBolt Environment this deployment was ordered into; "
+         "its Azure handler supplied the workspace's ARM_* variables."),
+        ("azure_subscription_id", "Azure Subscription ID",
+         "Azure subscription the deployment targets (from the environment's "
+         "resource handler)."),
+        ("azure_tenant_id", "Azure Tenant ID",
+         "Azure tenant the deployment targets (from the environment's "
+         "resource handler)."),
         ("tfc_variable_names", "TFC Variable Names",
          "Comma-separated set of Terraform variables this deployment "
          "manages; read by the day-2 actions."),
@@ -291,9 +337,10 @@ def run(job, **kwargs):
     # Funnel of the template's variables, vm_name included (Dynamic Panel ->
     # one generic input).
     params_json = """{{ parameters }}"""
-    # -- order-form TFC coordinates: connection/org/project/repo come from the
-    #    cascading dropdowns; branch and working directory stay pinned per
-    #    blueprint via parameter_defaults on the build deployment item --
+    # -- the user's one placement choice; everything Azure is derived from it --
+    env_id = "{{ env_id }}".strip()
+    # -- TFC coordinates, all pinned per blueprint via parameter_defaults on
+    #    the build deployment item --
     tfc_connection_info = "{{ tfc_connection_info }}".strip()
     tfc_organization = "{{ tfc_organization }}".strip()
     tfc_project = "{{ tfc_project }}".strip()
@@ -301,9 +348,7 @@ def run(job, **kwargs):
     tfc_branch = "{{ tfc_branch }}".strip()
     tfc_working_directory = "{{ tfc_working_directory }}".strip()
 
-    # ---- Validate the coordinates (dropdown-selected + pinned branch) -------
-    # The FILL-ME guard is kept for tfc_branch (still operator-pinned); the
-    # dropdown-selected values just need to be present.
+    # ---- Validate the pinned coordinates --------------------------------
     missing_coords = [
         label
         for label, value in (
@@ -319,13 +364,12 @@ def run(job, **kwargs):
         return (
             "FAILURE",
             "",
-            "TFC coordinates are missing: {}. The connection, organization, "
-            "project, and VCS repo are selected on the order form; the branch "
-            "is pinned via parameter_defaults on the build deployment item of "
-            "BP-b0qm83lh (see docs/hcp-terraform-setup.md).".format(
-                ", ".join(missing_coords)
-            ),
+            "TFC coordinates are missing: {}. They are pinned via "
+            "parameter_defaults on the build deployment item of BP-b0qm83lh "
+            "(see docs/hcp-terraform-setup.md).".format(", ".join(missing_coords)),
         )
+    if not env_id:
+        return "FAILURE", "", "An Environment is required (env_id arrived blank)."
 
     resource = job.resource_set.first()
     if resource is None:
@@ -336,6 +380,31 @@ def run(job, **kwargs):
             "deployment pattern requires one. Order this plugin through the "
             "'{}' blueprint.".format(BLUEPRINT_NAME),
         )
+
+    # ---- Re-check entitlement server-side (cardinal rule 4) ---------------
+    # The dropdown was RBAC-filtered at order time; an env_id is still a
+    # plain form value, so the ordering group's entitlement is re-verified
+    # here and the handler is only ever touched inside subscription_context.
+    env = entitled_environment(resource.group, env_id)
+    if env is None:
+        return (
+            "FAILURE",
+            "",
+            "Environment {} is not an Azure environment available to group "
+            "'{}'.".format(env_id, getattr(resource.group, "name", "?")),
+        )
+    try:
+        azure = subscription_context(env)
+    except EnvOptionsError as exc:
+        return "FAILURE", "", str(exc)
+    if not azure["subscription_id"]:
+        return (
+            "FAILURE",
+            "",
+            "Environment '{}' has no subscription ID on its Azure resource "
+            "handler.".format(env.name),
+        )
+    arm_variables = {key: azure[source] for key, source in ARM_ENV_VARIABLES if azure[source]}
 
     try:
         # ---- Parse the funnel payload BEFORE any TFC network call ----------
@@ -460,6 +529,10 @@ def run(job, **kwargs):
         resource.set_value_for_custom_field("tfc_repo_identifier", tfc_repo_identifier)
         resource.set_value_for_custom_field("tfc_branch", tfc_branch)
         resource.set_value_for_custom_field("tfc_working_directory", tfc_working_directory)
+        resource.set_value_for_custom_field("tfc_env_id", str(env.id))
+        resource.set_value_for_custom_field("azure_subscription_id", azure["subscription_id"])
+        if azure["tenant_id"]:
+            resource.set_value_for_custom_field("azure_tenant_id", azure["tenant_id"])
         resource.set_value_for_custom_field("tfc_variable_names", ",".join(variable_names))
         resource.set_value_for_custom_field(
             "tfc_sensitive_variable_names", ",".join(sensitive_keys)
@@ -511,7 +584,16 @@ def run(job, **kwargs):
         client.upsert_variables(
             workspace_id, variables, sensitive_keys=sensitive_keys
         )
-        set_progress("Workspace variables set from the order inputs.")
+        # Where to deploy: the environment's subscription/tenant as provider
+        # env vars. Workspace variables override the same keys inherited from
+        # the project's (non-priority) credentials variable set.
+        client.upsert_variables(workspace_id, arm_variables, category="env")
+        set_progress(
+            "Workspace variables set from the order inputs; targeting Azure "
+            "subscription {} via environment '{}'.".format(
+                azure["subscription_id"], env.name
+            )
+        )
         client.wait_for_config_version(
             workspace_id,
             progress_callback=_config_version_progress(workspace_id),
