@@ -24,7 +24,7 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 
 ## Setup
 1. Replace the `CLOUDBOLT_PORTAL_URL` `FILL-ME` value in `shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py` if not already done.
-2. In `BP-00meiwwz_metadata.json`, edit the build item's `parameter_defaults`: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_nocode_module_id`. The build plugin refuses to run while any value contains `FILL-ME`.
+2. In `BP-00meiwwz_metadata.json`, edit the build item's `parameter_defaults`: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_nocode_module_id`. Set the same values on the matching hidden fields in `forms/FRM-1dxfulvq` (a custom form does not receive the item's defaults). The build plugin refuses to run while any value contains `FILL-ME`.
 3. Author the form (`forms/FRM-1dxfulvq`): in the Module Variables panel, replace the example fields with one field per module input variable, named exactly as the variable. For HCP-defined options use the Form Options webhook with `source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>` (it reads the module ID from the pinned defaults); for environment-derived values use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`. List sensitive variables in the hidden `_sensitive` field; use a key/value matrix for map variables. Keep the naming-only `deployment_name` field.
 4. Sync the repo, then restart CloudBolt so the shared modules are reloaded.
 5. Re-enter the token in every `tf-cloud` ConnectionInfo after each sync.

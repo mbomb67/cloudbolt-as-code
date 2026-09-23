@@ -65,6 +65,12 @@ integer is arbitrary but must be `_a<integer>`; a non-integer suffix is silently
 dropped.) The build plugin refuses to run while any value still contains
 `FILL-ME`.
 
+**Edit the same four values in the form too.** With a custom form attached,
+CloudBolt does not apply the deployment item's `parameter_defaults`, so
+`forms/FRM-1dxfulvq` carries each coordinate as a hidden
+`plugin-bdi-t474vto9.<name>` text field with a `defaultValue`. Keep both copies
+identical; the form copy is what the build plugin receives.
+
 **The order form** (`forms/FRM-1dxfulvq`) has two parts:
 
 - An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the

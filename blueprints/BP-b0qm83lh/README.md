@@ -26,7 +26,7 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 
 ## Setup
 1. In `shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py`, replace the `CLOUDBOLT_PORTAL_URL` `FILL-ME` value with this instance's base URL.
-2. In `BP-b0qm83lh_metadata.json`, edit the build item's `parameter_defaults`: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_repo_identifier` (`owner/repo`), `tfc_branch` (ships `main`); add `tfc_working_directory` to pin a subdirectory. The build plugin refuses to run while any value contains `FILL-ME`.
+2. In `BP-b0qm83lh_metadata.json`, edit the build item's `parameter_defaults`: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_repo_identifier` (`owner/repo`), `tfc_branch` (ships `main`); add `tfc_working_directory` to pin a subdirectory. Set the same values on the matching hidden fields in `forms/FRM-t3v8zpb7` (a custom form does not receive the item's defaults). The build plugin refuses to run while any value contains `FILL-ME`.
 3. If your template's variables differ, edit the form's Template Variables panel so each field name equals a Terraform variable name. Environment-derived fields use the Form Options webhook (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). List sensitive variables in the hidden `_sensitive` field.
 4. Sync the repo, then restart CloudBolt so the shared modules are reloaded.
 5. Re-enter the team token in every `tf-cloud` ConnectionInfo after each sync.
