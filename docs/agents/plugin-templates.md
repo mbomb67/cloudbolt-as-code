@@ -741,7 +741,60 @@ def perform_action(request, server_id):
     }
 ```
 
+## 6. Inbound Webhook Plugins
+
+**Purpose:** Synchronous HTTP endpoints (`webhooks/IWH-*` → `dependencies.hook` → `plugins/OHK-*`). Typical use in this repo: serving dropdown options to SurveyJS custom forms via `choicesByUrl`, for fields inside a Dynamic Panel that are not plugin inputs (so `generate_options_for_*` cannot serve them). Runtime contract and auth: [metadata-schemas.md §9](metadata-schemas.md#runtime-contract-verified-against-cloudbolt-source). Working example: `plugins/OHK-fx500o2r` (Form Options) with `shared_modules/SHM-r0oq14r7` (`env_options`).
+
+```python
+from utilities.logger import ThreadLogger
+from shared_modules.env_options import (
+    entitled_environment, options_for, profile_may_act_for_group, resolve_group,
+)
+
+logger = ThreadLogger(__name__)
+
+
+def _fail(status, message):
+    # Non-200: return BOTH keys; anything else in the dict is dropped.
+    return {"iwh_status_code": status, "iwh_embedded_response": {"options": [], "error": message}}
+
+
+def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
+    """GET: `parameters` is request.GET (strings). `profile` is the caller's
+    UserProfile, or None for token-mode/anonymous calls. No request object."""
+    if profile is None:
+        return _fail(403, "Authentication required.")
+    group = resolve_group(parameters.get("group"))          # href, global ID or name
+    if group is None or not profile_may_act_for_group(profile, group):
+        return _fail(403, "Not a member of that group.")
+    env = entitled_environment(group, parameters.get("env_id"), profile=profile)
+    if env is None:
+        return _fail(403, "Group is not entitled to that environment.")
+    try:
+        return {"options": options_for(parameters.get("source"), env)}
+    except Exception as exc:  # noqa: BLE001 -- an uncaught exception is a 500 whose text reaches the browser
+        logger.exception("webhook failed")
+        return _fail(400, str(exc))
+```
+
+Rules:
+- The IWH endpoint does **no RBAC** — any authenticated user (normal mode) or anyone with the token (token mode) can call it. Enforce membership and entitlement yourself, as above.
+- Query-string names `filter` and `last` are reserved; do not use them. Values arrive as strings.
+- Return a plain dict for 200; the `iwh_status_code` / `iwh_embedded_response` pair for anything else.
+- `action_inputs` on the IWH or its plugin have no runtime effect. Read every input from `parameters`.
+- Prefer `authentication_method: "normal"` for browser-called hooks. Token mode has no user, and a missing `token` in metadata imports as an empty token that an empty `?token=` satisfies.
+- The form side: `choicesByUrl: {"url": "/api/v3/cmp/inboundWebHooks/<uri_path>/run/?source=…&group={group}&env_id={plugin-bdi-<id>.env_id}", "path": "options", "valueName": "value", "titleName": "title", "allowEmptyResponse": true}`. `{group}` is the relative href the standard group dropdown submits (`/api/v3/cmp/groups/GRP-…/`).
+- To read a blueprint's pinned `parameter_defaults` server-side instead of duplicating them as hidden form fields: `ServiceItem.objects.get(global_id="BDI-…").cast().input_mappings` → `{m.hook_input.name: m.default_value.value}`; names carry an `_a<hookid>` suffix. `env_options.service_item_defaults()` wraps this.
+
 ## Parameter Handling Patterns
+
+### Custom forms and pinned defaults
+
+Which value reaches the plugin when a custom form field and a deployment-item `parameter_default` both exist for the same input depends on the input's `hide_if_default_value` (default **true**): with `true`, the pinned default wins and a same-named form value is silently dropped; with `false`, the form value wins unless it is empty. Pin per-blueprint coordinates on the BDI with `hide_if_default_value: true` and keep them **out** of the form; declare user-chosen inputs with `hide_if_default_value: false`.
+
+Two ways a custom form fills a dropdown:
+- **A declared plugin input** → `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<id>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<id>[&inputs={"env_id": "{plugin-bdi-<id>.env_id}"}]`, which runs the plugin's `generate_options_for_<input>`. `inputs` is parsed into `control_value_dict`; `control_value` is set only when exactly one controller exists, and only REGENOPTIONS dependencies count.
+- **A field inside a Dynamic Panel** (not a plugin input) → an inbound webhook (section 6 above).
 
 ### Basic Template Variables
 ```python

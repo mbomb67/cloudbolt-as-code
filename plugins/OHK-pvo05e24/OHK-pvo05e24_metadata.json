@@ -3,6 +3,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
+            "description": "CloudBolt Environment to deploy into. Lists the Azure-backed environments the ordering group may use (group.get_available_environments()). Its resource handler supplies the subscription and tenant written to the workspace as ARM_SUBSCRIPTION_ID / ARM_TENANT_ID, and it drives the form's resource group, subnet, image and size dropdowns through the form-options inbound webhook. The handler is never exposed.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-31w8dmoa",
+            "label": "Environment",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
             "description": "JSON object of Terraform template variable name/value pairs, funneled from the order form's Dynamic Panel (field names match the template's variables, and the panel includes vm_name -- e.g. {\"vm_name\": \"tfc-demo-vm-01\", \"vm_size\": \"Standard_B2s\", \"location\": \"eastus\"}). Supplied by the custom form; leave blank to fall back to the template defaults (an empty payload parses to {}). Blank/None values are dropped so a left-blank field stays unset rather than being written as an empty string.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -41,51 +60,11 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Terraform Cloud/Enterprise connection to provision through. Lists every CloudBolt ConnectionInfo carrying the 'tf-cloud' label (host in the ip field, HCP Terraform TEAM token in the password field). Controls the Organization, Project, and VCS Repo dropdowns.",
+            "description": "Terraform Cloud/Enterprise connection to provision through (a 'tf-cloud'-labeled ConnectionInfo global_id, HCP Terraform TEAM token in the password field). Pinned per blueprint via parameter_defaults on the build item -- not selected on the order form.",
             "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "field_dependency_dependent_set": [],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-y79wklhu",
             "label": "TF Cloud Connection",
             "name": "tfc_connection_info",
@@ -100,50 +79,9 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "HCP Terraform organization the deployment's workspace is created in. Options are listed live from the selected TF Cloud Connection's token (GET /organizations).",
-            "field_dependency_controlling_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
-            "field_dependency_dependent_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "description": "HCP Terraform organization the deployment's workspace is created in. Pinned per blueprint via parameter_defaults.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": true,
             "id": "CF-hawzc1px",
@@ -160,50 +98,9 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "HCP Terraform project that holds the deployment's workspace (a project-scoped variable set supplies the cloud credentials). Options are listed live from the selected connection and organization.",
-            "field_dependency_controlling_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
-            "field_dependency_dependent_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "description": "HCP Terraform project that holds the deployment's workspace (a project-scoped variable set supplies the cloud credentials). Pinned per blueprint via parameter_defaults.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": true,
             "id": "CF-001ev6uh",
@@ -220,48 +117,8 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "VCS repo (org/name) holding the parameterized Terraform configuration the workspace tracks. Options are the distinct repos already tracked by workspaces in the selected project (falling back to the whole organization) -- HCP Terraform's public API has no endpoint listing every repo the VCS connection could reach.",
-            "field_dependency_controlling_set": [
-                {
-                    "controlling-field": {
-                        "name": "tfc_connection_info_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_organization_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                },
-                {
-                    "controlling-field": {
-                        "name": "tfc_project_a352"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "tfc_repo_identifier_a352"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "description": "VCS repo (org/name) holding the parameterized Terraform configuration the workspace tracks. Pinned per blueprint via parameter_defaults.",
+            "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": true,
@@ -297,18 +154,22 @@
         }
     ],
     "action_inputs_sequence": [
+        "env_id",
         "tfc_connection_info",
         "tfc_organization",
         "tfc_project",
         "tfc_repo_identifier",
+        "tfc_branch",
+        "tfc_working_directory",
         "parameters"
     ],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-r0oq14r7"
         ]
     },
-    "description": "Provisions a VM through HCP Terraform in a dedicated workspace with a plan-approval pause before apply.",
+    "description": "Provisions a VM through HCP Terraform into a chosen CloudBolt environment's Azure subscription, in a dedicated workspace with a plan-approval pause before apply.",
     "id": "OHK-pvo05e24",
     "max_retries": 0,
     "name": "HCP Terraform VM",

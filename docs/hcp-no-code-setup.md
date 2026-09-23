@@ -19,8 +19,12 @@ It is a **separate** blueprint; the two share only the `tfc_api` shared module.
 
 1. The module exists in the org's **private registry** and is **no-code
    enabled** (Registry → the module → enable no-code provisioning). Variable
-   options set on the module in HCP are not consumed by this blueprint — the
-   form is authored statically (see §3).
+   options defined on the module in HCP (the allowed values per variable) CAN
+   drive form dropdowns live — see §3.
+1. The project's credentials variable set must not be flagged *priority*, and
+   its service principal needs a role in every subscription the CloudBolt
+   environments point at: CloudBolt writes `ARM_SUBSCRIPTION_ID` /
+   `ARM_TENANT_ID` per workspace from the chosen environment (§5).
 2. You have the module's **`nocode-*` ID**. It is not shown prominently in the
    UI; get it either from the no-code provision page's network calls (devtools
    → Network → filter `no-code-modules`) or by dumping the registry modules and
@@ -61,23 +65,40 @@ integer is arbitrary but must be `_a<integer>`; a non-integer suffix is silently
 dropped.) The build plugin refuses to run while any value still contains
 `FILL-ME`.
 
-**Author the static form** (`forms/FRM-1dxfulvq`) for the pinned module: in the
-`Module Variables` panel, replace the shipped EXAMPLE fields with one field per
-input variable of the module. Rules:
+**The order form** (`forms/FRM-1dxfulvq`) has two parts:
 
-- Each field's **name must equal the Terraform variable name exactly**.
-- Mark sensitive variables' names in the hidden `_sensitive` checkbox's
-  `choices`/`defaultValue` — they are written to TFC `sensitive: true` and never
-  mirrored in CloudBolt.
-- A map/object variable (e.g. `tags`) uses a `matrixdynamic` (key/value) and is
-  written `hcl: true`.
-- Keep the naming-only `deployment_name` field (it names the CloudBolt resource
-  and is NOT sent to Terraform).
+- An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the
+  build plugin's `generate_options_for_env_id` through the `parameterOptions`
+  endpoint — only Azure environments the ordering group may use. The chosen
+  environment's subscription and tenant become the workspace's
+  `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID`; the resource handler is never shown.
+- A `Module Variables` Dynamic Panel. Replace the shipped EXAMPLE fields with
+  one field per input variable of the module:
+  - Each field's **name must equal the Terraform variable name exactly**.
+  - For a variable whose allowed values are defined on the module in HCP,
+    use a dropdown with `choicesByUrl` pointing at the Form Options webhook:
+    `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>`
+    (`path: options`, `valueName: value`, `titleName: title`). The webhook
+    reads the connection and module ID from this blueprint's pinned
+    `parameter_defaults`, so the form carries neither.
+  - For a variable that should come from the CloudBolt environment (resource
+    group, subnet, size, image, location, or any env-scoped custom field),
+    use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`
+    with `&group={group}&env_id={plugin-bdi-t474vto9.env_id}`.
+  - Mark sensitive variables' names in the hidden `_sensitive` checkbox's
+    `choices`/`defaultValue` — they are written to TFC `sensitive: true` and
+    never mirrored in CloudBolt.
+  - A map/object variable (e.g. `tags`) uses a `matrixdynamic` (key/value)
+    and is written `hcl: true`.
+  - Keep the naming-only `deployment_name` field (it names the CloudBolt
+    resource and is NOT sent to Terraform).
 - To fetch the module's variable list for authoring:
   ```powershell
   $h = @{ Authorization = "Bearer $env:TFC_TOKEN" }
-  Invoke-RestMethod -Headers $h "https://app.terraform.io/api/v2/no-code-modules/<nocode-id>/versions/<version>/module-variables" | ConvertTo-Json -Depth 8
+  Invoke-RestMethod -Headers $h "https://app.terraform.io/api/v2/no-code-modules/<nocode-id>?include=variable_options" | ConvertTo-Json -Depth 8
   ```
+  (returns the module's variable options; the per-version variable list is
+  the `module-variables` relationship of the registry module version).
 
 **Onboarding another module** = a new blueprint (cloned wiring, coordinates
 re-pinned) + a new form. Zero changes to the plugins or `tfc_api`.
@@ -104,6 +125,12 @@ The approval gate behaves exactly as the VCS blueprint's — see
 mechanics (Continue Job approves; canceling rejects and discards; cb_admin-only
 resume; the jobengine-restart recovery path). No-code specifics:
 
+- **Subscription comes from the CloudBolt environment.** The create payload
+  carries `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as `env`-category workspace
+  variables (from the environment's Azure handler), so the auto-queued run
+  already targets the right subscription; a retry that upserts variables
+  writes them the same way. Workspace variables override a non-priority
+  variable set's same-named keys.
 - **Provision adopts the auto-queued run.** A no-code create makes the workspace
   **and** auto-queues its first run. The build plugin adopts that run into
   the pause; `auto_apply: false` is honored, so it waits at the confirmable gate
@@ -154,6 +181,8 @@ against a live instance + TFC org. Record pass/fail + evidence.
 | 8 | Teardown a provisioned deployment | Orphaned runs cleared; auto-confirmed destroy; workspace safe-deleted; SUCCESS | _pending_ |
 | 9 | Teardown a PROVFAILED / no-workspace resource | WARNING (nothing to clean), or name-lookup fallback finds + cleans `cb-nc-<gid>` | _pending_ |
 | 10 | Regression: existing **VM blueprint** (BP-b0qm83lh) provision + update + teardown | Behaves identically after the shared-module change (the engine extraction is behavior-preserving) | _pending_ |
+| 12 | Environment → subscription | The workspace shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` env variables equal to the chosen environment's handler, and the plan targets that subscription | _pending_ |
+| 13 | Form Options webhook | With a module variable option defined in HCP, its form dropdown lists those values; a user outside the group gets 403 from `form-options/run/` | _pending_ |
 | 11 | Best-effort tag | After provision, the workspace carries `cmp:resource-id=<gid>` (applied post-create); if absent, provisioning still succeeded (name is the ownership signal) | _pending_ |
 
 Item 4 is the one residual design risk: the no-code create auto-queues a run

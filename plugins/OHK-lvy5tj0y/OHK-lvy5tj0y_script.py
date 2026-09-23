@@ -68,10 +68,11 @@ This plugin NEVER catches CancelJobException and never wraps the engine call in
 a handler that could swallow BaseException. On reject the custom fields stay
 UNCHANGED -- only the workspace is reverted.
 
-No environment / resource-handler coupling: TFC holds the Azure credentials
-(project-scoped variable set), so no env_id gating applies and no resource
-handler is ever exposed here (AGENTS.md cardinal rule 4 is structurally
-inapplicable to this blueprint).
+No environment / resource-handler coupling here: the build plugin already
+wrote the deployment's ARM_SUBSCRIPTION_ID / ARM_TENANT_ID onto the workspace
+from the CloudBolt environment it was ordered into, and TFC holds the
+credentials, so this action only edits terraform-category variables and never
+touches a resource handler (AGENTS.md cardinal rule 4).
 
 Returns a 3-tuple: (status, output_msg, error_msg)
   status: "SUCCESS" | "FAILURE"

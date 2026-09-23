@@ -1173,14 +1173,19 @@ class TFCClient(object):
     # the workspace FROM a registry module and HCP auto-queues its first run;
     # the plugin adopts that run via drive_run_with_plan_approval.
 
-    def _no_code_var_relationship(self, variables, sensitive_keys=None):
+    def _no_code_var_relationship(self, variables, sensitive_keys=None,
+                                  env_variables=None):
         """Build the ``vars`` relationship data for a no-code workspace create,
         using the SAME value typing as upsert_variables (dict/list -> hcl:true
         JSON expression via serialize_hcl_value; scalars -> hcl:false str; keys
-        in sensitive_keys -> sensitive:true). Kept deliberately parallel to
-        upsert_variables -- both are the workspace-variable write surfaces.
+        in sensitive_keys -> sensitive:true). ``env_variables`` are written
+        with category "env" (provider environment variables such as
+        ARM_SUBSCRIPTION_ID) so the auto-queued first run already targets the
+        right subscription. Kept deliberately parallel to upsert_variables --
+        both are the workspace-variable write surfaces.
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
-              (POST /no-code-modules/:id/workspaces, data.relationships.vars.data[])
+              (POST /no-code-modules/:id/workspaces, data.relationships.vars.data[]
+              with attributes.category "terraform" or "env")
         """
         sensitive = frozenset(sensitive_keys or ())
         data = []
@@ -1202,7 +1207,41 @@ class TFCClient(object):
                     "sensitive": key in sensitive,
                 },
             })
+        for key, native in (env_variables or {}).items():
+            data.append({
+                "type": "vars",
+                "attributes": {
+                    "key": key,
+                    "value": "" if native is None else str(native),
+                    "category": "env",
+                    "hcl": False,
+                    "sensitive": False,
+                },
+            })
         return data
+
+    def get_no_code_variable_options(self, nocode_module_id):
+        """Admin-defined allowed values per variable of a no-code module:
+        {variable_name: [option, ...]}. Variables without options are absent.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (GET /no-code-modules/:id?include=variable_options -> included[]
+              of type "variable-options" with attributes.{variable-name,
+              variable-type, options})
+        """
+        response = self._request(
+            "GET",
+            "/no-code-modules/{}".format(nocode_module_id),
+            params={"include": "variable_options"},
+        )
+        options = {}
+        for item in response.json().get("included", []) or []:
+            if item.get("type") != "variable-options":
+                continue
+            attributes = item.get("attributes", {}) or {}
+            name = attributes.get("variable-name")
+            if name:
+                options[name] = list(attributes.get("options") or [])
+        return options
 
     def workspace_resource_tag_conflicts(self, workspace_id, resource_global_id):
         """True only when the workspace carries a ``cmp:resource-id`` tag whose
@@ -1263,7 +1302,7 @@ class TFCClient(object):
 
     def create_no_code_workspace(self, nocode_module_id, resource_global_id,
                                  project_name, variables, sensitive_keys=None,
-                                 description=""):
+                                 description="", env_variables=None):
         """Create a dedicated workspace FROM a no-code module; returns the
         workspace ``data`` dict (id at ["id"], name at ["attributes"]["name"]).
 
@@ -1295,7 +1334,9 @@ class TFCClient(object):
                 "relationships": {
                     "project": {"data": {"type": "projects", "id": project_id}},
                     "vars": {
-                        "data": self._no_code_var_relationship(variables, sensitive_keys)
+                        "data": self._no_code_var_relationship(
+                            variables, sensitive_keys, env_variables=env_variables
+                        )
                     },
                 },
             }
@@ -1413,11 +1454,16 @@ class TFCClient(object):
             data["id"] = variable_id
         return {"data": data}
 
-    def upsert_variables(self, workspace_id, variables, sensitive_keys=None):
+    def upsert_variables(self, workspace_id, variables, sensitive_keys=None,
+                         category="terraform"):
         """
-        Upsert terraform-category variables: list -> PATCH by ID / POST when
-        missing; a 422 on POST is treated as a lost create race -> re-list
-        and PATCH. Every write explicitly pins ``category: terraform``.
+        Upsert workspace variables: list -> PATCH by ID / POST when missing;
+        a 422 on POST is treated as a lost create race -> re-list and PATCH.
+        Every write explicitly pins ``category`` -- "terraform" (default) for
+        the template's variables, or "env" for provider environment variables
+        such as ARM_SUBSCRIPTION_ID, which the build plugins derive from the
+        CloudBolt Environment. A workspace variable overrides a same-key
+        variable inherited from a (non-priority) variable set.
 
         Value typing: a dict/list value is written ``hcl: true`` with a
         JSON-serialized expression (JSON is valid HCL2 expression syntax --
@@ -1442,13 +1488,16 @@ class TFCClient(object):
               (POST /workspaces/:workspace_id/vars;
               PATCH /workspaces/:workspace_id/vars/:variable_id;
               category must be "terraform" or "env"; "hcl" and "sensitive"
-              are per-variable booleans)
+              are per-variable booleans; hcl is ignored for env variables)
+        Precedence: https://developer.hashicorp.com/terraform/cloud-docs/workspaces/variables#precedence
         """
+        if category not in ("terraform", "env"):
+            raise TFCError("Variable category must be 'terraform' or 'env', not '{}'.".format(category))
         sensitive = frozenset(sensitive_keys or ())
         existing = self.list_variables(workspace_id)
         for key in variables:
             native = variables[key]
-            if isinstance(native, (dict, list)):
+            if isinstance(native, (dict, list)) and category == "terraform":
                 value = serialize_hcl_value(native)
                 hcl = True
             else:
@@ -1457,7 +1506,7 @@ class TFCClient(object):
             attributes = {
                 "key": key,
                 "value": value,
-                "category": "terraform",
+                "category": category,
                 "hcl": hcl,
                 "sensitive": key in sensitive,
             }

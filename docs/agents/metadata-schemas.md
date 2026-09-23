@@ -926,9 +926,20 @@ FCA's M2M filter relations (groups, blueprints, environments, resource_technolog
 
 HTTP methods are not stored — the IWH dispatches at runtime to `inbound_web_hook_<method>` on the base hook.
 
+### Runtime contract (verified against CloudBolt source)
+
+- **URL:** `GET|POST /api/v3/cmp/inboundWebHooks/<uri_path>/run/` — trailing slash required (a GET without it is a 301). Lookup is by `uri_path` only; the global ID works because `uri_path` defaults to it. Only GET and POST are allowed.
+- **Entry point:** `InboundWebHook.run_hook` calls `inbound_web_hook_<method>` on the base plugin with kwargs `parameters`, `files`, `profile`, `job` (always `None`) and `logger`; kwargs are filtered by the function signature. Canonical signature: `def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs)`.
+- **Input:** GET → `parameters` is `request.GET` (a QueryDict; values are strings, `.getlist()` for repeats). POST → `parameters` is `request.data` (JSON/form/multipart, native types, no CamelCase conversion). The DRF request is **not** passed. Query-string names `filter` and `last` are reserved by the API layer and `;` must be avoided. `action_inputs` are irrelevant to IWH calls — nothing maps them.
+- **Output:** the return value is JSON-rendered as-is (dict/list/str/number). For a non-200 status return `{"iwh_status_code": N, "iwh_embedded_response": <body>}` (other keys are dropped; an invalid code becomes 500). An uncaught exception is a 500 whose body includes `str(exc)`.
+- **Auth:** `normal` → session, CloudBolt token or JWT; requires `request.user.is_authenticated`; CSRF applies to POST only, so a same-origin GET from a custom form works with the session cookie. `token` → `?token=` (or a `token` body field), no user, `profile is None`. **No RBAC either way** — see [rbac-and-security.md](rbac-and-security.md#inbound-webhooks-do-no-rbac-of-their-own).
+- **Cost:** runs synchronously in the web process; no Job, ActionHistory or event row per call; plugin source cached 30 s; only the global user rate throttle applies.
+- **Template-rendered:** like every plugin, the script is rendered through the template engine first — never write literal `{{ }}` in it (cardinal rule 3).
+
 ### Round-trip caveats
 
-- `token` is export-only and only present when `authentication_method == "token"`. Customers must re-acquire / re-set the token after sync.
+- `token` is export-only and only present when `authentication_method == "token"`. Import sets it straight from the metadata and does **not** regenerate it: a token-mode IWH with no `token` in the metadata imports with an empty token, and an empty `?token=` then passes the check. Prefer `"normal"`; if you must use token mode, keep the token in the metadata or re-save the IWH in the UI after sync.
+- `uri_path` is made unique on a clash (`name_000X`), so a form that hardcodes the path can silently point at the wrong hook if two repos ship the same path.
 
 ### Worked example
 

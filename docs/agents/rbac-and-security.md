@@ -72,6 +72,15 @@ def generate_options_for_env_id(field, **kwargs):
         return [("", "------ No AWS environments available ------")]
 
     return [(env.id, env.name) for env in envs]
+```
+
+`get_available_environments(tenant=None, profile=None)` returns a **list** sorted by name (not a QuerySet), so filter with `id__in` as above. Its unconstrained-environment leg is tenant-filtered unless `profile` is a cb_admin / global viewer — pass the requesting profile and its tenant when you have them (generators receive `profile` in kwargs; inbound webhooks receive it as `profile`). A reusable implementation lives in `shared_modules/SHM-r0oq14r7` (`env_options`): `resolve_group`, `available_environments`, `entitled_environment`, `profile_may_act_for_group`.
+
+#### Inbound webhooks do no RBAC of their own
+
+`InboundWebHookViewSet.run` skips object permissions: in `normal` auth mode **any authenticated user** can call the endpoint; in `token` mode the token is the only check and `profile` is `None`. A webhook that returns environment- or group-scoped data must therefore (1) refuse `profile is None`, (2) confirm the caller is a member of the group it names (`profile.get_groups(include_inherited=True)` or `profile.is_cbadmin`), and (3) confirm the group is entitled to the environment via `get_available_environments()` before touching the handler. Never trust a `group` or `env_id` query parameter on its own. Template: [plugin-templates.md → Inbound Webhook Plugins](plugin-templates.md#6-inbound-webhook-plugins).
+
+```python
 
 def run(job, **kwargs):
     """

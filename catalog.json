@@ -867,11 +867,12 @@
     "id": "OHK-axtt0yqq",
     "type": "plugins",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace with a plan-approval pause.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply.",
     "path": "plugins/OHK-axtt0yqq",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-jlguerjr"
+      "shared_modules/SHM-jlguerjr",
+      "shared_modules/SHM-r0oq14r7"
     ],
     "used_by": [
       "blueprints/BP-00meiwwz"
@@ -1047,6 +1048,22 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-gr2wsfzx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-fx500o2r",
+    "type": "plugins",
+    "name": "Form Options",
+    "description": "Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options.",
+    "path": "plugins/OHK-fx500o2r",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr",
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "webhooks/IWH-yj93is5z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1252,11 +1269,12 @@
     "id": "OHK-pvo05e24",
     "type": "plugins",
     "name": "HCP Terraform VM",
-    "description": "Provisions a VM through HCP Terraform in a dedicated workspace with a plan-approval pause before apply.",
+    "description": "Provisions a VM through HCP Terraform into a chosen CloudBolt environment's Azure subscription, in a dedicated workspace with a plan-approval pause before apply.",
     "path": "plugins/OHK-pvo05e24",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-jlguerjr"
+      "shared_modules/SHM-jlguerjr",
+      "shared_modules/SHM-r0oq14r7"
     ],
     "used_by": [
       "blueprints/BP-b0qm83lh"
@@ -2031,6 +2049,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-fx500o2r",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24",
       "plugins/OHK-9xffkz53",
@@ -2071,6 +2090,20 @@
     ]
   },
   {
+    "id": "SHM-r0oq14r7",
+    "type": "shared_modules",
+    "name": "env_options",
+    "description": "RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins.",
+    "path": "shared_modules/SHM-r0oq14r7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-fx500o2r",
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-pvo05e24"
+    ]
+  },
+  {
     "id": "SHM-vjwmn6nq",
     "type": "shared_modules",
     "name": "azure_disk_encryption",
@@ -2082,5 +2115,18 @@
       "plugins/OHK-vklpnqhq",
       "plugins/OHK-2vpg4pff"
     ]
+  },
+  {
+    "id": "IWH-yj93is5z",
+    "type": "webhooks",
+    "name": "Form Options",
+    "description": "GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options.",
+    "path": "webhooks/IWH-yj93is5z",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-fx500o2r"
+    ],
+    "used_by": [],
+    "enabled": true
   }
 ]

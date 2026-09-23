@@ -21,14 +21,22 @@ ONLY material difference from OHK-pvo05e24 is the workspace-creation API path
 version wait).
 
 Pinned per blueprint (parameter_defaults on the build deployment item, read
-here as templated inputs -- there are NO order-form dropdowns or option
-generators, unlike the VCS blueprint):
+here as templated inputs):
   - tfc_connection_info : the 'tf-cloud'-labeled ConnectionInfo global_id
   - tfc_organization    : the HCP Terraform organization
   - tfc_project         : the HCP Terraform project
   - tfc_nocode_module_id: the nocode-* module this blueprint deploys
 
 Order-collected:
+  - env_id (STR)       : the CloudBolt Environment to deploy into, RBAC-gated
+                         via generate_options_for_env_id. Its Azure handler's
+                         subscription and tenant are written to the workspace
+                         as ARM_SUBSCRIPTION_ID / ARM_TENANT_ID environment
+                         variables (sent in the no-code create payload so the
+                         auto-queued run already targets them; they override
+                         the same keys from the project's non-priority
+                         credentials variable set). The handler is never
+                         exposed (cardinal rule 4).
   - parameters (TXT) : JSON object of the module's variable name/value pairs,
                        funneled from the form's Dynamic Panel. The reserved
                        '_sensitive' key (a hidden form field listing variable
@@ -60,10 +68,9 @@ This plugin NEVER catches CancelJobException. A rejected provision re-raises
 out of run(), leaving the resource PROVFAILED with its workspace ID already
 stored -- teardown-cleanable.
 
-No environment / resource-handler coupling: TFC holds the cloud credentials
-(project-scoped variable set), so no env_id gating applies and no resource
-handler is ever exposed here (AGENTS.md cardinal rule 4 is structurally
-inapplicable to this blueprint).
+Credentials stay in HCP Terraform (the project-scoped variable set holds the
+client ID/secret); CloudBolt contributes only WHERE to deploy -- the chosen
+environment's subscription and tenant -- as workspace environment variables.
 
 Returns a 3-tuple: (status, output_msg, error_msg)
   status: "SUCCESS" | "FAILURE"
@@ -74,6 +81,13 @@ from infrastructure.models import CustomField
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
+from shared_modules.env_options import (
+    EnvOptionsError,
+    entitled_environment,
+    environment_options,
+    resolve_group,
+    subscription_context,
+)
 from shared_modules.tfc_api import (
     RUN_CLASS_APPLIED,
     RUN_CLASS_NO_CHANGES,
@@ -108,6 +122,25 @@ DEPLOYMENT_NAME_KEY = "deployment_name"
 # teardown plugin by deliberate copy -- plugins cannot import one another.
 LIVE_JOB_STATUSES = ("RUNNING", "PAUSED")
 
+# Provider environment variables written per workspace from the CloudBolt
+# Environment's Azure handler. Names are the azurerm provider's:
+# https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret#configuring-the-service-principal-in-terraform
+ARM_ENV_VARIABLES = (("ARM_SUBSCRIPTION_ID", "subscription_id"), ("ARM_TENANT_ID", "tenant_id"))
+
+
+def generate_options_for_env_id(field=None, **kwargs):
+    """RBAC-aware Environment selector restricted to Azure-backed
+    environments (group.get_available_environments(), narrowed by handler
+    type). The resource handler itself is never offered."""
+    group = resolve_group(kwargs.get("group"))
+    if group is None:
+        return []
+    options = [
+        (option["value"], option["title"])
+        for option in environment_options(group, profile=kwargs.get("profile"))
+    ]
+    return options or [("", "------ No Azure environments available ------")]
+
 
 def _ensure_custom_fields(variable_names, sensitive_names=()):
     """Pre-create the runtime custom fields this blueprint persists on its
@@ -137,6 +170,15 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
         ("tfc_nocode_module_version", "TFC No-Code Module Version",
          "Module version this deployment was provisioned from; reserved for the "
          "deferred module-version Upgrade action (HCP owns the version pin)."),
+        ("tfc_env_id", "TFC Environment ID",
+         "ID of the CloudBolt Environment this deployment was ordered into; "
+         "its Azure handler supplied the workspace's ARM_* variables."),
+        ("azure_subscription_id", "Azure Subscription ID",
+         "Azure subscription the deployment targets (from the environment's "
+         "resource handler)."),
+        ("azure_tenant_id", "Azure Tenant ID",
+         "Azure tenant the deployment targets (from the environment's "
+         "resource handler)."),
         ("tfc_variable_names", "TFC Variable Names",
          "Comma-separated set of Terraform variables this deployment manages; "
          "read by the day-2 actions."),
@@ -242,6 +284,7 @@ def run(job, **kwargs):
     # parse_params_payload. Coordinates + module ID are pinned per blueprint via
     # parameter_defaults (no dropdowns).
     params_json = """{{ parameters }}"""
+    env_id = "{{ env_id }}".strip()
     tfc_connection_info = "{{ tfc_connection_info }}".strip()
     tfc_organization = "{{ tfc_organization }}".strip()
     tfc_project = "{{ tfc_project }}".strip()
@@ -266,6 +309,8 @@ def run(job, **kwargs):
             "on the build deployment item of BP-00meiwwz (see "
             "docs/hcp-no-code-setup.md).".format(", ".join(missing_coords)),
         )
+    if not env_id:
+        return "FAILURE", "", "An Environment is required (env_id arrived blank)."
 
     resource = job.resource_set.first()
     if resource is None:
@@ -276,6 +321,28 @@ def run(job, **kwargs):
             "deployment pattern requires one. Order this plugin through the "
             "'{}' blueprint.".format(BLUEPRINT_NAME),
         )
+
+    # ---- Re-check entitlement server-side (cardinal rule 4) ---------------
+    env = entitled_environment(resource.group, env_id)
+    if env is None:
+        return (
+            "FAILURE",
+            "",
+            "Environment {} is not an Azure environment available to group "
+            "'{}'.".format(env_id, getattr(resource.group, "name", "?")),
+        )
+    try:
+        azure = subscription_context(env)
+    except EnvOptionsError as exc:
+        return "FAILURE", "", str(exc)
+    if not azure["subscription_id"]:
+        return (
+            "FAILURE",
+            "",
+            "Environment '{}' has no subscription ID on its Azure resource "
+            "handler.".format(env.name),
+        )
+    arm_variables = {key: azure[source] for key, source in ARM_ENV_VARIABLES if azure[source]}
 
     try:
         # ---- Parse the funnel payload BEFORE any TFC network call ----------
@@ -354,6 +421,7 @@ def run(job, **kwargs):
                 description="CloudBolt deployment '{}'".format(
                     deployment_name or resource.global_id
                 ),
+                env_variables=arm_variables,
             )
             created = True
             # Best-effort tag (the create ignores tag-bindings -- U1); never
@@ -372,6 +440,10 @@ def run(job, **kwargs):
         resource.set_value_for_custom_field("tfc_organization", tfc_organization)
         resource.set_value_for_custom_field("tfc_project", tfc_project)
         resource.set_value_for_custom_field("tfc_nocode_module_id", tfc_nocode_module_id)
+        resource.set_value_for_custom_field("tfc_env_id", str(env.id))
+        resource.set_value_for_custom_field("azure_subscription_id", azure["subscription_id"])
+        if azure["tenant_id"]:
+            resource.set_value_for_custom_field("azure_tenant_id", azure["tenant_id"])
         resource.set_value_for_custom_field("tfc_variable_names", ",".join(variable_names))
         resource.set_value_for_custom_field(
             "tfc_sensitive_variable_names", ",".join(sensitive_keys)
@@ -436,6 +508,7 @@ def run(job, **kwargs):
                 client.upsert_variables(
                     workspace_id, variables, sensitive_keys=sensitive_keys
                 )
+                client.upsert_variables(workspace_id, arm_variables, category="env")
                 result = run_with_plan_approval(job, client, workspace_id, message)
                 resource.set_value_for_custom_field("tfc_run_id", result["run_id"])
                 resource.save()

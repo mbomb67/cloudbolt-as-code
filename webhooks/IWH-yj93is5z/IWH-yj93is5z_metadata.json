@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "Form Options",
+    "dependencies": {
+        "hook": "plugins/OHK-fx500o2r"
+    },
+    "description": "GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options.",
+    "enabled": true,
+    "id": "IWH-yj93is5z",
+    "label": "Form Options",
+    "last_updated": "2026-09-23",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "form-options"
+}

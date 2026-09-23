@@ -3,6 +3,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
+            "description": "CloudBolt Environment to deploy into. Lists the Azure-backed environments the ordering group may use (group.get_available_environments()). Its resource handler supplies the subscription and tenant written to the workspace as ARM_SUBSCRIPTION_ID / ARM_TENANT_ID environment variables. The handler is never exposed.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-fadb8j34",
+            "label": "Environment",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
             "description": "JSON object of the no-code module's variable name/value pairs, funneled from the order form's Dynamic Panel (field names match the module's variables). Supplied by the custom form; leave a field blank to fall back to the module's default (an empty payload parses to {}). The reserved '_sensitive' key marks variables written to TFC as sensitive; the reserved 'deployment_name' key names the CloudBolt resource and is not sent to terraform.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -97,6 +116,7 @@
         }
     ],
     "action_inputs_sequence": [
+        "env_id",
         "tfc_connection_info",
         "tfc_organization",
         "tfc_project",
@@ -105,10 +125,11 @@
     ],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-r0oq14r7"
         ]
     },
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace with a plan-approval pause.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply.",
     "id": "OHK-axtt0yqq",
     "max_retries": 0,
     "name": "HCP Terraform No-Code Module",

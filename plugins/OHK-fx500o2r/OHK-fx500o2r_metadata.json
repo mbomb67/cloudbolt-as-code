@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7",
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options.",
+    "id": "OHK-fx500o2r",
+    "max_retries": 0,
+    "name": "Form Options",
+    "resource_technologies": [],
+    "script_filename": "OHK-fx500o2r_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
