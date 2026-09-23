@@ -80,7 +80,7 @@ dropped.) The build plugin refuses to run while any value still contains
     `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>`
     (`path: options`, `valueName: value`, `titleName: title`). The webhook
     reads the connection and module ID from this blueprint's pinned
-    `parameter_defaults`, so the form carries neither.
+    `parameter_defaults` (the webhook reads the BDI, not the form).
   - For a variable that should come from the CloudBolt environment (resource
     group, subnet, size, image, location, or any env-scoped custom field),
     use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`
