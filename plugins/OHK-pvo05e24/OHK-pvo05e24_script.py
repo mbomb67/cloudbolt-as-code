@@ -91,7 +91,6 @@ import re
 from common.methods import set_progress
 from infrastructure.models import CustomField
 from utilities.logger import ThreadLogger
-from utilities.models import ConnectionInfo
 
 from shared_modules.env_options import (
     EnvOptionsError,
@@ -101,7 +100,6 @@ from shared_modules.env_options import (
     subscription_context,
 )
 from shared_modules.tfc_api import (
-    CONNECTION_INFO_LABEL,
     RUN_CLASS_APPLIED,
     RUN_CLASS_NO_CHANGES,
     TFCError,
@@ -147,8 +145,10 @@ ARM_ENV_VARIABLES = (("ARM_SUBSCRIPTION_ID", "subscription_id"), ("ARM_TENANT_ID
 
 
 # -----------------------------------------------------------------------------
-# Order-form option generators. Generators degrade gracefully -- they return a
-# placeholder option instead of raising, so a hiccup cannot break rendering.
+# Order-form option generator. ONLY env_id has one: a generate_options_for_*
+# function on an input makes CloudBolt ignore the value a custom form submits
+# for it, so the pinned coordinates (connection, org, project, repo, branch)
+# must stay plain inputs with no generator and no field dependencies.
 # -----------------------------------------------------------------------------
 
 def generate_options_for_env_id(field=None, **kwargs):
@@ -164,25 +164,6 @@ def generate_options_for_env_id(field=None, **kwargs):
         for option in environment_options(group, profile=kwargs.get("profile"))
     ]
     return options or [("", "------ No Azure environments available ------")]
-
-
-def generate_options_for_tfc_connection_info(field=None, **kwargs):
-    """Every ConnectionInfo labeled 'tf-cloud' (used when the input is shown
-    on a native form; the shipped blueprint pins it via parameter_defaults).
-    The option VALUE is the ConnectionInfo global_id (stable across renames);
-    get_client re-verifies the label at run time, so a tampered value cannot
-    reach an unlabeled connection."""
-    connection_infos = ConnectionInfo.objects.filter(
-        labels__name=CONNECTION_INFO_LABEL
-    ).order_by("name")
-    options = [
-        (ci.global_id, "{} ({})".format(ci.name, (ci.ip or "").strip() or "app.terraform.io"))
-        for ci in connection_infos
-    ]
-    if not options:
-        return [("", "------ No ConnectionInfo labeled '{}' exists; create one "
-                     "(see docs/hcp-terraform-setup.md) ------".format(CONNECTION_INFO_LABEL))]
-    return [("", "------ Select a TF Cloud Connection ------")] + options
 
 
 def _ensure_custom_fields(variable_names, sensitive_names=()):
