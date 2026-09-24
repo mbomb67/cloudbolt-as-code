@@ -131,15 +131,14 @@ Where each value lives:
 
 | Value | Where | Who sets it |
 |---|---|---|
-| CloudBolt portal URL | `CLOUDBOLT_PORTAL_URL` in `shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py` | operator, once per instance |
 | ConnectionInfo, organization, project, repo, branch, working directory | `parameter_defaults` on the build deployment item in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` | operator, once per blueprint |
 | Environment (subscription, tenant) | chosen on the order form; derived from the environment's Azure resource handler | orderer |
 | Template variables | the order form's variables panel | orderer |
 | State outputs | none: every output in the applied state is recorded as `tfc_output_<name>` | - |
 
-### 8a. Account-level: `CLOUDBOLT_PORTAL_URL`
+### 8a. Account-level: nothing to edit
 
-Set it to this instance's base URL (e.g. `https://cloudbolt.example.com`). It is recorded on each workspace as the source link back to CloudBolt. Every TFC-backed job fails fast while it still reads `FILL-ME`. Leave the other constants in that block alone unless an error message points at one.
+`tfc_api` has no instance-specific values. The CloudBolt URL recorded on each workspace (its "source" link back to CloudBolt) is taken at run time from the portal the order was placed on, falling back to the default portal. Set the portal's site URL under *Admin > Portals* if the link should differ from the domain users log in with.
 
 ### 8b. Per-blueprint: pinned TFC coordinates
 
@@ -267,7 +266,7 @@ Quick smoke checklist before handing the instance over (the full lifecycle pass 
 - [ ] The VCS provider shows a healthy OAuth connection; the template repo's tracked branch has branch protection and a minimal collaborator list.
 - [ ] The Owners team API token exists; the value lives only in the CloudBolt ConnectionInfo.
 - [ ] At least one ConnectionInfo carries the **`tf-cloud` label** and reads `https` / `app.terraform.io` (or the TFE host) / `443`, password set, headers empty.
-- [ ] `CLOUDBOLT_PORTAL_URL` is set (no `FILL-ME`) and the build-item `parameter_defaults` in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` pin connection, organization, project, repo and branch.
+- [ ] The build-item `parameter_defaults` in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` pin connection, organization, project, repo and branch.
 - [ ] Ordering `BP-b0qm83lh` renders the **custom form**: group, an **Environment** dropdown listing only Azure environments the group may use, and a variables panel whose Resource Group / Subnet / VM Size / OS Image dropdowns fill once an environment is chosen (browser network tab: `form-options/run/` returns 200 with `options`).
 - [ ] After approval, the workspace in HCP shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as workspace environment variables matching the chosen environment's subscription.
 - [ ] After a first successful provision, the resource shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere).
