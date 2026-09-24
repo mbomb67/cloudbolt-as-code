@@ -12,6 +12,7 @@ Creates, deletes and inventories Azure Resource Groups as CloudBolt resources, w
 | Day-2 action | RSA-qwku9lip | Manage Delete Lock (OHK-sf6w5pfn) |
 | Day-2 action | RSA-a38h23ms | List Resources in Group (OHK-iy92hhvh) |
 | Day-2 action | RSA-kbikieh7 | Update Tags (OHK-nwcyoto7) |
+| Shared module | SHM-i1oshqxg | azure_management_locks (REST helpers used by the lock action, teardown and discovery) |
 
 ## Prerequisites
 - An Azure (ARM) resource handler with at least one Environment the ordering group can use (entitled or unconstrained environments are listed).
@@ -28,4 +29,5 @@ Creates, deletes and inventories Azure Resource Groups as CloudBolt resources, w
 - OHK-xoajww7v declares no action inputs and is shared; it can be reused as the first build item of any blueprint whose build plugin reads `cb_generated_tags`.
 - Teardown deletes everything in the group. It refuses to run while a CanNotDelete or ReadOnly lock exists (release it with Manage Delete Lock first), logs the group's contents before deleting, and returns WARNING when the group is already gone.
 - Manage Delete Lock only creates or removes the lock named `cloudbolt-lock`; locks created elsewhere are reported but left in place.
+- Lock operations call the Azure Management Locks REST API (api-version 2016-09-01) through the shared module; the `azure.mgmt.resource.locks` SDK client is not required on the appliance.
 - Update Tags: merge adds or overwrites the given keys and keeps the rest; replace makes them the complete set.

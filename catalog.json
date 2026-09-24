@@ -637,7 +637,9 @@
     "description": "Deletes the Azure resource group behind the resource, refusing while a management lock is present.",
     "path": "plugins/OHK-4xqzbdtx",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-i1oshqxg"
+    ],
     "used_by": [
       "blueprints/BP-zmeot1ff"
     ],
@@ -1004,7 +1006,9 @@
     "description": "Discovers Azure resource groups across all Azure resource handlers, including tags and lock state.",
     "path": "plugins/OHK-e5a4m2bm",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-i1oshqxg"
+    ],
     "used_by": [
       "blueprints/BP-zmeot1ff"
     ],
@@ -1314,7 +1318,9 @@
     "description": "Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group.",
     "path": "plugins/OHK-sf6w5pfn",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-i1oshqxg"
+    ],
     "used_by": [
       "resource_actions/RSA-qwku9lip"
     ],
@@ -2038,6 +2044,20 @@
       "plugins/OHK-gqvi9kv4",
       "plugins/OHK-9n4wfasa",
       "plugins/OHK-9f45ede7"
+    ]
+  },
+  {
+    "id": "SHM-i1oshqxg",
+    "type": "shared_modules",
+    "name": "azure_management_locks",
+    "description": "REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler.",
+    "path": "shared_modules/SHM-i1oshqxg",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-e5a4m2bm",
+      "plugins/OHK-sf6w5pfn",
+      "plugins/OHK-4xqzbdtx"
     ]
   },
   {

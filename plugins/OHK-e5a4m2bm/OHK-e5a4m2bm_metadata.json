@@ -1,4 +1,9 @@
 {
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-i1oshqxg"
+        ]
+    },
     "description": "Discovers Azure resource groups across all Azure resource handlers, including tags and lock state.",
     "id": "OHK-e5a4m2bm",
     "max_retries": 0,

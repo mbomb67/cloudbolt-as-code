@@ -23,6 +23,11 @@
     "action_inputs_sequence": [
         "rg_lock_state"
     ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-i1oshqxg"
+        ]
+    },
     "description": "Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group.",
     "id": "OHK-sf6w5pfn",
     "max_retries": 0,
