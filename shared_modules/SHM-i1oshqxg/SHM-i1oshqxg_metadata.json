@@ -1,0 +1,12 @@
+{
+    "description": "REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler.",
+    "id": "SHM-i1oshqxg",
+    "label": "Azure Management Locks",
+    "max_retries": 0,
+    "module_name": "azure_management_locks",
+    "name": "azure_management_locks",
+    "resource_technologies": [],
+    "script_filename": "SHM-i1oshqxg_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -17,9 +17,11 @@ already-deleted resources tear down cleanly. See docs/agents/plugin-templates.md
 RBAC: the Azure handler is rehydrated from the stored resource-handler ID, which
 was itself derived from an RBAC-gated Environment selection at build time.
 
-External API: Azure Resource Manager via azure-mgmt-resource. Operation shapes
-anchored to Microsoft's current docs (cited at each call site) per
-docs/agents/external-apis.md.
+External API: Azure Resource Manager via azure-mgmt-resource for the group
+itself; management locks are read over REST (api-version 2016-09-01) through
+shared_modules/azure_management_locks, because the locks SDK client is not
+installed on CloudBolt appliances. Operation shapes anchored to Microsoft's
+current docs (cited at each call site) per docs/agents/external-apis.md.
 
 Returns a 3-tuple: (status, output_msg, error_msg)
   status: "SUCCESS" | "WARNING" | "FAILURE"
@@ -28,32 +30,28 @@ Returns a 3-tuple: (status, output_msg, error_msg)
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
-logger = ThreadLogger(__name__)
+from shared_modules.azure_management_locks import ManagementLocks, lock_level
 
-_BLOCKING_LOCK_LEVELS = {"cannotdelete", "readonly"}
+logger = ThreadLogger(__name__)
 
 # Cap the pre-delete inventory so a huge resource group cannot flood the job log.
 _INVENTORY_LIMIT = 25
 
 
-def _blocking_locks(wrapper, rg_name):
+def _blocking_locks(rh, rg_name):
     """Return the names of management locks that would block deletion.
 
-    Docs: https://learn.microsoft.com/en-us/python/api/azure-mgmt-resource/azure.mgmt.resource.locks.operations.managementlocksoperations#list-at-resource-group-level
-          ManagementLocksOperations.list_at_resource_group_level(resource_group_name) -> ItemPaged[ManagementLockObject]
-    A missing lock client or a locks/read denial returns [] — the delete call
-    itself remains the authoritative check.
+    Reads the group's locks over REST (list-at-resource-group-level, cited in
+    shared_modules/azure_management_locks). Every level lock_level() recognizes
+    (ReadOnly, CanNotDelete) blocks deletion; NotSpecified does not.
+    A missing subscription id or a locks/read denial returns [] — the delete
+    call itself remains the authoritative check.
     """
     try:
-        from azure.mgmt.resource.locks import ManagementLockClient
-        from resourcehandlers.azure_arm.azure_wrapper import configure_arm_client
-
-        lock_client = configure_arm_client(wrapper, ManagementLockClient)
-        locks = lock_client.management_locks.list_at_resource_group_level(rg_name)
         return [
-            lock.name
-            for lock in locks
-            if str(getattr(lock.level, "value", lock.level) or "").lower() in _BLOCKING_LOCK_LEVELS
+            lock.get("name")
+            for lock in ManagementLocks(rh).list_resource_group_locks(rg_name)
+            if lock_level(lock) is not None
         ]
     except Exception as exc:
         logger.warning("Could not read locks on resource group %s: %s", rg_name, exc)
@@ -152,7 +150,7 @@ def run(job, **kwargs):
         logger.warning("Existence check for '%s' failed (continuing): %s", rg_name, exc)
 
     # ---- Refuse to fight a management lock ------------------------------
-    locks = _blocking_locks(wrapper, rg_name)
+    locks = _blocking_locks(rh, rg_name)
     if locks:
         lock_list = ", ".join(sorted(locks))
         return (

@@ -17,9 +17,12 @@ locks created elsewhere are reported but left untouched.
 Required Azure permissions: Microsoft.Authorization/locks/* — of the built-in
 roles, only Owner and User Access Administrator grant these.
 
-External API: Azure Resource Manager management locks via azure-mgmt-resource.
-Operation shapes anchored to Microsoft's current docs (cited at each call site)
-per docs/agents/external-apis.md.
+External API: Azure Resource Manager management locks over REST
+(api-version 2016-09-01) through shared_modules/azure_management_locks. The
+locks SDK client (azure.mgmt.resource.locks) is not installed on CloudBolt
+appliances, so this plugin imports no Azure SDK. Operation shapes are anchored
+to Microsoft's current docs, cited in the shared module, per
+docs/agents/external-apis.md.
 
 Entry point: run(job, resource, **kwargs) -> (status, output_msg, error_msg)
 """
@@ -27,13 +30,24 @@ Entry point: run(job, resource, **kwargs) -> (status, output_msg, error_msg)
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.azure_management_locks import (
+    LOCK_LEVELS,
+    AzureLockError,
+    ManagementLocks,
+    lock_level,
+    strongest_level,
+)
+
 logger = ThreadLogger(__name__)
 
 # The lock this action owns. Locks with any other name were created outside
 # CloudBolt and are left alone.
 LOCK_NAME = "cloudbolt-lock"
 
-_LOCK_LEVELS = ("CanNotDelete", "ReadOnly")
+_PERMISSION_HINT = (
+    "Insufficient permissions to manage locks. The service principal needs "
+    "Microsoft.Authorization/locks/* (Owner or User Access Administrator)."
+)
 
 
 def _resolve_resource(job, resource, kwargs):
@@ -82,16 +96,13 @@ def _load_group(resource):
         raise ValueError(f"no Azure resource handler with id={rh_id}")
 
 
-def _lock_client(rh):
-    from azure.mgmt.resource.locks import ManagementLockClient
-    from resourcehandlers.azure_arm.azure_wrapper import configure_arm_client
-
-    return configure_arm_client(rh.get_api_wrapper(), ManagementLockClient)
-
-
-def _level_of(lock):
-    """Read a ManagementLockObject.level as a plain string (it may be an enum)."""
-    return str(getattr(lock.level, "value", lock.level) or "")
+def _failure(exc, verb):
+    """Map an AzureLockError to this action's FAILURE tuple."""
+    if exc.status_code == 403:
+        logger.error("Permission denied managing locks: %s", exc)
+        return "FAILURE", "", _PERMISSION_HINT
+    logger.error("Failed to %s the lock: %s", verb, exc)
+    return "FAILURE", "", f"Failed to {verb} the lock: {exc}"
 
 
 def generate_options_for_rg_lock_state(field, **kwargs):
@@ -116,48 +127,32 @@ def run(job=None, resource=None, **kwargs):
 
     resource = _resolve_resource(job, resource, kwargs)
     requested = "{{ rg_lock_state }}".strip()
-    valid = set(_LOCK_LEVELS) | {"None"}
+    valid = set(LOCK_LEVELS) | {"None"}
     if requested not in valid:
         return "FAILURE", "", f"Lock state must be one of {sorted(valid)}, got '{requested}'."
 
     try:
         rg_name, rh = _load_group(resource)
+        locks = ManagementLocks(rh)
     except Exception as exc:
         logger.warning("Could not resolve resource group from resource: %s", exc)
         return "FAILURE", "", f"Could not resolve the Azure resource group: {exc}"
 
-    try:
-        from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
-        from azure.mgmt.resource.locks.models import ManagementLockObject
-    except ImportError as exc:
-        return "FAILURE", "", f"Azure management lock SDK is not installed: {exc}"
-
-    lock_client = _lock_client(rh)
-
     if requested == "None":
         set_progress(f"Removing the CloudBolt lock from resource group '{rg_name}'...")
-
-        # Docs: https://learn.microsoft.com/en-us/python/api/azure-mgmt-resource/azure.mgmt.resource.locks.operations.managementlocksoperations#delete-at-resource-group-level
-        #       ManagementLocksOperations.delete_at_resource_group_level(resource_group_name, lock_name) -> None
         try:
-            lock_client.management_locks.delete_at_resource_group_level(rg_name, LOCK_NAME)
-        except ResourceNotFoundError:
+            removed = locks.delete_resource_group_lock(rg_name, LOCK_NAME)
+        except AzureLockError as exc:
+            return _failure(exc, "remove")
+
+        if not removed:
             resource.set_value_for_custom_field("azure_resource_group_lock", "None")
             msg = f"Resource group '{rg_name}' had no CloudBolt lock; nothing to remove."
             logger.info(msg)
             set_progress(msg)
             return "WARNING", msg, ""
-        except HttpResponseError as exc:
-            if exc.status_code == 404:
-                resource.set_value_for_custom_field("azure_resource_group_lock", "None")
-                msg = f"Resource group '{rg_name}' had no CloudBolt lock; nothing to remove."
-                logger.info(msg)
-                set_progress(msg)
-                return "WARNING", msg, ""
-            logger.exception("Failed to remove management lock")
-            return "FAILURE", "", f"Failed to remove the lock: {exc.message}"
 
-        new_state = _remaining_lock_state(lock_client, rg_name)
+        new_state = _remaining_lock_state(locks, rg_name)
         resource.set_value_for_custom_field("azure_resource_group_lock", new_state)
 
         msg = f"CloudBolt lock removed from resource group '{rg_name}'."
@@ -172,30 +167,15 @@ def run(job=None, resource=None, **kwargs):
         return "SUCCESS", msg, ""
 
     set_progress(f"Applying a {requested} lock to resource group '{rg_name}'...")
-
-    # Docs: https://learn.microsoft.com/en-us/python/api/azure-mgmt-resource/azure.mgmt.resource.locks.operations.managementlocksoperations#create-or-update-at-resource-group-level
-    #       ManagementLocksOperations.create_or_update_at_resource_group_level(
-    #           resource_group_name, lock_name, parameters: ManagementLockObject) -> ManagementLockObject
     try:
-        lock_client.management_locks.create_or_update_at_resource_group_level(
+        locks.set_resource_group_lock(
             rg_name,
             LOCK_NAME,
-            ManagementLockObject(
-                level=requested,
-                notes=f"Managed by CloudBolt resource {resource.name}.",
-            ),
+            requested,
+            notes=f"Managed by CloudBolt resource {resource.name}.",
         )
-    except HttpResponseError as exc:
-        if exc.status_code == 403:
-            logger.error("Permission denied managing locks on '%s'", rg_name)
-            return (
-                "FAILURE",
-                "",
-                "Insufficient permissions to manage locks. The service principal needs "
-                "Microsoft.Authorization/locks/* (Owner or User Access Administrator).",
-            )
-        logger.exception("Failed to apply management lock")
-        return "FAILURE", "", f"Failed to apply the lock: {exc.message}"
+    except AzureLockError as exc:
+        return _failure(exc, "apply")
 
     resource.set_value_for_custom_field("azure_resource_group_lock", requested)
 
@@ -205,22 +185,14 @@ def run(job=None, resource=None, **kwargs):
     return "SUCCESS", msg, ""
 
 
-def _remaining_lock_state(lock_client, rg_name):
-    """Report the strongest lock still on the group after the CloudBolt one is gone.
+def _remaining_lock_state(locks, rg_name):
+    """Report the most restrictive lock still on the group after the CloudBolt one is gone.
 
-    Docs: https://learn.microsoft.com/en-us/python/api/azure-mgmt-resource/azure.mgmt.resource.locks.operations.managementlocksoperations#list-at-resource-group-level
-          ManagementLocksOperations.list_at_resource_group_level(resource_group_name) -> ItemPaged[ManagementLockObject]
+    Uses list-at-resource-group-level, cited in shared_modules/azure_management_locks.
     """
     try:
-        levels = {
-            _level_of(lock)
-            for lock in lock_client.management_locks.list_at_resource_group_level(rg_name)
-        }
-    except Exception as exc:
+        levels = [lock_level(lock) for lock in locks.list_resource_group_locks(rg_name)]
+    except AzureLockError as exc:
         logger.warning("Could not re-read locks on %s: %s", rg_name, exc)
         return "None"
-
-    for level in _LOCK_LEVELS:
-        if level in levels:
-            return level
-    return "None"
+    return strongest_level(levels)
