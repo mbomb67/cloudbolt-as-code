@@ -120,8 +120,8 @@ WORKSPACE_SOURCE_NAME = "CloudBolt CMP"
 # CloudBolt ConnectionInfos for Terraform Cloud/Enterprise are selected by
 # LABEL, not by a hard-coded name: every ConnectionInfo that carries the
 # "tf-cloud" label (protocol https, ip app.terraform.io or the TFE host,
-# port 443, TEAM token in the password field) is offered on the order form's
-# Connection dropdown. The name itself is free-form.
+# port 443, TEAM token in the password field) is eligible; a blueprint pins
+# the one it uses by global_id in its parameter_defaults. The name is free-form.
 CONNECTION_INFO_LABEL = "tf-cloud"
 TFC_DEFAULT_HOST = "app.terraform.io"
 
