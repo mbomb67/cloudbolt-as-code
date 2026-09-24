@@ -12,7 +12,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
 | [Plugins](#plugins) | 77 |
-| [Shared modules](#shared-modules) | 10 |
+| [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 7 |
 | [Forms](#forms) | 4 |
 
@@ -201,6 +201,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | Module | ID | Description | Used by |
 |---|---|---|---|
 | `azure_disk_encryption` | [SHM-vjwmn6nq](shared_modules/SHM-vjwmn6nq/) | Per-VM customer-managed-key disk encryption helpers for Azure Key Vault and disk encryption sets. | [Azure CMK - Per-VM Disk Encryption Set](plugins/OHK-vklpnqhq/), [Azure CMK - Remove Per-VM Disk Encryption Set](plugins/OHK-2vpg4pff/) |
+| `azure_management_locks` | [SHM-i1oshqxg](shared_modules/SHM-i1oshqxg/) | REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler. | [Discover Azure Resource Groups](plugins/OHK-e5a4m2bm/), [Manage Delete Lock](plugins/OHK-sf6w5pfn/), [Teardown Azure Resource Group](plugins/OHK-4xqzbdtx/) |
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |

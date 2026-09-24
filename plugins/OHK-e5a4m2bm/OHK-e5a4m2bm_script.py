@@ -16,9 +16,11 @@ Discovery contract:
     fields automatically — matching the fields the build, teardown, and day-2
     plugins use.
 
-External API: Azure Resource Manager via azure-mgmt-resource. Operation shapes
-anchored to Microsoft's current docs (cited at the call site) per
-docs/agents/external-apis.md.
+External API: Azure Resource Manager via azure-mgmt-resource for the groups
+themselves; management locks are read over REST (api-version 2016-09-01)
+through shared_modules/azure_management_locks, because the locks SDK client is
+not installed on CloudBolt appliances. Operation shapes anchored to Microsoft's
+current docs (cited at the call site) per docs/agents/external-apis.md.
 
 Entry point: discover_resources(**kwargs) -> list[dict]
 """
@@ -26,14 +28,17 @@ Entry point: discover_resources(**kwargs) -> list[dict]
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.azure_management_locks import (
+    ManagementLocks,
+    lock_level,
+    resource_group_of,
+    strongest_level,
+)
+
 logger = ThreadLogger(__name__)
 
 # The Azure Resource ID is the globally unique key for a resource group.
 RESOURCE_IDENTIFIER = "azure_resource_group_id"
-
-# Lock levels that block deletion, in reporting priority order.
-_LOCK_PRIORITY = ("CanNotDelete", "ReadOnly")
-
 
 def _render_tags(tags):
     """Render an Azure tags dict to the 'key=value' block stored on the Resource."""
@@ -42,65 +47,34 @@ def _render_tags(tags):
     return "\n".join(f"{key}={value}" for key, value in sorted(tags.items()))
 
 
-def _lock_levels_by_group(lock_client):
-    """Map lowercased resource group name -> strongest lock level, for one subscription.
+def _lock_levels_by_group(rh):
+    """Map lowercased resource group name -> most restrictive lock level, for one subscription.
 
-    Docs: https://learn.microsoft.com/en-us/python/api/azure-mgmt-resource/azure.mgmt.resource.locks.operations.managementlocksoperations#list-at-subscription-level
-          ManagementLocksOperations.list_at_subscription_level() -> ItemPaged[ManagementLockObject]
-    One subscription-wide call instead of one call per resource group. Lock IDs
-    look like /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Authorization/locks/{name},
-    so the group name is segment 4; resource-scoped locks share that prefix and
-    are deliberately rolled up to their containing group.
+    One subscription-wide REST call (list-at-subscription-level, cited in
+    shared_modules/azure_management_locks) instead of one call per resource
+    group. Lock IDs look like
+    /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Authorization/locks/{name},
+    so resource-scoped locks share the group prefix and are deliberately rolled
+    up to their containing group.
 
     Reading locks requires Microsoft.Authorization/locks/read; treat a denial as
     "no locks visible" rather than failing the whole discovery pass.
     """
-    levels = {}
-    if lock_client is None:
-        return levels
     try:
-        locks = list(lock_client.management_locks.list_at_subscription_level())
+        locks = ManagementLocks(rh).list_subscription_locks()
     except Exception as exc:
-        logger.warning("Could not read management locks for subscription: %s", exc)
-        return levels
+        logger.warning("Could not read management locks for handler %s: %s", rh, exc)
+        return {}
 
+    levels_by_group = {}
     for lock in locks:
-        rg_name = _parse_resource_group(lock.id or "")
-        level = _normalize_level(lock.level)
+        rg_name = resource_group_of(lock.get("id"))
+        level = lock_level(lock)
         # NotSpecified and any unrecognized level restrict nothing worth reporting.
         if not rg_name or level is None:
             continue
-        key = rg_name.lower()
-        current = levels.get(key)
-        # Keep the strongest level seen for the group.
-        if current is None or _LOCK_PRIORITY.index(level) < _LOCK_PRIORITY.index(current):
-            levels[key] = level
-    return levels
-
-
-def _normalize_level(level):
-    """Coerce a ManagementLockObject.level (enum or str) to a known level, else None.
-
-    Docs: https://learn.microsoft.com/en-us/rest/api/resources/management-locks/list-at-subscription-level
-          LockLevel is one of NotSpecified, CanNotDelete, ReadOnly.
-    """
-    text = str(getattr(level, "value", level) or "")
-    for known in _LOCK_PRIORITY:
-        if text.lower() == known.lower():
-            return known
-    return None
-
-
-def _parse_resource_group(resource_id):
-    """Extract the resource group from an Azure Resource ID.
-
-    Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
-    See docs/agents/common-patterns.md (Parsing Azure Resource IDs).
-    """
-    parts = resource_id.split("/")
-    if len(parts) > 4 and parts[3].lower() == "resourcegroups":
-        return parts[4]
-    return None
+        levels_by_group.setdefault(rg_name.lower(), []).append(level)
+    return {group: strongest_level(levels) for group, levels in levels_by_group.items()}
 
 
 def discover_resources(**kwargs):
@@ -120,14 +94,6 @@ def discover_resources(**kwargs):
         logger.warning("azure-mgmt-resource SDK not available: %s", exc)
         return discovered
 
-    # Management locks live in a separate client in the same package. Locks are a
-    # nice-to-have on discovery, so a missing client degrades to "None".
-    try:
-        from azure.mgmt.resource.locks import ManagementLockClient
-    except ImportError as exc:
-        logger.warning("Management lock client unavailable, lock state will be reported as None: %s", exc)
-        ManagementLockClient = None
-
     for rh in AzureARMHandler.objects.all():
         try:
             wrapper = rh.get_api_wrapper()
@@ -137,13 +103,8 @@ def discover_resources(**kwargs):
             logger.warning("Skipping handler %s due to client error: %s", rh, exc)
             continue
 
-        lock_client = None
-        if ManagementLockClient is not None:
-            try:
-                lock_client = configure_arm_client(wrapper, ManagementLockClient)
-            except Exception as exc:
-                logger.warning("No lock client for handler %s: %s", rh, exc)
-        lock_levels = _lock_levels_by_group(lock_client)
+        # Locks are a nice-to-have on discovery; an unreadable lock list degrades to "None".
+        lock_levels = _lock_levels_by_group(rh)
 
         set_progress(f"Discovering resource groups for Azure handler '{rh.name}'...")
 
