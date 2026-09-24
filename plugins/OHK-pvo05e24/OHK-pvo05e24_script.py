@@ -110,6 +110,7 @@ from shared_modules.tfc_api import (
     get_client,
     parse_params_payload,
     pop_sensitive_marker,
+    portal_url_for_job,
     run_with_plan_approval,
     serialize_variable_mirror,
 )
@@ -491,6 +492,7 @@ def run(job, **kwargs):
             working_directory=tfc_working_directory,
             description="CloudBolt deployment of VM '{}'".format(vm_name),
             stored_workspace_id=stored_workspace_id,
+            source_url=portal_url_for_job(job),
         )
         workspace_id = workspace["id"]
         workspace_name = (workspace.get("attributes", {}) or {}).get("name", "")

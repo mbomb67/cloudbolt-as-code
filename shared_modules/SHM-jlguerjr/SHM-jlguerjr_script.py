@@ -99,8 +99,9 @@ logger = ThreadLogger(__name__)
 # CONNECTION_INFO_LABEL (password field) and must be re-entered in the
 # CloudBolt UI after every repo sync (export redacts secrets).
 #
-# Values starting with "FILL-ME" are instance-specific and MUST be edited
-# before first use; get_client() refuses to run while any remain.
+# Nothing here is instance-specific: the CloudBolt portal URL recorded on each
+# workspace is resolved at run time from the ordering job's portal (see
+# portal_url_for_job), so a sync needs no edits to this block.
 
 # This module is BLUEPRINT-AGNOSTIC: the TFC coordinates that pin a blueprint
 # to a specific org/project/repo (organization, project, VCS repo/branch/
@@ -110,11 +111,8 @@ logger = ThreadLogger(__name__)
 # arguments -- so one tfc_api module serves many blueprints, each pinned to its
 # own Terraform config. See docs/hcp-terraform-setup.md and the build plugin.
 
-# Base URL of this CloudBolt portal; recorded on each workspace as
-# "source-url" so TFC users can navigate back to the owning CMP. Account-level
-# (one CloudBolt instance -> one portal), so it stays here, not on the
-# blueprint. get_client() refuses to run while it holds its FILL-ME value.
-CLOUDBOLT_PORTAL_URL = "FILL-ME (https://your-cloudbolt-host)"
+# Display label recorded on each workspace as "source-name" next to the
+# portal URL ("source-url"), so TFC users can navigate back to the owning CMP.
 WORKSPACE_SOURCE_NAME = "CloudBolt CMP"
 
 # CloudBolt ConnectionInfos for Terraform Cloud/Enterprise are selected by
@@ -672,19 +670,44 @@ def _validate_log_url(url):
         )
 
 
-def _validate_operator_config():
-    """Fail fast (and operator-actionably) while the account-level FILL-ME
-    placeholder remains. Per-blueprint coordinates (org, project, repo, branch,
-    working directory) are pinned on the blueprint, not here, and are validated
-    by the plugins that read them."""
-    if "FILL-ME" in CLOUDBOLT_PORTAL_URL:
-        raise TFCConfigError(
-            "The tfc_api shared module is not configured yet: "
-            "CLOUDBOLT_PORTAL_URL still holds a FILL-ME placeholder. Edit the "
-            "OPERATOR CONFIG block at the top of "
-            "shared_modules/SHM-jlguerjr/SHM-jlguerjr_script.py (module "
-            "'tfc_api'), commit, and re-sync."
-        )
+def _portal_url(portal):
+    """https URL for a PortalConfig: its site_url when set, else its domain."""
+    if portal is None:
+        return ""
+    url = (getattr(portal, "site_url", "") or "").strip()
+    if not url:
+        domain = (getattr(portal, "domain", "") or "").strip()
+        url = "https://{}".format(domain) if domain else ""
+    elif "://" not in url:
+        url = "https://{}".format(url)
+    return url.rstrip("/")
+
+
+def portal_url_for_job(job):
+    """
+    Base URL of the CloudBolt portal the ordering user came through, for the
+    workspace's "source-url" link back to CloudBolt. Walks the job's
+    parent_job chain to the order item's Order and takes its portal (the
+    portal the order was placed on), falling back to CloudBolt's default
+    portal (PortalConfig.get_current_portal() without a request). Returns ""
+    when no portal is configured; callers then omit source-url.
+    """
+    current = job
+    seen = 0
+    while current is not None and seen < 10:
+        order_item = getattr(current, "order_item", None)
+        order = getattr(order_item, "order", None)
+        url = _portal_url(getattr(order, "portal", None))
+        if url:
+            return url
+        current = getattr(current, "parent_job", None)
+        seen += 1
+    try:
+        from portals.models import PortalConfig
+        return _portal_url(PortalConfig.get_current_portal())
+    except Exception as exc:  # noqa: BLE001 -- a missing portal must not block provisioning
+        logger.debug("No portal resolved for job %s: %s", getattr(job, "id", "?"), exc)
+        return ""
 
 
 # -----------------------------------------------------------------------------
@@ -1038,12 +1061,14 @@ class TFCClient(object):
 
     def ensure_workspace(self, resource_global_id, project_name, repo_identifier,
                          branch, working_directory="", description="",
-                         stored_workspace_id=None):
+                         stored_workspace_id=None, source_url=""):
         """
         Get-or-adopt the deployment's workspace, ID-first. The TFC project and
         the VCS repo/branch/working-directory are pinned per blueprint and
-        passed in by the caller. Returns the workspace document (``data`` dict;
-        id at ["id"], name at ["attributes"]["name"]).
+        passed in by the caller; ``source_url`` is the ordering portal's base
+        URL (portal_url_for_job) recorded as the workspace's link back to
+        CloudBolt. Returns the workspace document (``data`` dict; id at
+        ["id"], name at ["attributes"]["name"]).
 
         - A stored workspace ID is GET-verified by its ``cmp:resource-id``
           tag and adopted; a tag mismatch fails loudly (foreign workspace).
@@ -1106,7 +1131,6 @@ class TFCClient(object):
                     "file-triggers-enabled": False,
                     "working-directory": working_directory,
                     "source-name": WORKSPACE_SOURCE_NAME,
-                    "source-url": CLOUDBOLT_PORTAL_URL,
                     "vcs-repo": {
                         "identifier": repo_identifier,
                         "oauth-token-id": oauth_token_id,
@@ -1132,6 +1156,8 @@ class TFCClient(object):
                 },
             }
         }
+        if source_url:
+            payload["data"]["attributes"]["source-url"] = source_url
         try:
             response = self._request(
                 "POST",
@@ -1302,7 +1328,7 @@ class TFCClient(object):
 
     def create_no_code_workspace(self, nocode_module_id, resource_global_id,
                                  project_name, variables, sensitive_keys=None,
-                                 description="", env_variables=None):
+                                 description="", env_variables=None, source_url=""):
         """Create a dedicated workspace FROM a no-code module; returns the
         workspace ``data`` dict (id at ["id"], name at ["attributes"]["name"]).
 
@@ -1329,7 +1355,6 @@ class TFCClient(object):
                     # engine can adopt it for human plan approval (U1).
                     "auto-apply": False,
                     "source-name": WORKSPACE_SOURCE_NAME,
-                    "source-url": CLOUDBOLT_PORTAL_URL,
                 },
                 "relationships": {
                     "project": {"data": {"type": "projects", "id": project_id}},
@@ -1341,6 +1366,8 @@ class TFCClient(object):
                 },
             }
         }
+        if source_url:
+            payload["data"]["attributes"]["source-url"] = source_url
         try:
             response = self._request(
                 "POST",
@@ -2017,7 +2044,6 @@ def get_client(organization, connection_info_ref=None):
     Missing or incomplete ConnectionInfo, a blank organization, and unfilled
     account-level FILL-ME config all raise operator-actionable TFCConfigError.
     """
-    _validate_operator_config()
     if not (organization or "").strip():
         raise TFCConfigError(
             "No TFC organization was provided. It is selected on the order "
@@ -2040,7 +2066,6 @@ def get_options_client(connection_info_ref, organization=None):
     ``generate_options_for_*`` lookups (organizations / projects / repos).
     No set_progress noise -- this runs at form-render time, not in a job.
     """
-    _validate_operator_config()
     connection_info = resolve_connection_info(connection_info_ref)
     return _client_from_connection_info(connection_info, organization=organization)
 
