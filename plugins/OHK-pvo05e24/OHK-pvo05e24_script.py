@@ -44,9 +44,9 @@ Expected Action Inputs (declared in OHK-pvo05e24_metadata.json):
                                  itself is never exposed (cardinal rule 4).
   - six pinned per-blueprint inputs (tfc_connection_info, tfc_organization,
     tfc_project, tfc_repo_identifier, tfc_branch, tfc_working_directory),
-    set via parameter_defaults on the build deployment item AND mirrored as
-    hidden defaultValue fields in the custom form (a custom form does not
-    receive BDI parameter_defaults). Keep the two copies identical.
+    pinned as hidden defaultValue fields in the blueprint's custom form
+    (a custom form does not receive BDI parameter_defaults, so the build
+    deployment item carries none).
 
 State outputs are NOT declared anywhere: after apply, EVERY output in the
 workspace's current Terraform state is discovered and recorded on the
@@ -321,8 +321,8 @@ def run(job, **kwargs):
     params_json = """{{ parameters }}"""
     # -- the user's one placement choice; everything Azure is derived from it --
     env_id = "{{ env_id }}".strip()
-    # -- TFC coordinates, all pinned per blueprint via parameter_defaults on
-    #    the build deployment item --
+    # -- TFC coordinates, all pinned per blueprint as hidden fields in the
+    #    custom form --
     tfc_connection_info = "{{ tfc_connection_info }}".strip()
     tfc_organization = "{{ tfc_organization }}".strip()
     tfc_project = "{{ tfc_project }}".strip()
@@ -346,9 +346,9 @@ def run(job, **kwargs):
         return (
             "FAILURE",
             "",
-            "TFC coordinates are missing: {}. They are pinned via "
-            "parameter_defaults on the build deployment item of BP-b0qm83lh "
-            "(see docs/hcp-terraform-setup.md).".format(", ".join(missing_coords)),
+            "TFC coordinates are missing: {}. They are pinned as hidden "
+            "fields in the custom form of BP-b0qm83lh (forms/FRM-t3v8zpb7; "
+            "see docs/hcp-terraform-setup.md).".format(", ".join(missing_coords)),
         )
     if not env_id:
         return "FAILURE", "", "An Environment is required (env_id arrived blank)."

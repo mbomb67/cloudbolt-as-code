@@ -17,33 +17,6 @@
             "execute_in_parallel": false,
             "id": "BDI-lwys1ug9",
             "name": "HCP Terraform VM",
-            "parameter_defaults": [
-                {
-                    "label": "TFC VCS Branch",
-                    "name": "tfc_branch_a352",
-                    "value": "main"
-                },
-                {
-                    "label": "TF Cloud Connection",
-                    "name": "tfc_connection_info_a352",
-                    "value": "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
-                },
-                {
-                    "label": "TFC Organization",
-                    "name": "tfc_organization_a352",
-                    "value": "FILL-ME (HCP Terraform organization name)"
-                },
-                {
-                    "label": "TFC Project",
-                    "name": "tfc_project_a352",
-                    "value": "FILL-ME (HCP Terraform project name)"
-                },
-                {
-                    "label": "TFC VCS Repo",
-                    "name": "tfc_repo_identifier_a352",
-                    "value": "FILL-ME (VCS repo identifier, e.g. my-org/my-terraform-repo)"
-                }
-            ],
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,
