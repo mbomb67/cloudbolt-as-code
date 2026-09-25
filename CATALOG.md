@@ -13,7 +13,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Webhooks](#webhooks) | 1 |
 | [Plugins](#plugins) | 77 |
 | [Shared modules](#shared-modules) | 11 |
-| [UI extensions](#ui-extensions) | 7 |
+| [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 4 |
 
 ## Blueprints
@@ -220,6 +220,7 @@ Django UI extensions (XUI). Each folder has a README.
 |---|---|---|
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
+| HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |

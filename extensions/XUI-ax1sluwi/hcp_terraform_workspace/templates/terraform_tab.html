@@ -1,0 +1,66 @@
+{% load i18n %}
+{% include "hcp_terraform_workspace/templates/_assets.html" %}
+
+<div id="tfws-tab" class="tfws">
+  {# ── Workspace hero: identity from the resource's custom fields, live state loaded below ── #}
+  <div class="tf-card">
+    <div class="tf-hero-top">
+      <div>
+        <div class="tf-eyebrow">{% trans "HCP Terraform workspace" %}</div>
+        <div class="tf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> {{ workspace_name }}</div>
+        <div class="tf-sub">{{ organization }}{% if project %} / {{ project }}{% endif %}</div>
+      </div>
+      <div class="tf-tools">
+        {% if workspace_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ workspace_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in HCP Terraform" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-tf-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+
+    <div class="tf-meta">
+      <div class="cell">
+        <div class="k">{% trans "Source" %}</div>
+        <div class="v">
+          {% if nocode_module_id %}
+            <span class="tf-mono">{{ nocode_module_id }}</span>{% if nocode_module_version %} <span class="tf-tag">v{{ nocode_module_version }}</span>{% endif %}
+            <div class="tf-hint">{% trans "No-code module" %}</div>
+          {% elif repo_identifier %}
+            {{ repo_identifier }}{% if branch %} <span class="tf-tag">{{ branch }}</span>{% endif %}
+            {% if working_directory %}<div class="tf-hint">{{ working_directory }}</div>{% endif %}
+          {% else %}
+            <span class="tf-muted">&mdash;</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Workspace ID" %}</div>
+        <div class="v tf-mono">{{ workspace_id }}</div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Last CloudBolt run" %}</div>
+        <div class="v">
+          {% if last_run_url %}
+            <a href="{{ last_run_url }}" target="_blank" rel="noopener">{% trans "Open run" %} <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+          {% else %}
+            <span class="tf-muted">&mdash;</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div data-tf-panel="summary" data-tf-src="{{ summary_url }}"></div>
+  </div>
+
+  {# ── Runs and managed resources: each panel renders its own card header ── #}
+  <div class="tf-card" data-tf-panel="runs" data-tf-src="{{ runs_url }}"></div>
+  <div class="tf-card" data-tf-panel="resources" data-tf-src="{{ resources_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.tfwsInit("tfws-tab"); });
+</script>

@@ -1,8 +1,9 @@
 """
 CloudBolt shared module: HCP Terraform (TFC) REST client + run engine.
 
-Imported by the HCP Terraform VM blueprint's build/teardown plugins and the
-"Terraform Update" / "Resize" day-2 plugins as:
+Imported by the HCP Terraform blueprints' build/teardown plugins, the
+"Terraform Update" / "Resize" / "Update Variables" day-2 plugins, and the
+HCP Terraform Workspace XUI (read-only lookups via get_options_client) as:
 
     from shared_modules.tfc_api import (
         get_client,
@@ -58,6 +59,14 @@ also cites its doc):
   https://developer.hashicorp.com/terraform/internals/machine-readable-ui
 - State version outputs:
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/state-version-outputs
+- Workspace resources (state index without the state file):
+  https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspace-resources
+- Variable sets:
+  https://developer.hashicorp.com/terraform/cloud-docs/api-docs/variable-sets
+- Assessment results (drift):
+  https://developer.hashicorp.com/terraform/cloud-docs/api-docs/assessment-results
+- Cost estimates:
+  https://developer.hashicorp.com/terraform/cloud-docs/api-docs/cost-estimates
 - Projects / OAuth clients / OAuth tokens:
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/projects
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/oauth-clients
@@ -1798,6 +1807,34 @@ class TFCClient(object):
         )
         return response.json()["data"]
 
+    def list_workspace_resources(self, workspace_id):
+        """
+        Every resource in the workspace's current state as TFC indexes it --
+        address, module, provider, timestamps -- WITHOUT reading the state
+        file, which can carry secrets and must never be rendered.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspace-resources
+              (GET /workspaces/:workspace_id/resources; paginated; attributes
+              address, name, module, provider, provider-type, created-at,
+              updated-at, name-index, modified-by-state-version-id)
+        """
+        return self._list_all("/workspaces/{}/resources".format(workspace_id))
+
+    def get_assessment_result(self, assessment_result_id):
+        """
+        Attributes of one health-assessment (drift) result. The workspace
+        document references its latest via relationships
+        current-assessment-result (null when none has run).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/assessment-results
+              (GET /assessment-results/:assessment_result_id; attributes
+              drifted, succeeded, error-msg, created-at; any user with read
+              access to the workspace may retrieve it; health assessments
+              exist on HCP Terraform Standard and Premium)
+        """
+        response = self._request(
+            "GET", "/assessment-results/{}".format(assessment_result_id)
+        )
+        return response.json()["data"].get("attributes", {}) or {}
+
     def get_workspace_tag_bindings(self, workspace_id):
         """
         Key/value tags bound directly to a workspace.
@@ -2240,6 +2277,31 @@ class TFCClient(object):
                 variables[key] = {"id": item["id"], "value": attributes.get("value")}
         return variables
 
+    def list_variable_records(self, workspace_id):
+        """
+        Full workspace-variable documents (id plus attributes key, value,
+        category, hcl, sensitive, description, version-id) -- the display
+        counterpart of list_variables(), which flattens to key -> id/value
+        for the upsert path. Callers must treat any variable with
+        ``sensitive`` true as secret whatever ``value`` holds.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspace-variables
+              (GET /workspaces/:workspace_id/vars)
+        """
+        response = self._request("GET", "/workspaces/{}/vars".format(workspace_id))
+        return response.json().get("data", []) or []
+
+    def list_variable_sets(self, workspace_id):
+        """
+        Variable sets that apply to the workspace: the organization's global
+        sets, sets attached to the workspace's project, and sets assigned to
+        the workspace directly. Set-level metadata only -- no variable values.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/variable-sets
+              (GET /workspaces/:workspace_id/varsets; paginated; attributes
+              name, description, global, priority, var-count,
+              workspace-count, project-count, updated-at)
+        """
+        return self._list_all("/workspaces/{}/varsets".format(workspace_id))
+
     def _variable_payload(self, attributes, variable_id=None):
         data = {"type": "vars", "attributes": attributes}
         if variable_id:
@@ -2435,6 +2497,17 @@ class TFCClient(object):
             self.host, self._require_org(), workspace_name, run_id
         )
 
+    def workspace_app_url(self, workspace_name):
+        """
+        Human-facing deep link to a workspace's overview page in the TFC UI:
+        https://<host>/app/<org>/workspaces/<name>. Same org/workspace path
+        the documented run_url sample (run_app_url) sits under; a UI route,
+        not an API endpoint, so it is only ever used for links.
+        """
+        return "https://{}/app/{}/workspaces/{}".format(
+            self.host, self._require_org(), workspace_name
+        )
+
     def poll_run(self, run_id, timeout_seconds, progress_callback=None):
         """
         Poll a run (bounded) until it leaves the in-flight class. Returns
@@ -2535,6 +2608,64 @@ class TFCClient(object):
                 "message": attributes.get("message") or "",
             })
         return runs
+
+    def list_runs_page(self, workspace_id, page_number=1, page_size=20,
+                       search=None, include=("plan", "cost_estimate")):
+        """
+        One page of a workspace's runs (TFC orders them newest first) with
+        the related plan / cost-estimate documents side-loaded, so a run
+        table costs ONE request per page. Returns
+        ``{"runs": [run documents], "included": {(type, id): attributes},
+        "total": meta.pagination.total-count or None}``.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run
+              (GET /workspaces/:workspace_id/runs; page[number], page[size];
+              search[basic] matches username, commit, run_id or message;
+              include accepts plan, apply, created_by, cost_estimate,
+              configuration_version)
+              https://developer.hashicorp.com/terraform/cloud-docs/api-docs#pagination
+        """
+        params = {
+            "page[number]": max(1, int(page_number)),
+            "page[size]": max(1, min(int(page_size), LIST_PAGE_SIZE)),
+        }
+        if search:
+            params["search[basic]"] = search
+        if include:
+            params["include"] = ",".join(include)
+        body = self._request(
+            "GET", "/workspaces/{}/runs".format(workspace_id), params=params
+        ).json()
+        pagination = (body.get("meta", {}) or {}).get("pagination", {}) or {}
+        return {
+            "runs": body.get("data", []) or [],
+            "included": self._index_included(body),
+            "total": pagination.get("total-count"),
+        }
+
+    def get_run_with_related(self, run_id, include=("plan", "cost_estimate")):
+        """
+        A run document plus its side-loaded related documents, as
+        ``(run, {(type, id): attributes})``. get_run() stays the lean poll
+        call; this variant is for display (plan counts, cost estimate).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run
+              (GET /runs/:run_id?include=plan,cost_estimate; relationships
+              plan and cost-estimate carry the ids of the included documents)
+              https://developer.hashicorp.com/terraform/cloud-docs/api-docs/cost-estimates
+              (attributes status, prior-monthly-cost, proposed-monthly-cost,
+              delta-monthly-cost, matched-resources-count,
+              unmatched-resources-count, error-message)
+        """
+        params = {"include": ",".join(include)} if include else None
+        body = self._request("GET", "/runs/{}".format(run_id), params=params).json()
+        return body["data"], self._index_included(body)
+
+    @staticmethod
+    def _index_included(body):
+        """JSON:API ``included`` array -> {(type, id): attributes}."""
+        index = {}
+        for item in body.get("included", []) or []:
+            index[(item.get("type"), item.get("id"))] = item.get("attributes", {}) or {}
+        return index
 
     # -- plans ----------------------------------------------------------------
 

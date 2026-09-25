@@ -34,3 +34,4 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 - There is no module-version upgrade action. Re-pin the version in HCP or tear down and re-order.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.
+- The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.

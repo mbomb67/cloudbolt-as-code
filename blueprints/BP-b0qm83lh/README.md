@@ -36,4 +36,5 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 - Terraform Update edits values of variables the deployment already manages; Resize changes only `vm_size`. Both fail fast if the workspace has a pending run.
 - Teardown runs an auto-confirmed destroy, then safe-deletes the workspace. A missing workspace is a WARNING, so PROVFAILED resources clean up.
 - Every non-sensitive Terraform output is recorded on the resource as `tfc_output_<name>`; mark secret-bearing outputs `sensitive = true`.
-- If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it in TFC or delete the resource.
+- If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
+- The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.

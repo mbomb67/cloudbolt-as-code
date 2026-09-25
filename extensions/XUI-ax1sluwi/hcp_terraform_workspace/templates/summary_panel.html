@@ -1,0 +1,123 @@
+{% load i18n %}
+{% if error %}
+  {% include "hcp_terraform_workspace/templates/_alert.html" %}
+{% else %}
+
+{% if pending %}
+<div class="tf-banner">
+  <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+  <div class="tf-banner-body">
+    <div class="tf-banner-t">
+      {% blocktrans count n=pending|length %}A run is pending on this workspace{% plural %}{{ n }} runs are pending on this workspace{% endblocktrans %}
+    </div>
+    <div class="tf-banner-s">{% trans "Day-2 actions fail fast until every pending run is applied or discarded." %}</div>
+    <ul class="tf-pending">
+      {% for run in pending %}
+      <li>
+        <span class="tf-pill tf-pill-{{ run.style }}"><i class="bi {{ run.icon }}" aria-hidden="true"></i> {{ run.status }}</span>
+        {% if run.url %}<a class="tf-mono" href="{{ run.url }}" target="_blank" rel="noopener">{{ run.id }}</a>{% else %}<span class="tf-mono">{{ run.id }}</span>{% endif %}
+        {% if run.job %}
+          <span class="tf-muted">&middot;</span>
+          <a href="{{ run.job.get_absolute_url }}">{% trans "Job" %} {{ run.job.id }}</a>
+          {% if run.job_active %}<span class="tf-muted">({% trans "running; cancel that job to release this run" %})</span>{% endif %}
+        {% elif run.message %}
+          <span class="tf-muted" title="{{ run.message }}">{{ run.message|truncatechars:60 }}</span>
+        {% endif %}
+        {% if run.discard_url %}
+          <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ run.discard_url }}">
+            <i class="bi bi-x-circle" aria-hidden="true"></i> {% trans "Discard" %}
+          </a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="tf-meta">
+  <div class="cell">
+    <div class="k">{% trans "Latest run" %}</div>
+    <div class="v">
+      {% if current %}
+        <span class="tf-pill tf-pill-{{ current.style }}"><i class="bi {{ current.icon }}" aria-hidden="true"></i> {{ current.status }}</span>
+        {% if current.plan %}
+          <span class="tf-add">+{{ current.plan.add|default_if_none:"?" }}</span>
+          <span class="tf-chg">~{{ current.plan.change|default_if_none:"?" }}</span>
+          <span class="tf-del">&minus;{{ current.plan.destroy|default_if_none:"?" }}</span>
+        {% endif %}
+        <div class="tf-hint">
+          {{ current.created }}
+          {% if current.job %} &middot; <a href="{{ current.job.get_absolute_url }}">{% trans "Job" %} {{ current.job.id }}</a>{% endif %}
+          {% if current.confirmable %} &middot; {% trans "awaiting confirmation" %}{% endif %}
+        </div>
+      {% else %}
+        <span class="tf-muted">{% trans "No runs yet" %}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Workspace" %}</div>
+    <div class="v">
+      {% if workspace.locked %}<i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Locked" %}{% else %}<i class="bi bi-unlock" aria-hidden="true"></i> {% trans "Unlocked" %}{% endif %}
+      <div class="tf-hint">
+        {% if workspace.resource_count is not None %}{% blocktrans count n=workspace.resource_count %}{{ n }} resource{% plural %}{{ n }} resources{% endblocktrans %}{% endif %}
+        {% if workspace.latest_change %} &middot; {% trans "changed" %} {{ workspace.latest_change }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Terraform" %}</div>
+    <div class="v">
+      {{ workspace.terraform_version|default:"&mdash;" }}
+      <div class="tf-hint">{{ workspace.execution_mode }}{% if workspace.auto_apply %} &middot; {% trans "auto-apply" %}{% else %} &middot; {% trans "manual apply" %}{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Drift" %}</div>
+    <div class="v">
+      {% if assessment %}
+        {% if not assessment.succeeded %}
+          <span class="tf-pill tf-pill-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> {% trans "Assessment failed" %}</span>
+        {% elif assessment.drifted %}
+          <span class="tf-pill tf-pill-bad"><i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i> {% trans "Drift detected" %}</span>
+        {% else %}
+          <span class="tf-pill tf-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "No drift" %}</span>
+        {% endif %}
+        <div class="tf-hint">{{ assessment.created }}{% if assessment.error %} &middot; {{ assessment.error|truncatechars:80 }}{% endif %}</div>
+      {% else %}
+        <span class="tf-muted">{% trans "Not assessed" %}</span>
+        <div class="tf-hint">{% trans "Health assessments need HCP Terraform Standard or Premium" %}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Estimated monthly cost" %}</div>
+    <div class="v">
+      {% if cost and cost.status == "finished" %}
+        {{ cost.proposed|default:"&mdash;" }}{% if cost.delta %} <span class="tf-muted">({{ cost.delta }} {% trans "vs. prior" %})</span>{% endif %}
+        <div class="tf-hint">
+          {% if cost.unmatched %}{% blocktrans with n=cost.unmatched %}{{ n }} resources without pricing data{% endblocktrans %}{% else %}{% trans "From the latest plan" %}{% endif %}
+        </div>
+      {% elif cost %}
+        <span class="tf-muted">{{ cost.status }}</span>
+        {% if cost.error %}<div class="tf-hint">{{ cost.error|truncatechars:80 }}</div>{% endif %}
+      {% else %}
+        <span class="tf-muted">{% trans "Not enabled" %}</span>
+        <div class="tf-hint">{% trans "Cost estimation is off for this organization" %}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if warnings %}
+<div class="tf-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% endif %}

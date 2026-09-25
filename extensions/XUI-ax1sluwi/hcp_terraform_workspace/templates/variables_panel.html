@@ -1,0 +1,46 @@
+{% load i18n %}
+<div class="tf-card-h">
+  <span class="tf-card-t">{% trans "Workspace variables" %}{% if not error %} &middot; {{ rows|length }}{% endif %}</span>
+  {% if not error and rows %}
+    <span class="tf-muted" style="font-size: 12px;">{{ terraform_count }} {% trans "Terraform" %} &middot; {{ env_count }} {% trans "environment" %}</span>
+  {% endif %}
+  <div class="tf-card-tools">
+    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter variables' %}" data-tf-filter="#tfws-variables-table">
+  </div>
+</div>
+{% if error %}
+  {% include "hcp_terraform_workspace/templates/_alert.html" %}
+{% else %}
+<div class="table-responsive">
+  <table id="tfws-variables-table" class="tf-table">
+    <thead>
+      <tr>
+        <th>{% trans "Key" %}</th>
+        <th>{% trans "Value" %}</th>
+        <th>{% trans "Category" %}</th>
+        <th>{% trans "Description" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-tf-row>
+        <td class="tf-mono">{{ r.key }}{% if r.hcl %} <span class="tf-tag">HCL</span>{% endif %}</td>
+        <td>
+          {% if r.sensitive %}
+            <span class="tf-muted"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Sensitive; value not shown" %}</span>
+          {% elif r.value %}
+            <pre class="tf-val">{{ r.value }}</pre>
+          {% else %}
+            <span class="tf-muted">{% trans "(empty)" %}</span>
+          {% endif %}
+        </td>
+        <td>{% if r.category == "env" %}{% trans "Environment" %}{% else %}{% trans "Terraform" %}{% endif %}</td>
+        <td class="tf-muted">{{ r.description }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="tf-empty">{% trans "No workspace variables." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

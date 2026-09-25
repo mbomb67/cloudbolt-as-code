@@ -1,0 +1,67 @@
+{% load i18n %}
+<div class="tf-card-h">
+  <span class="tf-card-t">{% trans "Runs" %}{% if total is not None %} &middot; {{ total }}{% endif %}</span>
+  <div class="tf-card-tools">
+    <form class="tf-inline-form" data-tf-search>
+      <input class="form-control form-control-sm" type="search" name="q" value="{{ q }}" placeholder="{% trans 'Search message, run ID, commit' %}" aria-label="{% trans 'Search runs' %}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="{% trans 'Search' %}"><i class="bi bi-search" aria-hidden="true"></i></button>
+    </form>
+  </div>
+</div>
+{% if error %}
+  {% include "hcp_terraform_workspace/templates/_alert.html" %}
+{% else %}
+<div class="table-responsive">
+  <table class="tf-table">
+    <thead>
+      <tr>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Run" %}</th>
+        <th>{% trans "Changes" %}</th>
+        <th>{% trans "Source" %}</th>
+        <th>{% trans "CloudBolt job" %}</th>
+        <th>{% trans "Created" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>
+          <span class="tf-pill tf-pill-{{ r.style }}"><i class="bi {{ r.icon }}" aria-hidden="true"></i> {{ r.status }}</span>
+          {% if r.confirmable %}<div class="tf-hint">{% trans "awaiting confirmation" %}</div>{% endif %}
+        </td>
+        <td>
+          {% if r.url %}<a class="tf-mono" href="{{ r.url }}" target="_blank" rel="noopener">{{ r.id }}</a>{% else %}<span class="tf-mono">{{ r.id }}</span>{% endif %}
+          {% if r.is_destroy %} <span class="tf-tag tf-tag-bad">{% trans "destroy" %}</span>{% endif %}
+          {% if r.plan_only %} <span class="tf-tag">{% trans "plan only" %}</span>{% endif %}
+          {% if r.message %}<div class="tf-msg" title="{{ r.message }}">{{ r.message }}</div>{% endif %}
+        </td>
+        <td class="tf-nowrap">
+          {% if r.plan %}
+            <span class="tf-add">+{{ r.plan.add|default_if_none:"?" }}</span>
+            <span class="tf-chg">~{{ r.plan.change|default_if_none:"?" }}</span>
+            <span class="tf-del">&minus;{{ r.plan.destroy|default_if_none:"?" }}</span>
+          {% else %}
+            <span class="tf-muted">&mdash;</span>
+          {% endif %}
+        </td>
+        <td>{{ r.source }}</td>
+        <td>
+          {% if r.job %}<a href="{{ r.job.get_absolute_url }}">{% trans "Job" %} {{ r.job.id }}</a>
+          {% elif r.job_id %}{% trans "Job" %} {{ r.job_id }}
+          {% else %}<span class="tf-muted">&mdash;</span>{% endif %}
+        </td>
+        <td class="tf-nowrap">{{ r.created }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="tf-empty">{% if q %}{% trans "No runs match your search." %}{% else %}{% trans "No runs yet." %}{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="tf-pager">
+  {% if has_prev %}<a href="#" data-tf-load="{{ prev_url }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> {% trans "Newer" %}</a>{% endif %}
+  <span class="tf-muted">{% trans "Page" %} {{ page }}</span>
+  {% if has_next %}<a href="#" data-tf-load="{{ next_url }}">{% trans "Older" %} <i class="bi bi-chevron-right" aria-hidden="true"></i></a>{% endif %}
+</div>
+{% endif %}

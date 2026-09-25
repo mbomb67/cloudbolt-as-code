@@ -1,0 +1,26 @@
+{
+    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-ax1sluwi",
+    "label": "HCP Terraform Workspace",
+    "last_updated": "2026-09-25",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "hcp_terraform_workspace",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "templates/_assets.html",
+        "templates/_alert.html",
+        "templates/terraform_tab.html",
+        "templates/summary_panel.html",
+        "templates/runs_panel.html",
+        "templates/resources_panel.html",
+        "templates/variables_tab.html",
+        "templates/variables_panel.html",
+        "templates/variable_sets_panel.html"
+    ],
+    "version": ""
+}
