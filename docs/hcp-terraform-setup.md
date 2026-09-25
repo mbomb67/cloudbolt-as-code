@@ -119,7 +119,7 @@ In the CloudBolt UI, create a Connection Info record (*Admin → Connection Info
 
 Leave the username blank (TFC bearer-token auth ignores it) and leave the **headers field empty**. The `password` field is the only masked, vault-resolvable ConnectionInfo field; the headers field renders unmasked in the UI. The shared module builds the `Authorization: Bearer <token>` header at runtime from the password field — putting the token anywhere else both breaks the lookup and displays it in cleartext.
 
-**Multiple connections are supported:** label each `tf-cloud`; a blueprint pins the one it uses via `tfc_connection_info` in its `parameter_defaults` (section 8b), and the build plugin stores that global ID on the resource so day-2 and teardown reuse it. The label is enforced at run time; removing it takes the connection out of service.
+**Multiple connections are supported:** label each `tf-cloud`; a blueprint pins the one it uses via the hidden `tfc_connection_info` field in its custom form (section 8b), and the build plugin stores that global ID on the resource so day-2 and teardown reuse it. The label is enforced at run time; removing it takes the connection out of service.
 
 If TFC requests start failing with 401/403, the plugin error message names the selected ConnectionInfo. Check, in order: the token was redacted by a repo sync (§9), the token was regenerated in TFC (§6.3), the Owners team membership changed.
 
@@ -131,7 +131,7 @@ Where each value lives:
 
 | Value | Where | Who sets it |
 |---|---|---|
-| ConnectionInfo, organization, project, repo, branch, working directory | `parameter_defaults` on the build deployment item in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` | operator, once per blueprint |
+| ConnectionInfo, organization, project, repo, branch, working directory | hidden `plugin-bdi-lwys1ug9.<name>` fields in `forms/FRM-t3v8zpb7/FRM-t3v8zpb7_metadata.json` | operator, once per blueprint |
 | Environment (subscription, tenant) | chosen on the order form; derived from the environment's Azure resource handler | orderer |
 | Template variables | the order form's variables panel | orderer |
 | State outputs | none: every output in the applied state is recorded as `tfc_output_<name>` | - |
@@ -142,7 +142,7 @@ Where each value lives:
 
 ### 8b. Per-blueprint: pinned TFC coordinates
 
-Edit the `value` of each `parameter_defaults` entry on the build item (names end in `_a<n>`; the suffix is rewritten on import):
+Edit the `defaultValue` of each hidden `plugin-bdi-lwys1ug9.<name>` text field in `forms/FRM-t3v8zpb7`:
 
 | Name | Set it to |
 |---|---|
@@ -151,11 +151,11 @@ Edit the `value` of each `parameter_defaults` entry on the build item (names end
 | `tfc_project` | the project name (section 3) |
 | `tfc_repo_identifier` | `owner/repo` of the template repo (section 5) |
 | `tfc_branch` | the tracked branch (ships `main`) |
-| `tfc_working_directory` | subdirectory holding the configuration; add the entry only if not the repo root |
+| `tfc_working_directory` | subdirectory holding the configuration; add a hidden field only if not the repo root |
 
 The build plugin refuses to run while any value contains `FILL-ME`.
 
-**Edit the same values in the form too.** When a custom form is attached, CloudBolt does not apply the deployment item's `parameter_defaults`, so `forms/FRM-t3v8zpb7` carries each coordinate as a hidden `plugin-bdi-lwys1ug9.<name>` text field with a `defaultValue`. Keep the two copies identical; the form copy is the one the plugin actually receives.
+**The form is the only place these are pinned.** When a custom form is attached, CloudBolt does not apply a deployment item's `parameter_defaults`, so the build item carries none; the plugin receives exactly what the hidden form fields submit.
 
 ### 8c. The environment and the order form
 
@@ -167,7 +167,7 @@ The orderer picks a **CloudBolt Environment**; nothing else about Azure is typed
 
 The environment must have what the dropdowns read: resource groups and subnets imported, sizes enabled, at least one OS build (*Admin > Environments > the env > Parameters / Networks / OS Builds*).
 
-**Onboarding another Terraform template:** copy `BP-b0qm83lh` with fresh IDs, pin its `parameter_defaults`, and author a form whose panel elements match the new `variables.tf`. Reuse the webhook for any environment-derived field (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). No plugin or shared-module change. Freeze the build plugin's `action_inputs` before authoring: the form hardcodes the `plugin-bdi-<id>` names.
+**Onboarding another Terraform template:** copy `BP-b0qm83lh` with fresh IDs and author a form whose hidden fields pin the new coordinates and whose panel elements match the new `variables.tf`. Reuse the webhook for any environment-derived field (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). No plugin or shared-module change. Freeze the build plugin's `action_inputs` before authoring: the form hardcodes the `plugin-bdi-<id>` names.
 
 The template repo's `variables.tf` must match the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` itself, so the template declares no subscription variable; derive `location` from the subnet's VNet.
 
@@ -266,7 +266,7 @@ Quick smoke checklist before handing the instance over (the full lifecycle pass 
 - [ ] The VCS provider shows a healthy OAuth connection; the template repo's tracked branch has branch protection and a minimal collaborator list.
 - [ ] The Owners team API token exists; the value lives only in the CloudBolt ConnectionInfo.
 - [ ] At least one ConnectionInfo carries the **`tf-cloud` label** and reads `https` / `app.terraform.io` (or the TFE host) / `443`, password set, headers empty.
-- [ ] The build-item `parameter_defaults` in `blueprints/BP-b0qm83lh/BP-b0qm83lh_metadata.json` pin connection, organization, project, repo and branch.
+- [ ] The hidden `plugin-bdi-lwys1ug9.*` fields in `forms/FRM-t3v8zpb7/FRM-t3v8zpb7_metadata.json` pin connection, organization, project, repo and branch.
 - [ ] Ordering `BP-b0qm83lh` renders the **custom form**: group, an **Environment** dropdown listing only Azure environments the group may use, and a variables panel whose Resource Group / Subnet / VM Size / OS Image dropdowns fill once an environment is chosen (browser network tab: `form-options/run/` returns 200 with `options`).
 - [ ] After approval, the workspace in HCP shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as workspace environment variables matching the chosen environment's subscription.
 - [ ] After a first successful provision, the resource shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere).
