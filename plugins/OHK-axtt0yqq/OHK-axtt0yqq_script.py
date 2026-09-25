@@ -103,7 +103,6 @@ from shared_modules.tfc_api import (
     parse_job_id_from_run_message,
     parse_params_payload,
     pop_sensitive_marker,
-    portal_url_for_job,
     run_with_plan_approval,
     serialize_variable_mirror,
 )
@@ -423,7 +422,6 @@ def run(job, **kwargs):
                     deployment_name or resource.global_id
                 ),
                 env_variables=arm_variables,
-                source_url=portal_url_for_job(job),
             )
             created = True
             # Best-effort tag (the create ignores tag-bindings -- U1); never
