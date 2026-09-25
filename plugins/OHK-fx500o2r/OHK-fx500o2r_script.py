@@ -29,7 +29,8 @@ Query parameters (all strings; 'filter' and 'last' are reserved by the API):
   variable      with source=tfc_variable_options: the Terraform variable
                 whose admin-defined options to return.
   resource      a deployed Resource's numeric pk (the object_id a custom
-                ACTION form carries) or global ID. Day-2 forms pass this
+                ACTION form carries) or global ID; object_id and
+                resource_id are accepted as aliases. Day-2 forms pass this
                 INSTEAD of group and env_id: the group and the Environment
                 the resource was ordered into are derived server-side
                 (env_options.resource_environment_id), so every env source
@@ -129,7 +130,11 @@ def _resource_context(parameters, profile):
     """(resource, group, env_id) for a day-2 call that passes resource=..., or
     (None, None, None) when the parameter is absent. Raises EnvOptionsError
     for an unknown resource; the caller turns a non-member into a 403."""
-    resource_ref = _param(parameters, "resource")
+    resource_ref = (
+        _param(parameters, "resource")
+        or _param(parameters, "object_id")
+        or _param(parameters, "resource_id")
+    )
     if not resource_ref:
         return None, None, None
     resource = resolve_resource(resource_ref)
@@ -157,7 +162,16 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
             group = resolve_group(_param(parameters, "group"))
             env_id = _param(parameters, "env_id")
         if group is None:
-            return _fail(400, "group is required and must name an existing group.")
+            # Name what did arrive: a day-2 form that lands here sent no
+            # usable resource reference, and the keys show whether the
+            # parameter was dropped on the way in.
+            received = sorted(str(key) for key in (parameters.keys() if parameters is not None else []))
+            return _fail(
+                400,
+                "group is required and must name an existing group, or pass "
+                "resource=<id> for a deployed resource (query parameters "
+                "received: {}).".format(", ".join(received) or "none"),
+            )
         if not profile_may_act_for_group(profile, group):
             return _fail(403, "You are not a member of group '{}'.".format(group.name))
 

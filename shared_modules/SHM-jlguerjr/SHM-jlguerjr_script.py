@@ -3228,7 +3228,10 @@ def _day2_element(element, current, resource_id):
         # The first surviving parameter must follow "?", not "&".
         if "?" not in url:
             url = url.replace("&", "?", 1)
-        url += ("&" if "?" in url else "?") + "resource={}".format(resource_id)
+        # Both spellings: resource= is the documented parameter; object_id=
+        # is the alias the webhook also accepts, in case the API layer
+        # consumes a parameter literally named "resource".
+        url += ("&" if "?" in url else "?") + "resource={0}&object_id={0}".format(resource_id)
         rewritten = dict(choices_by_url)
         rewritten["url"] = url
         day2["choicesByUrl"] = rewritten
