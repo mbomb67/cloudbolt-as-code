@@ -41,7 +41,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Terraform Cloud/Enterprise connection to provision through (a 'tf-cloud'-labeled ConnectionInfo global_id). Pinned per blueprint via parameter_defaults on the build item -- not selected on the order form.",
+            "description": "Terraform Cloud/Enterprise connection to provision through (a 'tf-cloud'-labeled ConnectionInfo global_id). Pinned per blueprint as a hidden field in the custom form -- not selected on the order form.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -60,7 +60,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "The no-code module this blueprint deploys (a nocode-* module ID from the org's private registry). Pinned per blueprint via parameter_defaults -- one blueprint targets one module. Find the ID via the HCP UI or by following a registry module's relationships (see docs/hcp-no-code-setup.md).",
+            "description": "The no-code module this blueprint deploys (a nocode-* module ID from the org's private registry). Pinned per blueprint as a hidden field in the custom form -- one blueprint targets one module. Find the ID via the HCP UI or by following a registry module's relationships (see docs/hcp-no-code-setup.md).",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -79,7 +79,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "HCP Terraform organization the deployment's workspace is created in. Pinned per blueprint via parameter_defaults.",
+            "description": "HCP Terraform organization the deployment's workspace is created in. Pinned per blueprint as a hidden field in the custom form.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -98,7 +98,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "HCP Terraform project that holds the deployment's workspace (a project-scoped variable set supplies the cloud credentials). Pinned per blueprint via parameter_defaults.",
+            "description": "HCP Terraform project that holds the deployment's workspace (a project-scoped variable set supplies the cloud credentials). Pinned per blueprint as a hidden field in the custom form.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

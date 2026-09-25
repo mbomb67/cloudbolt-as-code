@@ -20,8 +20,9 @@ ONLY material difference from OHK-pvo05e24 is the workspace-creation API path
 (no-code create + auto-queued-run adoption instead of VCS create + config-
 version wait).
 
-Pinned per blueprint (parameter_defaults on the build deployment item, read
-here as templated inputs):
+Pinned per blueprint (hidden defaultValue fields in the blueprint's custom
+form, read here as templated inputs; a custom form does not receive BDI
+parameter_defaults, so the build deployment item carries none):
   - tfc_connection_info : the 'tf-cloud'-labeled ConnectionInfo global_id
   - tfc_organization    : the HCP Terraform organization
   - tfc_project         : the HCP Terraform project
@@ -103,6 +104,7 @@ from shared_modules.tfc_api import (
     parse_job_id_from_run_message,
     parse_params_payload,
     pop_sensitive_marker,
+    portal_url_for_job,
     run_with_plan_approval,
     serialize_variable_mirror,
 )
@@ -281,8 +283,8 @@ def run(job, **kwargs):
 
     # Cardinal rule 3: every templated input quoted. The funnel is triple-quoted
     # so a rendered Python-repr / JSON blob survives intact for
-    # parse_params_payload. Coordinates + module ID are pinned per blueprint via
-    # parameter_defaults (no dropdowns).
+    # parse_params_payload. Coordinates + module ID are pinned per blueprint as
+    # hidden fields in the custom form (no dropdowns).
     params_json = """{{ parameters }}"""
     env_id = "{{ env_id }}".strip()
     tfc_connection_info = "{{ tfc_connection_info }}".strip()
@@ -305,8 +307,8 @@ def run(job, **kwargs):
             "FAILURE",
             "",
             "TFC coordinates are missing: {}. The connection, organization, "
-            "project, and no-code module ID are pinned via parameter_defaults "
-            "on the build deployment item of BP-00meiwwz (see "
+            "project, and no-code module ID are pinned as hidden fields in "
+            "the custom form of BP-00meiwwz (forms/FRM-1dxfulvq; see "
             "docs/hcp-no-code-setup.md).".format(", ".join(missing_coords)),
         )
     if not env_id:
@@ -422,6 +424,7 @@ def run(job, **kwargs):
                     deployment_name or resource.global_id
                 ),
                 env_variables=arm_variables,
+                source_url=portal_url_for_job(job),
             )
             created = True
             # Best-effort tag (the create ignores tag-bindings -- U1); never

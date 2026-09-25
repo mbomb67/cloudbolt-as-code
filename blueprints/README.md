@@ -13,7 +13,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | Bicep Deployment | [BP-nibk4erf](BP-nibk4erf/README.md) | Deploys an Azure deployment stack from a Bicep template hosted in GitHub, with a what-if preview and approval gate. |
 | Create VPC | [BP-n454hj40](BP-n454hj40/README.md) | Creates an AWS VPC with an Ansible playbook and a matching CloudBolt environment. |
 | DNS A Record | [BP-dnsrec01](BP-dnsrec01/README.md) | Creates, discovers, and removes Active Directory-integrated DNS A records over LDAPS. |
-| HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply. |
+| HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | HCP Terraform VM | [BP-b0qm83lh](BP-b0qm83lh/README.md) | Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | IIS Web Application | [BP-122nbdt5](BP-122nbdt5/README.md) | Deploys a Windows server and installs an IIS web application. |
 | NGINX Web Application | [BP-anonytrx](BP-anonytrx/README.md) | Deploys an Oracle Linux 8 server and installs an NGINX web application. |
