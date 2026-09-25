@@ -5,7 +5,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options.",
+    "description": "Serves custom-form dropdown options scoped to a CloudBolt Environment or an HCP Terraform no-code module, and builds a deployed resource's Terraform Update variables panel.",
     "id": "OHK-fx500o2r",
     "max_retries": 0,
     "name": "Form Options",

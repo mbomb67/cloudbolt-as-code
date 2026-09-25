@@ -35,7 +35,7 @@
     "management_actions": [
         {
             "dependencies": {
-                "resource_action": "resource_actions/RSA-qofayikp"
+                "resource_action": "resource_actions/RSA-dxrh4m6j"
             },
             "enabled": true,
             "label": "Update Variables"

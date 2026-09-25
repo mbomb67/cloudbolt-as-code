@@ -3126,6 +3126,184 @@ def ensure_output_custom_fields(output_names):
     return valid_names
 
 
+# -----------------------------------------------------------------------------
+# Day-2 custom form support: the variables panel for ONE deployment
+# -----------------------------------------------------------------------------
+# The shared Terraform Update action carries one generic custom form whose
+# variables panel starts EMPTY; a form function asks the form-options webhook
+# for this spec at load time and installs it as the panel's template. Building
+# it server-side keeps every rule in one tested place: the blueprint's order
+# form is the manifest of a template's variables (field types, titles,
+# dropdown sources), the resource's tfc_* fields say which of them this
+# deployment manages, and the tfc_var_* mirrors supply the current values.
+#
+# Every key in the returned spec is a SurveyJS property name (already
+# camelCase), and variable names only ever appear as VALUES -- CloudBolt's API
+# renderer may camelCase response keys recursively, which must not touch a
+# Terraform variable name.
+
+DAY2_PANEL_TITLE = "Variables"
+DAY2_PANEL_DESCRIPTION = (
+    "This deployment's current values are pre-filled. Change what you want "
+    "to update and submit: the change is planned in HCP Terraform and the "
+    "job pauses for plan review before anything is applied. A field left "
+    "blank keeps its current value. Sensitive variables are not shown; "
+    "edit them on the workspace in HCP Terraform."
+)
+DAY2_SENSITIVE_MARKER = "_sensitive"
+# Query-string parameters an order-form dropdown passes that do not exist on a
+# day-2 form (the ordering group and the Environment question); the webhook
+# derives both from the resource instead.
+_DAY2_URL_PARAM_RE = re.compile(r"[?&](group|env_id)=[^&]*")
+
+
+def _order_form_variables_panel(resource):
+    """The templateElements of the order form's variables Dynamic Panel
+    (the question named plugin-bdi-<id>.parameters -- the funnel into the
+    build plugin's ``parameters`` input), plus its title/description. None
+    when the blueprint has no custom form, it does not parse, or it has no
+    such panel. Model chain: Resource.blueprint -> ServiceBlueprint.custom_form
+    (HasCustomFormMixin) -> CustomForm.json."""
+    blueprint = getattr(resource, "blueprint", None)
+    custom_form = getattr(blueprint, "custom_form", None) if blueprint is not None else None
+    raw = getattr(custom_form, "json", None) if custom_form is not None else None
+    if not raw:
+        return None
+    try:
+        schema = json.loads(raw) if isinstance(raw, str) else raw
+    except ValueError:
+        logger.warning(
+            "Custom form %s of blueprint %s is not valid JSON; building a "
+            "plain day-2 panel instead.",
+            getattr(custom_form, "global_id", "?"), getattr(blueprint, "global_id", "?"),
+        )
+        return None
+    if not isinstance(schema, dict):
+        return None
+    for page in schema.get("pages") or []:
+        for element in (page.get("elements") or []) if isinstance(page, dict) else []:
+            if (
+                isinstance(element, dict)
+                and element.get("type") == "paneldynamic"
+                and str(element.get("name") or "").endswith(".parameters")
+            ):
+                return element
+    return None
+
+
+def _is_hidden_element(element):
+    """A pinned per-blueprint value (hidden on the order form) stays pinned on
+    day-2: it rides along from the snapshot, never as an editable field."""
+    return element.get("visible") is False or str(element.get("visibleIf") or "").strip().lower() == "false"
+
+
+def _day2_default_value(element, current):
+    """The element's pre-filled value: a dict mirror becomes key/value rows for
+    a matrixdynamic with key/value columns; any other dict/list is presented
+    as JSON text; scalars pass through."""
+    if isinstance(current, dict) and element.get("type") == "matrixdynamic":
+        column_names = {
+            str(column.get("name")) for column in element.get("columns") or []
+            if isinstance(column, dict)
+        }
+        if column_names == {"key", "value"}:
+            return [{"key": key, "value": value} for key, value in current.items()]
+    if isinstance(current, (dict, list)):
+        return json.dumps(current, indent=2)
+    return current
+
+
+def _day2_element(element, current, resource_id):
+    """One day-2 field from one order-form field: same type/title/choices,
+    dropdown URLs re-scoped to the resource, optional (blank = unchanged),
+    pre-filled with the current value."""
+    day2 = dict(element)
+    day2.pop("defaultValue", None)
+    day2["isRequired"] = False
+    if current is not None:
+        day2["defaultValue"] = _day2_default_value(element, current)
+    choices_by_url = day2.get("choicesByUrl")
+    if isinstance(choices_by_url, dict) and choices_by_url.get("url"):
+        url = _DAY2_URL_PARAM_RE.sub("", str(choices_by_url["url"]))
+        # The first surviving parameter must follow "?", not "&".
+        if "?" not in url:
+            url = url.replace("&", "?", 1)
+        url += ("&" if "?" in url else "?") + "resource={}".format(resource_id)
+        rewritten = dict(choices_by_url)
+        rewritten["url"] = url
+        day2["choicesByUrl"] = rewritten
+    return day2
+
+
+def _day2_fallback_element(name, current, is_hcl):
+    """A plain field for a variable the order form does not describe (no
+    custom form, or a variable the form never had): multi-line JSON for an
+    HCL (object/list) variable, a text box otherwise."""
+    element = {"type": "comment" if is_hcl else "text", "name": name, "title": name}
+    if current is not None:
+        element["defaultValue"] = json.dumps(current, indent=2) if isinstance(current, (dict, list)) else current
+    return element
+
+
+def day2_form_panel(resource, resource_id=None):
+    """
+    The SurveyJS spec of the variables panel for ``resource``'s Terraform
+    Update form: {"title", "description", "elements": [...]}.
+
+    Elements come from the blueprint's order-form variables panel, kept in
+    its order and restricted to the variables this deployment manages
+    (tfc_variable_names), minus sensitive ones (tfc_sensitive_variable_names
+    and any password field), minus pinned (hidden) ones, minus the
+    '_sensitive' marker. Managed variables the order form does not describe
+    get a plain fallback field, so a blueprint without a custom form still
+    gets a usable form. Each field is optional and pre-filled from its
+    tfc_var_* mirror (HCL mirrors parsed back to native first).
+    """
+    if resource_id is None:
+        resource_id = resource.id
+
+    def _csv(field_name):
+        raw = resource.get_value_for_custom_field(field_name) or ""
+        return [name.strip() for name in str(raw).split(",") if name.strip()]
+
+    variable_names = _csv("tfc_variable_names")
+    sensitive_names = set(_csv("tfc_sensitive_variable_names"))
+    hcl_names = set(_csv("tfc_hcl_variable_names"))
+    editable = [name for name in variable_names if name not in sensitive_names]
+
+    current = {}
+    for name in editable:
+        value = resource.get_value_for_custom_field("tfc_var_{}".format(name))
+        if value is not None:
+            current[name] = parse_variable_mirror(str(value), is_hcl=name in hcl_names)
+
+    source_panel = _order_form_variables_panel(resource)
+    elements = []
+    described = set()
+    for element in (source_panel or {}).get("templateElements") or []:
+        if not isinstance(element, dict):
+            continue
+        name = str(element.get("name") or "")
+        if (
+            name == DAY2_SENSITIVE_MARKER
+            or name not in editable
+            or element.get("inputType") == "password"
+            or _is_hidden_element(element)
+        ):
+            continue
+        described.add(name)
+        elements.append(_day2_element(element, current.get(name), resource_id))
+    for name in editable:
+        if name not in described:
+            elements.append(_day2_fallback_element(name, current.get(name), name in hcl_names))
+
+    return {
+        "title": (source_panel or {}).get("title") or DAY2_PANEL_TITLE,
+        "description": DAY2_PANEL_DESCRIPTION,
+        "elements": elements,
+    }
+
+
 # Progress-bar model for one engine invocation:
 # 1 run created -> 2 plan polled -> 3 decision -> 4 apply polled -> 5 terminal.
 TOTAL_ENGINE_TASKS = 5

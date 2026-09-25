@@ -5,4 +5,4 @@ Inbound REST endpoints.
 
 | Action | ID | Description | Plugin |
 |---|---|---|---|
-| Form Options | [IWH-yj93is5z](IWH-yj93is5z/) | GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options. | [Form Options](../plugins/OHK-fx500o2r/) |
+| Form Options | [IWH-yj93is5z](IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](../plugins/OHK-fx500o2r/) |

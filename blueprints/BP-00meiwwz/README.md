@@ -7,7 +7,7 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 |---|---|---|
 | Build | OHK-axtt0yqq | HCP Terraform No-Code Module |
 | Teardown | OHK-y9d1uwhw | Teardown HCP Terraform No-Code Module |
-| Day-2 action | RSA-qofayikp | Update Variables (hook OHK-lvy5tj0y, the Terraform Update plugin shared by every HCP Terraform blueprint) |
+| Day-2 action | RSA-dxrh4m6j | Update Variables (the shared Terraform Update action: hook OHK-lvy5tj0y, form FRM-h4py5w3a) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
 | Webhook | IWH-yj93is5z | Form Options (hook OHK-fx500o2r) |
@@ -30,7 +30,7 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 
 ## Notes
 - The no-code create carries the variables and the `ARM_*` environment variables, so the auto-queued first run already targets the chosen subscription; the build plugin adopts that run into the approval pause. Continue Job applies; canceling discards the run and leaves the resource `PROVFAILED` with its workspace ID stored.
-- Update Variables edits values only. Unknown keys and sensitive keys are rejected. It fails fast if the workspace has a pending run.
+- Update Variables is the shared Terraform Update action: a form built from this blueprint's order form and pre-filled with the deployment's current values. Unknown and sensitive keys are rejected, a blank field keeps its value, and it fails fast if the workspace has a pending run.
 - There is no module-version upgrade action. Re-pin the version in HCP or tear down and re-order.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.

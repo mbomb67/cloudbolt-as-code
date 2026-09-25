@@ -10,7 +10,7 @@
       "forms/FRM-1dxfulvq",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-y9d1uwhw",
-      "resource_actions/RSA-qofayikp"
+      "resource_actions/RSA-dxrh4m6j"
     ],
     "used_by": []
   },
@@ -339,6 +339,18 @@
     "enabled": true
   },
   {
+    "id": "FJS-ylyi1tc0",
+    "type": "form_functions",
+    "name": "tfcBuildDay2Panel",
+    "description": "Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template.",
+    "path": "form_functions/FJS-ylyi1tc0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-h4py5w3a"
+    ]
+  },
+  {
     "id": "FRM-1dxfulvq",
     "type": "forms",
     "name": "HCP Terraform No-Code Module",
@@ -360,6 +372,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-nibk4erf"
+    ]
+  },
+  {
+    "id": "FRM-h4py5w3a",
+    "type": "forms",
+    "name": "Terraform Update",
+    "description": "Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values.",
+    "path": "forms/FRM-h4py5w3a",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-ylyi1tc0"
+    ],
+    "used_by": [
+      "resource_actions/RSA-dxrh4m6j"
     ]
   },
   {
@@ -1070,7 +1096,7 @@
     "id": "OHK-fx500o2r",
     "type": "plugins",
     "name": "Form Options",
-    "description": "Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options.",
+    "description": "Serves custom-form dropdown options scoped to a CloudBolt Environment or an HCP Terraform no-code module, and builds a deployed resource's Terraform Update variables panel.",
     "path": "plugins/OHK-fx500o2r",
     "readme": null,
     "uses": [
@@ -1173,8 +1199,7 @@
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
-      "resource_actions/RSA-dxrh4m6j",
-      "resource_actions/RSA-qofayikp"
+      "resource_actions/RSA-dxrh4m6j"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1725,9 +1750,11 @@
     "path": "resource_actions/RSA-dxrh4m6j",
     "readme": null,
     "uses": [
+      "forms/FRM-h4py5w3a",
       "plugins/OHK-lvy5tj0y"
     ],
     "used_by": [
+      "blueprints/BP-00meiwwz",
       "blueprints/BP-b0qm83lh"
     ],
     "enabled": true
@@ -1865,21 +1892,6 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "RSA-qofayikp",
-    "type": "resource_actions",
-    "name": "Update Variables",
-    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
-    "path": "resource_actions/RSA-qofayikp",
-    "readme": null,
-    "uses": [
-      "plugins/OHK-lvy5tj0y"
-    ],
-    "used_by": [
-      "blueprints/BP-00meiwwz"
     ],
     "enabled": true
   },
@@ -2136,7 +2148,7 @@
     "id": "IWH-yj93is5z",
     "type": "webhooks",
     "name": "Form Options",
-    "description": "GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options.",
+    "description": "GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel.",
     "path": "webhooks/IWH-yj93is5z",
     "readme": null,
     "uses": [
