@@ -295,13 +295,13 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `teardown_items` | array[object] | Teardown-tab items (same schema). |
 | `management_actions` | array[object] | Resource actions on the Management tab — see nested schema. |
 | `last_updated` | string `YYYY-MM-DD` | Export stamp; not read on import. |
-| `minimum_version_required` | string | Default `"8.6"`. |
-| `maximum_version_required` | string | Default `""`. |
 
 ### Optional fields
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
+| `minimum_version_required` | string | `"8.6"` | Optional in practice: all 16 of this repo's exported blueprints omit it and import fine. Listed as required by the extraction; observed exports disagree. |
+| `maximum_version_required` | string | `""` | Same as above — omit unless round-trip fidelity with an export that carries it is wanted. |
 | `icon` | string | absent | Basename of the colocated icon image. |
 | `resource_type` | object | absent | Full `ResourceType` dict (from `ResourceTypeSerializer`). |
 | `parameters` | array[object] | absent | Blueprint-level parameters — see nested schema. |
@@ -347,7 +347,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `server_tiers` | array[string] | |
 
 Polymorphic extras by `tier_type`:
-- `provserver`: `restrict_applications`, `hostname_template`, `all_environments_enabled`, `os_build`, `allowed_os_families`, `applications`, `environment_selection_orchestration`.
+- `server`: `restrict_applications`, `hostname_template`, `all_environments_enabled`, `os_build`, `allowed_os_families`, `applications`, `environment_selection_orchestration`.
 - `tfconfig`: `local_path`, `module_file`, `git_source_code_url`, `source_code_url`, `branch`, `plan_directory`, `preserve_config_dir`, `refresh_on_order`.
 - `tfoperation`: `resource_type`, `working_directory` (`source_type` ∈ {`REPO`, `ZIP`, `LOCAL`}), `variable_maps`, `plan_directory`, `refresh_on_order`, `default_tfvars`, `terraform_version`, `confirm_terraform_plan`.
 
@@ -363,7 +363,17 @@ Polymorphic extras by `tier_type`:
 
 ### Enums
 
-- `deployment_items[].tier_type` (`service_item.py:136-151`): `blueprint`, `copy`, `pod`, `loadbalancer`, `network`, `server`/`provserver`, `plugin`, `email`, `workflow`/`flow`, `script`, `terraform`, `webhook`, `tfconfig`, `tfoperation`.
+- `deployment_items[].tier_type` (`service_item.py:136-151`): `blueprint`, `copy`, `pod`, `loadbalancer`, `network`, `server`, `plugin`, `email`, `workflow`/`flow`, `script`, `terraform`, `webhook`, `tfconfig`, `tfoperation`.
+
+  > ⚠️ **A server tier is `"server"`, never `"provserver"`.** `provserver` is the internal `type_slug` CloudBolt uses on the *order form* URL and in some code paths; it is **not** what the exporter emits and **not** what the importer expects in this field. Every server tier exported to this repo carries `"tier_type": "server"`. Writing `provserver` produces a blueprint that looks correct in the diff and fails to build a server after sync.
+
+- `teardown_items[].tier_type` is a **different set** from the deployment one, despite the two arrays sharing a schema. Every teardown item exported to this repo carries `"tier_type": "teardown_plugin"`, a value that never appears in `deployment_items[]`.
+
+  Observed across this repo's 16 blueprints (`deployment_items`: `plugin` ×19, `server` ×4, `script` ×5; `teardown_items`: `teardown_plugin` ×12). Regenerate that census before authoring a tier by hand, and trust it over this list:
+
+  ```bash
+  python -c "import json,glob,collections; d=collections.Counter(); t=collections.Counter(); [ (([d.update([i.get('tier_type')]) for i in (b.get('deployment_items') or [])], [t.update([i.get('tier_type')]) for i in (b.get('teardown_items') or [])]) ) for b in (json.load(open(f)) for f in glob.glob('blueprints/*/*_metadata.json'))]; print('deployment:',dict(d)); print('teardown:',dict(t))"
+  ```
 - `parameters[].destination`: `"Resource"` | `"Build Items"` | `"Both"`.
 - `parameters[].constraints`: object or literal `"Unconstrained"`.
 - `parameters[].constrained_options`: array or literal `"No options"`.
@@ -382,7 +392,7 @@ Polymorphic extras by `tier_type`:
     "any_group_can_deploy": false,
     "auto_historical_resources": false,
     "deployment_items": [
-        {"id": "BDI-a1b2c3d4", "name": "Provision Server", "description": "", "deploy_seq": 1, "tier_type": "provserver", "execute_in_parallel": false, "show_on_order_form": true, "rate": null, "restrict_applications": false, "hostname_template": "", "all_environments_enabled": false, "os_build": null, "allowed_os_families": null, "applications": null, "environment_selection_orchestration": null},
+        {"id": "BDI-a1b2c3d4", "name": "Provision Server", "description": "", "deploy_seq": 1, "tier_type": "server", "execute_in_parallel": false, "show_on_order_form": true, "rate": null, "restrict_applications": false, "hostname_template": "", "all_environments_enabled": false, "os_build": {"href": "/api/v3/cmp/osBuilds/OSB-pd2spm2e/", "title": "Oracle Linux 8"}, "allowed_os_families": ["Linux"], "applications": null, "environment_selection_orchestration": null},
         {"id": "BDI-e5f6g7h8", "name": "Run My Plugin", "description": "", "deploy_seq": 2, "tier_type": "plugin", "execute_in_parallel": false, "show_on_order_form": false, "continue_on_failure": false, "run_on_scale_up": true, "enabled": true, "rate": null, "action_name": "My Plugin", "dependencies": {"hook": "plugins/OHK-xxxxxxxx"}}
     ],
     "teardown_items": [],
