@@ -230,6 +230,41 @@ def service_item_defaults(bdi_global_id):
 
 
 # -----------------------------------------------------------------------------
+# Day-2 support: derive the ordering context from a deployed Resource
+# -----------------------------------------------------------------------------
+
+# Custom fields a build plugin may use to record the Environment a resource
+# was ordered into, tried in order. The HCP Terraform builds write tfc_env_id.
+RESOURCE_ENV_FIELDS = ("tfc_env_id", "env_id", "environment_id")
+
+
+def resolve_resource(resource_ref):
+    """Resolve a Resource from its numeric pk (what a custom action form's
+    CMP-injected ``object_id`` question holds) or its global ID (RSC-...).
+    Returns None when unresolvable. Membership/entitlement is the caller's
+    job (profile_may_act_for_group on resource.group)."""
+    from resources.models import Resource
+    text = str(resource_ref or "").strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return Resource.objects.filter(id=int(text)).first()
+    return Resource.objects.filter(global_id=text).first()
+
+
+def resource_environment_id(resource):
+    """The id of the Environment ``resource`` was ordered into, read from the
+    first RESOURCE_ENV_FIELDS custom field that holds a value; None if the
+    resource records none. The caller still passes it through
+    entitled_environment so the resource's group must (still) be entitled."""
+    for field_name in RESOURCE_ENV_FIELDS:
+        value = resource.get_value_for_custom_field(field_name)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return None
+
+
+# -----------------------------------------------------------------------------
 # Option sources
 # -----------------------------------------------------------------------------
 

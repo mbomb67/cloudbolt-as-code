@@ -12,7 +12,8 @@ URL (trailing slash required):
 
 Query parameters (all strings; 'filter' and 'last' are reserved by the API):
   source        environment | resource_group | subnet | os_image | vm_size |
-                location | cf:<custom_field_name> | tfc_variable_options
+                location | cf:<custom_field_name> | tfc_variable_options |
+                day2_panel
   group         the form's group value -- the relative href the standard
                 group dropdown submits ('/api/v3/cmp/groups/GRP-xxxxxxxx/'),
                 or a group global ID / name. Required for every env source.
@@ -27,6 +28,15 @@ Query parameters (all strings; 'filter' and 'last' are reserved by the API):
                 item's parameter_defaults), never from the query string.
   variable      with source=tfc_variable_options: the Terraform variable
                 whose admin-defined options to return.
+  resource      a deployed Resource's numeric pk (the object_id a custom
+                ACTION form carries) or global ID. Day-2 forms pass this
+                INSTEAD of group and env_id: the group and the Environment
+                the resource was ordered into are derived server-side
+                (env_options.resource_environment_id), so every env source
+                lists what that original environment offers. Required for
+                source=day2_panel, which returns the resource's Terraform
+                Update variables panel (tfc_api.day2_form_panel) as
+                {"panel": {title, description, elements}}.
 
 Response: {"options": [{"value": ..., "title": ...}, ...]} -- the form uses
   choicesByUrl {"path": "options", "valueName": "value", "titleName": "title"}.
@@ -60,14 +70,17 @@ from shared_modules.env_options import (
     options_for,
     profile_may_act_for_group,
     resolve_group,
+    resolve_resource,
+    resource_environment_id,
     service_item_defaults,
 )
-from shared_modules.tfc_api import TFCError, get_options_client
+from shared_modules.tfc_api import TFCError, day2_form_panel, get_options_client
 
 logger = ThreadLogger(__name__)
 
 ENV_SOURCES = ("resource_group", "subnet", "os_image", "vm_size", "location", "cf")
 TFC_VARIABLE_OPTIONS_SOURCE = "tfc_variable_options"
+DAY2_PANEL_SOURCE = "day2_panel"
 
 
 def _respond(options):
@@ -112,6 +125,19 @@ def _tfc_variable_options(parameters):
     return _respond([{"value": value, "title": str(value)} for value in values])
 
 
+def _resource_context(parameters, profile):
+    """(resource, group, env_id) for a day-2 call that passes resource=..., or
+    (None, None, None) when the parameter is absent. Raises EnvOptionsError
+    for an unknown resource; the caller turns a non-member into a 403."""
+    resource_ref = _param(parameters, "resource")
+    if not resource_ref:
+        return None, None, None
+    resource = resolve_resource(resource_ref)
+    if resource is None:
+        raise EnvOptionsError("No resource '{}' exists.".format(resource_ref))
+    return resource, resource.group, resource_environment_id(resource)
+
+
 def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     if profile is None:
         return _fail(403, "Authentication required.")
@@ -123,11 +149,22 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
         if source == TFC_VARIABLE_OPTIONS_SOURCE:
             return _tfc_variable_options(parameters)
 
-        group = resolve_group(_param(parameters, "group"))
+        # A day-2 form names the deployed resource; the ordering group and
+        # the Environment it was ordered into come from the resource itself,
+        # never from the query string. An order form passes group (+ env_id).
+        resource, group, env_id = _resource_context(parameters, profile)
+        if resource is None:
+            group = resolve_group(_param(parameters, "group"))
+            env_id = _param(parameters, "env_id")
         if group is None:
             return _fail(400, "group is required and must name an existing group.")
         if not profile_may_act_for_group(profile, group):
             return _fail(403, "You are not a member of group '{}'.".format(group.name))
+
+        if source == DAY2_PANEL_SOURCE:
+            if resource is None:
+                return _fail(400, "source=day2_panel requires resource.")
+            return {"panel": day2_form_panel(resource)}
 
         if source == "environment":
             return _respond(environment_options(group, profile=profile))
@@ -135,11 +172,11 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
         base_source = "cf" if source.startswith("cf:") else source
         if base_source not in ENV_SOURCES:
             return _fail(400, "Unknown source '{}'.".format(source))
-        env_id = _param(parameters, "env_id")
         if not env_id:
             # SurveyJS fires every choicesByUrl on load, before the
             # Environment dropdown has a value: answer with no options (an
-            # empty-value hint option renders as "[object Object]").
+            # empty-value hint option renders as "[object Object]"). A
+            # resource with no recorded environment gets the same answer.
             return _respond([])
         env = entitled_environment(group, env_id, profile=profile)
         if env is None:

@@ -6,7 +6,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | Type | Count |
 |---|---|
 | [Blueprints](#blueprints) | 16 |
-| [Resource actions](#resource-actions) | 24 |
+| [Resource actions](#resource-actions) | 23 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
@@ -14,7 +14,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Plugins](#plugins) | 76 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
-| [Forms](#forms) | 4 |
+| [Forms](#forms) | 5 |
+| [Form functions](#form-functions) | 1 |
 
 ## Blueprints
 
@@ -64,11 +65,10 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Retrieve Pending Certificate | [RSA-7cjsqrwy](resource_actions/RSA-7cjsqrwy/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Revoke Access | [RSA-8zwsrcbv](resource_actions/RSA-8zwsrcbv/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Run SQL Command | [RSA-jaitfhwp](resource_actions/RSA-jaitfhwp/) | Runs a SQL command against the PostgreSQL server. | [Run SQL Command](plugins/OHK-4w05hdd3/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
-| Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
+| Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md), [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Test Postgres Connection | [RSA-9tfwebk7](resource_actions/RSA-9tfwebk7/) | Tests the connection to the PostgreSQL database. | [Test Postgres Connection](plugins/OHK-wr079u8q/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Update Bicep Deployment | [RSA-fa7r7cg7](resource_actions/RSA-fa7r7cg7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | [Update Bicep Deployment](plugins/OHK-9f45ede7/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | Update Tags | [RSA-kbikieh7](resource_actions/RSA-kbikieh7/) | Merges or replaces the tags on the Azure resource group. | [Update Tags](plugins/OHK-nwcyoto7/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
-| Update Variables | [RSA-qofayikp](resource_actions/RSA-qofayikp/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 
 ## Server actions
 
@@ -108,7 +108,7 @@ Inbound REST endpoints.
 
 | Action | ID | Description | Plugin |
 |---|---|---|---|
-| Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom order forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field) or from an HCP Terraform no-code module's variable options. | [Form Options](plugins/OHK-fx500o2r/) |
+| Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](plugins/OHK-fx500o2r/) |
 
 ## Plugins
 
@@ -149,7 +149,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Drift Check | [OHK-9n4wfasa](plugins/OHK-9n4wfasa/) | Reports drift between a Bicep deployment stack and its template with a read-only what-if. | CloudBolt Plug-in | [Drift Check](resource_actions/RSA-5jeixn92/) |
 | Expire Servers | [OHK-59t2apzf](plugins/OHK-59t2apzf/) | Finds expired servers and runs the configured expiration orchestration action on them. | CloudBolt Plug-in | [Expire Servers](recurring_jobs/RJB-nsx4v2s1/README.md) |
 | Extend Expiration | [OHK-3w9nejn3](plugins/OHK-3w9nejn3/) | Extends a landing-zone project's expiration date on the resource and the namespace annotation. | CloudBolt Plug-in | [Extend Expiration](resource_actions/RSA-kx7mdgva/) |
-| Form Options | [OHK-fx500o2r](plugins/OHK-fx500o2r/) | Serves RBAC-gated dropdown options to custom order forms from a CloudBolt Environment or an HCP Terraform no-code module's variable options. | CloudBolt Plug-in | [Form Options](webhooks/IWH-yj93is5z/) |
+| Form Options | [OHK-fx500o2r](plugins/OHK-fx500o2r/) | Serves custom-form dropdown options scoped to a CloudBolt Environment or an HCP Terraform no-code module, and builds a deployed resource's Terraform Update variables panel. | CloudBolt Plug-in | [Form Options](webhooks/IWH-yj93is5z/) |
 | Generate options for 'Expiration Date' | [OHK-cfciy0fo](plugins/OHK-cfciy0fo/) | Returns an initial Expiration Date value of seven days from now. | CloudBolt Plug-in | [Generate options for 'Expiration Date'](orchestration_actions/HPA-qb0w86mi/README.md) |
 | Generate Tags from Resource Handler Tag Map | [OHK-xoajww7v](plugins/OHK-xoajww7v/) | Evaluates the resource handler's tag map against order and resource parameters and stores the result in cb_generated_tags. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Grant Restricted Contributor Access | [OHK-pr8q2szp](plugins/OHK-pr8q2szp/) | Grants a user the CloudBolt Restricted Contributor role on the subscription. | CloudBolt Plug-in | [Grant Access](resource_actions/RSA-1kpl3w0d/) |
@@ -188,7 +188,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Teardown HCP Terraform No-Code Module | [OHK-y9d1uwhw](plugins/OHK-y9d1uwhw/) | Destroys the HCP Terraform workspace behind a no-code deployment with a destroy run and a safe workspace delete. | CloudBolt Plug-in | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | Teardown HCP Terraform VM | [OHK-2b9qu490](plugins/OHK-2b9qu490/) | Destroys the HCP Terraform workspace behind a VM deployment with a destroy run and a safe workspace delete. | CloudBolt Plug-in | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Teardown OpenShift Project Landing Zone | [OHK-mpe8fl3d](plugins/OHK-mpe8fl3d/) | Deletes the OpenShift project behind a landing zone and its CloudBolt environment once no managed servers remain. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
-| Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/), [Update Variables](resource_actions/RSA-qofayikp/) |
+| Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/) |
 | Test Postgres Connection | [OHK-wr079u8q](plugins/OHK-wr079u8q/) | Tests the connection to the PostgreSQL database. | CloudBolt Plug-in | [Test Postgres Connection](resource_actions/RSA-9tfwebk7/) |
 | Update Bicep Deployment | [OHK-9f45ede7](plugins/OHK-9f45ede7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | CloudBolt Plug-in | [Update Bicep Deployment](resource_actions/RSA-fa7r7cg7/) |
 | Update Tags | [OHK-nwcyoto7](plugins/OHK-nwcyoto7/) | Merges or replaces the tags on the Azure resource group. | CloudBolt Plug-in | [Update Tags](resource_actions/RSA-kbikieh7/) |
@@ -236,3 +236,12 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | Bicep Deployment | [FRM-84n18crj](forms/FRM-84n18crj/) | Deploys an Azure deployment stack from a Bicep template hosted in GitHub after a what-if preview and approval. | [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | HCP Terraform No-Code Module | [FRM-1dxfulvq](forms/FRM-1dxfulvq/) | Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply. | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | HCP Terraform VM | [FRM-t3v8zpb7](forms/FRM-t3v8zpb7/) | Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply. | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
+| Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |
+
+## Form functions
+
+Form JavaScript helpers. A function syncs only as a dependency of a form.
+
+| Function | ID | Description | Form |
+|---|---|---|---|
+| tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |

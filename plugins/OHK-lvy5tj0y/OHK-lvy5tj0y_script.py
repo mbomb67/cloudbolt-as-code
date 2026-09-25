@@ -167,7 +167,7 @@ def _is_blank_value(value):
     return str(value).strip() == ""
 
 
-def _normalize_submitted(submitted_values, known):
+def _normalize_submitted(submitted_values, known, hcl_names=()):
     """Turn a parsed payload into the value overlay, in place of a form's
     own validation.
 
@@ -178,6 +178,9 @@ def _normalize_submitted(submitted_values, known):
     * A matrixdynamic's [{"key":..,"value":..}] rows collapse to a dict
       (collapse_key_value_rows); blank entries inside any dict are dropped so
       an untouched object field does not send empty strings.
+    * An HCL (object/list) variable submitted as JSON TEXT -- the generic
+      day-2 form's fallback field for a variable the order form does not
+      describe -- is parsed back to native so it is written hcl:true.
     * Blank values are dropped: the key is left out of this run's write set,
       so its current workspace value is left untouched (never overwritten
       with "").
@@ -193,6 +196,14 @@ def _normalize_submitted(submitted_values, known):
 
     overlay = {}
     for key, raw_value in submitted_values.items():
+        if key in hcl_names and isinstance(raw_value, str) and raw_value.strip():
+            try:
+                raw_value = json.loads(raw_value)
+            except ValueError:
+                raise TFCError(
+                    "Variable '{}' holds an object/list and must be submitted "
+                    "as valid JSON.".format(key)
+                )
         value = collapse_key_value_rows(raw_value)
         if isinstance(value, dict):
             value = {
@@ -291,7 +302,9 @@ def run(job, resource=None, **kwargs):
         # below) with NO workspace read or run created. An empty input
         # parses to {} (no value changes; the current set is re-applied).
         submitted_values = parse_params_payload(params_payload)
-        overlay, dropped_markers = _normalize_submitted(submitted_values, known)
+        overlay, dropped_markers = _normalize_submitted(
+            submitted_values, known, hcl_names
+        )
         if dropped_markers:
             logger.info(
                 "Ignoring form-internal key(s) in the parameters payload: %s",

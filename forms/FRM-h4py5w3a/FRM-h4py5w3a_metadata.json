@@ -1,0 +1,11 @@
+{
+    "css_file": "FRM-h4py5w3a_css.css",
+    "dependencies": {
+        "form_functions": [
+            "form_functions/FJS-ylyi1tc0"
+        ]
+    },
+    "id": "FRM-h4py5w3a",
+    "json": "{\"title\": \"Terraform Update\", \"description\": \"Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values.\", \"completedHtml\": \"<p class=\\\"custom-order-form-completed\\\">Your update has been submitted.</p>\", \"loadingHtml\": \"<p class=\\\"custom-order-form-loading\\\">Loading current values...</p>\", \"keepIncorrectValues\": true, \"pages\": [{\"name\": \"terraform_update\", \"title\": \"Terraform Update\", \"elements\": [{\"type\": \"text\", \"name\": \"tfc_day2_bootstrap\", \"visible\": false, \"defaultValueExpression\": \"tfcBuildDay2Panel({object_id})\"}, {\"type\": \"html\", \"name\": \"tfc_day2_loading\", \"visibleIf\": \"{tfc_day2_bootstrap} empty\", \"html\": \"<p class=\\\"custom-order-form-loading\\\">Loading this deployment's current values...</p>\"}, {\"type\": \"html\", \"name\": \"tfc_day2_error\", \"visibleIf\": \"{tfc_day2_bootstrap} notempty and {tfc_day2_bootstrap} <> 'ready'\", \"html\": \"<p class=\\\"text-danger\\\">Could not load this deployment's variables: {tfc_day2_bootstrap}</p>\"}, {\"type\": \"paneldynamic\", \"name\": \"action-input.parameters\", \"title\": \"Variables\", \"templateElements\": [], \"panelCount\": 0, \"minPanelCount\": 0, \"maxPanelCount\": 1, \"allowAddPanel\": false, \"allowRemovePanel\": false}]}], \"showQuestionNumbers\": \"off\", \"questionTitleLocation\": \"left\", \"clearInvisibleValues\": \"none\", \"completeText\": \"Submit\"}",
+    "supported_languages": ""
+}

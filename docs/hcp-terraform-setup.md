@@ -221,11 +221,12 @@ Two operational notes:
 
 A deployed resource has two day-2 actions, both running through the same plan-approval gate above:
 
-- **Terraform Update** (generic) opens a dialog with a single **Parameters (JSON)** field, pre-filled with the deployment's current variable values as a JSON object. Edit the values and submit. Rules the operator should know:
-  - The field must be a **JSON object** of `variable name → value` (a pasted array or scalar is rejected before any TFC call).
-  - You may only edit variables the deployment already manages. A key the deployment does not know (e.g. a typo, or a variable added to the template later) is **rejected with a message naming the known set** — it is not written. (There is no "add a new variable to an existing deployment" path; that requires re-provisioning under an updated template — see the shared-branch note in the plan's risks.)
-  - **Removing a key is a no-op** — its current value rides along unchanged (there is no delete-variable path in TFC). **Leaving a value blank** unsets it for that run.
-  - Do **not** paste secrets into this field — it is group-visible job output (§12).
+- **Terraform Update** is one shared action for every HCP Terraform blueprint. It opens a full-page form built at load time from the blueprint's order form: the same variable fields, with dropdowns listing what the environment the deployment was ordered into offers, pre-filled with the deployment's current values. Rules the operator should know:
+  - Only variables the deployment already manages appear, and only they may be set. A key the deployment does not know is **rejected with a message naming the known set** before anything is written. (There is no "add a new variable to an existing deployment" path; that requires re-provisioning under an updated template.)
+  - **A blank field keeps its current value.** There is no delete-variable path in TFC, so nothing is ever unset from this form.
+  - Sensitive variables are never shown, and a non-blank value for one is rejected; change them on the workspace in HCP Terraform.
+  - Pinned (hidden) order-form values stay pinned. A managed variable the order form does not describe still appears, as a plain text field (JSON text for an object or list).
+  - Through the API or MCP the same action takes one **parameters** JSON object instead of the form; the values it submits are group-visible job output (§12), so keep secrets out of it.
 - **Resize** is the guided shortcut for the one common change: it presents `vm_size` as a validated dropdown with the current size pre-selected. `vm_size` is also editable through the generic Terraform Update, but Resize is the friendlier path for it.
 
 Both actions snapshot the current variables first and, on reject, revert the workspace to that snapshot; the resource's custom-field mirrors are only updated on a successful apply.

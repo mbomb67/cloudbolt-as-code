@@ -160,8 +160,9 @@ follow-up**. To move a deployment to a new module version in the meantime:
   configured version pin), or
 - Teardown + re-order the deployment.
 
-Day-2 **Update Variables** (the shipped action) edits variable *values* only, not
-the module version.
+Day-2 **Update Variables** (the shared Terraform Update action: a form built from
+this blueprint's order form, pre-filled with the deployment's current values)
+edits variable *values* only, not the module version.
 
 ---
 
