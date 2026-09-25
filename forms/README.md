@@ -7,5 +7,5 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 |---|---|---|---|
 | Azure Resource Group - Bicep | [FRM-i9zadhpc](FRM-i9zadhpc/) | Creates an Azure resource group from Microsoft's create-rg Bicep quickstart template after a what-if preview and approval. | [Azure Resource Group - Bicep](../blueprints/BP-p7zmh96m/README.md) |
 | Bicep Deployment | [FRM-84n18crj](FRM-84n18crj/) | Deploys an Azure deployment stack from a Bicep template hosted in GitHub after a what-if preview and approval. | [Bicep Deployment](../blueprints/BP-nibk4erf/README.md) |
-| HCP Terraform No-Code Module | [FRM-1dxfulvq](FRM-1dxfulvq/) | Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply. | [HCP Terraform No-Code Module](../blueprints/BP-00meiwwz/README.md) |
+| HCP Terraform No-Code Module | [FRM-1dxfulvq](FRM-1dxfulvq/) | Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply. | [HCP Terraform No-Code Module](../blueprints/BP-00meiwwz/) |
 | HCP Terraform VM | [FRM-t3v8zpb7](FRM-t3v8zpb7/) | Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply. | [HCP Terraform VM](../blueprints/BP-b0qm83lh/README.md) |

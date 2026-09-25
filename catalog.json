@@ -5,7 +5,7 @@
     "name": "HCP Terraform No-Code Module",
     "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
     "path": "blueprints/BP-00meiwwz",
-    "readme": "blueprints/BP-00meiwwz/README.md",
+    "readme": null,
     "uses": [
       "forms/FRM-1dxfulvq",
       "plugins/OHK-axtt0yqq",
