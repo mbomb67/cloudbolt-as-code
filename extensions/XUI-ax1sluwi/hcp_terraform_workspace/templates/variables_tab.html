@@ -1,0 +1,31 @@
+{% load i18n %}
+{% include "hcp_terraform_workspace/templates/_assets.html" %}
+
+<div id="tfws-vars-tab" class="tfws">
+  <div class="tf-card">
+    <div class="tf-hero-top">
+      <div>
+        <div class="tf-eyebrow">{% trans "HCP Terraform workspace variables" %}</div>
+        <div class="tf-title"><i class="bi bi-sliders" aria-hidden="true"></i> {{ workspace_name }}</div>
+        <div class="tf-sub">{% trans "Read-only. Change values with the resource's Terraform actions so every edit goes through a plan-approval job." %}</div>
+      </div>
+      <div class="tf-tools">
+        {% if workspace_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ workspace_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in HCP Terraform" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-tf-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tf-card" data-tf-panel="variables" data-tf-src="{{ variables_url }}"></div>
+  <div class="tf-card" data-tf-panel="variable-sets" data-tf-src="{{ variable_sets_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.tfwsInit("tfws-vars-tab"); });
+</script>

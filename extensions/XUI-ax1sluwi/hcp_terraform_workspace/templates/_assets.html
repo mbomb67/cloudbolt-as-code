@@ -1,0 +1,118 @@
+{% comment %}
+  Shared styles and panel loader for the HCP Terraform Workspace tabs.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tabs without an asset build.
+{% endcomment %}
+<style>
+  .tfws {
+    --tf-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --tf-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --tf-line: var(--neutral-250, #E2E8ED);
+    --tf-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --tf-primary: var(--bs-primary, #0d6efd);
+    --tf-ok: var(--bs-success, #198754);
+    --tf-warn: var(--bs-warning, #ffc107);
+    --tf-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --tf-bad: var(--bs-danger, #dc3545);
+  }
+  .tfws .tf-card { background: var(--surface, #fff); border: 1px solid var(--tf-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tfws .tf-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .tfws .tf-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tf-muted); }
+  .tfws .tf-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .tfws .tf-title .bi { color: var(--tf-primary); }
+  .tfws .tf-sub { font-size: 12.5px; font-weight: 600; color: var(--tf-muted); margin-top: 2px; }
+  .tfws .tf-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tfws .tf-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--tf-line); border-top: 1px solid var(--tf-line); }
+  .tfws .tf-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .tfws .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--tf-muted); margin-bottom: 3px; }
+  .tfws .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .tfws .tf-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--tf-line); flex-wrap: wrap; }
+  .tfws .tf-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tf-muted); }
+  .tfws .tf-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .tfws .tf-card-tools .form-control { width: 240px; max-width: 100%; }
+  .tfws .tf-inline-form { display: flex; gap: 6px; align-items: center; margin: 0; }
+  .tfws .tf-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .tfws .tf-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--tf-muted); padding: 10px 18px; border-bottom: 1px solid var(--tf-line); text-align: left; white-space: nowrap; }
+  .tfws .tf-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .tfws .tf-table tbody tr:last-child td { border-bottom: 0; }
+  .tfws .tf-table tbody tr:hover td { background: var(--tf-surface-2); }
+  .tfws .tf-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); }
+  .tfws .tf-pill-ok { background: color-mix(in srgb, var(--tf-ok) 14%, transparent); color: var(--tf-ok); }
+  .tfws .tf-pill-warn { background: color-mix(in srgb, var(--tf-warn) 22%, transparent); color: var(--tf-warn-text); }
+  .tfws .tf-pill-bad { background: color-mix(in srgb, var(--tf-bad) 12%, transparent); color: var(--tf-bad); }
+  .tfws .tf-pill-live { background: color-mix(in srgb, var(--tf-primary) 13%, transparent); color: var(--tf-primary); }
+  .tfws .tf-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); vertical-align: middle; }
+  .tfws .tf-tag-bad { background: color-mix(in srgb, var(--tf-bad) 12%, transparent); color: var(--tf-bad); }
+  .tfws .tf-muted { color: var(--tf-muted); font-weight: 600; }
+  .tfws .tf-hint { font-size: 11.5px; color: var(--tf-muted); font-weight: 600; margin-top: 3px; }
+  .tfws .tf-msg { font-size: 12px; color: var(--tf-muted); font-weight: 600; margin-top: 3px; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tfws .tf-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .tfws .tf-val { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; margin: 0; padding: 0; border: 0; background: transparent; font-weight: 500; color: inherit; }
+  .tfws .tf-add { color: var(--tf-ok); }
+  .tfws .tf-chg { color: var(--tf-warn-text); }
+  .tfws .tf-del { color: var(--tf-bad); }
+  .tfws .tf-nowrap { white-space: nowrap; }
+  .tfws .tf-empty { color: var(--tf-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .tfws .tf-pager { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-top: 1px solid var(--tf-line); font-size: 12.5px; font-weight: 700; }
+  .tfws .tf-pager a { color: var(--tf-primary); text-decoration: none; }
+  .tfws .tf-banner { display: flex; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--tf-line); background: color-mix(in srgb, var(--tf-warn) 12%, var(--surface, #fff)); }
+  .tfws .tf-banner > .bi { font-size: 18px; color: var(--tf-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .tfws .tf-banner-body { flex: 1; min-width: 0; }
+  .tfws .tf-banner-t { font-size: 13.5px; font-weight: 700; }
+  .tfws .tf-banner-s { font-size: 12.5px; color: var(--tf-muted); font-weight: 600; }
+  .tfws .tf-pending { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .tfws .tf-pending li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  .tfws .tf-pending .btn { margin-left: auto; }
+  .tfws .tf-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--tf-bad); overflow-wrap: anywhere; }
+  .tfws .tf-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .tfws .tf-note { padding: 8px 22px 12px; font-size: 12px; color: var(--tf-muted); font-weight: 600; }
+  .tfws .tf-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--tf-muted); display: flex; align-items: center; gap: 8px; }
+  .tfws .tf-spin { display: inline-block; animation: tf-spin 1s linear infinite; }
+  @keyframes tf-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-tf-panel] inside a tab root from its data-tf-src URL and
+  // wires pagination (data-tf-load), search forms (data-tf-search), client-side
+  // filters (data-tf-filter) and the Refresh button (data-tf-refresh).
+  window.tfwsInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("tfws-ready")) { return; }
+    $root.data("tfws-ready", true);
+
+    function load($panel, url) {
+      $panel.html('<div class="tf-loading"><i class="bi bi-arrow-repeat tf-spin" aria-hidden="true"></i> Loading from HCP Terraform…</div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="tf-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-tf-panel]").each(function () { load($(this), $(this).data("tf-src")); });
+    }
+    $root.on("click", "[data-tf-load]", function (e) {
+      e.preventDefault();
+      load($(this).closest("[data-tf-panel]"), $(this).data("tf-load"));
+    });
+    $root.on("submit", "form[data-tf-search]", function (e) {
+      e.preventDefault();
+      var $panel = $(this).closest("[data-tf-panel]");
+      var base = $panel.data("tf-src");
+      load($panel, base + (base.indexOf("?") > -1 ? "&" : "?") + $(this).serialize());
+    });
+    $root.on("input", "input[data-tf-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("tf-filter")).find("tbody tr[data-tf-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-tf-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    loadAll();
+  };
+})();
+</script>

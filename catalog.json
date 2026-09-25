@@ -284,6 +284,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-ax1sluwi",
+    "type": "extensions",
+    "name": "HCP Terraform Workspace",
+    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
+    "path": "extensions/XUI-ax1sluwi",
+    "readme": "extensions/XUI-ax1sluwi/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-i4kzuy3y",
     "type": "extensions",
     "name": "Openscap",

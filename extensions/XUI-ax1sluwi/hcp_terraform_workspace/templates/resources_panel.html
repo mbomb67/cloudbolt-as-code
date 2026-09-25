@@ -1,0 +1,37 @@
+{% load i18n %}
+<div class="tf-card-h">
+  <span class="tf-card-t">{% trans "Managed resources" %}{% if not error %} &middot; {{ rows|length }}{% endif %}</span>
+  <div class="tf-card-tools">
+    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter resources' %}" data-tf-filter="#tfws-resources-table">
+  </div>
+</div>
+{% if error %}
+  {% include "hcp_terraform_workspace/templates/_alert.html" %}
+{% else %}
+<div class="table-responsive">
+  <table id="tfws-resources-table" class="tf-table">
+    <thead>
+      <tr>
+        <th>{% trans "Address" %}</th>
+        <th>{% trans "Type" %}</th>
+        <th>{% trans "Provider" %}</th>
+        <th>{% trans "Module" %}</th>
+        <th>{% trans "Updated" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-tf-row>
+        <td class="tf-mono">{{ r.address }}</td>
+        <td>{{ r.type }}</td>
+        <td class="tf-muted">{{ r.provider }}</td>
+        <td>{{ r.module }}</td>
+        <td class="tf-nowrap">{{ r.updated }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="tf-empty">{% trans "No resources in state yet." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

@@ -244,7 +244,7 @@ That fail-fast is **intentional**: the day-2 concurrency guard blocks new action
 
 **Recovery — either path works:**
 
-1. **Discard the orphaned run in the TFC UI.** Open the run (use the run URL from the dead job's output, or the workspace's *Runs* page) and click **Discard run**. The workspace unblocks; day-2 actions work again.
+1. **Discard the orphaned run.** In CloudBolt, open the resource's **Terraform** tab (HCP Terraform Workspace extension, `XUI-ax1sluwi`): the pending run is listed in a banner with a **Discard** button (CloudBolt admins and users with `resource.manage_parameters`). Or open the run in the TFC UI (the run URL from the dead job's output, or the workspace's *Runs* page) and click **Discard run**. The workspace unblocks; day-2 actions work again.
 2. **Delete the resource in CloudBolt.** Teardown is the designated recovery path for orphaned runs: it discards non-final runs whose owning CloudBolt job is no longer running before creating its destroy run. Use this when the deployment is expendable anyway.
 
 One after-effect to know about: if the killed job was a day-2 action that had already written its new variable values to the workspace, those values stay there (the cleanup that would revert them never ran). The next **successful** day-2 run self-heals this — every run rewrites the full variable set from CloudBolt's records overlaid with the dialog values — so no manual TFC-side variable editing is needed or wanted.

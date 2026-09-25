@@ -1,0 +1,38 @@
+{% load i18n %}
+<div class="tf-card-h">
+  <span class="tf-card-t">{% trans "Inherited variable sets" %}{% if not error %} &middot; {{ rows|length }}{% endif %}</span>
+</div>
+{% if error %}
+  {% include "hcp_terraform_workspace/templates/_alert.html" %}
+{% else %}
+<div class="table-responsive">
+  <table class="tf-table">
+    <thead>
+      <tr>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Scope" %}</th>
+        <th>{% trans "Variables" %}</th>
+        <th>{% trans "Updated" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>
+          {{ r.name }}{% if r.priority %} <span class="tf-tag tf-tag-bad">{% trans "priority" %}</span>{% endif %}
+          {% if r.description %}<div class="tf-hint">{{ r.description }}</div>{% endif %}
+        </td>
+        <td>
+          {% if r.global %}{% trans "Global" %}{% else %}{% trans "Assigned" %}<div class="tf-hint">{{ r.project_count }} {% trans "projects" %} &middot; {{ r.workspace_count }} {% trans "workspaces" %}</div>{% endif %}
+        </td>
+        <td>{{ r.var_count|default_if_none:"&mdash;" }}</td>
+        <td class="tf-nowrap">{{ r.updated }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="tf-empty">{% trans "No variable sets apply to this workspace." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="tf-note">{% trans "Values in variable sets (for example the ARM_* credentials) are managed in HCP Terraform, not here. A priority set overrides workspace variables with the same key." %}</div>
+{% endif %}
