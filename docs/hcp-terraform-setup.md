@@ -98,11 +98,13 @@ Docs: [Manage API tokens — team API tokens](https://developer.hashicorp.com/te
 
 The POC uses the built-in **Owners** team, which already holds organization-level permissions including workspace creation in every project — no permission assignment is needed (that is exactly the blast-radius problem §1 exists to contain).
 
+The approval gate's attribute-level plan diff (§10) comes from the plan's JSON output, which TFC serves only to a token with **admin** access to the workspace ([Plans API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans#retrieve-the-json-execution-plan)). The Owners token qualifies. A least-privilege team must keep workspace admin — the organization permission **Manage all workspaces**, or the project's **Maintain** role — or the gate degrades to an action-only plan view and the job output says what to grant.
+
 1. In **Organization Settings → Teams → Owners**, generate a **team API token**. If your TFC plan offers token expiration, set one and calendar the rotation.
 2. The token is displayed **once**. Paste it directly into the CloudBolt ConnectionInfo (§7) and store it nowhere else — not in this repo, not in a wiki, not in a chat message.
 3. Regenerating the team token invalidates the old one; if you rotate it, update the ConnectionInfo in the same sitting or every TFC-backed job on the instance starts failing with 401s.
 
-Production follow-up (not now): replace the Owners token with a least-privilege custom team scoped to the one project (paid tier required).
+Production follow-up (not now): replace the Owners token with a least-privilege custom team scoped to the one project with the project's **Maintain** role (paid tier required), so the plan diff keeps its attribute values.
 
 ## 7. Create the CloudBolt ConnectionInfo (label: `tf-cloud`)
 
@@ -181,7 +183,7 @@ The operational consequence: **after every sync of this repo into the instance, 
 
 Provision and day-2 jobs pause after `terraform plan` completes and wait for a human decision before anything is applied. (Teardown destroy runs do **not** pause — deletion is already an explicit, confirmed user action.) Run lifecycle background: [Run states](https://developer.hashicorp.com/terraform/cloud-docs/run/states), [Runs API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run).
 
-**Where:** the **job detail page** of the paused job (reachable from the order, the resource's job history, or the Jobs list — status `PAUSED`). The job output shows, in order: the plan's resource **add/change/destroy counts**; a **⚠ Terraform warnings block** whenever the plan log contains `Warning:` lines (see below — read this before approving); an excerpt of the plan log (tail-preserved, so Terraform's change summary survives truncation); and a **deep link to the run in TFC** ([Plans API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans) is where those counts come from).
+**Where:** the **job detail page** of the paused job (reachable from the order, the resource's job history, or the Jobs list — status `PAUSED`). The job output shows, in order: the plan's resource **add/change/destroy counts** ([Plans API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans)); the **deep link to the run in TFC**; a **⚠ Terraform warnings block** whenever the plan log contains `Warning:` lines (see below — read this before approving); and the **plan itself in Terraform CLI style** — one block per changed resource with its attribute values (`~ size = "Standard_B2s" -> "Standard_D2s_v3"`, `(known after apply)`, `# forces replacement`), the `Plan: …` summary line and `Changes to Outputs:` — rendered from the plan's [JSON output](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans#retrieve-the-json-execution-plan). That endpoint requires **workspace admin** on the token (§6). When it refuses, the job falls back to the streamed plan log rendered CLI-style (resource actions without attribute values, tail-preserved) and adds a progress line naming the permission to grant.
 
 **Read the warnings block before approving.** Because variable validation is delegated to Terraform, a **misspelled variable name** is not rejected up front — Terraform treats the unknown key as a `Warning: Value for undeclared variable` and, if the real variable it was meant to set has a default in the template, the plan **succeeds on that stale default** and the counts look normal. The warnings block surfaces those lines (it is built from the full log and never truncated) so the approver can catch the typo before applying. (A *required* variable left with no value is the loud case instead: Terraform errors the plan and the job fails with the run URL — before any approval pause.)
 
@@ -249,13 +251,13 @@ A softer edge of the same kind: resources provisioned before **connection select
 
 ## 12. Keep secrets out of plan output
 
-The plan-log excerpt written to job output at the approval gate is **group-visible**: any CloudBolt user with view rights on the job or resource in the group can read it — not just the approving `cb_admin`. The same goes for the `tfc_output_*` custom fields recorded on the resource ([sensitive-marked outputs](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/state-version-outputs) are nulled by TFC and never recorded, but unmarked ones land in plaintext).
+The plan written to job output at the approval gate — every attribute value in the diff, before and after — is **group-visible**: any CloudBolt user with view rights on the job or resource in the group can read it — not just the approving `cb_admin`. The same goes for the `tfc_output_*` custom fields recorded on the resource ([sensitive-marked outputs](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/state-version-outputs) are nulled by TFC and never recorded, but unmarked ones land in plaintext).
 
 The control is **template hygiene**, owned by the template repo maintainers:
 
 - The template must not echo sensitive values in plan output — no secrets interpolated into resource arguments that show in diffs, no `local-exec`/`external` blocks printing credentials, sensitive variables and outputs marked `sensitive = true`.
 - Treat "outputs are non-sensitive **or marked `sensitive = true`**" as a hard template-repo convention, and it carries more weight now: outputs are **auto-discovered** — every output in the applied state is recorded to a plaintext `tfc_output_*` custom field (there is no allowlist to keep a new output out). The one backstop is TFC itself: outputs marked `sensitive = true` come back `null` on the [state-version-outputs API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/state-version-outputs) and are therefore never recorded. **Marking secret-bearing outputs `sensitive = true` is mandatory, not advisory.**
-- CloudBolt strips lines matching known secret patterns (the `ARM_*` names, values flagged sensitive) from the excerpt as defense-in-depth — do not rely on it.
+- Attributes and outputs Terraform marks sensitive render as `(sensitive value)`, and CloudBolt strips lines matching known secret patterns (the `ARM_*` names, the word "sensitive") from the plan as defense-in-depth — do not rely on it.
 
 ## 13. Verify the setup
 
