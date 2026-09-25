@@ -108,8 +108,8 @@ logger = ThreadLogger(__name__)
 # This module is BLUEPRINT-AGNOSTIC: the TFC coordinates that pin a blueprint
 # to a specific org/project/repo (organization, project, VCS repo/branch/
 # working directory) and the per-template variable/output name sets are NOT
-# defined here. They are pinned per blueprint (parameter_defaults on the build
-# deployment item), read by the plugins, and passed into the client methods as
+# defined here. They are pinned per blueprint (hidden fields in the blueprint's
+# custom form), read by the plugins, and passed into the client methods as
 # arguments -- so one tfc_api module serves many blueprints, each pinned to its
 # own Terraform config. See docs/hcp-terraform-setup.md and the build plugin.
 
@@ -121,7 +121,8 @@ WORKSPACE_SOURCE_NAME = "CloudBolt CMP"
 # LABEL, not by a hard-coded name: every ConnectionInfo that carries the
 # "tf-cloud" label (protocol https, ip app.terraform.io or the TFE host,
 # port 443, TEAM token in the password field) is eligible; a blueprint pins
-# the one it uses by global_id in its parameter_defaults. The name is free-form.
+# the one it uses by global_id in its custom form's hidden tfc_connection_info
+# field. The name is free-form.
 CONNECTION_INFO_LABEL = "tf-cloud"
 TFC_DEFAULT_HOST = "app.terraform.io"
 

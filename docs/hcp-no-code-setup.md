@@ -50,26 +50,22 @@ requirement: the token must be a **team or user token**, not an org token
 
 ## 3. Per-blueprint pinning + static-form authoring
 
-**One blueprint targets one module.** Pin the coordinates on the build
-deployment item via `parameter_defaults` (`blueprints/BP-00meiwwz`):
+**One blueprint targets one module.** Pin the coordinates as the
+`defaultValue` of the hidden `plugin-bdi-t474vto9.<name>` text fields in the
+custom form (`forms/FRM-1dxfulvq`):
 
-| parameter_default | value |
+| hidden field | value |
 |---|---|
-| `tfc_connection_info_a1` | the `tf-cloud` ConnectionInfo global_id (`CON-…`) — **FILL ME** |
-| `tfc_organization_a1` | the HCP Terraform organization |
-| `tfc_project_a1` | the HCP Terraform project **name** — **FILL ME** |
-| `tfc_nocode_module_id_a1` | the `nocode-*` module this blueprint deploys |
+| `tfc_connection_info` | the `tf-cloud` ConnectionInfo global_id (`CON-…`) — **FILL ME** |
+| `tfc_organization` | the HCP Terraform organization — **FILL ME** |
+| `tfc_project` | the HCP Terraform project **name** — **FILL ME** |
+| `tfc_nocode_module_id` | the `nocode-*` module this blueprint deploys — **FILL ME** |
 
-(The `_a1` suffix is rewritten to the build plugin's action pk on import — the
-integer is arbitrary but must be `_a<integer>`; a non-integer suffix is silently
-dropped.) The build plugin refuses to run while any value still contains
-`FILL-ME`.
-
-**Edit the same four values in the form too.** With a custom form attached,
-CloudBolt does not apply the deployment item's `parameter_defaults`, so
-`forms/FRM-1dxfulvq` carries each coordinate as a hidden
-`plugin-bdi-t474vto9.<name>` text field with a `defaultValue`. Keep both copies
-identical; the form copy is what the build plugin receives.
+**The form is the only place these are pinned.** With a custom form attached,
+CloudBolt does not apply a deployment item's `parameter_defaults`, so the
+build item of `blueprints/BP-00meiwwz` carries none; the plugin receives
+exactly what the hidden form fields submit. The build plugin refuses to run
+while any value still contains `FILL-ME`.
 
 **The order form** (`forms/FRM-1dxfulvq`) has two parts:
 
@@ -85,8 +81,9 @@ identical; the form copy is what the build plugin receives.
     use a dropdown with `choicesByUrl` pointing at the Form Options webhook:
     `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>`
     (`path: options`, `valueName: value`, `titleName: title`). The webhook
-    reads the connection and module ID from this blueprint's pinned
-    `parameter_defaults` (the webhook reads the BDI, not the form).
+    resolves the connection and module ID server-side from the named
+    deployment item's pins — the hidden `tfc_*` fields of its blueprint's
+    custom form — so the query string never carries them.
   - For a variable that should come from the CloudBolt environment (resource
     group, subnet, size, image, location, or any env-scoped custom field),
     use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`
@@ -106,8 +103,9 @@ identical; the form copy is what the build plugin receives.
   (returns the module's variable options; the per-version variable list is
   the `module-variables` relationship of the registry module version).
 
-**Onboarding another module** = a new blueprint (cloned wiring, coordinates
-re-pinned) + a new form. Zero changes to the plugins or `tfc_api`.
+**Onboarding another module** = a new blueprint (cloned wiring) + a new form
+whose hidden fields pin the new coordinates. Zero changes to the plugins or
+`tfc_api`.
 
 **Freeze the build plugin's `action_inputs` before authoring the form** — the
 form hardcodes the panel funnel name `plugin-bdi-<build-item-id>.parameters`;
@@ -169,7 +167,8 @@ the module version.
 
 ## 7. Live end-to-end checklist
 
-Run after the first sync + restart (§4), with the coordinates pinned (§3) and
+Run after the first sync + restart (§4), with the coordinates pinned in the
+form (§3) and
 the form authored for the pinned module. The blueprint's code is validated
 offline (metadata cross-references, script compilation, and `tfc_api` symbol
 resolution all pass in-repo), but the following behaviors can only be confirmed
