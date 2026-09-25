@@ -20,22 +20,22 @@
             "parameter_defaults": [
                 {
                     "label": "TF Cloud Connection",
-                    "name": "tfc_connection_info_a1",
+                    "name": "tfc_connection_info_a398",
                     "value": "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
                 },
                 {
                     "label": "TFC Organization",
-                    "name": "tfc_organization_a1",
+                    "name": "tfc_organization_a398",
                     "value": "FILL-ME (HCP Terraform organization name)"
                 },
                 {
                     "label": "TFC Project",
-                    "name": "tfc_project_a1",
+                    "name": "tfc_project_a398",
                     "value": "FILL-ME (HCP Terraform project name)"
                 },
                 {
                     "label": "TFC No-Code Module ID",
-                    "name": "tfc_nocode_module_id_a1",
+                    "name": "tfc_nocode_module_id_a398",
                     "value": "FILL-ME (no-code module ID, e.g. nocode-xxxxxxxxxxxxxxxx)"
                 }
             ],
@@ -49,11 +49,11 @@
     "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
     "favorited": false,
     "has_custom_form": true,
-    "icon": null,
+    "icon": "terraform_rTNoRQp.png",
     "id": "BP-00meiwwz",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-07-17",
+    "last_updated": "2026-09-25",
     "management_actions": [
         {
             "dependencies": {
@@ -68,6 +68,7 @@
     "resource_name_template": null,
     "resource_type": {
         "icon": "fas fa-cloud",
+        "id": "RT-nbw86jvn",
         "internal_only": false,
         "label": "HCP Terraform No-Code Module",
         "lifecycle": "ACTIVE",

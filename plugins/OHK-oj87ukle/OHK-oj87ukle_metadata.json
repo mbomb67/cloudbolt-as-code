@@ -8,7 +8,7 @@
             "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": false,
-            "id": "CF-se26j0xi",
+            "id": "CF-wenaa06j",
             "label": "Parameters (JSON)",
             "name": "parameters",
             "placeholder": "{}",
@@ -20,7 +20,6 @@
             "value_pattern_string": null
         }
     ],
-    "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
             "shared_modules/SHM-jlguerjr"
