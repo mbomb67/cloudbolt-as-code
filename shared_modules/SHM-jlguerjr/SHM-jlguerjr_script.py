@@ -54,6 +54,8 @@ also cites its doc):
   https://developer.hashicorp.com/terraform/cloud-docs/run/states
 - Plans (resource counts, log-read-url):
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans
+- Plan log format under structured run output (machine-readable UI):
+  https://developer.hashicorp.com/terraform/internals/machine-readable-ui
 - State version outputs:
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/state-version-outputs
 - Projects / OAuth clients / OAuth tokens:
@@ -143,6 +145,10 @@ NO_CODE_WORKSPACE_NAME_PREFIX = "cb-nc-"
 # the log (terraform's change summary lives in the final lines), and drop any
 # line matching a secret pattern below before it reaches job output.
 PLAN_LOG_MAX_LINES = 200
+# Attribute-level plan (rendered from the plan JSON): cap the per-resource
+# section at this many lines, head-preserving; the summary line and output
+# changes always follow in full.
+PLAN_DIFF_MAX_LINES = 400
 PLAN_LOG_SECRET_PATTERNS = [
     r"ARM_CLIENT_SECRET",
     r"ARM_CLIENT_ID",
@@ -218,6 +224,10 @@ class TFCAuthError(TFCError):
 
 class TFCNotFoundError(TFCError):
     """404 from TFC -- the addressed object does not exist (or no access)."""
+
+
+class TFCPlanAccessError(TFCError):
+    """The plan JSON endpoint refused the token (needs workspace admin)."""
 
 
 class TFCConflictError(TFCError):
@@ -631,6 +641,685 @@ def _tail_excerpt(text, max_lines=PLAN_LOG_MAX_LINES):
     return "\n".join([header] + lines[-max_lines:])
 
 
+# HCP Terraform workspaces default to structured run output (the Workspaces
+# API's ``structured-run-output-enabled`` attribute, true unless a caller sets
+# it false). For those workspaces the archived plan log behind ``log-read-url``
+# is Terraform's machine-readable UI stream -- one JSON object per line after a
+# short plain-text preamble -- which is what TFC's own run page renders into
+# its plan view. Dumped raw into CloudBolt job output it is unreadable, so
+# ``_render_plan_log`` rewrites the stream into the shape of terraform's
+# human-readable CLI output. Plain-text lines (the preamble, or the whole log
+# for a workspace with structured output turned off) pass through unchanged,
+# so the renderer is a no-op for a human-readable log.
+#
+# The stream carries each resource's planned ACTION but not its attribute
+# diff, so this rendering lists the "# addr will be created" / "+ resource ..."
+# headers only. It is the FALLBACK view: get_plan_summary prefers the plan's
+# JSON output (_render_plan_json below), which has the values, whenever the
+# token may read it.
+# Docs: https://developer.hashicorp.com/terraform/internals/machine-readable-ui
+#       (message types, planned_change/change_summary/outputs/hook payloads)
+#       https://developer.hashicorp.com/terraform/cli/commands/validate
+#       (diagnostic object: severity, summary, detail, range, snippet)
+#       https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces
+#       (structured-run-output-enabled)
+_PLAN_LEGEND = [
+    ("+", "create"),
+    ("~", "update in-place"),
+    ("-", "destroy"),
+    ("-/+", "destroy and then create replacement"),
+    ("+/-", "create replacement and then destroy"),
+    ("<=", "read (data resources)"),
+]
+_PLAN_DELETE_REASONS = {
+    "delete_because_no_resource_config": "is not in configuration",
+    "delete_because_no_module": "its module is not in configuration",
+    "delete_because_wrong_repetition": "its count or for_each argument changed",
+    "delete_because_count_index": "its index is out of range for count",
+    "delete_because_each_key": "its key is not in the for_each map",
+}
+_OUTPUT_ACTION_SYMBOLS = {"create": "+", "update": "~", "delete": "-"}
+
+
+def _plan_action_phrase(action, reason):
+    """(header phrase, diff symbol) for a planned_change action, CLI wording."""
+    if action == "create":
+        return "will be created", "+"
+    if action == "update":
+        return "will be updated in-place", "~"
+    if action == "delete":
+        return "will be destroyed", "-"
+    if action == "replace":
+        if reason == "requested":
+            return "will be replaced, as requested", "-/+"
+        if reason == "tainted":
+            return "is tainted, so must be replaced", "-/+"
+        return "must be replaced", "-/+"
+    if action == "read":
+        return "will be read during apply", "<="
+    if action == "import":
+        return "will be imported", ""
+    if action == "forget":
+        return "will no longer be managed by Terraform, but will not be destroyed", "."
+    return "has planned action '{}'".format(action or "?"), ""
+
+
+def _is_data_address(address):
+    """True for a data-resource address, with any module.<name> prefixes stripped."""
+    parts = (address or "").split(".")
+    while len(parts) > 2 and parts[0] == "module":
+        parts = parts[2:]
+    return parts[:1] == ["data"]
+
+
+class _PlanLogRenderer(object):
+    """
+    Single pass over a plan log, rewriting machine-readable UI lines into
+    CLI-style text. planned_change and resource_drift messages are buffered
+    and emitted as one block -- legend, "Terraform will perform the following
+    actions:", one header per resource -- when the change_summary (or the
+    outputs message, or end of log) arrives, mirroring the CLI layout.
+    """
+
+    def __init__(self):
+        self._out = []
+        self._planned = []
+        self._symbols = []
+        self._drift = []
+
+    def feed(self, line):
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            self._out.append(line.rstrip())
+            return
+        try:
+            message = json.loads(stripped)
+        except ValueError:
+            self._out.append(line.rstrip())
+            return
+        if not isinstance(message, dict) or not ("type" in message or "@message" in message):
+            self._out.append(line.rstrip())
+            return
+        try:
+            self._render(message)
+        except Exception:  # noqa: BLE001 -- presentation only; never lose a line
+            self._out.append(line.rstrip())
+
+    def finish(self):
+        self._flush_plan()
+        return "\n".join(self._out)
+
+    # -- dispatch -------------------------------------------------------------
+
+    def _render(self, message):
+        mtype = message.get("type")
+        text = message.get("@message") or ""
+        if mtype in ("version", "refresh_complete"):
+            # The CLI prints neither: the preamble already names the version
+            # and refresh is reported by its "Refreshing state..." line.
+            return
+        if mtype == "planned_change":
+            self._buffer_planned_change(message.get("change") or {})
+        elif mtype == "resource_drift":
+            self._buffer_drift(message.get("change") or {})
+        elif mtype == "change_summary":
+            self._flush_plan()
+            self._out.extend(["", text])
+        elif mtype == "outputs":
+            self._flush_plan()
+            self._emit_outputs(message.get("outputs") or {})
+        elif mtype == "diagnostic":
+            self._emit_diagnostic(message.get("diagnostic") or {}, text)
+        elif text:
+            # log, init_output, apply_*/provision_*/ephemeral_op_* hooks and any
+            # newer type: terraform's own @message is already the CLI wording
+            # ("x: Refreshing state... [id=...]", "x: Still creating... [10s
+            # elapsed]", "Apply complete! Resources: ...").
+            self._out.append(text)
+        else:
+            self._out.append(json.dumps(message, sort_keys=True))
+
+    # -- plan block -----------------------------------------------------------
+
+    def _buffer_planned_change(self, change):
+        resource = change.get("resource") or {}
+        addr = resource.get("addr") or "?"
+        action = change.get("action") or ""
+        reason = change.get("reason") or ""
+        if action == "noop":
+            return
+        if action == "move":
+            previous = (change.get("previous_resource") or {}).get("addr") or "?"
+            self._planned.append(["  # {} has moved to {}".format(previous, addr)])
+            return
+        phrase, symbol = _plan_action_phrase(action, reason)
+        block = ["  # {} {}".format(addr, phrase)]
+        if action == "delete" and reason in _PLAN_DELETE_REASONS:
+            block.append("  # (because {} {})".format(addr, _PLAN_DELETE_REASONS[reason]))
+        elif action == "read":
+            block.append("  # (config refers to values not yet known)")
+        kind = "data" if _is_data_address(resource.get("resource") or addr) else "resource"
+        block.append('{:>3} {} "{}" "{}"'.format(
+            symbol, kind, resource.get("resource_type") or "?",
+            resource.get("resource_name") or "?",
+        ))
+        if symbol and symbol not in self._symbols:
+            self._symbols.append(symbol)
+        self._planned.append(block)
+
+    def _buffer_drift(self, change):
+        addr = (change.get("resource") or {}).get("addr") or "?"
+        verb = "has been deleted" if change.get("action") == "delete" else "has changed"
+        self._drift.append("  # {} {}".format(addr, verb))
+
+    def _flush_plan(self):
+        if self._drift:
+            self._out.extend([
+                "",
+                "Note: Objects have changed outside of Terraform",
+                "",
+                "Terraform detected the following changes made outside of Terraform "
+                "since the last \"terraform apply\":",
+                "",
+            ])
+            self._out.extend(self._drift)
+            self._drift = []
+        if not self._planned:
+            return
+        self._out.extend([
+            "",
+            "Terraform used the selected providers to generate the following execution",
+            "plan. Resource actions are indicated with the following symbols:",
+        ])
+        for symbol, description in _PLAN_LEGEND:
+            if symbol in self._symbols:
+                self._out.append("{:>3} {}".format(symbol, description))
+        self._out.extend(["", "Terraform will perform the following actions:"])
+        for block in self._planned:
+            self._out.append("")
+            self._out.extend(block)
+        self._planned = []
+        self._symbols = []
+
+    # -- outputs / diagnostics -----------------------------------------------
+
+    def _emit_outputs(self, outputs):
+        entries = [(name, value) for name, value in outputs.items() if isinstance(value, dict)]
+        if not entries:
+            return
+        # A planned outputs message carries only action + sensitive (no
+        # value); an applied one carries type + value.
+        planned = any("action" in value for _name, value in entries)
+        rows = []
+        for name, value in sorted(entries):
+            if planned:
+                action = value.get("action") or "noop"
+                if action == "noop":
+                    continue
+                rows.append("  {} {}".format(_OUTPUT_ACTION_SYMBOLS.get(action, "~"), name))
+            elif value.get("sensitive"):
+                rows.append("{} = (sensitive value)".format(name))
+            else:
+                rows.append("{} = {}".format(name, json.dumps(value.get("value"))))
+        if not rows:
+            return
+        self._out.extend(["", "Changes to Outputs:" if planned else "Outputs:"])
+        self._out.extend(rows)
+
+    def _emit_diagnostic(self, diagnostic, text):
+        severity = (diagnostic.get("severity") or "").lower()
+        label = {"error": "Error", "warning": "Warning"}.get(severity, severity.title() or "Diagnostic")
+        summary = diagnostic.get("summary") or text or ""
+        lines = ["{}: {}".format(label, summary)]
+        source_range = diagnostic.get("range") or {}
+        snippet = diagnostic.get("snippet") or {}
+        if source_range.get("filename"):
+            start = source_range.get("start") or {}
+            where = "  on {} line {}".format(source_range["filename"], start.get("line", "?"))
+            if snippet.get("context"):
+                where += ", in {}".format(snippet["context"])
+            lines.extend(["", where + ":"])
+            code = snippet.get("code")
+            if code is not None:
+                first = snippet.get("start_line") or start.get("line") or 0
+                for offset, code_line in enumerate(str(code).splitlines()):
+                    lines.append("  {:>3}: {}".format(first + offset, code_line))
+        detail = (diagnostic.get("detail") or "").strip()
+        if detail:
+            lines.append("")
+            lines.extend(detail.splitlines())
+        # Same box gutter the CLI draws; _PLAN_LOG_WARNING_RE tolerates it.
+        self._out.append("╷")
+        self._out.extend("│ " + line if line else "│" for line in lines)
+        self._out.append("╵")
+
+
+def _render_plan_log(log_text):
+    """
+    Rewrite a plan log's machine-readable UI lines (structured run output)
+    into CLI-style text; plain-text lines pass through unchanged. Never
+    raises: a line that cannot be rendered is kept verbatim.
+    """
+    renderer = _PlanLogRenderer()
+    for line in (log_text or "").splitlines():
+        renderer.feed(line)
+    return renderer.finish()
+
+
+# ---- Plan JSON: attribute-level diff ----------------------------------------
+# The plan's JSON representation is the only source of attribute VALUES, and
+# values are what make the approval gate reviewable: `size = "Standard_B2s"
+# -> "Standard_D2s_v3"` rather than just "will be updated in-place". TFC
+# serves it only to a user/team token with ADMIN access to the workspace
+# (the Owners team, the organization permission "Manage all workspaces", or
+# the project's Maintain/Admin role); without that the engine falls back to
+# the streamed log above and says so in job output. The renderer mirrors the
+# CLI's layout without a provider schema, so every nested value prints as an
+# attribute (`name = { ... }`) rather than a block (`name { ... }`).
+# Docs: https://developer.hashicorp.com/terraform/internals/json-format
+#       (resource_changes[]: address/mode/type/name/deposed/action_reason and
+#       change.actions/before/after/after_unknown/before_sensitive/
+#       after_sensitive/replace_paths/importing; output_changes; resource_drift)
+#       https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans#retrieve-the-json-execution-plan
+#       (GET /plans/:id/json-output: admin-level user or team token, never an
+#       organization token; temporary redirect valid one minute; 204 while
+#       the plan is still running)
+_PLAN_JSON_ACTIONS = {
+    ("create",): ("will be created", "+"),
+    ("update",): ("will be updated in-place", "~"),
+    ("delete",): ("will be destroyed", "-"),
+    ("delete", "create"): ("must be replaced", "-/+"),
+    ("create", "delete"): ("must be replaced", "+/-"),
+    ("read",): ("will be read during apply", "<="),
+    ("forget",): ("will no longer be managed by Terraform, but will not be destroyed", "."),
+}
+_PLAN_READ_REASONS = {
+    "read_because_config_unknown": "config refers to values not yet known",
+    "read_because_dependency_pending": "depends on a resource or a module with changes pending",
+}
+_DIFF_STATE_SYMBOLS = {"create": "+", "delete": "-", "update": "~", "same": " "}
+_DIFF_IMPORTANT_ATTRIBUTES = ("id", "name", "tags")
+_DIFF_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+_MISSING = object()
+
+
+def _marker_child(marker, key):
+    """
+    Child of an after_unknown / *_sensitive marker: those structures mirror
+    the value (True at a marked leaf, dict/list for partial marking, absent
+    when unmarked), and a bare True marks the whole subtree.
+    """
+    if marker is True:
+        return True
+    if isinstance(marker, dict):
+        return marker.get(key)
+    if isinstance(marker, list) and isinstance(key, int) and 0 <= key < len(marker):
+        return marker[key]
+    return None
+
+
+def _fmt_scalar(value):
+    """HCL-style literal for a leaf value (containers fall back to JSON)."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+def _diff_state(before, after, unknown):
+    """create / delete / update / same for one attribute or element."""
+    before_present = before is not _MISSING and before is not None
+    after_present = unknown is True or (after is not _MISSING and after is not None)
+    if not before_present and not after_present:
+        return "same"
+    if not before_present:
+        return "create"
+    if not after_present:
+        return "delete"
+    if unknown is True or before != after:
+        return "update"
+    return "same"
+
+
+def _is_scalar_list(values):
+    return isinstance(values, list) and not any(isinstance(v, (dict, list)) for v in values)
+
+
+class _PlanDiff(object):
+    """
+    Renders one resource (or output set) change into CLI-style diff lines.
+    Column rules follow the CLI: a body whose names sit at column N puts its
+    symbols at N-2, nests bodies at N+4, and closes at N-4.
+    """
+
+    def __init__(self, replace_paths=None):
+        self._replace = set()
+        for path in replace_paths or []:
+            if isinstance(path, list):
+                self._replace.add(tuple(path))
+
+    # -- rows --------------------------------------------------------------------
+
+    def _value_lines(self, state, before, after, unknown, sens_before, sens_after, name_col, path):
+        """
+        Lines for a row's value: the first continues the row's own line, the
+        rest are full lines. ``name_col`` is the column of the row's name.
+        """
+        note = " # forces replacement" if state == "update" and tuple(path) in self._replace else ""
+        if state == "same":
+            if sens_before is True:
+                return ["(sensitive value)"]
+            return self._side_lines(before, sens_before, name_col, path, "same")
+        if state == "create":
+            if unknown is True:
+                return ["(known after apply)"]
+            if sens_after is True:
+                return ["(sensitive value)"]
+            return self._side_lines(after, sens_after, name_col, path, "create")
+        if state == "delete":
+            if sens_before is True:
+                return ["(sensitive value) -> null"]
+            lines = self._side_lines(before, sens_before, name_col, path, "delete")
+            lines[-1] += " -> null"
+            return lines
+        # update
+        if sens_before is True or sens_after is True:
+            return ["(sensitive value)" + note]
+        if unknown is True:
+            return [_fmt_scalar(before) + " -> (known after apply)" + note]
+        if isinstance(before, dict) and isinstance(after, dict):
+            body = self._object_body(before, after, unknown, sens_before, sens_after, name_col + 4, path, "update")
+            return ["{" + note] + body + [" " * name_col + "}"]
+        if isinstance(before, list) and isinstance(after, list):
+            body = self._list_body(before, after, unknown, sens_before, sens_after, name_col + 4, path, "update")
+            return ["[" + note] + body + [" " * name_col + "]"]
+        return [_fmt_scalar(before) + " -> " + _fmt_scalar(after) + note]
+
+    def _side_lines(self, value, sensitive, name_col, path, mode):
+        """One side of a value (create/delete/same) rendered in full."""
+        if isinstance(value, dict):
+            if not value:
+                return ["{}"]
+            body = self._object_body(
+                value if mode != "create" else _MISSING,
+                value if mode != "delete" else _MISSING,
+                None, sensitive if mode != "create" else None,
+                sensitive if mode != "delete" else None, name_col + 4, path, mode,
+            )
+            return ["{"] + body + [" " * name_col + "}"]
+        if isinstance(value, list):
+            if not value:
+                return ["[]"]
+            body = self._list_body(
+                value if mode != "create" else _MISSING,
+                value if mode != "delete" else _MISSING,
+                None, sensitive if mode != "create" else None,
+                sensitive if mode != "delete" else None, name_col + 4, path, mode,
+            )
+            return ["["] + body + [" " * name_col + "]"]
+        return [_fmt_scalar(value)]
+
+    def _format_rows(self, rows, name_col):
+        """rows: (state, key_text, before, after, unknown, sens_b, sens_a, path)."""
+        width = max(len(row[1]) for row in rows) if rows else 0
+        lines = []
+        for state, key_text, before, after, unknown, sens_b, sens_a, path in rows:
+            value = self._value_lines(state, before, after, unknown, sens_b, sens_a, name_col, path)
+            lines.append("{}{} {:<{width}} = {}".format(
+                " " * (name_col - 2), _DIFF_STATE_SYMBOLS[state], key_text, value[0], width=width,
+            ))
+            lines.extend(value[1:])
+        return lines
+
+    def _object_body(self, before, after, unknown, sens_before, sens_after, name_col, path, mode):
+        before_map = before if isinstance(before, dict) else {}
+        after_map = after if isinstance(after, dict) else {}
+        keys = set(before_map) | set(after_map)
+        if isinstance(unknown, dict):
+            keys |= set(unknown)
+        rows, hidden = [], 0
+        for key in sorted(keys, key=str):
+            b = before_map.get(key, _MISSING)
+            a = after_map.get(key, _MISSING)
+            child_unknown = _marker_child(unknown, key)
+            child_sb = _marker_child(sens_before, key)
+            child_sa = _marker_child(sens_after, key)
+            if mode == "create":
+                if _diff_state(_MISSING, a, child_unknown) == "same" and child_sa is not True:
+                    continue  # unset optional attribute
+                state = "create"
+            elif mode == "delete":
+                if b is _MISSING or b is None:
+                    continue
+                state = "delete"
+            elif mode == "same":
+                if b is _MISSING or b is None:
+                    continue
+                state = "same"
+            else:
+                state = _diff_state(b, a, child_unknown)
+                if state == "same":
+                    if b is _MISSING or b is None:
+                        continue
+                    if key not in _DIFF_IMPORTANT_ATTRIBUTES:
+                        hidden += 1
+                        continue
+            key_text = str(key) if _DIFF_IDENTIFIER_RE.match(str(key)) else json.dumps(str(key))
+            rows.append((state, key_text, b, a, child_unknown, child_sb, child_sa, tuple(path) + (key,)))
+        # Sort like the CLI: scalars first, then nested values, each alphabetical.
+        rows.sort(key=lambda row: (isinstance(row[2] if row[2] is not _MISSING else row[3], (dict, list)), row[1]))
+        lines = self._format_rows(rows, name_col)
+        if hidden:
+            lines.append("{}# ({} unchanged attribute{} hidden)".format(
+                " " * name_col, hidden, "" if hidden == 1 else "s"))
+        return lines
+
+    def _list_body(self, before, after, unknown, sens_before, sens_after, name_col, path, mode):
+        before_list = before if isinstance(before, list) else []
+        after_list = after if isinstance(after, list) else []
+        pairs = []  # (state, index, b, a)
+        if mode == "create":
+            pairs = [("create", i, _MISSING, v) for i, v in enumerate(after_list)]
+        elif mode == "delete":
+            pairs = [("delete", i, v, _MISSING) for i, v in enumerate(before_list)]
+        elif mode == "same":
+            pairs = [("same", i, v, v) for i, v in enumerate(before_list)]
+        elif len(before_list) != len(after_list) and _is_scalar_list(before_list) and _is_scalar_list(after_list):
+            # Different lengths, scalar elements: show as removed/added values.
+            remaining = list(after_list)
+            for i, v in enumerate(before_list):
+                if v in remaining:
+                    remaining.remove(v)
+                    pairs.append(("same", i, v, v))
+                else:
+                    pairs.append(("delete", i, v, _MISSING))
+            pairs.extend(("create", len(before_list) + i, _MISSING, v) for i, v in enumerate(remaining))
+        else:
+            length = max(len(before_list), len(after_list),
+                         len(unknown) if isinstance(unknown, list) else 0)
+            for i in range(length):
+                b = before_list[i] if i < len(before_list) else _MISSING
+                a = after_list[i] if i < len(after_list) else _MISSING
+                pairs.append((_diff_state(b, a, _marker_child(unknown, i)), i, b, a))
+        lines, hidden = [], 0
+        for state, index, b, a in pairs:
+            if mode == "update" and state == "same":
+                hidden += 1
+                continue
+            value = self._value_lines(
+                state, b, a, _marker_child(unknown, index), _marker_child(sens_before, index),
+                _marker_child(sens_after, index), name_col, tuple(path) + (index,),
+            )
+            lines.append("{}{} {}".format(" " * (name_col - 2), _DIFF_STATE_SYMBOLS[state], value[0]))
+            lines.extend(value[1:])
+            lines[-1] += ","
+        if hidden:
+            lines.append("{}# ({} unchanged element{} hidden)".format(
+                " " * name_col, hidden, "" if hidden == 1 else "s"))
+        return lines
+
+    # -- resources / outputs -------------------------------------------------------
+
+    def resource_block(self, entry, header_phrase=None, header_symbol=None):
+        """
+        CLI-style block for one resource_changes / resource_drift entry, or
+        None for a no-op. Header wording comes from actions + action_reason
+        unless the caller supplies it (drift uses "has changed").
+        """
+        change = entry.get("change") or {}
+        actions = tuple(change.get("actions") or [])
+        importing = change.get("importing")
+        if actions in ((), ("no-op",)) and not importing:
+            return None
+        phrase, symbol = _PLAN_JSON_ACTIONS.get(actions, ("has planned actions {}".format(list(actions)), ""))
+        reason = entry.get("action_reason") or ""
+        if reason == "replace_by_request":
+            phrase = "will be replaced, as requested"
+        elif reason == "replace_because_tainted":
+            phrase = "is tainted, so must be replaced"
+        if importing:
+            phrase = "will be imported" if actions in ((), ("no-op",)) else "will be imported and " + phrase
+            symbol = "" if actions in ((), ("no-op",)) else symbol
+        if header_phrase is not None:
+            phrase, symbol = header_phrase, header_symbol
+        address = entry.get("address") or "?"
+        if entry.get("deposed"):
+            address = "{} (deposed object {})".format(address, entry["deposed"])
+        lines = ["  # {} {}".format(address, phrase)]
+        if reason in _PLAN_DELETE_REASONS:
+            lines.append("  # (because {} {})".format(address, _PLAN_DELETE_REASONS[reason]))
+        elif reason in _PLAN_READ_REASONS:
+            lines.append("  # ({})".format(_PLAN_READ_REASONS[reason]))
+        if importing and isinstance(importing, dict) and importing.get("id"):
+            lines.append("  # (imported from \"{}\")".format(importing["id"]))
+        kind = "data" if entry.get("mode") == "data" else "resource"
+        lines.append('{:>3} {} "{}" "{}" {{'.format(
+            symbol, kind, entry.get("type") or "?", entry.get("name") or "?"))
+        if "create" in actions and "delete" not in actions or actions == ("read",):
+            mode = "create"
+        elif actions == ("delete",):
+            mode = "delete"
+        else:
+            mode = "update"
+        lines.extend(self._object_body(
+            change.get("before"), change.get("after"), change.get("after_unknown"),
+            change.get("before_sensitive"), change.get("after_sensitive"), 8, (), mode,
+        ))
+        lines.append("    }")
+        return lines, symbol
+
+    def output_lines(self, output_changes):
+        rows = []
+        for name in sorted(output_changes or {}):
+            change = output_changes[name] or {}
+            actions = tuple(change.get("actions") or [])
+            state = {("create",): "create", ("update",): "update", ("delete",): "delete"}.get(actions)
+            if state is None:
+                continue
+            rows.append((
+                state, name,
+                change.get("before", _MISSING) if state != "create" else _MISSING,
+                change.get("after", _MISSING) if state != "delete" else _MISSING,
+                change.get("after_unknown"), change.get("before_sensitive"),
+                change.get("after_sensitive"), ("output", name),
+            ))
+        return self._format_rows(rows, 4)
+
+
+def _render_plan_json(plan):
+    """
+    CLI-style plan text from the plan's JSON representation: drift note,
+    legend, one attribute-level block per changed resource, the "Plan: ..."
+    summary line, and "Changes to Outputs:". The resource section is capped
+    at PLAN_DIFF_MAX_LINES (head-preserving, with a truncation notice); the
+    summary and outputs always follow in full.
+    """
+    resource_changes = plan.get("resource_changes") or []
+    lines = []
+
+    drift_blocks = []
+    for entry in plan.get("resource_drift") or []:
+        actions = tuple(((entry.get("change") or {}).get("actions")) or [])
+        phrase = "has been deleted" if actions == ("delete",) else "has changed"
+        rendered = _PlanDiff().resource_block(entry, phrase, "-" if actions == ("delete",) else "~")
+        if rendered:
+            drift_blocks.append(rendered[0])
+    if drift_blocks:
+        lines.extend([
+            "Note: Objects have changed outside of Terraform",
+            "",
+            "Terraform detected the following changes made outside of Terraform since the",
+            "last \"terraform apply\" which may have affected this plan:",
+        ])
+        for block in drift_blocks:
+            lines.append("")
+            lines.extend(block)
+        lines.append("")
+
+    blocks, symbols = [], []
+    counts = {"import": 0, "add": 0, "change": 0, "destroy": 0}
+    for entry in resource_changes:
+        change = entry.get("change") or {}
+        rendered = _PlanDiff(change.get("replace_paths")).resource_block(entry)
+        if not rendered:
+            continue
+        block, symbol = rendered
+        blocks.append(block)
+        if symbol and symbol not in symbols:
+            symbols.append(symbol)
+        actions = tuple(change.get("actions") or [])
+        if entry.get("mode") != "data":
+            if change.get("importing"):
+                counts["import"] += 1
+            if "create" in actions:
+                counts["add"] += 1
+            if actions == ("update",):
+                counts["change"] += 1
+            if "delete" in actions:
+                counts["destroy"] += 1
+
+    diff = _PlanDiff()
+    output_rows = diff.output_lines(plan.get("output_changes") or {})
+
+    if blocks:
+        lines.extend([
+            "Terraform used the selected providers to generate the following execution",
+            "plan. Resource actions are indicated with the following symbols:",
+        ])
+        for symbol, description in _PLAN_LEGEND:
+            if symbol in symbols:
+                lines.append("{:>3} {}".format(symbol, description))
+        lines.extend(["", "Terraform will perform the following actions:"])
+        body = []
+        for block in blocks:
+            body.append("")
+            body.extend(block)
+        if len(body) > PLAN_DIFF_MAX_LINES:
+            dropped = len(body) - PLAN_DIFF_MAX_LINES
+            body = body[:PLAN_DIFF_MAX_LINES] + [
+                "", "  ... ({} more line(s) truncated; full plan at the TFC run URL) ...".format(dropped),
+            ]
+        lines.extend(body)
+        summary = "Plan: "
+        if counts["import"]:
+            summary += "{} to import, ".format(counts["import"])
+        summary += "{} to add, {} to change, {} to destroy.".format(
+            counts["add"], counts["change"], counts["destroy"])
+        lines.extend(["", summary])
+    elif not output_rows:
+        lines.append("No changes. Your infrastructure matches the configuration.")
+
+    if output_rows:
+        lines.extend(["", "Changes to Outputs:"])
+        lines.extend(output_rows)
+    return "\n".join(lines)
+
+
 # Terraform prints diagnostics (warnings) in its human-readable plan log with a
 # "Warning:" summary line -- e.g. "Warning: Value for undeclared variable",
 # which is what a mistyped workspace-variable name produces when its real target
@@ -783,12 +1472,16 @@ class TFCClient(object):
 
     # -- low-level ------------------------------------------------------------
 
-    def _request(self, method, path, json_body=None, params=None, allowed_statuses=()):
+    def _request(self, method, path, json_body=None, params=None, allowed_statuses=(),
+                 allow_redirects=True):
         """
         Issue one API call with bounded retries. Returns the response for
         2xx (and any status in ``allowed_statuses``); raises a classified
         TFCError subclass otherwise. Error text comes from the JSON:API
-        ``errors[]`` objects -- never from request headers.
+        ``errors[]`` objects -- never from request headers. With
+        ``allow_redirects=False`` a 3xx answer is returned as-is (the plan
+        JSON endpoint redirects to a pre-signed URL that must be fetched
+        tokenless -- see get_plan_json).
 
         Two independent retry budgets:
         - 429 (any method): honors X-RateLimit-Reset plus jitter, bounded by
@@ -810,6 +1503,7 @@ class TFCClient(object):
                 response = self._session.request(
                     method, url, json=json_body, params=params,
                     timeout=HTTP_REQUEST_TIMEOUT_SECONDS,
+                    allow_redirects=allow_redirects,
                 )
             except requests.RequestException as exc:
                 # str(exc) on connection errors never includes headers.
@@ -1848,13 +2542,15 @@ class TFCClient(object):
         """
         Plan summary for a run: resource add/change/destroy COUNTS first,
         then (optionally) a tail-preserving, secret-stripped excerpt of the
-        human-readable plan log. The pre-signed ``log-read-url`` is consumed
+        plan log rendered CLI-style (structured run output is a JSON stream;
+        see ``_render_plan_log``). The pre-signed ``log-read-url`` is consumed
         internally and never returned -- it grants unauthenticated log access
         for its validity window, so it must never reach job output.
 
-        The structured json-output endpoint is deliberately not used: it
-        requires workspace-admin token access and answers with a redirect
-        URL valid for one minute.
+        ``diff`` is the CLI-style, attribute-level plan rendered from the
+        plan's JSON output (see get_plan_json). When that endpoint refuses
+        the token, ``diff`` is "" and ``diff_forbidden`` / ``diff_error``
+        say why, so the engine falls back to ``log_excerpt`` with a hint.
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans
               (GET /plans/:id; attributes resource-additions,
               resource-changes, resource-destructions, status, log-read-url)
@@ -1869,6 +2565,9 @@ class TFCClient(object):
             "plan_status": None,
             "log_excerpt": "",
             "warnings": "",
+            "diff": "",
+            "diff_error": "",
+            "diff_forbidden": False,
         }
         if not plan_id:
             self._log.warning("TFC run %s has no plan relationship yet.", run_id)
@@ -1880,10 +2579,30 @@ class TFCClient(object):
         summary["destructions"] = attributes.get("resource-destructions")
         summary["plan_status"] = attributes.get("status")
         if include_log:
+            try:
+                plan_json = self.get_plan_json(plan_id)
+            except TFCPlanAccessError as exc:
+                summary["diff_forbidden"] = True
+                summary["diff_error"] = _safe_text(exc)
+                self._log.warning("Plan JSON for run %s refused: %s", run_id, exc)
+            except TFCError as exc:
+                summary["diff_error"] = _safe_text(exc)
+                self._log.warning("Plan JSON unavailable for run %s: %s", run_id, exc)
+            else:
+                try:
+                    summary["diff"] = _redact_plan_log(_render_plan_json(plan_json))
+                except Exception as exc:  # noqa: BLE001 -- presentation must never block the gate
+                    summary["diff_error"] = "the plan JSON could not be rendered ({})".format(
+                        type(exc).__name__
+                    )
+                    self._log.warning("Plan JSON for run %s not rendered: %r", run_id, exc)
             log_read_url = attributes.get("log-read-url")
             if log_read_url:
                 try:
-                    raw_log = self._fetch_plan_log(log_read_url)
+                    # Structured run output arrives as JSON lines; render it
+                    # CLI-style BEFORE the warning scan and the tail cap so
+                    # both see human-readable lines (see _render_plan_log).
+                    raw_log = _render_plan_log(self._fetch_presigned_object(log_read_url))
                     # R3: surface terraform's own "Warning:" lines (e.g. "Value
                     # for undeclared variable" from a mistyped variable name
                     # whose real target still has a .tf default, so the plan
@@ -1905,18 +2624,60 @@ class TFCClient(object):
                     )
         return summary
 
-    def _fetch_plan_log(self, log_read_url):
+    def get_plan_json(self, plan_id):
         """
-        Fetch the human-readable plan log from its pre-signed URL. The fetch
-        is TOKENLESS (plain requests, not the authorized session -- the URL
-        embeds its own grant and the bearer token must not leak to the log
-        store). Each URL must be https with a host on
+        The plan's JSON representation (resource_changes, resource_drift,
+        output_changes, ...) -- the only source of attribute values. TFC
+        serves it to a user or team token with ADMIN access to the workspace
+        and never to an organization token; the answer is a temporary
+        redirect (URL valid one minute) to the object store, followed
+        TOKENLESS with the same allowlist and redirect rules as the plan
+        log. Raises TFCPlanAccessError on 401/403/404 (TFC masks forbidden
+        objects as 404) so callers can fall back with a permissions hint,
+        and TFCError otherwise (204: plan not finished; bad redirect;
+        unparseable body).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans#retrieve-the-json-execution-plan
+        """
+        path = "/plans/{}/json-output".format(plan_id)
+        response = self._request(
+            "GET", path, allowed_statuses=(204, 401, 403, 404), allow_redirects=False,
+        )
+        status = response.status_code
+        if status in (401, 403, 404):
+            raise TFCPlanAccessError(
+                "GET {} -> HTTP {} (HCP Terraform serves the plan JSON only to a "
+                "user or team token with admin access to the workspace).".format(path, status)
+            )
+        if status == 204:
+            raise TFCError("GET {} -> HTTP 204: the plan JSON is not ready yet.".format(path))
+        if status in (301, 302, 303, 307, 308):
+            location = response.headers.get("Location")
+            if not location:
+                raise TFCError("GET {} redirected without a Location header.".format(path))
+            body = self._fetch_presigned_object(urljoin(self._base_url, location))
+        else:
+            body = response.text
+        try:
+            plan = json.loads(body)
+        except ValueError:
+            raise TFCError("GET {} did not return valid JSON.".format(path))
+        if not isinstance(plan, dict):
+            raise TFCError("GET {} returned an unexpected JSON shape.".format(path))
+        return plan
+
+    def _fetch_presigned_object(self, presigned_url):
+        """
+        Fetch a pre-signed object -- the plan log (``log-read-url``) or the
+        plan JSON (json-output redirect) -- from its URL. The fetch is
+        TOKENLESS (plain requests, not the authorized session -- the URL
+        embeds its own grant and the bearer token must not leak to the
+        object store). Each URL must be https with a host on
         PLAN_LOG_HOST_ALLOWLIST; redirects are NOT auto-followed and every
         redirect Location is re-validated against the same allowlist.
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/plans
               (log-read-url sample: https://archivist.terraform.io/v1/object/...)
         """
-        current_url = log_read_url
+        current_url = presigned_url
         for _hop in range(PLAN_LOG_MAX_REDIRECTS + 1):
             _validate_log_url(current_url)
             try:
@@ -1932,21 +2693,21 @@ class TFCClient(object):
                 # only the exception class name so the grant never reaches the
                 # raised message, the warning log, or the group-visible excerpt.
                 raise TFCError(
-                    "Plan log fetch failed ({}).".format(type(exc).__name__)
+                    "Pre-signed object fetch failed ({}).".format(type(exc).__name__)
                 )
             if response.status_code in (301, 302, 303, 307, 308):
                 location = response.headers.get("Location")
                 if not location:
-                    raise TFCError("Plan log fetch redirected without a Location header.")
+                    raise TFCError("Pre-signed object fetch redirected without a Location header.")
                 current_url = urljoin(current_url, location)
                 continue
             if response.status_code != 200:
                 raise TFCError(
-                    "Plan log fetch returned HTTP {}.".format(response.status_code)
+                    "Pre-signed object fetch returned HTTP {}.".format(response.status_code)
                 )
             return response.text
         raise TFCError(
-            "Plan log fetch exceeded {} redirects.".format(PLAN_LOG_MAX_REDIRECTS)
+            "Pre-signed object fetch exceeded {} redirects.".format(PLAN_LOG_MAX_REDIRECTS)
         )
 
     # -- state outputs ----------------------------------------------------------
@@ -2473,11 +3234,34 @@ def _drive_run(job, client, run_id, run_url, auto_confirm):
                 "{}".format(summary["warnings"]),
                 tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS,
             )
-        if summary["log_excerpt"]:
+        if summary["diff"]:
+            job.set_progress(
+                "Terraform plan:\n{}".format(summary["diff"]),
+                tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS,
+            )
+        elif summary["log_excerpt"]:
             job.set_progress(
                 "Terraform plan log (tail):\n{}".format(summary["log_excerpt"]),
                 tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS,
             )
+        if not summary["diff"] and summary["diff_error"]:
+            # The attribute-level view needs workspace admin on the token;
+            # tell the approver what unlocks it rather than failing silently.
+            if summary["diff_forbidden"]:
+                hint = (
+                    "Attribute-level diffs are not shown for this plan: {} Grant the "
+                    "team behind the '{}'-labeled ConnectionInfo admin access to the "
+                    "workspace -- the Owners team, the organization permission 'Manage "
+                    "all workspaces', or the project's Maintain role -- and every future "
+                    "approval gate will list each resource's attribute changes here. "
+                    "Until then, review the full diff at the TFC run URL above."
+                ).format(summary["diff_error"], CONNECTION_INFO_LABEL)
+            else:
+                hint = (
+                    "Attribute-level diffs are not shown for this plan ({}). Review "
+                    "the full diff at the TFC run URL above."
+                ).format(summary["diff_error"])
+            job.set_progress(hint, tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS)
         job.set_progress(
             "PAUSING for plan approval. 'Continue Job' approves and applies "
             "this plan; canceling the job rejects it and discards TFC run "

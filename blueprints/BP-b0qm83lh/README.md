@@ -31,7 +31,7 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 4. Re-enter the team token in every `tf-cloud` ConnectionInfo after each sync.
 
 ## Notes
-- Approval gate: the job pauses after `terraform plan` with add/change/destroy counts, a warnings block, a plan excerpt, and the TFC run URL. Continue Job applies; canceling discards the run (resource ends `PROVFAILED` with its workspace ID stored). The wait is bounded by the global `job_timeout` preference.
+- Approval gate: the job pauses after `terraform plan` with add/change/destroy counts, a warnings block, the plan in Terraform CLI style with attribute-level diffs (needs workspace admin on the team token; otherwise resource actions only, plus a hint naming the permission to grant), and the TFC run URL. Continue Job applies; canceling discards the run (resource ends `PROVFAILED` with its workspace ID stored). The wait is bounded by the global `job_timeout` preference.
 - The environment is re-checked server-side at run time against `group.get_available_environments()`; the webhook checks group membership and environment entitlement on every call.
 - Terraform Update edits values of variables the deployment already manages; Resize changes only `vm_size`. Both fail fast if the workspace has a pending run.
 - Teardown runs an auto-confirmed destroy, then safe-deletes the workspace. A missing workspace is a WARNING, so PROVFAILED resources clean up.
