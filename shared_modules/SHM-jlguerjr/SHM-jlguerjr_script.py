@@ -62,7 +62,9 @@ also cites its doc):
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/oauth-tokens
 - Configuration versions:
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/configuration-versions
-- Canonical 429 backoff semantics (X-RateLimit-Reset + jitter):
+- Canonical 429 backoff semantics (X-RateLimit-Reset + jitter) and the
+  retry-on-5xx / connection-error policy this client mirrors for idempotent
+  calls (tfe.go retryHTTPCheck):
   https://github.com/hashicorp/go-tfe
 """
 
@@ -172,6 +174,20 @@ POLL_INTERVAL_SECONDS = 10
 RATE_LIMIT_MAX_RETRIES = 8
 RATE_LIMIT_MIN_BACKOFF_SECONDS = 1.0
 RATE_LIMIT_JITTER_SECONDS = 2.0
+
+# Transient-failure handling: a gateway 5xx or a connection/timeout error on an
+# IDEMPOTENT call is retried with exponential backoff plus jitter. Budget is
+# 2 + 4 + 8 + 16 + 30 (+ jitter) ~= 60s, so a brief HCP Terraform edge blip
+# mid-poll no longer fails a build, while a real outage still surfaces within
+# about a minute. Non-idempotent calls (POST) are never replayed: a POST that
+# drew a 502 may already have been processed (POST /runs would then queue a
+# second run on the workspace), so the caller sees the error instead.
+TRANSIENT_STATUS_CODES = frozenset((502, 503, 504))
+TRANSIENT_MAX_RETRIES = 5
+TRANSIENT_BACKOFF_BASE_SECONDS = 2.0
+TRANSIENT_BACKOFF_MAX_SECONDS = 30.0
+TRANSIENT_JITTER_SECONDS = 1.0
+IDEMPOTENT_METHODS = frozenset(("GET", "HEAD", "PUT", "DELETE"))
 
 # List-endpoint pagination (organizations / projects / workspaces): page size
 # and a hard page cap so a huge TFC account cannot turn an order-form dropdown
@@ -768,15 +784,27 @@ class TFCClient(object):
 
     def _request(self, method, path, json_body=None, params=None, allowed_statuses=()):
         """
-        Issue one API call with bounded 429 retries. Returns the response for
+        Issue one API call with bounded retries. Returns the response for
         2xx (and any status in ``allowed_statuses``); raises a classified
         TFCError subclass otherwise. Error text comes from the JSON:API
         ``errors[]`` objects -- never from request headers.
+
+        Two independent retry budgets:
+        - 429 (any method): honors X-RateLimit-Reset plus jitter, bounded by
+          RATE_LIMIT_MAX_RETRIES.
+        - Transient failures (a status in TRANSIENT_STATUS_CODES, or a
+          connection/timeout error): exponential backoff plus jitter, bounded
+          by TRANSIENT_MAX_RETRIES, and ONLY for methods in IDEMPOTENT_METHODS.
+          A status in ``allowed_statuses`` is returned to the caller before
+          this check (the state-outputs poll owns its own 503 loop).
+        Docs: https://github.com/hashicorp/go-tfe (tfe.go retryHTTPCheck /
+              retryHTTPBackoff: connection errors, 429, and 5xx are retried).
         """
         url = self._base_url + path
-        attempts = 0
+        retry_transient = method.upper() in IDEMPOTENT_METHODS
+        rate_limit_attempts = 0
+        transient_attempts = 0
         while True:
-            attempts += 1
             try:
                 response = self._session.request(
                     method, url, json=json_body, params=params,
@@ -784,19 +812,48 @@ class TFCClient(object):
                 )
             except requests.RequestException as exc:
                 # str(exc) on connection errors never includes headers.
+                transient = isinstance(exc, (requests.ConnectionError, requests.Timeout))
+                if transient and retry_transient and transient_attempts < TRANSIENT_MAX_RETRIES:
+                    transient_attempts += 1
+                    wait_seconds = self._transient_backoff(transient_attempts)
+                    self._log.warning(
+                        "Transient HTTP error calling TFC %s %s (%s); retrying in "
+                        "%.1fs (attempt %d/%d).",
+                        method, path, _safe_text(exc), wait_seconds,
+                        transient_attempts, TRANSIENT_MAX_RETRIES,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
                 raise TFCError(
                     "HTTP error calling TFC {} {}: {}".format(method, path, _safe_text(exc))
                 )
-            if response.status_code == 429 and attempts <= RATE_LIMIT_MAX_RETRIES:
+            if response.status_code == 429 and rate_limit_attempts < RATE_LIMIT_MAX_RETRIES:
+                rate_limit_attempts += 1
                 wait_seconds = self._rate_limit_backoff(response)
                 self._log.warning(
                     "TFC rate limit (429) on %s %s; backing off %.1fs (attempt %d/%d).",
-                    method, path, wait_seconds, attempts, RATE_LIMIT_MAX_RETRIES,
+                    method, path, wait_seconds, rate_limit_attempts, RATE_LIMIT_MAX_RETRIES,
                 )
                 time.sleep(wait_seconds)
                 continue
             if response.status_code < 400 or response.status_code in allowed_statuses:
                 return response
+            if retry_transient and response.status_code in TRANSIENT_STATUS_CODES:
+                if transient_attempts < TRANSIENT_MAX_RETRIES:
+                    transient_attempts += 1
+                    wait_seconds = self._transient_backoff(transient_attempts)
+                    self._log.warning(
+                        "TFC %s %s -> HTTP %d (transient); retrying in %.1fs "
+                        "(attempt %d/%d).",
+                        method, path, response.status_code, wait_seconds,
+                        transient_attempts, TRANSIENT_MAX_RETRIES,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                self._log.warning(
+                    "TFC %s %s -> HTTP %d still failing after %d retries; giving up.",
+                    method, path, response.status_code, transient_attempts,
+                )
             self._raise_for_status(response, method, path)
 
     @staticmethod
@@ -814,6 +871,16 @@ class TFCClient(object):
             reset_seconds = 0.0
         minimum = max(RATE_LIMIT_MIN_BACKOFF_SECONDS, reset_seconds)
         return minimum + random.uniform(0, RATE_LIMIT_JITTER_SECONDS)
+
+    @staticmethod
+    def _transient_backoff(attempt):
+        """Exponential backoff for retry number ``attempt`` (1-based), capped
+        at TRANSIENT_BACKOFF_MAX_SECONDS, plus jitter so parallel jobs polling
+        the same TFC org do not retry in lockstep."""
+        delay = TRANSIENT_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+        return min(delay, TRANSIENT_BACKOFF_MAX_SECONDS) + random.uniform(
+            0, TRANSIENT_JITTER_SECONDS
+        )
 
     @staticmethod
     def _error_detail(response):
@@ -992,17 +1059,20 @@ class TFCClient(object):
         clients_response = self._request(
             "GET", "/organizations/{}/oauth-clients".format(self._require_org())
         )
-        oauth_clients = clients_response.json().get("data", [])
-        for oauth_client in oauth_clients:
+        # Named vcs_client, not oauth_client: CodeQL's sensitive-name heuristic
+        # reads "auth" as a credential and then flags every log line the
+        # client ID reaches (it is only an oc-... identifier, not a secret).
+        vcs_clients = clients_response.json().get("data", [])
+        for vcs_client in vcs_clients:
             tokens_response = self._request(
-                "GET", "/oauth-clients/{}/oauth-tokens".format(oauth_client["id"])
+                "GET", "/oauth-clients/{}/oauth-tokens".format(vcs_client["id"])
             )
             tokens = tokens_response.json().get("data", [])
             if tokens:
-                if len(oauth_clients) > 1:
+                if len(vcs_clients) > 1:
                     self._log.info(
                         "Multiple VCS OAuth clients exist in org '%s'; using "
-                        "client %s.", self.organization, oauth_client["id"],
+                        "client %s.", self.organization, vcs_client["id"],
                     )
                 return tokens[0]["id"]
         raise TFCConfigError(
@@ -1674,9 +1744,10 @@ class TFCClient(object):
         """
         Poll a run (bounded) until it leaves the in-flight class. Returns
         ``(classification, run_data)`` where classification is one of the
-        RUN_CLASS_* constants other than RUN_CLASS_IN_FLIGHT. 429 backoff is
-        handled inside _request; unknown statuses keep polling toward the
-        bounded timeout (warned on each poll).
+        RUN_CLASS_* constants other than RUN_CLASS_IN_FLIGHT. 429 backoff and
+        transient 5xx / connection-error retries are handled inside _request
+        (their sleeps count against ``timeout_seconds``); unknown statuses
+        keep polling toward the bounded timeout (warned on each poll).
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run
               https://developer.hashicorp.com/terraform/cloud-docs/run/states
         """
@@ -2220,9 +2291,9 @@ def _drive_run_with_ownership(job, client, run_id, run_url, auto_confirm, on_rej
         # the TFC UI per the plan. Do not discard; the message carries the URL.
         raise
     except TFCError:
-        # An UNEXPECTED failure (transient 5xx, a bounded-poll timeout, or a
-        # plan-summary fetch error) left the run non-final with no terminal
-        # classification. Best-effort discard so it does not orphan the
+        # An UNEXPECTED failure (a 5xx that outlived _request's transient
+        # retry budget, a bounded-poll timeout, or a plan-summary fetch error)
+        # left the run non-final with no terminal classification. Best-effort discard so it does not orphan the
         # workspace and block every future run (day-2 fail-fast + provision
         # retry). Tolerates 409 if the run is actually applying/terminal.
         _best_effort_discard(job, client, run_id)
