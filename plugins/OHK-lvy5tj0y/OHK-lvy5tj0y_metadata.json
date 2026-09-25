@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "JSON object of Terraform variable name/value pairs to apply. Pre-filled with this deployment's current variable values; edit any you want to change. Only variables this deployment already manages may be set here (unknown keys are rejected before anything is written); removing a key leaves that variable unchanged. Do not paste secrets into this plaintext field.",
+            "description": "Terraform variable name/value pairs to apply: a JSON object in the built-in dialog (pre-filled with this deployment's current values), or the variables panel of a custom action form. Only variables this deployment already manages may be set (unknown keys are rejected before anything is written); a missing or blank value leaves that variable unchanged. Do not paste secrets into this plaintext field: sensitive variables are never shown and a non-blank value for one is rejected.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -26,7 +26,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
     "id": "OHK-lvy5tj0y",
     "max_retries": 0,
     "name": "Terraform Update",

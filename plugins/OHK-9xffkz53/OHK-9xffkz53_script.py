@@ -5,7 +5,7 @@ Targeted single-variable update action for "HCP Terraform VM" deployments
 (BP-b0qm83lh): presents only the Azure VM size with the deployment's current
 size pre-selected, then applies the change through a new HCP Terraform (TFC)
 run with the same human plan-approval pause the build and the generic
-Terraform Update (OHK-lvy5tj0y) use. Demonstrates the narrow day-2 pattern
+Terraform Update (OHK-lvy5tj0y, shared by every HCP Terraform blueprint) use. Demonstrates the narrow day-2 pattern
 on the same shared engine (plan R7). All TFC REST access goes through the
 tfc_api shared module (shared_modules/SHM-jlguerjr) -- no vendor API call is
 made directly here.

@@ -89,7 +89,6 @@ Returns a 3-tuple: (status, output_msg, error_msg)
 import re
 
 from common.methods import set_progress
-from infrastructure.models import CustomField
 from utilities.logger import ThreadLogger
 
 from shared_modules.env_options import (
@@ -100,12 +99,16 @@ from shared_modules.env_options import (
     subscription_context,
 )
 from shared_modules.tfc_api import (
+    FIELD_VISIBILITY_ATTRIBUTE,
+    FIELD_VISIBILITY_HIDDEN,
+    FIELD_VISIBILITY_PARAMETER,
     RUN_CLASS_APPLIED,
     RUN_CLASS_NO_CHANGES,
     TFCError,
     TFCRunFailedError,
     build_run_message,
     collapse_key_value_rows,
+    ensure_custom_field,
     ensure_output_custom_fields,
     get_client,
     parse_params_payload,
@@ -168,7 +171,19 @@ def generate_options_for_env_id(field=None, **kwargs):
 
 def _ensure_custom_fields(variable_names, sensitive_names=()):
     """Pre-create the runtime custom fields this blueprint persists on its
-    Resource. get_or_create makes this idempotent.
+    Resource. ensure_custom_field (tfc_api) wraps get_or_create, so this is
+    idempotent, and the visibility below is a creation DEFAULT only -- an
+    admin's later change on the instance wins.
+
+    Visibility (where the value shows on the resource page):
+      * ATTRIBUTE -- Overview attributes panel + Parameters tab. Reserved for
+        the values an operator looks for first: the workspace and its last
+        run here, plus every tfc_output_* (ensure_output_custom_fields).
+      * PARAMETER -- Parameters tab only: the TFC coordinates, the Azure
+        subscription context, and the tfc_var_* mirrors of what the
+        deployment was built with.
+      * HIDDEN -- neither: bookkeeping the day-2 and teardown actions read
+        (connection ref, environment id, the variable-name sets).
 
     The coordinate fields (tfc_connection_info / tfc_organization /
     tfc_project / tfc_repo_identifier / tfc_branch / tfc_working_directory)
@@ -187,44 +202,59 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
     """
     fields = [
         ("tfc_workspace_id", "TFC Workspace ID",
-         "ID of the dedicated HCP Terraform workspace backing this deployment."),
+         "ID of the dedicated HCP Terraform workspace backing this deployment.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_workspace_name", "TFC Workspace Name",
-         "Name of the dedicated HCP Terraform workspace backing this deployment."),
+         "Name of the dedicated HCP Terraform workspace backing this deployment.",
+         FIELD_VISIBILITY_ATTRIBUTE),
         ("tfc_run_url", "TFC Run URL",
-         "URL of the most recent HCP Terraform run for this deployment."),
+         "URL of the most recent HCP Terraform run for this deployment.",
+         FIELD_VISIBILITY_ATTRIBUTE),
         ("tfc_connection_info", "TF Cloud Connection",
          "Global ID of the 'tf-cloud'-labeled ConnectionInfo this deployment "
-         "provisions through; read by the day-2 and teardown actions."),
+         "provisions through; read by the day-2 and teardown actions.",
+         FIELD_VISIBILITY_HIDDEN),
         ("tfc_organization", "TFC Organization",
-         "HCP Terraform organization this deployment's workspace lives in."),
+         "HCP Terraform organization this deployment's workspace lives in.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_project", "TFC Project",
-         "HCP Terraform project this deployment's workspace lives in."),
+         "HCP Terraform project this deployment's workspace lives in.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_repo_identifier", "TFC VCS Repo",
-         "VCS repo (org/name) the deployment's workspace tracks."),
+         "VCS repo (org/name) the deployment's workspace tracks.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_branch", "TFC VCS Branch",
-         "VCS branch the deployment's workspace tracks."),
+         "VCS branch the deployment's workspace tracks.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_working_directory", "TFC Working Directory",
-         "Terraform working directory within the VCS repo."),
+         "Terraform working directory within the VCS repo.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_env_id", "TFC Environment ID",
          "ID of the CloudBolt Environment this deployment was ordered into; "
-         "its Azure handler supplied the workspace's ARM_* variables."),
+         "its Azure handler supplied the workspace's ARM_* variables.",
+         FIELD_VISIBILITY_HIDDEN),
         ("azure_subscription_id", "Azure Subscription ID",
          "Azure subscription the deployment targets (from the environment's "
-         "resource handler)."),
+         "resource handler).",
+         FIELD_VISIBILITY_PARAMETER),
         ("azure_tenant_id", "Azure Tenant ID",
          "Azure tenant the deployment targets (from the environment's "
-         "resource handler)."),
+         "resource handler).",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_variable_names", "TFC Variable Names",
          "Comma-separated set of Terraform variables this deployment "
-         "manages; read by the day-2 actions."),
+         "manages; read by the day-2 actions.",
+         FIELD_VISIBILITY_HIDDEN),
         ("tfc_sensitive_variable_names", "TFC Sensitive Variable Names",
          "Comma-separated subset of tfc_variable_names written to the TFC "
          "workspace as sensitive. These have no tfc_var_* mirror and the "
-         "day-2 actions refuse to edit them."),
+         "day-2 actions refuse to edit them.",
+         FIELD_VISIBILITY_HIDDEN),
         ("tfc_hcl_variable_names", "TFC HCL Variable Names",
          "Comma-separated subset of tfc_variable_names whose values are "
          "written to TFC as HCL (object/map/list) and mirrored as JSON; "
-         "read by the day-2 actions to round-trip them."),
+         "read by the day-2 actions to round-trip them.",
+         FIELD_VISIBILITY_HIDDEN),
     ]
     for variable_name in variable_names:
         if variable_name in sensitive_names:
@@ -234,17 +264,10 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
             "TFC Variable: {}".format(variable_name),
             "Mirror of the '{}' variable on this deployment's TFC "
             "workspace.".format(variable_name),
+            FIELD_VISIBILITY_PARAMETER,
         ))
-    for name, label, description in fields:
-        CustomField.objects.get_or_create(
-            name=name,
-            defaults=dict(
-                label=label,
-                description=description,
-                type="STR",
-                show_on_servers=False,
-            ),
-        )
+    for name, label, description, visibility in fields:
+        ensure_custom_field(name, label, description, visibility=visibility)
 
 
 def _config_version_progress(workspace_id):
