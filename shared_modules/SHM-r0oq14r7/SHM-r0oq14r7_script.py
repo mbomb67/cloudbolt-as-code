@@ -27,6 +27,7 @@ tenant-filtered unless the caller passes a cb_admin / global-viewer profile --
 so always pass the requesting profile and its tenant when you have them.
 """
 
+import json
 import re
 
 from accounts.models import Group
@@ -43,6 +44,9 @@ AZURE_SIZE_CF = "node_size"
 GROUP_GLOBAL_ID_RE = re.compile(r"(GRP-[a-z0-9]{8})")
 # BDI input-mapping names carry CloudBolt's per-hook suffix: <input>_a<hookid>.
 HOOK_INPUT_SUFFIX_RE = re.compile(r"_a\d+$")
+# Custom-form question names that feed a deployment item's plugin inputs:
+# plugin-<bdi global_id, lowercased>.<input> (e.g. plugin-bdi-t474vto9.env_id).
+FORM_INPUT_NAME_PREFIX = "plugin-{}."
 
 SOURCES = ("environment", "resource_group", "subnet", "os_image", "vm_size", "location")
 
@@ -150,13 +154,61 @@ def subscription_context(env):
 # Form support
 # -----------------------------------------------------------------------------
 
+def _custom_form_pins(service_item):
+    """Hidden pins for one deployment item in its blueprint's custom form:
+    {bare input name: defaultValue} for every question named
+    plugin-<bdi>.<input> with visible false (the shape AGENTS.md prescribes for
+    a pinned per-blueprint value). Visible questions are orderer-editable, not
+    pins, and are skipped. Returns {} when the blueprint has no custom form or
+    its schema does not parse. Model chain: ServiceItem.blueprint ->
+    ServiceBlueprint.custom_form (HasCustomFormMixin) -> CustomForm.json."""
+    blueprint = getattr(service_item, "blueprint", None)
+    custom_form = getattr(blueprint, "custom_form", None) if blueprint is not None else None
+    raw = getattr(custom_form, "json", None) if custom_form is not None else None
+    if not raw:
+        return {}
+    try:
+        schema = json.loads(raw) if isinstance(raw, str) else raw
+    except ValueError:
+        logger.warning(
+            "Custom form %s of blueprint %s is not valid JSON; ignoring its pins.",
+            getattr(custom_form, "global_id", "?"), getattr(blueprint, "global_id", "?"),
+        )
+        return {}
+    prefix = FORM_INPUT_NAME_PREFIX.format(str(service_item.global_id).lower())
+    pins = {}
+
+    def _walk(elements):
+        for element in elements or []:
+            if not isinstance(element, dict):
+                continue
+            name = str(element.get("name") or "")
+            if (
+                name.startswith(prefix)
+                and element.get("visible") is False
+                and "defaultValue" in element
+            ):
+                pins[name[len(prefix):]] = element["defaultValue"]
+            _walk(element.get("elements"))
+            _walk(element.get("templateElements"))
+
+    if isinstance(schema, dict):
+        for page in schema.get("pages") or []:
+            if isinstance(page, dict):
+                _walk(page.get("elements"))
+    return pins
+
+
 def service_item_defaults(bdi_global_id):
-    """The pinned parameter_defaults of a blueprint deployment item, keyed by
-    bare input name (the '_a<hookid>' suffix stripped). Lets a webhook read
-    per-blueprint coordinates (connection, module ID, ...) from the single
-    place they are pinned instead of duplicating them as hidden form fields.
-    Storage: ServiceItem.input_mappings -> RunHookInputMapping(hook_input,
-    default_value CFV)."""
+    """The pinned per-blueprint inputs of a plugin deployment item, keyed by
+    bare input name: the hidden plugin-<bdi>.<input> defaultValues of the
+    blueprint's custom form (what the plugin actually receives when a custom
+    form is attached -- CloudBolt then ignores the item's parameter_defaults)
+    overlaid on the item's own parameter_defaults (ServiceItem.input_mappings
+    -> RunHookInputMapping(hook_input, default_value CFV), '_a<hookid>' suffix
+    stripped), which cover blueprints without a custom form or that keep a BDI
+    copy. Lets a webhook read coordinates (connection, module ID, ...) from
+    where they are pinned instead of accepting them from the query string."""
     from servicecatalog.models import ServiceItem
     service_item = ServiceItem.objects.filter(global_id=str(bdi_global_id).strip()).first()
     if service_item is None:
@@ -173,6 +225,7 @@ def service_item_defaults(bdi_global_id):
             continue
         name = HOOK_INPUT_SUFFIX_RE.sub("", mapping.hook_input.name)
         defaults[name] = mapping.default_value.value
+    defaults.update(_custom_form_pins(service_item))
     return defaults
 
 

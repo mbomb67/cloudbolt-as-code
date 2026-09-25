@@ -17,28 +17,6 @@
             "execute_in_parallel": false,
             "id": "BDI-t474vto9",
             "name": "HCP Terraform No-Code Module",
-            "parameter_defaults": [
-                {
-                    "label": "TF Cloud Connection",
-                    "name": "tfc_connection_info_a398",
-                    "value": "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
-                },
-                {
-                    "label": "TFC Organization",
-                    "name": "tfc_organization_a398",
-                    "value": "FILL-ME (HCP Terraform organization name)"
-                },
-                {
-                    "label": "TFC Project",
-                    "name": "tfc_project_a398",
-                    "value": "FILL-ME (HCP Terraform project name)"
-                },
-                {
-                    "label": "TFC No-Code Module ID",
-                    "name": "tfc_nocode_module_id_a398",
-                    "value": "FILL-ME (no-code module ID, e.g. nocode-xxxxxxxxxxxxxxxx)"
-                }
-            ],
             "rate": null,
             "run_on_scale_up": false,
             "show_on_order_form": true,

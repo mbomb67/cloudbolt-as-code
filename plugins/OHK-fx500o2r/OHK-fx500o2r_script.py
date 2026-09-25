@@ -20,9 +20,11 @@ Query parameters (all strings; 'filter' and 'last' are reserved by the API):
                 except 'environment'.
   cf_name       with source=cf: the custom field whose env options to list.
   service_item  with source=tfc_variable_options: the build deployment item's
-                global ID (BDI-...). Its pinned parameter_defaults supply the
-                'tf-cloud' ConnectionInfo and the nocode-* module ID, so the
-                form never duplicates them.
+                global ID (BDI-...). The 'tf-cloud' ConnectionInfo and the
+                nocode-* module ID are read server-side from that item's
+                pins (env_options.service_item_defaults: the blueprint's
+                custom form hidden plugin-bdi-<id>.* defaults, else the
+                item's parameter_defaults), never from the query string.
   variable      with source=tfc_variable_options: the Terraform variable
                 whose admin-defined options to return.
 
@@ -86,8 +88,10 @@ def _param(parameters, name):
 
 def _tfc_variable_options(parameters):
     """Admin-defined allowed values for one variable of the no-code module a
-    blueprint is pinned to. The connection and module ID are read from the
-    deployment item's parameter_defaults, never from the query string."""
+    blueprint is pinned to. The connection and module ID are resolved
+    server-side from the deployment item's pins (its blueprint's custom form
+    hidden fields, else its parameter_defaults), never from the query
+    string."""
     service_item = _param(parameters, "service_item")
     variable = _param(parameters, "variable")
     if not service_item or not variable:
@@ -99,7 +103,8 @@ def _tfc_variable_options(parameters):
         return _fail(
             400,
             "Deployment item {} has no pinned tfc_connection_info / "
-            "tfc_nocode_module_id parameter_defaults.".format(service_item),
+            "tfc_nocode_module_id (hidden fields in its blueprint's custom "
+            "form, or parameter_defaults).".format(service_item),
         )
     client = get_options_client(connection_info)
     all_options = client.get_no_code_variable_options(module_id)
