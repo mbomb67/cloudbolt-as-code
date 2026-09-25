@@ -11,7 +11,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
-| [Plugins](#plugins) | 77 |
+| [Plugins](#plugins) | 76 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 4 |
@@ -64,11 +64,11 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Retrieve Pending Certificate | [RSA-7cjsqrwy](resource_actions/RSA-7cjsqrwy/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Revoke Access | [RSA-8zwsrcbv](resource_actions/RSA-8zwsrcbv/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Run SQL Command | [RSA-jaitfhwp](resource_actions/RSA-jaitfhwp/) | Runs a SQL command against the PostgreSQL server. | [Run SQL Command](plugins/OHK-4w05hdd3/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
-| Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
+| Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Test Postgres Connection | [RSA-9tfwebk7](resource_actions/RSA-9tfwebk7/) | Tests the connection to the PostgreSQL database. | [Test Postgres Connection](plugins/OHK-wr079u8q/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Update Bicep Deployment | [RSA-fa7r7cg7](resource_actions/RSA-fa7r7cg7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | [Update Bicep Deployment](plugins/OHK-9f45ede7/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | Update Tags | [RSA-kbikieh7](resource_actions/RSA-kbikieh7/) | Merges or replaces the tags on the Azure resource group. | [Update Tags](plugins/OHK-nwcyoto7/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
-| Update Variables | [RSA-qofayikp](resource_actions/RSA-qofayikp/) | Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause. | [Update Variables](plugins/OHK-oj87ukle/) | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
+| Update Variables | [RSA-qofayikp](resource_actions/RSA-qofayikp/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 
 ## Server actions
 
@@ -188,11 +188,10 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Teardown HCP Terraform No-Code Module | [OHK-y9d1uwhw](plugins/OHK-y9d1uwhw/) | Destroys the HCP Terraform workspace behind a no-code deployment with a destroy run and a safe workspace delete. | CloudBolt Plug-in | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | Teardown HCP Terraform VM | [OHK-2b9qu490](plugins/OHK-2b9qu490/) | Destroys the HCP Terraform workspace behind a VM deployment with a destroy run and a safe workspace delete. | CloudBolt Plug-in | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Teardown OpenShift Project Landing Zone | [OHK-mpe8fl3d](plugins/OHK-mpe8fl3d/) | Deletes the OpenShift project behind a landing zone and its CloudBolt environment once no managed servers remain. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
-| Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/) |
+| Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/), [Update Variables](resource_actions/RSA-qofayikp/) |
 | Test Postgres Connection | [OHK-wr079u8q](plugins/OHK-wr079u8q/) | Tests the connection to the PostgreSQL database. | CloudBolt Plug-in | [Test Postgres Connection](resource_actions/RSA-9tfwebk7/) |
 | Update Bicep Deployment | [OHK-9f45ede7](plugins/OHK-9f45ede7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | CloudBolt Plug-in | [Update Bicep Deployment](resource_actions/RSA-fa7r7cg7/) |
 | Update Tags | [OHK-nwcyoto7](plugins/OHK-nwcyoto7/) | Merges or replaces the tags on the Azure resource group. | CloudBolt Plug-in | [Update Tags](resource_actions/RSA-kbikieh7/) |
-| Update Variables | [OHK-oj87ukle](plugins/OHK-oj87ukle/) | Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause. | CloudBolt Plug-in | [Update Variables](resource_actions/RSA-qofayikp/) |
 
 ## Shared modules
 
@@ -209,7 +208,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
-| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/), [Update Variables](plugins/OHK-oj87ukle/) |
+| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
 | `windows_ca` | [SHM-nubxb8sn](shared_modules/SHM-nubxb8sn/) | Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation. | [Request Certificate (Windows CA)](plugins/OHK-67bw7wgu/), [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) |
 
 ## UI extensions

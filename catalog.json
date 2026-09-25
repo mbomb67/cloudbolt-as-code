@@ -1166,14 +1166,15 @@
     "id": "OHK-lvy5tj0y",
     "type": "plugins",
     "name": "Terraform Update",
-    "description": "Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
     "path": "plugins/OHK-lvy5tj0y",
     "readme": null,
     "uses": [
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
-      "resource_actions/RSA-dxrh4m6j"
+      "resource_actions/RSA-dxrh4m6j",
+      "resource_actions/RSA-qofayikp"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1217,21 +1218,6 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-kbikieh7"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
-    "id": "OHK-oj87ukle",
-    "type": "plugins",
-    "name": "Update Variables",
-    "description": "Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause.",
-    "path": "plugins/OHK-oj87ukle",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-jlguerjr"
-    ],
-    "used_by": [
-      "resource_actions/RSA-qofayikp"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1735,7 +1721,7 @@
     "id": "RSA-dxrh4m6j",
     "type": "resource_actions",
     "name": "Terraform Update",
-    "description": "Updates an HCP Terraform VM deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
     "path": "resource_actions/RSA-dxrh4m6j",
     "readme": null,
     "uses": [
@@ -1886,11 +1872,11 @@
     "id": "RSA-qofayikp",
     "type": "resource_actions",
     "name": "Update Variables",
-    "description": "Updates an HCP Terraform no-code deployment's variables from a JSON object and runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
     "path": "resource_actions/RSA-qofayikp",
     "readme": null,
     "uses": [
-      "plugins/OHK-oj87ukle"
+      "plugins/OHK-lvy5tj0y"
     ],
     "used_by": [
       "blueprints/BP-00meiwwz"
@@ -2086,8 +2072,7 @@
       "plugins/OHK-9xffkz53",
       "plugins/OHK-y9d1uwhw",
       "plugins/OHK-2b9qu490",
-      "plugins/OHK-lvy5tj0y",
-      "plugins/OHK-oj87ukle"
+      "plugins/OHK-lvy5tj0y"
     ]
   },
   {

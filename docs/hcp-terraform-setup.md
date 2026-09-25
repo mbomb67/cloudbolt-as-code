@@ -138,6 +138,14 @@ Where each value lives:
 | Template variables | the order form's variables panel | orderer |
 | State outputs | none: every output in the applied state is recorded as `tfc_output_<name>` | - |
 
+What the build records on the resource, and where it shows. These are creation defaults set by `ensure_custom_field` in the `tfc_api` shared module; a field that already exists keeps its flags, so adjust *Show on Servers* / *Show as Attribute* under *Admin > Parameters* to change the split on a running instance.
+
+| Shown | Fields |
+|---|---|
+| Overview attributes panel and Parameters tab | `tfc_workspace_name`, `tfc_run_url`, every `tfc_output_<name>` |
+| Parameters tab | `tfc_workspace_id`, `tfc_organization`, `tfc_project`, `tfc_repo_identifier`, `tfc_branch`, `tfc_working_directory`, `azure_subscription_id`, `azure_tenant_id`, every `tfc_var_<name>` |
+| Hidden | `tfc_connection_info`, `tfc_env_id`, `tfc_variable_names`, `tfc_sensitive_variable_names`, `tfc_hcl_variable_names` |
+
 ### 8a. Account-level: nothing to edit
 
 `tfc_api` has no instance-specific values. The CloudBolt URL recorded on each workspace (its "source" link back to CloudBolt) is taken at run time from the portal the order was placed on, falling back to the default portal. Set the portal's site URL under *Admin > Portals* if the link should differ from the domain users log in with.
@@ -271,6 +279,6 @@ Quick smoke checklist before handing the instance over (the full lifecycle pass 
 - [ ] The hidden `plugin-bdi-lwys1ug9.*` fields in `forms/FRM-t3v8zpb7/FRM-t3v8zpb7_metadata.json` pin connection, organization, project, repo and branch.
 - [ ] Ordering `BP-b0qm83lh` renders the **custom form**: group, an **Environment** dropdown listing only Azure environments the group may use, and a variables panel whose Resource Group / Subnet / VM Size / OS Image dropdowns fill once an environment is chosen (browser network tab: `form-options/run/` returns 200 with `options`).
 - [ ] After approval, the workspace in HCP shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as workspace environment variables matching the chosen environment's subscription.
-- [ ] After a first successful provision, the resource shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere).
+- [ ] After a first successful provision, the resource's Overview attributes panel shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere), and its Parameters tab lists the `tfc_var_<name>` mirrors of the submitted variables.
 - [ ] A `cb_admin` knows they own approvals (§10), reads the **⚠ Terraform warnings block** before approving (§10 — it is the only signal for a mistyped variable name), and knows where to find a paused job.
 - [ ] Whoever runs the jobengine knows the restart-recovery drill (§11).

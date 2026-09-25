@@ -4,7 +4,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "JSON object of Terraform variable name/value pairs to apply. Pre-filled with this deployment's current variable values; edit any you want to change. Only variables this deployment already manages may be set here (unknown keys are rejected before anything is written); removing a key leaves that variable unchanged. Do not paste secrets into this plaintext field. Sensitive variables are excluded and rejected if added; edit them in the TFC workspace instead.",
+            "description": "Terraform variable name/value pairs to apply: a JSON object in the built-in dialog (pre-filled with this deployment's current values), or the variables panel of a custom action form. Only variables this deployment already manages may be set (unknown keys are rejected before anything is written); a missing or blank value leaves that variable unchanged. Do not paste secrets into this plaintext field: sensitive variables are never shown and a non-blank value for one is rejected.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],

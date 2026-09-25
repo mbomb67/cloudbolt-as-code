@@ -7,7 +7,7 @@ Provisions a VM through HCP Terraform (TFC) using one dedicated, VCS-backed TFC 
 |---|---|---|
 | Build | OHK-pvo05e24 | HCP Terraform VM |
 | Teardown | OHK-2b9qu490 | Teardown HCP Terraform VM |
-| Day-2 action | RSA-dxrh4m6j | Terraform Update (hook OHK-lvy5tj0y) |
+| Day-2 action | RSA-dxrh4m6j | Terraform Update (hook OHK-lvy5tj0y, shared by every HCP Terraform blueprint) |
 | Day-2 action | RSA-e59s1v24 | Resize (hook OHK-9xffkz53) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
@@ -35,6 +35,6 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 - The environment is re-checked server-side at run time against `group.get_available_environments()`; the webhook checks group membership and environment entitlement on every call.
 - Terraform Update edits values of variables the deployment already manages; Resize changes only `vm_size`. Both fail fast if the workspace has a pending run.
 - Teardown runs an auto-confirmed destroy, then safe-deletes the workspace. A missing workspace is a WARNING, so PROVFAILED resources clean up.
-- Every non-sensitive Terraform output is recorded on the resource as `tfc_output_<name>`; mark secret-bearing outputs `sensitive = true`.
+- Every non-sensitive Terraform output is recorded on the resource as `tfc_output_<name>` and shown on its Overview; the submitted variables are recorded as `tfc_var_<name>` on its Parameters tab. Mark secret-bearing outputs `sensitive = true`.
 - If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.

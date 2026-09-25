@@ -7,7 +7,7 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 |---|---|---|
 | Build | OHK-axtt0yqq | HCP Terraform No-Code Module |
 | Teardown | OHK-y9d1uwhw | Teardown HCP Terraform No-Code Module |
-| Day-2 action | RSA-qofayikp | Update Variables (hook OHK-oj87ukle) |
+| Day-2 action | RSA-qofayikp | Update Variables (hook OHK-lvy5tj0y, the Terraform Update plugin shared by every HCP Terraform blueprint) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
 | Webhook | IWH-yj93is5z | Form Options (hook OHK-fx500o2r) |
