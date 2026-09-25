@@ -1100,6 +1100,8 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 
 > ⚠️ **A custom form bypasses the deployment item's `parameter_defaults`** (observed live, 2026-09). The plugin receives only what the form submits. Pin every per-blueprint value in the form as a hidden text question — `{"type": "text", "name": "plugin-bdi-<item>.<input>", "visible": false, "defaultValue": "<pinned value>", "isRequired": true}` (see `forms/FRM-t3v8zpb7`, `forms/FRM-84n18crj`). A BDI `parameter_defaults` copy is optional; if present, keep both copies identical. Dropdowns: a **declared plugin input** uses `choicesByUrl` against `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<item>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<item>` (runs `generate_options_for_<input>`); a field **inside a Dynamic Panel** is not a plugin input and needs an inbound webhook (§9) — `webhooks/IWH-yj93is5z` is the generic one. Element names in a panel named `plugin-bdi-<item>.parameters` are the keys of the dict the plugin's `parameters` input receives.
 
+> On a **resource or server action** the conventions differ (`action-input.<name>` question names, CMP-injected `object_id`, native `list[dict]` payloads, no server-side validation, no ID rewriting): see [plugin-templates.md](plugin-templates.md#custom-forms-on-resource-and-server-actions).
+
 - **Django model:** `customforms.CustomForm` at `customforms/models.py:13`.
 - **Serializer:** `CustomFormSerializer` at `customforms/api/v3/serializers/custom_forms.py:35`.
 - **Top-level sync target?** No — transitive import only.

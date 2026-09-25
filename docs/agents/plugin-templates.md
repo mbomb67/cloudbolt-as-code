@@ -801,6 +801,19 @@ Two ways a custom form fills a dropdown:
 - **A declared plugin input** → `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<id>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<id>[&inputs={"env_id": "{plugin-bdi-<id>.env_id}"}]`, which runs the plugin's `generate_options_for_<input>`. `inputs` is parsed into `control_value_dict`; `control_value` is set only when exactly one controller exists, and only REGENOPTIONS dependencies count.
 - **A field inside a Dynamic Panel** (not a plugin input) → an inbound webhook (section 6 above).
 
+### Custom forms on resource and server actions
+
+Verified against CloudBolt source (2026-09); the generic rules above still apply.
+
+- **Question names:** `action-input.<input_name>`. Only keys with that prefix map to hook inputs (prefix stripped, matched against the cleaned input names). The whole `survey.data` also reaches the plugin JSON-encoded as the `custom_form_data` kwarg, password answers included.
+- **Hidden fields:** *Generate Default Form* writes `custom_form_id`, `object_type` and `action_id` as hidden text questions with a `defaultValue`. CMP adds `object_id` (the target's numeric pk; the first selected object for a bulk run) and `object_ids` on page 1 at render time, so never declare `object_id` yourself. On submit the server reads only `object_id`/`object_ids`, `action-input.*`, `scheduledTime` and `scheduledTimezone`; the action is resolved from the form's reverse link, so never share one form between two actions.
+- **Payload shape:** no type conversion. A `paneldynamic` arrives in the plugin's kwargs as a native `list[dict]`; it is a repr string only when the script reads it through template rendering.
+- **No server-side validation:** the submit calls `run_action` directly, `/validate/` always answers valid, generated options are not re-evaluated, and a submitted value wins over a generator's. The plugin must validate its own input.
+- **Rendering:** a full page, not the modal. `dialog_message` is not shown. When the action allows scheduling, CMP appends the scheduling questions to the last page.
+- **Pre-fill:** only choice questions whose `choicesByUrl` targets `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/action-input.<input>/?object_id={object_id}` get the generator's `initialValue` applied. That endpoint calls `generate_options_for_<input>` with `resource=`, `group=resource.group`, `blueprint=resource.blueprint`, `profile` and `action` (no environment or server) and answers `{"field": ..., "initialValue": ..., "options": [...]}` with keys camelCased recursively. Text and panel questions are never pre-filled; a form function can read `/api/v3/cmp/resources/{object_id}/` instead (pk or global ID; `attributes` is `[{name, value}]`, PWD values masked).
+- **Form functions:** the code is inlined at the top level of the page script and registered with `Survey.FunctionFactory.Instance.register(name, fn, isAsync)`, so it must declare a global function named exactly like the CustomFormFunction. Async functions return through SurveyJS's `this.returnResult(value)`. Import attaches functions only from the form's `dependencies.form_functions[]` (`asynchronous` honored; an existing function's name is never refreshed and attachments are never removed).
+- **Repo shape:** the action metadata carries `has_custom_form: true` and `dependencies.custom_form: "forms/FRM-..."`; import reads only the dependency (missing means the form is detached). There is no ID rewriting for action forms: the JSON is stored verbatim and a repo refresh keeps the FRM global ID.
+
 ### Basic Template Variables
 ```python
 # String
@@ -890,6 +903,8 @@ def get_options_list(field, **kwargs):
 ## Custom Field Management
 
 ### Creating Custom Fields
+
+Pick the visibility flags deliberately: on a Resource, `show_on_servers=True` is what lists a value on the Parameters tab, and `show_as_attribute=True` promotes it to the Overview attributes panel (reserve that for the few values an operator looks for first). Leave both `False` only for bookkeeping fields nobody needs to see. `get_or_create` applies them on first creation only. Shared example: `ensure_custom_field` in `shared_modules/SHM-jlguerjr` (`tfc_api`).
 
 ```python
 from infrastructure.models import CustomField

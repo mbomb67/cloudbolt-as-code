@@ -2903,6 +2903,58 @@ def get_options_client(connection_info_ref, organization=None):
     return _client_from_connection_info(connection_info, organization=organization)
 
 
+# -----------------------------------------------------------------------------
+# Custom-field creation. One helper so every field this integration records on
+# a Resource -- created by the build plugins at provision time and by
+# ensure_output_custom_fields at hydration -- gets the same DEFAULT visibility
+# on the resource page. get_or_create means the flags apply only when a field
+# is first created; an admin's later edit on the instance is never overwritten.
+# -----------------------------------------------------------------------------
+
+FIELD_VISIBILITY_ATTRIBUTE = "attribute"   # Overview attributes panel + Parameters tab
+FIELD_VISIBILITY_PARAMETER = "parameter"   # Parameters tab only
+FIELD_VISIBILITY_HIDDEN = "hidden"         # neither: integration bookkeeping
+
+_VISIBILITY_FLAGS = {
+    # visibility: (show_on_servers, show_as_attribute). On a Resource,
+    # show_on_servers is what lists a value on the Parameters tab;
+    # show_as_attribute promotes it to the Overview attributes panel, which
+    # is reserved for the few values an operator looks for first.
+    FIELD_VISIBILITY_ATTRIBUTE: (True, True),
+    FIELD_VISIBILITY_PARAMETER: (True, False),
+    FIELD_VISIBILITY_HIDDEN: (False, False),
+}
+
+
+def ensure_custom_field(name, label, description,
+                        visibility=FIELD_VISIBILITY_PARAMETER, field_type="STR"):
+    """
+    get_or_create the CustomField ``name`` with the integration's default
+    visibility (see the FIELD_VISIBILITY_* constants). Returns the field.
+    ``label``/``description``/``field_type`` and the visibility flags are
+    creation defaults only -- an existing field is returned untouched.
+    """
+    try:
+        show_on_servers, show_as_attribute = _VISIBILITY_FLAGS[visibility]
+    except KeyError:
+        raise ValueError(
+            "Unknown custom-field visibility {!r}; expected one of {}.".format(
+                visibility, ", ".join(sorted(_VISIBILITY_FLAGS))
+            )
+        )
+    field, _created = CustomField.objects.get_or_create(
+        name=name,
+        defaults=dict(
+            label=label,
+            description=description,
+            type=field_type,
+            show_on_servers=show_on_servers,
+            show_as_attribute=show_as_attribute,
+        ),
+    )
+    return field
+
+
 # Terraform output names become tfc_output_<name> custom fields. HCL
 # identifiers are letters/digits/underscores/hyphens; anything else is not a
 # real terraform output name and is skipped (defensively) rather than turned
@@ -2919,6 +2971,10 @@ def ensure_output_custom_fields(output_names):
     plugins: the output set is parsed from the applied Terraform state, never
     declared, so the fields must be creatable on the fly. This helper defines
     CustomFields only -- setting VALUES on a resource stays in the plugins.
+
+    Outputs are what a template reports about what it built (VM id, private
+    IP, ...), so they default to ATTRIBUTE visibility: the resource's Overview
+    attributes panel as well as its Parameters tab.
     """
     valid_names = []
     for output_name in output_names:
@@ -2928,15 +2984,12 @@ def ensure_output_custom_fields(output_names):
                 "tfc_output_* custom field.", output_name,
             )
             continue
-        CustomField.objects.get_or_create(
-            name="tfc_output_{}".format(output_name),
-            defaults=dict(
-                label="TFC Output: {}".format(output_name),
-                description="Value of the '{}' Terraform state output for "
-                            "this deployment.".format(output_name),
-                type="STR",
-                show_on_servers=False,
-            ),
+        ensure_custom_field(
+            "tfc_output_{}".format(output_name),
+            "TFC Output: {}".format(output_name),
+            "Value of the '{}' Terraform state output for this "
+            "deployment.".format(output_name),
+            visibility=FIELD_VISIBILITY_ATTRIBUTE,
         )
         valid_names.append(output_name)
     return valid_names
