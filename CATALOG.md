@@ -11,7 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
-| [Plugins](#plugins) | 76 |
+| [MCP tool actions](#mcp-tool-actions) | 1 |
+| [Plugins](#plugins) | 77 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
@@ -110,6 +111,14 @@ Inbound REST endpoints.
 |---|---|---|---|
 | Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](plugins/OHK-fx500o2r/) |
 
+## MCP tool actions
+
+Agent-callable tools published to MCP clients under a `custom_` prefix. Roles and the Synchronous flag must be set again after every sync.
+
+| Action | ID | Description | Plugin |
+|---|---|---|---|
+| Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
+
 ## Plugins
 
 Python and remote-script actions. Plugins that belong to a blueprint or action are documented in that parent's README; standalone plugins have their own.
@@ -134,6 +143,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Build Azure Subscription | [OHK-96zebx6i](plugins/OHK-96zebx6i/) | Creates an Azure subscription with cross-tenant billing. | CloudBolt Plug-in | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Change Access Tier | [OHK-stdxttnw](plugins/OHK-stdxttnw/) | Changes the default blob access tier of the Azure storage account. | CloudBolt Plug-in | [Change Access Tier](resource_actions/RSA-0ldsokuc/) |
 | Change SKU | [OHK-fel441xh](plugins/OHK-fel441xh/) | Changes the replication SKU of the Azure storage account. | CloudBolt Plug-in | [Change SKU](resource_actions/RSA-gr2wsfzx/) |
+| Compare Azure List Prices | [OHK-r9cm4oar](plugins/OHK-r9cm4oar/) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | CloudBolt Plug-in | [Compare Azure List Prices](mcp_tool_actions/MTA-ab0krash/README.md) |
 | Create Blob Container | [OHK-l25x6wd8](plugins/OHK-l25x6wd8/) | Creates a blob container in the resource's Azure storage account. | CloudBolt Plug-in | [Create Blob Container](resource_actions/RSA-xzs5f3a2/) |
 | Create Environment | [OHK-yd1af0eu](plugins/OHK-yd1af0eu/) | Creates a CloudBolt environment on an AWS handler with the region and VPC stored as custom field values. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
 | Delete Blob Container | [OHK-y1120h61](plugins/OHK-y1120h61/) | Deletes a blob container from the resource's Azure storage account. | CloudBolt Plug-in | [Delete Blob Container](resource_actions/RSA-zmi15uts/) |
@@ -204,7 +214,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
-| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/) |
+| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |

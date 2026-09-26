@@ -413,6 +413,19 @@
     ]
   },
   {
+    "id": "MTA-ab0krash",
+    "type": "mcp_tool_actions",
+    "name": "Compare Azure List Prices",
+    "description": "Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search.",
+    "path": "mcp_tool_actions/MTA-ab0krash",
+    "readme": "mcp_tool_actions/MTA-ab0krash/README.md",
+    "uses": [
+      "plugins/OHK-r9cm4oar"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "HPA-dnscrt01",
     "type": "orchestration_actions",
     "name": "AD DNS - Create A Record",
@@ -1334,6 +1347,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-r9cm4oar",
+    "type": "plugins",
+    "name": "Compare Azure List Prices",
+    "description": "Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search.",
+    "path": "plugins/OHK-r9cm4oar",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "mcp_tool_actions/MTA-ab0krash"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-sf6w5pfn",
     "type": "plugins",
     "name": "Manage Delete Lock",
@@ -2126,6 +2154,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-r9cm4oar",
       "plugins/OHK-fx500o2r",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24"

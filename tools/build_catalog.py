@@ -38,6 +38,9 @@ SECTIONS = (
      "Integration tests."),
     ("webhooks", "Webhooks",
      "Inbound REST endpoints."),
+    ("mcp_tool_actions", "MCP tool actions",
+     "Agent-callable tools published to MCP clients under a `custom_` prefix. Roles and the "
+     "Synchronous flag must be set again after every sync."),
     ("plugins", "Plugins",
      "Python and remote-script actions. Plugins that belong to a blueprint or action are "
      "documented in that parent's README; standalone plugins have their own."),
@@ -81,7 +84,7 @@ class Unit:
             text = self.form.get("description")
         else:
             text = self.meta.get("description")
-        if not text and self.dir in ("resource_actions", "server_actions"):
+        if not text and self.dir in ("resource_actions", "server_actions", "mcp_tool_actions"):
             # Exported action metadata carries no description; use the plugin's.
             hook = (self.meta.get("dependencies") or {}).get("hook")
             if hook in units:
@@ -190,7 +193,7 @@ def rows_for(section_dir, members, units, from_dir):
         head = ["Function", "ID", "Description", "Form"]
         rows = [[u.name, "", u.description(units),
                  ref_cell(u.used_by, units, from_dir, {"forms"}, "orphan")] for u in members]
-    else:  # server_actions, flowcontrol_actions, cit_tests, webhooks
+    else:  # server_actions, flowcontrol_actions, cit_tests, webhooks, mcp_tool_actions
         head = ["Action", "ID", "Description", "Plugin"]
         rows = [[u.name, "", u.description(units), hook_cell(u, units, from_dir)] for u in members]
     for u, row in zip(members, rows):
