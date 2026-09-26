@@ -81,6 +81,17 @@ def main(root="."):
         if script and not os.path.exists(f"{top}/{folder}/{script}"):
             problems.append(f"{p}: script_filename {script} not found")
 
+        # CloudBolt column limits (infrastructure.models.CustomField). A longer value fails
+        # the whole import with a bare "value too long for type character varying(N)".
+        for ai in data.get("action_inputs") or []:
+            if not isinstance(ai, dict):
+                continue
+            name = ai.get("name", "?")
+            if len(ai.get("label") or "") > 50:
+                problems.append(f"{p}: action input {name} label is longer than 50 characters")
+            if len(ai.get("placeholder") or "") > 255:
+                problems.append(f"{p}: action input {name} placeholder is longer than 255 characters")
+
         for _, _, value in walk(data):
             if isinstance(value, str):
                 m = REF_RE.match(value)
