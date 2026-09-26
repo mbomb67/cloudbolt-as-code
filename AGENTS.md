@@ -17,6 +17,7 @@ Content lives in **ID-prefixed folders** under type-specific top-level dirs, eac
 | `recurring_jobs/` | `RJB-` | Cron-scheduled jobs |
 | `cit_tests/` | `CIT-` | Integration tests |
 | `webhooks/` | `IWH-` | Inbound REST endpoints |
+| `mcp_tool_actions/` | `MTA-` | Actions published as tools on CloudBolt's MCP server |
 | `shared_modules/` | `SHM-` | Reusable Python libraries |
 | `extensions/` | `XUI-` | Django UI extensions |
 | `forms/` | `FRM-` | Custom forms (transitive-import only) |

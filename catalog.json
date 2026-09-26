@@ -413,6 +413,20 @@
     ]
   },
   {
+    "id": "MTA-lp8lgi7e",
+    "type": "mcp_tool_actions",
+    "name": "Order Counts by Blueprint",
+    "description": "Return the number of orders placed for each blueprint, optionally filtered by order status.",
+    "path": "mcp_tool_actions/MTA-lp8lgi7e",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-yjblxbwg"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "order_counts_by_blueprint"
+  },
+  {
     "id": "HPA-dnscrt01",
     "type": "orchestration_actions",
     "name": "AD DNS - Create A Record",
@@ -1577,6 +1591,19 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yjblxbwg",
+    "type": "plugins",
+    "name": "Order Counts by Blueprint",
+    "description": "",
+    "path": "plugins/OHK-yjblxbwg",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-lp8lgi7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

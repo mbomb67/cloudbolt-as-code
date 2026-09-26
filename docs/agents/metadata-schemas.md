@@ -26,6 +26,7 @@ Section anchors are stable (renames break skills):
 | §11 | `extensions/` XUI-* |
 | §12 | `forms/` FRM-* (transitive-import only) |
 | §13 | `form_functions/` FJS-* (transitive-import only) |
+| §14 | `mcp_tool_actions/` MTA-* |
 
 When CloudBolt changes a schema (new required field, new enum value, new content type), update the relevant section here. Skills inherit the change automatically — no parallel edits required.
 
@@ -94,7 +95,7 @@ Every cross-reference between content units is a **repo-relative path string** o
 | Lineage | Used by | Key casing |
 |---|---|---|
 | `BaseActionSerializer` (`orchestration_hook.py:1147`) | `plugins/OHK-*`, `shared_modules/SHM-*` | **snake_case** (`allow_multiple`, `hide_if_default_value`, …) |
-| `HasBaseActionSerializer` via `_generate_action_input_dict` (`serializers.py:754`) | `resource_actions/`, `server_actions/`, `orchestration_actions/`, `flowcontrol_actions/`, `recurring_jobs/`, `webhooks/`, `cit_tests/` | **kebab-case** (`allow-multiple`, `hide-if-default-value`, …) |
+| `HasBaseActionSerializer` via `_generate_action_input_dict` (`serializers.py:754`) | `resource_actions/`, `server_actions/`, `orchestration_actions/`, `flowcontrol_actions/`, `recurring_jobs/`, `webhooks/`, `cit_tests/`, `mcp_tool_actions/` | **kebab-case** (`allow-multiple`, `hide-if-default-value`, …) |
 
 When editing an existing file, match the casing already present.
 
@@ -1197,6 +1198,83 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 
 ---
 
+## 14. `mcp_tool_actions/` — MTA-*
+
+- **Django model / serializer:** not yet verified against CloudBolt source. This section is derived from a real export (`mcp_tool_actions/MTA-lp8lgi7e`) and from the MCP server's `fetch_mcp_tool_actions` / `run_mcp_tool_action` tool contracts; fill in the model and serializer per [Extending this schema](#extending-this-schema).
+- **Top-level sync target?** Exported as a top-level folder. Import via Source Control Repos not yet verified.
+- **Standalone or linked?** Standalone. Runnable code lives on the plugin in `dependencies.hook`.
+- **Colocated files:** None.
+
+An MCP tool action publishes a plugin as a tool on CloudBolt's MCP server. An AI agent discovers it with `fetch_mcp_tool_actions` (which returns `mcp_tool_name`, `mcp_tool_description` and the parameter schema built from `action_inputs`) and runs it with `run_mcp_tool_action`. A synchronous tool returns the plugin's output inline; an asynchronous one returns a job id.
+
+### Fields (as exported)
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | `MTA-<id>`. |
+| `label` | string | Display name in CloudBolt. |
+| `enabled` | bool | |
+| `is_synchronous` | bool | `true` returns the output inline to the agent; `false` creates a job the agent polls. |
+| `mcp_tool_name` | string | The tool identifier an MCP client sees; snake_case, e.g. `order_counts_by_blueprint`. |
+| `mcp_tool_title` | string | May be empty. |
+| `mcp_tool_description` | string | Tells the agent when to use the tool. Exports carry no `description`, so the catalog prints this instead — keep it to one sentence. |
+| `mcp_read_only_hint`, `mcp_destructive_hint`, `mcp_idempotent_hint`, `mcp_open_world_hint` | bool or null | The MCP tool annotations `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` — see https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-annotations. `null` leaves the annotation unset. |
+| `action_inputs[]` | list | **kebab-case** keys (§0). These become the tool's parameters; the plugin declares the same inputs (same `id`, snake_case keys). |
+| `action_input_default_values` | list | |
+| `last_updated` | string or null | |
+
+### Cross-reference fields
+
+| Field path | Target | Notes |
+|---|---|---|
+| `dependencies.hook` | `plugins/OHK-*` | The tool's runnable code. The plugin's `action_inputs` must mirror the tool's. |
+
+### Worked example
+
+```json
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": null,
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-22jaw5zs",
+            "label": "Status",
+            "name": "status",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-yjblxbwg"
+    },
+    "enabled": true,
+    "id": "MTA-lp8lgi7e",
+    "is_synchronous": false,
+    "label": "Order Counts by Blueprint",
+    "last_updated": null,
+    "mcp_destructive_hint": null,
+    "mcp_idempotent_hint": null,
+    "mcp_open_world_hint": null,
+    "mcp_read_only_hint": null,
+    "mcp_tool_description": "Return the number of orders placed for each blueprint, optionally filtered by order status.",
+    "mcp_tool_name": "order_counts_by_blueprint",
+    "mcp_tool_title": ""
+}
+```
+
+---
+
 ## Navigation Cookbooks
 
 ### Cookbook 1 — Given a blueprint, find its build/teardown/discovery plugins, day-2 actions, attached form
@@ -1228,7 +1306,7 @@ A plugin with zero matches is an **orphan** — possibly a shared utility intent
 
 Open the unit's metadata file and read `dependencies.hook`. The value is a path like `"plugins/OHK-<id>"`. The Python entry point is at `<that-path>/OHK-<id>_script.py`; the entry-point function name is determined by the plugin's `type` field (e.g. `run(job, **kwargs)` for `"CloudBolt Plug-in"`).
 
-For `cit_tests/CIT-*`, `recurring_jobs/RJB-*`, `webhooks/IWH-*`, the unit itself has no `script_filename` — all runnable code lives on the referenced plugin.
+For `cit_tests/CIT-*`, `recurring_jobs/RJB-*`, `webhooks/IWH-*`, `mcp_tool_actions/MTA-*`, the unit itself has no `script_filename` — all runnable code lives on the referenced plugin.
 
 ### Cookbook 4 — Given a human-readable name, find the content unit
 

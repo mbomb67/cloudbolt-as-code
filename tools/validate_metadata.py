@@ -18,7 +18,7 @@ import sys
 CONTENT_DIRS = (
     "blueprints", "plugins", "resource_actions", "server_actions",
     "orchestration_actions", "flowcontrol_actions", "recurring_jobs",
-    "cit_tests", "webhooks", "shared_modules", "extensions", "forms",
+    "cit_tests", "webhooks", "mcp_tool_actions", "shared_modules", "extensions", "forms",
     "form_functions",
 )
 REF_RE = re.compile(r"^(%s)/([A-Z]+-[A-Za-z0-9]+)$" % "|".join(CONTENT_DIRS))
