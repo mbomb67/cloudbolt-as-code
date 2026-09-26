@@ -187,6 +187,8 @@ Per this repo's round-trip rules (see `AGENTS.md`, "Round-trip is not lossless")
 
 The operational consequence: **after every sync of this repo into the instance, the team token must be re-entered in every `tf-cloud`-labeled ConnectionInfo.** Make "open each labeled ConnectionInfo and re-enter its token" a standing post-sync step. The failure signature when this is missed is every TFC-backed job failing fast with a 401 error that names the ConnectionInfo. (Labels themselves survive syncs — only secrets are redacted.)
 
+**Inbound webhooks sync separately from blueprints.** Syncing a blueprint brings its custom form and form functions, but not the inbound webhooks the form calls. After a change to the Form Options webhook (`webhooks/IWH-yj93is5z`) or its plugin, sync `webhooks/` explicitly and restart if the plugin imports new shared-module helpers. The failure signature when this is missed is the order form or the Terraform Update form showing an error message that the current plugin no longer emits.
+
 ## 10. Operating the approval gate
 
 Provision and day-2 jobs pause after `terraform plan` completes and wait for a human decision before anything is applied. (Teardown destroy runs do **not** pause — deletion is already an explicit, confirmed user action.) Run lifecycle background: [Run states](https://developer.hashicorp.com/terraform/cloud-docs/run/states), [Runs API](https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run).
