@@ -27,7 +27,7 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 ## Setup
 1. In `forms/FRM-t3v8zpb7`, set the `defaultValue` of each hidden `plugin-bdi-lwys1ug9.<name>` field: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_repo_identifier` (`owner/repo`), `tfc_branch` (ships `main`); add a hidden `tfc_working_directory` field to pin a subdirectory. The form is the only place these are pinned (the build item carries no `parameter_defaults`, which a custom form would not receive anyway). The build plugin refuses to run while any value contains `FILL-ME`.
 2. If your template's variables differ, edit the form's Template Variables panel so each field name equals a Terraform variable name. Environment-derived fields use the Form Options webhook (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). List sensitive variables in the hidden `_sensitive` field.
-3. Sync the repo, then restart CloudBolt so the shared modules are reloaded.
+3. Sync the repo, then restart CloudBolt so the shared modules are reloaded. Inbound webhooks sync separately from a blueprint: after a change to the Form Options webhook or its plugin, sync `webhooks/` explicitly, or the form keeps calling the old plugin.
 4. Re-enter the team token in every `tf-cloud` ConnectionInfo after each sync.
 
 ## Notes

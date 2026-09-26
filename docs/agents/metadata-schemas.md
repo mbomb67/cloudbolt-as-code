@@ -949,6 +949,7 @@ HTTP methods are not stored — the IWH dispatches at runtime to `inbound_web_ho
 
 ### Round-trip caveats
 
+- **Sync scope (observed 2026-09-26):** syncing a blueprint imports its custom form and form functions but does **not** refresh the inbound webhooks that form calls through `choicesByUrl`. After changing an IWH or its plugin, sync `webhooks/` explicitly; otherwise the form keeps hitting the previously synced plugin and reports errors the current code no longer emits.
 - `token` is export-only and only present when `authentication_method == "token"`. Import sets it straight from the metadata and does **not** regenerate it: a token-mode IWH with no `token` in the metadata imports with an empty token, and an empty `?token=` then passes the check. Prefer `"normal"`; if you must use token mode, keep the token in the metadata or re-save the IWH in the UI after sync.
 - `uri_path` is made unique on a clash (`name_000X`), so a form that hardcodes the path can silently point at the wrong hook if two repos ship the same path.
 
