@@ -84,15 +84,15 @@ class Unit:
             text = self.form.get("description")
         else:
             text = self.meta.get("description")
-        if not text and self.dir == "mcp_tool_actions":
-            # Exported MCP tool actions carry no description; the tool description is the one
-            # the AI agent sees.
-            text = self.meta.get("mcp_tool_description")
-        if not text and self.dir in ("resource_actions", "server_actions"):
+        if not text and self.dir in ("resource_actions", "server_actions", "mcp_tool_actions"):
             # Exported action metadata carries no description; use the plugin's.
             hook = (self.meta.get("dependencies") or {}).get("hook")
             if hook in units:
                 text = units[hook].meta.get("description")
+        if not text and self.dir == "mcp_tool_actions":
+            # Exported MCP tool actions carry no description and their plugin may not either;
+            # fall back to the tool description the AI agent sees.
+            text = self.meta.get("mcp_tool_description")
         return " ".join((text or "").split())
 
     def link(self, from_dir=None):

@@ -5,4 +5,5 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 
 | Tool | ID | Description | MCP tool name | Enabled | Plugin |
 |---|---|---|---|---|---|
+| Compare Azure List Prices | [MTA-ab0krash](MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](../plugins/OHK-r9cm4oar/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](../plugins/OHK-yjblxbwg/) |
