@@ -38,6 +38,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 | Recurring job (`RJB-`) | `name` | `description` |
 | CIT test (`CIT-`) | `name` | `notes` |
 | Inbound webhook (`IWH-`) | `label` | `description` |
+| MCP tool action (`MTA-`) | `label` | `mcp_tool_name`, `mcp_tool_description` |
 | Shared module (`SHM-`) | `name` | `module_name`, `label`, `description` |
 | XUI extension (`XUI-`) | `name` | `label`, `description` |
 | Form (`FRM-`) | none (forms have no human-readable name field) | n/a |

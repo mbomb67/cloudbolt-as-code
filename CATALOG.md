@@ -11,7 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
-| [Plugins](#plugins) | 76 |
+| [MCP tool actions](#mcp-tool-actions) | 1 |
+| [Plugins](#plugins) | 77 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
@@ -110,6 +111,14 @@ Inbound REST endpoints.
 |---|---|---|---|
 | Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](plugins/OHK-fx500o2r/) |
 
+## MCP tool actions
+
+Actions published as tools on CloudBolt's MCP server for AI agents to call. Each tool's inputs are its parameters; the code lives on the referenced plugin.
+
+| Tool | ID | Description | MCP tool name | Enabled | Plugin |
+|---|---|---|---|---|---|
+| Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
+
 ## Plugins
 
 Python and remote-script actions. Plugins that belong to a blueprint or action are documented in that parent's README; standalone plugins have their own.
@@ -171,6 +180,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Node Size - Generate Options by OS Build Architecture | [OHK-9csbq3zd](plugins/OHK-9csbq3zd/README.md) | Generates node_size options limited to sizes matching the selected OS build's processor architecture. | CloudBolt Plug-in | standalone |
 | Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities) | [OHK-kujhsds0](plugins/OHK-kujhsds0/README.md) | Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings. | CloudBolt Plug-in | standalone |
 | OpenShift Project Landing Zone | [OHK-prew0osh](plugins/OHK-prew0osh/) | Creates an OpenShift project with quota, limits, network policies, and an optional role binding, then pins a CloudBolt environment to it. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
+| Order Counts by Blueprint | [OHK-yjblxbwg](plugins/OHK-yjblxbwg/) |  | CloudBolt Plug-in | [Order Counts by Blueprint](mcp_tool_actions/MTA-lp8lgi7e/) |
 | Remove Resource Group from Environments | [OHK-vm5p34w3](plugins/OHK-vm5p34w3/) | Removes the deleted resource group's resource_group_arm option from environments on the same subscription. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
 | Request Certificate (Windows CA) | [OHK-67bw7wgu](plugins/OHK-67bw7wgu/) | Submits a generated or supplied CSR to a Microsoft AD CS certificate authority and stores the issued PEM certificate. | CloudBolt Plug-in | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Request Quota Change | [OHK-ug53cdbx](plugins/OHK-ug53cdbx/) | Moves a landing-zone project to a different size tier and mirrors the new quota into its environment. | CloudBolt Plug-in | [Request Quota Change](resource_actions/RSA-4e8lmj2r/) |

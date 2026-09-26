@@ -38,6 +38,9 @@ SECTIONS = (
      "Integration tests."),
     ("webhooks", "Webhooks",
      "Inbound REST endpoints."),
+    ("mcp_tool_actions", "MCP tool actions",
+     "Actions published as tools on CloudBolt's MCP server for AI agents to call. Each tool's "
+     "inputs are its parameters; the code lives on the referenced plugin."),
     ("plugins", "Plugins",
      "Python and remote-script actions. Plugins that belong to a blueprint or action are "
      "documented in that parent's README; standalone plugins have their own."),
@@ -81,6 +84,10 @@ class Unit:
             text = self.form.get("description")
         else:
             text = self.meta.get("description")
+        if not text and self.dir == "mcp_tool_actions":
+            # Exported MCP tool actions carry no description; the tool description is the one
+            # the AI agent sees.
+            text = self.meta.get("mcp_tool_description")
         if not text and self.dir in ("resource_actions", "server_actions"):
             # Exported action metadata carries no description; use the plugin's.
             hook = (self.meta.get("dependencies") or {}).get("hook")
@@ -171,6 +178,10 @@ def rows_for(section_dir, members, units, from_dir):
         head = ["Job", "ID", "Description", "Schedule", "Plugin"]
         rows = [[u.name, "", u.description(units), "`%s`" % u.meta.get("schedule", ""),
                  hook_cell(u, units, from_dir)] for u in members]
+    elif d == "mcp_tool_actions":
+        head = ["Tool", "ID", "Description", "MCP tool name", "Enabled", "Plugin"]
+        rows = [[u.name, "", u.description(units), "`%s`" % (u.meta.get("mcp_tool_name") or ""),
+                 "yes" if u.meta.get("enabled") else "no", hook_cell(u, units, from_dir)] for u in members]
     elif d == "plugins":
         head = ["Plugin", "ID", "Description", "Type", "Used by"]
         rows = [[u.name, "", u.description(units), u.meta.get("type") or "",
@@ -250,6 +261,8 @@ def render(units):
                 rec[key] = u.meta[key]
         if u.dir == "plugins":
             rec["plugin_type"] = u.meta.get("type")
+        if u.dir == "mcp_tool_actions":
+            rec["mcp_tool_name"] = u.meta.get("mcp_tool_name")
         records.append(rec)
     out["catalog.json"] = json.dumps(records, indent=2, ensure_ascii=False) + "\n"
     return out
