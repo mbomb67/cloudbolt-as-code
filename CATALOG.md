@@ -11,8 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
-| [MCP tool actions](#mcp-tool-actions) | 1 |
-| [Plugins](#plugins) | 77 |
+| [MCP tool actions](#mcp-tool-actions) | 2 |
+| [Plugins](#plugins) | 78 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
@@ -113,11 +113,12 @@ Inbound REST endpoints.
 
 ## MCP tool actions
 
-Agent-callable tools published to MCP clients under a `custom_` prefix. Roles and the Synchronous flag must be set again after every sync.
+Actions published as tools on CloudBolt's MCP server for AI agents to call. Each tool's inputs are its parameters; the code lives on the referenced plugin.
 
-| Action | ID | Description | Plugin |
-|---|---|---|---|
-| Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
+| Tool | ID | Description | MCP tool name | Enabled | Plugin |
+|---|---|---|---|---|---|
+| Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
+| Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
 
 ## Plugins
 
@@ -181,6 +182,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Node Size - Generate Options by OS Build Architecture | [OHK-9csbq3zd](plugins/OHK-9csbq3zd/README.md) | Generates node_size options limited to sizes matching the selected OS build's processor architecture. | CloudBolt Plug-in | standalone |
 | Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities) | [OHK-kujhsds0](plugins/OHK-kujhsds0/README.md) | Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings. | CloudBolt Plug-in | standalone |
 | OpenShift Project Landing Zone | [OHK-prew0osh](plugins/OHK-prew0osh/) | Creates an OpenShift project with quota, limits, network policies, and an optional role binding, then pins a CloudBolt environment to it. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
+| Order Counts by Blueprint | [OHK-yjblxbwg](plugins/OHK-yjblxbwg/) |  | CloudBolt Plug-in | [Order Counts by Blueprint](mcp_tool_actions/MTA-lp8lgi7e/) |
 | Remove Resource Group from Environments | [OHK-vm5p34w3](plugins/OHK-vm5p34w3/) | Removes the deleted resource group's resource_group_arm option from environments on the same subscription. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
 | Request Certificate (Windows CA) | [OHK-67bw7wgu](plugins/OHK-67bw7wgu/) | Submits a generated or supplied CSR to a Microsoft AD CS certificate authority and stores the issued PEM certificate. | CloudBolt Plug-in | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Request Quota Change | [OHK-ug53cdbx](plugins/OHK-ug53cdbx/) | Moves a landing-zone project to a different size tier and mirrors the new quota into its environment. | CloudBolt Plug-in | [Request Quota Change](resource_actions/RSA-4e8lmj2r/) |

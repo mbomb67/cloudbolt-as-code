@@ -72,7 +72,7 @@ For every field listed in the matching section's **Enums** subsection, verify th
 ### Check F — action_inputs[] key casing
 Per §0 casing rule:
 - **Error:** snake_case-lineage content type (plugins, shared_modules) has an `action_inputs[]` item using kebab-case keys.
-- **Error:** kebab-case-lineage content type (RSA, SVA, HPA, FCA, RJB, CIT, IWH) has an `action_inputs[]` item using snake_case keys.
+- **Error:** kebab-case-lineage content type (RSA, SVA, HPA, FCA, RJB, CIT, IWH, MTA) has an `action_inputs[]` item using snake_case keys.
 
 ### Check G — Orphan transitive content
 - **Warning:** `forms/FRM-*` folder is not referenced by any parent's `dependencies.custom_form` (§12 — will not sync).

@@ -39,8 +39,8 @@ SECTIONS = (
     ("webhooks", "Webhooks",
      "Inbound REST endpoints."),
     ("mcp_tool_actions", "MCP tool actions",
-     "Agent-callable tools published to MCP clients under a `custom_` prefix. Roles and the "
-     "Synchronous flag must be set again after every sync."),
+     "Actions published as tools on CloudBolt's MCP server for AI agents to call. Each tool's "
+     "inputs are its parameters; the code lives on the referenced plugin."),
     ("plugins", "Plugins",
      "Python and remote-script actions. Plugins that belong to a blueprint or action are "
      "documented in that parent's README; standalone plugins have their own."),
@@ -89,6 +89,10 @@ class Unit:
             hook = (self.meta.get("dependencies") or {}).get("hook")
             if hook in units:
                 text = units[hook].meta.get("description")
+        if not text and self.dir == "mcp_tool_actions":
+            # Exported MCP tool actions carry no description and their plugin may not either;
+            # fall back to the tool description the AI agent sees.
+            text = self.meta.get("mcp_tool_description")
         return " ".join((text or "").split())
 
     def link(self, from_dir=None):
@@ -174,6 +178,10 @@ def rows_for(section_dir, members, units, from_dir):
         head = ["Job", "ID", "Description", "Schedule", "Plugin"]
         rows = [[u.name, "", u.description(units), "`%s`" % u.meta.get("schedule", ""),
                  hook_cell(u, units, from_dir)] for u in members]
+    elif d == "mcp_tool_actions":
+        head = ["Tool", "ID", "Description", "MCP tool name", "Enabled", "Plugin"]
+        rows = [[u.name, "", u.description(units), "`%s`" % (u.meta.get("mcp_tool_name") or ""),
+                 "yes" if u.meta.get("enabled") else "no", hook_cell(u, units, from_dir)] for u in members]
     elif d == "plugins":
         head = ["Plugin", "ID", "Description", "Type", "Used by"]
         rows = [[u.name, "", u.description(units), u.meta.get("type") or "",
@@ -193,7 +201,7 @@ def rows_for(section_dir, members, units, from_dir):
         head = ["Function", "ID", "Description", "Form"]
         rows = [[u.name, "", u.description(units),
                  ref_cell(u.used_by, units, from_dir, {"forms"}, "orphan")] for u in members]
-    else:  # server_actions, flowcontrol_actions, cit_tests, webhooks, mcp_tool_actions
+    else:  # server_actions, flowcontrol_actions, cit_tests, webhooks
         head = ["Action", "ID", "Description", "Plugin"]
         rows = [[u.name, "", u.description(units), hook_cell(u, units, from_dir)] for u in members]
     for u, row in zip(members, rows):
@@ -253,6 +261,8 @@ def render(units):
                 rec[key] = u.meta[key]
         if u.dir == "plugins":
             rec["plugin_type"] = u.meta.get("type")
+        if u.dir == "mcp_tool_actions":
+            rec["mcp_tool_name"] = u.meta.get("mcp_tool_name")
         records.append(rec)
     out["catalog.json"] = json.dumps(records, indent=2, ensure_ascii=False) + "\n"
     return out

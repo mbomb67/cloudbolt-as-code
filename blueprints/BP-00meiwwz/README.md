@@ -25,7 +25,7 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 ## Setup
 1. In `forms/FRM-1dxfulvq`, set the `defaultValue` of each hidden `plugin-bdi-t474vto9.<name>` field: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_nocode_module_id` (`nocode-…`). The form is the only place these are pinned (the build item carries no `parameter_defaults`, which a custom form would not receive anyway). The build plugin refuses to run while any value contains `FILL-ME`.
 2. Author the form's Module Variables panel: replace the example fields with one field per module input variable, named exactly as the variable. For HCP-defined options use the Form Options webhook with `source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>` (it reads the connection and module ID from the form's hidden fields server-side); for environment-derived values use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`. List sensitive variables in the hidden `_sensitive` field; use a key/value matrix for map variables. Keep the naming-only `deployment_name` field.
-3. Sync the repo, then restart CloudBolt so the shared modules are reloaded.
+3. Sync the repo, then restart CloudBolt so the shared modules are reloaded. Inbound webhooks sync separately from a blueprint: after a change to the Form Options webhook or its plugin, sync `webhooks/` explicitly, or the form keeps calling the old plugin.
 4. Re-enter the token in every `tf-cloud` ConnectionInfo after each sync.
 
 ## Notes
