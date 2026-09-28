@@ -16,6 +16,7 @@ Setup runbooks for content that needs configuration outside CloudBolt. Each cont
 Other folders:
 
 - `examples/bicep/` — the sample Bicep template the Bicep Deployment blueprint points at by default.
+- [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) — the sample Azure VM module both HCP Terraform blueprints' order forms are authored for: publish it to the private registry for the No-Code blueprint, or point the VM blueprint's workspaces at its repository.
 - `fixtures/` — how to capture a byte-match fixture for the AD DNS record encoder before trusting it in production.
 - [dev-environment-setup.md](dev-environment-setup.md) — copying the CloudBolt type stubs from your appliance and setting up an editor to develop content.
 - `agents/` — authoring conventions for AI coding assistants working in this repo layout. See [../AGENTS.md](../AGENTS.md).

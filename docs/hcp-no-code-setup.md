@@ -10,7 +10,7 @@ Follow §1–§5 in HCP Terraform, then §6 onward in this repo and CloudBolt.
 
 - [ ] An HCP Terraform organization on an edition that includes no-code provisioning. HashiCorp's module-design page states: "No-code provisioning is available in HCP Terraform Standard and Premium editions" ([source](https://developer.hashicorp.com/terraform/cloud-docs/no-code-provisioning/module-design)). The free tier that suffices for the VM blueprint does **not** — confirm the current edition matrix on the [pricing page](https://www.hashicorp.com/products/terraform/pricing) before starting.
 - [ ] A **sandbox-only Azure subscription** and a service principal in it. [hcp-terraform-setup.md §1](hcp-terraform-setup.md#1-read-this-first-the-poc-trust-model) explains why this is a control, not a convenience; every word of it applies here.
-- [ ] A Terraform **module** repository on a VCS host HCP Terraform supports, with admin rights on it (tags, branch protection, collaborator list) — or the ability to publish module versions through the API without a repository (§3).
+- [ ] A Terraform **module** repository on a VCS host HCP Terraform supports, with admin rights on it (tags, branch protection, collaborator list) — or the ability to publish module versions through the API without a repository (§3). The sample module in [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) is ready to copy into one.
 - [ ] CloudBolt administrator (`cb_admin`) access on the target instance, with this repo already synced via Source Control Repos.
 - [ ] At least one CloudBolt **Environment** on an Azure resource handler for the sandbox subscription, entitled to the ordering group. Resource groups, subnets, sizes and OS builds need importing only if the form reads them from the environment (§6).
 
@@ -28,7 +28,7 @@ Follow [hcp-terraform-setup.md](hcp-terraform-setup.md) §2 (organization), §3 
 
 Docs: [Design no-code ready modules](https://developer.hashicorp.com/terraform/cloud-docs/no-code-provisioning/module-design)
 
-A no-code module is deployed as the **root** of its workspace — there is no wrapping root configuration — so it must be self-sufficient. HashiCorp's requirements, plus the conventions this blueprint relies on:
+A no-code module is deployed as the **root** of its workspace — there is no wrapping root configuration — so it must be self-sufficient. A ready-made module that follows every rule below is in [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) (an Azure VM on an existing subnet); the shipped order form is authored for it, so the quickest path is to copy that folder into its own repository, tag `v1.0.0`, and continue with §3. HashiCorp's requirements, plus the conventions this blueprint relies on:
 
 1. **Standard module structure** with the resources in the repository root (`main.tf`, `variables.tf`, `outputs.tf`); submodules and examples in their usual folders.
 2. **Providers are declared in the module.** Per the docs, "A no-code ready module must declare the required provider(s) directly in the module": the `terraform { required_providers { azurerm = { … } } }` block **and** the `provider "azurerm" { features {} }` block live in the module itself — the parts a normal child module leaves to its caller.
@@ -124,7 +124,7 @@ Docs: [API tokens](https://developer.hashicorp.com/terraform/cloud-docs/users-te
 **The order form** (`forms/FRM-1dxfulvq`) has two parts:
 
 - An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the build plugin's `generate_options_for_env_id` through the `parameterOptions` endpoint — only Azure environments the ordering group may use. The chosen environment's subscription and tenant become the workspace's `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID`; the resource handler is never shown.
-- A **Module Variables** Dynamic Panel. Replace the shipped EXAMPLE fields with one field per input variable of the module:
+- A **Module Variables** Dynamic Panel. It ships authored for the sample module (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`): resource group, subnet and image are listed from the environment, and `vm_size` lists the variable options defined on the module in HCP (§4), so define at least that one. For another module, replace the fields with one per input variable:
   - Each field's **name must equal the Terraform variable name exactly**.
   - For a variable whose allowed values you defined in §4, use a dropdown with `choicesByUrl` pointing at the Form Options webhook: `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>` (`path: options`, `valueName: value`, `titleName: title`). The webhook resolves the connection and module ID server-side from the named deployment item's pins — the hidden `tfc_*` fields of this blueprint's custom form — so the query string never carries them.
   - For a variable that should come from the CloudBolt environment (resource group, subnet, size, image, location, or any env-scoped custom field), use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>` with `&group={group}&env_id={plugin-bdi-t474vto9.env_id}`.
