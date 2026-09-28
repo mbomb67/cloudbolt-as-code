@@ -12,7 +12,7 @@ Before starting, confirm you have:
 
 - [ ] The ability to create a **brand-new** HCP Terraform organization at [app.terraform.io](https://app.terraform.io) (any user can; the free tier suffices for this POC).
 - [ ] A **sandbox-only Azure subscription** and a service principal in it (client ID, client secret, tenant ID, subscription ID). Nothing production-adjacent — see [§1](#1-read-this-first-the-poc-trust-model) for why this is a control, not a convenience.
-- [ ] The Terraform configuration repo ("template repo") on a VCS host TFC supports, plus **admin rights on that repo** so you can restrict who has write access.
+- [ ] The Terraform configuration repo ("template repo") on a VCS host TFC supports, plus **admin rights on that repo** so you can restrict who has write access. [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) is a ready-made template with exactly the variables the shipped form collects.
 - [ ] A VCS account able to authorize an OAuth connection from TFC to that repo (a personal account is acceptable for the POC; a dedicated service-account identity is a named follow-up).
 - [ ] CloudBolt administrator (`cb_admin`) access on the target instance, with this repo already synced via Source Control Repos.
 - [ ] At least one CloudBolt **Environment** on an Azure resource handler for the sandbox subscription, entitled to the ordering group, with resource groups and subnets imported, VM sizes enabled and an OS build available (section 8c).
@@ -179,7 +179,7 @@ The environment must have what the dropdowns read: resource groups and subnets i
 
 **Onboarding another Terraform template:** copy `BP-b0qm83lh` with fresh IDs and author a form whose hidden fields pin the new coordinates and whose panel elements match the new `variables.tf`. Reuse the webhook for any environment-derived field (`source=resource_group|subnet|vm_size|os_image|location|cf:<field>`). No plugin or shared-module change. Freeze the build plugin's `action_inputs` before authoring: the form hardcodes the `plugin-bdi-<id>` names.
 
-The template repo's `variables.tf` must match the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` itself, so the template declares no subscription variable; derive `location` from the subnet's VNet.
+The template repo's `variables.tf` must match the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` itself, so the template declares no subscription variable; derive `location` from the subnet's VNet. [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) does all of this and is the template the shipped form was authored against; copy it into the template repo as-is.
 
 ## 9. Re-enter the token after every repo sync
 
