@@ -14,8 +14,8 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 | Form | FRM-1dxfulvq | HCP Terraform No-Code Module order form |
 
 ## Prerequisites
-- An HCP Terraform organization and project with a project-scoped variable set holding the service principal credentials (not flagged priority; the principal needs a role in every target subscription).
-- A module in the organization's private registry with no-code provisioning enabled, and its `nocode-*` ID. Define variable options on the module in HCP for any variable you want as a dropdown.
+- An HCP Terraform organization on an edition that includes no-code provisioning (HashiCorp lists Standard and Premium; not the free tier), and a project with a project-scoped variable set holding the service principal credentials (not flagged priority; the principal needs a role in every target subscription).
+- A module in the organization's private registry that declares its own providers, with no-code provisioning enabled and a version pinned, and its `nocode-*` ID. Define variable options on the module in HCP for any variable you want as a dropdown.
 - A team or user API token in the `password` field of a ConnectionInfo labeled `tf-cloud`. Organization tokens are rejected by the no-code endpoints.
 - CloudBolt Environments on Azure resource handlers, entitled to the ordering groups.
 - A `cb_admin` user to approve plans.
@@ -31,7 +31,8 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 ## Notes
 - The no-code create carries the variables and the `ARM_*` environment variables, so the auto-queued first run already targets the chosen subscription; the build plugin adopts that run into the approval pause. Continue Job applies; canceling discards the run and leaves the resource `PROVFAILED` with its workspace ID stored.
 - Update Variables is the shared Terraform Update action: a form built from this blueprint's order form and pre-filled with the deployment's current values. Unknown and sensitive keys are rejected, a blank field keeps its value, and it fails fast if the workspace has a pending run.
-- There is no module-version upgrade action. Re-pin the version in HCP or tear down and re-order.
+- There is no module-version upgrade action. Move the pin in HCP (new orders use it; existing workspaces keep their version until upgraded in HCP) or tear down and re-order.
+- If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.
 - The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.
