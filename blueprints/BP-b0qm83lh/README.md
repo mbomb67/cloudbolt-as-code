@@ -18,7 +18,7 @@ Provisions a VM through HCP Terraform (TFC) using one dedicated, VCS-backed TFC 
 - An HCP Terraform organization and project, with a project-scoped variable set holding the service principal's `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID`. Not flagged priority. The principal needs a role in every subscription the CloudBolt environments target.
 - A VCS provider connected to the Terraform repo.
 - A team API token in the `password` field of a ConnectionInfo labeled `tf-cloud` (host in the IP field, port 443, `https`).
-- A Terraform repo whose `variables.tf` matches the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_*` from the environment; derive `location` from the subnet's VNet.
+- A Terraform repo whose `variables.tf` matches the form (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`). The azurerm provider reads `ARM_*` from the environment; derive `location` from the subnet's VNet. A ready-made one is [docs/examples/terraform/azure-vm-nocode](../../docs/examples/terraform/azure-vm-nocode/README.md).
 - CloudBolt Environments on Azure resource handlers, entitled to the ordering groups, with resource groups and subnets imported, VM sizes enabled and OS builds available.
 - A `cb_admin` user to approve plans.
 
