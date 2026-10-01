@@ -8,6 +8,7 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 | Build | OHK-axtt0yqq | HCP Terraform No-Code Module |
 | Teardown | OHK-y9d1uwhw | Teardown HCP Terraform No-Code Module |
 | Day-2 action | RSA-dxrh4m6j | Update Variables (the shared Terraform Update action: hook OHK-lvy5tj0y, form FRM-h4py5w3a) |
+| Day-2 action | RSA-pngq92ss | Deploy Latest Version (hook OHK-4y8f1vff) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
 | Webhook | IWH-yj93is5z | Form Options (hook OHK-fx500o2r) |
@@ -31,8 +32,8 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 ## Notes
 - The no-code create carries the variables and the `ARM_*` environment variables, so the auto-queued first run already targets the chosen subscription; the build plugin adopts that run into the approval pause. Continue Job applies; canceling discards the run and leaves the resource `PROVFAILED` with its workspace ID stored.
 - Update Variables is the shared Terraform Update action: a form built from this blueprint's order form and pre-filled with the deployment's current values. Unknown and sensitive keys are rejected, a blank field keeps its value, and it fails fast if the workspace has a pending run.
-- There is no module-version upgrade action. Move the pin in HCP (new orders use it; existing workspaces keep their version until upgraded in HCP) or tear down and re-order.
+- Deploy Latest Version upgrades a deployment's workspace to the module version pinned in HCP Terraform (HCP's workspace-upgrade API), with the same plan-approval pause. It is idempotent: a deployment already on the pinned version reports that and creates no run. It is bulk-safe: selecting several deployments in the resource list runs them in one job, one after another, pausing once per deployment that needs the upgrade; a failure on one does not stop the others. If the new version adds a required variable, the plan fails; set it on the workspace in HCP Terraform and run the action again. Moving the pin itself is an HCP step ([docs/hcp-no-code-setup.md section 9](../../docs/hcp-no-code-setup.md#9-module-version-changes)).
 - If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.
-- The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.
+- The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, the module's name and the version the workspace runs with an update-available notice that links to Deploy Latest Version, run history, pending-run discard, managed resources, and read-only variables.
