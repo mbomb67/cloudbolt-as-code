@@ -164,19 +164,22 @@ def _upgrade_action_url(profile, resource):
     return ""
 
 
-def _module_context(client, resource, profile, workspace, warnings):
-    """No-code module facts for the summary: the module's name/provider and
-    the version the workspace runs (workspace source-module-id), the version
-    pinned on the module in HCP (version-pin), and whether an upgrade is
-    available -- HCP's own flag, or a pin that differs from the running
-    version. None for a workspace that is not no-code."""
+def _module_context(client, resource, profile, workspace, warnings, with_action=True):
+    """No-code module facts for the Source cell and the summary: the module's
+    name/provider and the version the workspace runs (workspace
+    source-module-id, falling back to the values the build plugin and the
+    Deploy Latest Version action store on the resource), the version pinned
+    on the module in HCP (version-pin), and whether an upgrade is available
+    -- HCP's own flag, or a pin that differs from the running version.
+    None for a workspace that is not no-code. ``with_action`` resolves the
+    Deploy Latest Version dialog URL (summary banner only)."""
     info = workspace_module_info(workspace)
     nocode_module_id = _attr(resource, "tfc_nocode_module_id") or ""
     if not nocode_module_id and not info["is_no_code"]:
         return None
     module = {
         "id": nocode_module_id,
-        "name": info["name"] or "",
+        "name": info["name"] or _attr(resource, "tfc_nocode_module_name") or "",
         "provider": info["provider"] or "",
         "version": info["version"] or _attr(resource, "tfc_nocode_module_version") or "",
         "pin": "",
@@ -193,7 +196,7 @@ def _module_context(client, resource, profile, workspace, warnings):
             warnings.append("No-code module {} unavailable: {}".format(nocode_module_id, exc))
     if module["pin"] and module["version"] and module["pin"] != module["version"]:
         module["upgrade_available"] = True
-    if module["upgrade_available"]:
+    if module["upgrade_available"] and with_action:
         module["upgrade_url"] = _upgrade_action_url(profile, resource)
     return module
 
@@ -373,6 +376,7 @@ def _tab_context(resource):
         "branch": _attr(resource, "tfc_branch"),
         "working_directory": _attr(resource, "tfc_working_directory"),
         "nocode_module_id": _attr(resource, "tfc_nocode_module_id"),
+        "nocode_module_name": _attr(resource, "tfc_nocode_module_name"),
         "nocode_module_version": _attr(resource, "tfc_nocode_module_version"),
         "last_run_url": _attr(resource, "tfc_run_url"),
     }
@@ -388,6 +392,7 @@ def terraform_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
     context = _tab_context(resource)
     context.update({
+        "source_url": reverse("hcp_tfws_source", args=[resource.id]),
         "summary_url": reverse("hcp_tfws_summary", args=[resource.id]),
         "runs_url": reverse("hcp_tfws_runs", args=[resource.id]),
         "resources_url": reverse("hcp_tfws_resources", args=[resource.id]),
@@ -414,6 +419,35 @@ def variables_tab(request, obj_id):
 # ---------------------------------------------------------------------------
 # Panels (HTML fragments loaded asynchronously by the tabs)
 # ---------------------------------------------------------------------------
+def source_panel(request, resource_id):
+    """The hero's Source cell: for a no-code workspace the module's name, the
+    version it runs, an update-available pill and the nocode- ID; for a VCS
+    workspace the repo, branch and working directory. Read live from the
+    workspace; when HCP Terraform cannot be reached it renders the values
+    stored on the resource instead of an error (the summary panel reports the
+    error)."""
+    resource, profile, error = _load(request, resource_id)
+    context = _tab_context(resource)
+    context.update({"module": None, "live": False})
+    if error:
+        return _panel(request, "source_panel.html", context)
+    try:
+        client = _client_for(resource)
+        workspace = client.get_workspace(_attr(resource, "tfc_workspace_id"))
+    except TFCError:
+        return _panel(request, "source_panel.html", context)
+    attrs = workspace.get("attributes") or {}
+    vcs = attrs.get("vcs-repo") or {}
+    context.update({
+        "live": True,
+        "repo_identifier": vcs.get("identifier") or context["repo_identifier"],
+        "branch": vcs.get("branch") or context["branch"],
+        "working_directory": attrs.get("working-directory") or context["working_directory"],
+        "module": _module_context(client, resource, profile, workspace, [], with_action=False),
+    })
+    return _panel(request, "source_panel.html", context)
+
+
 def summary_panel(request, resource_id):
     """Workspace state, latest run, drift, cost estimate, and pending runs."""
     resource, profile, error = _load(request, resource_id)

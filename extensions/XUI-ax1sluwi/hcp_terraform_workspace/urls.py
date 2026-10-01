@@ -4,6 +4,11 @@ from . import views
 
 xui_urlpatterns = [
     path(
+        "hcp-terraform/<int:resource_id>/source/",
+        views.source_panel,
+        name="hcp_tfws_source",
+    ),
+    path(
         "hcp-terraform/<int:resource_id>/summary/",
         views.summary_panel,
         name="hcp_tfws_summary",

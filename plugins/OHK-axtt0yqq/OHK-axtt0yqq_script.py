@@ -190,6 +190,11 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
         ("tfc_nocode_module_id", "TFC No-Code Module ID",
          "The nocode-* module this deployment was provisioned from.",
          FIELD_VISIBILITY_PARAMETER),
+        ("tfc_nocode_module_name", "TFC No-Code Module Name",
+         "Registry name of the no-code module the deployment's workspace runs "
+         "(from the workspace's source-module-id); recorded at provision and "
+         "refreshed by the Deploy Latest Version action.",
+         FIELD_VISIBILITY_PARAMETER),
         ("tfc_nocode_module_version", "TFC No-Code Module Version",
          "Module version the deployment's workspace currently runs (from the "
          "workspace's source-module-id); recorded at provision and refreshed by "
@@ -467,12 +472,14 @@ def run(job, **kwargs):
         resource.set_value_for_custom_field("tfc_organization", tfc_organization)
         resource.set_value_for_custom_field("tfc_project", tfc_project)
         resource.set_value_for_custom_field("tfc_nocode_module_id", tfc_nocode_module_id)
-        # The module version HCP created the workspace from (its
-        # source-module-id). Shown on the Terraform tab and compared against
-        # the module's version pin by the Deploy Latest Version action.
-        module_version = workspace_module_info(workspace)["version"]
-        if module_version:
-            resource.set_value_for_custom_field("tfc_nocode_module_version", module_version)
+        # The module name and version HCP created the workspace from (its
+        # source-module-id). Shown on the Terraform tab; the version is
+        # compared against the module's pin by the Deploy Latest Version action.
+        module_info = workspace_module_info(workspace)
+        if module_info["name"]:
+            resource.set_value_for_custom_field("tfc_nocode_module_name", module_info["name"])
+        if module_info["version"]:
+            resource.set_value_for_custom_field("tfc_nocode_module_version", module_info["version"])
         resource.set_value_for_custom_field("tfc_env_id", str(env.id))
         resource.set_value_for_custom_field("azure_subscription_id", azure["subscription_id"])
         if azure["tenant_id"]:

@@ -3,22 +3,6 @@
   {% include "hcp_terraform_workspace/templates/_alert.html" %}
 {% else %}
 
-{# ── Live Source cell for the hero: the panel loader copies this into #tfws-source ── #}
-<div hidden data-tf-fill="#tfws-source">
-  {% if module %}
-    {% if module.name %}{{ module.name }}{% else %}<span class="tf-mono">{{ module.id }}</span>{% endif %}
-    {% if module.version %} <span class="tf-tag">v{{ module.version }}</span>{% endif %}
-    {% if module.upgrade_available %} <span class="tf-pill tf-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Update available" %}{% if module.pin %} &middot; v{{ module.pin }}{% endif %}</span>{% endif %}
-    {% if module.name and module.id %}<div class="tf-hint tf-mono">{{ module.id }}</div>{% endif %}
-    <div class="tf-hint">{% trans "No-code module" %}{% if module.provider %} &middot; {{ module.provider }}{% endif %}</div>
-  {% elif workspace.vcs_identifier %}
-    {{ workspace.vcs_identifier }}{% if workspace.vcs_branch %} <span class="tf-tag">{{ workspace.vcs_branch }}</span>{% endif %}
-    {% if workspace.working_directory %}<div class="tf-hint">{{ workspace.working_directory }}</div>{% endif %}
-  {% else %}
-    <span class="tf-muted">&mdash;</span>
-  {% endif %}
-</div>
-
 {% if pending %}
 <div class="tf-banner">
   <i class="bi bi-hourglass-split" aria-hidden="true"></i>
