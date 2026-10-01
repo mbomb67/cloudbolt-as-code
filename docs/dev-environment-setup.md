@@ -63,4 +63,4 @@ Plugins import shared modules as `shared_modules.<module_name>`. Folders in this
 
 ## AI assistants
 
-[../AGENTS.md](../AGENTS.md) holds the authoring rules for this repo layout; `CLAUDE.md` points Claude Code at it. `.claude/skills/cloudbolt-content/` holds Claude Code skills that scaffold blueprints, standalone actions, forms, and Bicep blueprints, and lint metadata. [agents/](agents/) holds the deep references those rules link to. With `typings/` in place, assistants can grep real signatures instead of guessing CloudBolt APIs.
+[../AGENTS.md](../AGENTS.md) holds the authoring rules for this repo layout; `CLAUDE.md` points Claude Code at it. `.claude/skills/` holds Claude Code skills (`/cb-scaffold-blueprint`, `/cb-scaffold-standalone-action`, `/cb-scaffold-form`, `/cb-scaffold-bicep`, `/cb-validate-metadata`, `/cb-find-content-by-name`, `/cb-package-zip`) that scaffold content, lint metadata, and package import zips; they load automatically when the repo is opened in Claude Code. [agents/](agents/) holds the deep references those rules link to. With `typings/` in place, assistants can grep real signatures instead of guessing CloudBolt APIs.

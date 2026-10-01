@@ -33,7 +33,7 @@ Full per-type schemas, enums, required fields, and worked examples: **[docs/agen
 3. **`{{ }}` is for declared plugin inputs only — nowhere else, and always quoted.** CloudBolt renders the *entire* plugin script through its template engine before the Python runs — comments and docstrings included — so any `{{ … }}` anywhere is treated as a variable to resolve and will corrupt or break the script. Only write `{{ }}` to inject a parameter you actually declared as a plugin input; in comments and prose, name the variable in plain words, never with literal `{{ }}` braces. When you do inject one, always quote/cast it: `api_key = "{{ api_key }}"`, never `api_key = {{ api_key }}` (unquoted = Python injection); `int("{{ port }}")`; lists/dicts via `ast.literal_eval("""{{ items }}""")`. Full rules: [docs/agents/rbac-and-security.md](docs/agents/rbac-and-security.md).
 4. **Never expose `resource_handler` to end users.** Always gate via Environments (`env_id`); convert to handler inside `run()` with `rh = env.resource_handler.cast()`. Required for RBAC compliance. **Every Environment dropdown is built from `group.get_available_environments()`** — the platform's entitlement query, which returns the environments explicitly entitled to the requesting group (and its ancestors) *plus* all unconstrained environments (no groups assigned). Users must be able to order into both, so never reimplement entitlement with `Environment.objects.filter(group__in=[group])` — it silently drops unconstrained environments. Resolve the `group` kwarg first (it arrives as a `Group` or as its name depending on caller), then narrow by handler type with `id__in`. See [docs/agents/rbac-and-security.md](docs/agents/rbac-and-security.md).
 5. **Never guess external vendor APIs.** When code calls Azure ARM, AWS, ServiceNow, Okta, or any third-party service, reference the vendor's current official docs at the call site — do not extrapolate from memory. Cite the doc URL in a code comment. If the operation is already in `typings/` or wrapped by an existing `shared_modules/SHM-*`, that's the source of truth. Full rule: [docs/agents/external-apis.md](docs/agents/external-apis.md).
-6. **Generate global IDs with CloudBolt's algorithm — never hand-type the suffix.** A suffix like `OHK-dnsadd01` encodes a name/type/sequence and is immediately identifiable as not CloudBolt-generated; a real `global_id` suffix is 8 characters of pure entropy. Shell out one ID per prefix you need — `python -c "import random,string,sys; a=string.ascii_lowercase+string.digits; [print(p+'-'+''.join(random.choices(a,k=8))) for p in sys.argv[1:]]" OHK BP RSA` — then grep the repo and regenerate on any collision. This holds whether or not you go through a `scaffold-*` skill. Full rule: [metadata-schemas.md §0](docs/agents/metadata-schemas.md#0-universal-rules).
+6. **Generate global IDs with CloudBolt's algorithm — never hand-type the suffix.** A suffix like `OHK-dnsadd01` encodes a name/type/sequence and is immediately identifiable as not CloudBolt-generated; a real `global_id` suffix is 8 characters of pure entropy. Shell out one ID per prefix you need — `python -c "import random,string,sys; a=string.ascii_lowercase+string.digits; [print(p+'-'+''.join(random.choices(a,k=8))) for p in sys.argv[1:]]" OHK BP RSA` — then grep the repo and regenerate on any collision. This holds whether or not you go through a `cb-scaffold-*` skill. Full rule: [metadata-schemas.md §0](docs/agents/metadata-schemas.md#0-universal-rules).
 7. **Copy exported content, don't copy the docs.** Every file under the content dirs was produced by a real CloudBolt export, so for any literal value — an enum, a field name, a key's casing, the shape of a nested object — **the repo outranks [metadata-schemas.md](docs/agents/metadata-schemas.md), which outranks its worked examples, which outrank your memory.** Before hand-authoring a metadata field you have not written before, grep for how existing content spells it:
 
    ```bash
@@ -60,18 +60,21 @@ The dir names above are CloudBolt's defaults. They CAN be customized per repo vi
 
 ## Tooling
 
-Six Claude Code skills under `.claude/skills/cloudbolt-content/` automate the common workflows. Portable across tools that support skills.
+Seven Claude Code skills under `.claude/skills/` automate the common workflows. They load automatically when this repo is opened in Claude Code and run as `/cb-<name>` or when the task matches; the procedures are plain Markdown, so other agents can follow them from the same files.
 
 | Skill | What it does |
 |---|---|
-| `scaffold-blueprint` | Generate BP + paired OHK plugins (build/teardown/discovery) + optional RSAs |
-| `scaffold-standalone-action` | Generate any of RSA/SVA/HPA/FCA/RJB/CIT/IWH + paired OHK plugin |
-| `scaffold-form` | Generate FRM (+ optional FJS) wired into a named parent so it actually imports |
-| `scaffold-bicep` | Generate a BP that deploys an Azure Bicep template on the generic Bicep engine (see blueprints/BP-nibk4erf) |
-| `validate-metadata` | Lint every `<GLOBAL_ID>_metadata.json` for required fields, dangling refs, enum violations, key casing, orphans |
-| `find-content-by-name` | Resolve human-readable name to ID-prefixed folder |
+| `cb-scaffold-blueprint` | Generate BP + paired OHK plugins (build/teardown/discovery) + optional RSAs |
+| `cb-scaffold-standalone-action` | Generate any of RSA/SVA/HPA/FCA/RJB/CIT/IWH + paired OHK plugin |
+| `cb-scaffold-form` | Generate FRM (+ optional FJS) wired into a named parent so it actually imports |
+| `cb-scaffold-bicep` | Generate a BP that deploys an Azure Bicep template on the generic Bicep engine (see blueprints/BP-nibk4erf) |
+| `cb-validate-metadata` | Lint every `<GLOBAL_ID>_metadata.json` for required fields, dangling refs, enum violations, key casing, orphans |
+| `cb-find-content-by-name` | Resolve human-readable name to ID-prefixed folder |
+| `cb-package-zip` | Build an uploadable CloudBolt import zip (nested package format, dependencies bundled) from a unit in this repo via `tools/package_zip.py` |
 
 `tools/build_catalog.py` regenerates `CATALOG.md`, `catalog.json`, and every top-level dir's index `README.md` from the metadata. Run it after adding, renaming, or re-describing content; never hand-edit those files (CI fails if they are stale). Keep every metadata `description` to one sentence stating what the content does, because the catalog prints it verbatim.
+
+`tools/package_zip.py <ID|path|name> [--dry-run]` converts a unit and its dependency closure into the zip CloudBolt's Import button expects (`dist/`, gitignored). The zip format is not the repo format: see [docs/agents/zip-package-format.md](docs/agents/zip-package-format.md).
 
 ## Deep references — load on demand
 
@@ -80,6 +83,7 @@ Six Claude Code skills under `.claude/skills/cloudbolt-content/` automate the co
 - **[docs/agents/common-patterns.md](docs/agents/common-patterns.md)** — Azure auth, AWS paginators, discovery hydration, generate-options patterns, error handling.
 - **[docs/agents/rbac-and-security.md](docs/agents/rbac-and-security.md)** — full RBAC pattern, parameter-quoting rules, secret handling.
 - **[docs/agents/external-apis.md](docs/agents/external-apis.md)** — full "never guess vendor APIs" rule with Azure REST and AWS boto3 worked examples.
+- **[docs/agents/zip-package-format.md](docs/agents/zip-package-format.md)** — CloudBolt's zip import/export package format, the repo-layout → zip mapping per type, what is lost in transit, upload routes. [zip-package-format-source-query.md](docs/agents/zip-package-format-source-query.md) is the prompt that re-derives it from the CloudBolt source.
 - **`typings/`** — CloudBolt's internal Django models as type stubs. Grep here for available methods and fields, e.g. `grep -r "def cast" typings/`. It is gitignored; copy it from `/var/opt/cloudbolt/proserv/typings` on your appliance: [docs/dev-environment-setup.md](docs/dev-environment-setup.md). If `typings/` is missing, copy it before writing code against CloudBolt APIs; do not guess them from memory.
 
 ## External CloudBolt documentation

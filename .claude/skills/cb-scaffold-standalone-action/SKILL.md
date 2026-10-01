@@ -1,14 +1,13 @@
 ---
-name: scaffold-standalone-action
+name: cb-scaffold-standalone-action
 description: Scaffold any standalone CloudBolt action — resource_action (RSA), server_action (SVA), orchestration_action (HPA), flowcontrol_action (FCA), recurring_job (RJB), cit_test (CIT), or inbound_webhook (IWH) — paired with its plugin (OHK). Produces a runnable folder set with valid stub metadata wired via dependencies.hook.
-when-to-use: When the user wants to add a content unit that does NOT belong to a blueprint — e.g. "add a recurring job that cleans up X nightly," "add a server action to deploy the migration agent," "add a hook-point action that tags servers after provisioning," "add a flow control gate that blocks Friday prod orders," "add a CIT test for the provision flow," "add an inbound webhook that triggers Y."
+when_to_use: When the user wants to add a content unit that does NOT belong to a blueprint — e.g. "add a recurring job that cleans up X nightly," "add a server action to deploy the migration agent," "add a hook-point action that tags servers after provisioning," "add a flow control gate that blocks Friday prod orders," "add a CIT test for the provision flow," "add an inbound webhook that triggers Y."
 ---
 
-# scaffold-standalone-action
-
+# cb-scaffold-standalone-action
 Generate the folder set for any standalone CloudBolt action content type plus its paired `plugins/OHK-<id>/` folder. Wires them via `dependencies.hook = "plugins/OHK-<id>"`.
 
-For blueprints, use `scaffold-blueprint` instead. For custom forms (FRM/FJS), use `scaffold-form` — those are transitive-import only.
+For blueprints, use `cb-scaffold-blueprint` instead. For custom forms (FRM/FJS), use `cb-scaffold-form` — those are transitive-import only.
 
 ## Required reading
 
@@ -54,14 +53,14 @@ Ask the user:
 3. **Emit the action content folder** at `<top-level-dir>/<PREFIX>-<id>/<PREFIX>-<id>_metadata.json` matching the chosen type's section in metadata-schemas.md. Use that section's Worked Example as the structural template; substitute user-provided inputs into the fields they chose. Universal rules from §0 that bear on this output:
    - `action_inputs[]` keys are **kebab-case** for every type in this skill's scope (`HasBaseActionSerializer` lineage — see §0 casing rule).
    - `dependencies.hook` is always `"plugins/OHK-<plugin-id>"` (snake_case key, path-string value per §0 cross-reference convention).
-   - Optional camelCase fields when applicable: `dependencies.displayCondition` (SVA only), `dependencies.sharedModules[]`. Snake_case `dependencies.custom_form` applies to most action types — only set if the user is also adding a form (use `scaffold-form` for that).
+   - Optional camelCase fields when applicable: `dependencies.displayCondition` (SVA only), `dependencies.sharedModules[]`. Snake_case `dependencies.custom_form` applies to most action types — only set if the user is also adding a form (use `cb-scaffold-form` for that).
 
 4. **Report back** with:
    - The two folders created and the cross-reference wired.
    - The user-facing choice that landed in the file (cron `schedule` for RJB, `hook_point` label for HPA, ALLOW vs PAUSE for FCA, `expected_status` for CIT, `authentication_method` for IWH).
    - Reminder that the plugin script is a stub — agent's next step is the Python body.
    - If the plugin will call a third-party API, point at [docs/agents/external-apis.md](../../../docs/agents/external-apis.md).
-   - Suggestion to run `validate-metadata`.
+   - Suggestion to run `cb-validate-metadata`.
 
 ## Constraints
 

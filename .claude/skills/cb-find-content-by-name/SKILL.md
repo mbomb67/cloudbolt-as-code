@@ -1,11 +1,10 @@
 ---
-name: find-content-by-name
+name: cb-find-content-by-name
 description: Resolve a human-readable string ("Expire Servers", "Azure Cross-Tenant Subscription") to the ID-prefixed folder containing the matching CloudBolt content. Useful because on-disk folders are named by GLOBAL_ID (e.g. BP-5pei9cno), not by name.
-when-to-use: When the user asks "where is the X blueprint?", "find the plugin for Y", "open the recurring job named Z", or any task that starts from a human-readable content name rather than a GLOBAL_ID. Also use internally from other skills (scaffold-form, etc.) when the user names a parent by label rather than ID.
+when_to_use: When the user asks "where is the X blueprint?", "find the plugin for Y", "open the recurring job named Z", or any task that starts from a human-readable content name rather than a GLOBAL_ID. Also use internally from other skills (scaffold-form, etc.) when the user names a parent by label rather than ID.
 ---
 
-# find-content-by-name
-
+# cb-find-content-by-name
 Grep every `<GLOBAL_ID>_metadata.json` file in the repo for a name/label match and return the matching folder paths. Different content types use different match keys, so search several.
 
 ## Required reading
@@ -15,7 +14,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 ## When to use
 
 - User mentions a content unit by its display name and you need to locate the folder.
-- Other skills need to resolve a parent reference from a name (e.g. `scaffold-form` asks "which parent?" and the user names it).
+- Other skills need to resolve a parent reference from a name (e.g. `cb-scaffold-form` asks "which parent?" and the user names it).
 
 ## Inputs
 

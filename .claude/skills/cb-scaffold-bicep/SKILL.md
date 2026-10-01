@@ -1,11 +1,10 @@
 ---
-name: scaffold-bicep
+name: cb-scaffold-bicep
 description: Scaffold a CloudBolt blueprint that deploys an Azure Bicep template via the generic Bicep deployment engine. Compiles the template, walks the author through per-parameter curation (accept-and-pin vs expose-as-typed-input), and emits a blueprint plus a typed Update action wired to the shared engine plugins.
-when-to-use: When the user says "scaffold a bicep blueprint", "make a catalog item for this bicep template", "wrap this .bicep in CloudBolt", or points at a Bicep template in a GitHub repo and wants an orderable, typed blueprint. Requires the Bicep deployment engine content (SHM-eybr4hgz, SHM-bbswv27r, OHK-gqvi9kv4, OHK-t2gs5caq) to already exist in the repo.
+when_to_use: When the user says "scaffold a bicep blueprint", "make a catalog item for this bicep template", "wrap this .bicep in CloudBolt", or points at a Bicep template in a GitHub repo and wants an orderable, typed blueprint. Requires the Bicep deployment engine content (SHM-eybr4hgz, SHM-bbswv27r, OHK-gqvi9kv4, OHK-t2gs5caq) to already exist in the repo.
 ---
 
-# scaffold-bicep
-
+# cb-scaffold-bicep
 Generate an orderable CloudBolt blueprint for a specific Azure Bicep template, with typed order-form inputs curated from the template's own parameter schema. The blueprint wires to the **generic** Bicep engine plugins — this skill generates no engine logic, only the per-template blueprint, its curated inputs, and a thin typed Update adapter.
 
 ## Required reading
@@ -88,7 +87,7 @@ Regenerate the blueprint AND the typed Update from the same curation result so t
 
 ### 5. Report back
 
-List every folder created, every cross-reference wired (build/teardown/management-action hooks, shared-module deps), the pinned vs exposed parameter split, and a reminder to run `validate-metadata`. If the template uses registry modules (`br:`), remind the author the appliance needs egress to that registry at deploy time.
+List every folder created, every cross-reference wired (build/teardown/management-action hooks, shared-module deps), the pinned vs exposed parameter split, and a reminder to run `cb-validate-metadata`. If the template uses registry modules (`br:`), remind the author the appliance needs egress to that registry at deploy time.
 
 ## Constraints
 
