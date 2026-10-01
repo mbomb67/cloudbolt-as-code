@@ -2,8 +2,9 @@
 CloudBolt shared module: HCP Terraform (TFC) REST client + run engine.
 
 Imported by the HCP Terraform blueprints' build/teardown plugins, the
-"Terraform Update" / "Resize" / "Update Variables" day-2 plugins, and the
-HCP Terraform Workspace XUI (read-only lookups via get_options_client) as:
+"Terraform Update" / "Resize" / "Update Variables" / "Deploy Latest Version"
+day-2 plugins, and the HCP Terraform Workspace XUI (read-only lookups via
+get_options_client) as:
 
     from shared_modules.tfc_api import (
         get_client,
@@ -47,6 +48,10 @@ also cites its doc):
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/organizations
 - Workspaces (create/read/safe-delete, vcs-repo, project, tag-bindings):
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces
+- No-code provisioning (module read with version-pin, workspace create,
+  workspace upgrade initiate/read/confirm; workspace attributes
+  source-module-id and no-code-upgrade-available):
+  https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
 - Workspace variables:
   https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspace-variables
 - Runs (create, is-destroy, actions, status_group filter):
@@ -383,6 +388,68 @@ def no_code_workspace_name_for_resource(resource_global_id):
     (the no-code create ignores tag-bindings -- U1).
     """
     return _sanitize_workspace_name(NO_CODE_WORKSPACE_NAME_PREFIX, resource_global_id)
+
+
+# Workspace ``source`` value HCP Terraform records on a workspace created from a
+# no-code module (the no-code create response's ``"source": "tfe-module"``).
+NO_CODE_WORKSPACE_SOURCE = "tfe-module"
+
+
+def parse_source_module_id(source_module_id):
+    """Split a workspace's ``source-module-id`` into its parts, or None.
+
+    HCP Terraform records the registry module a no-code workspace was created
+    from as ``<registry>/<namespace>/<name>/<provider>/<version>`` (the
+    documented sample is ``private/my-organization/lambda/aws/1.0.9``).
+    Returns ``{"registry", "namespace", "name", "provider", "version"}`` (all
+    str), or None when the value is missing or not in that shape.
+    Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+          (POST /no-code-modules/:id/workspaces response,
+          data.attributes.source-module-id)
+    """
+    parts = [part for part in str(source_module_id or "").strip().split("/") if part]
+    if len(parts) < 5:
+        return None
+    return {
+        "registry": parts[0],
+        "namespace": parts[1],
+        "name": parts[2],
+        "provider": parts[3],
+        "version": "/".join(parts[4:]),
+    }
+
+
+def workspace_module_info(workspace):
+    """No-code module facts from a workspace document (get_workspace or the
+    no-code create response): ``{"is_no_code", "name", "provider",
+    "namespace", "version", "source_module_id", "upgrade_available"}``.
+
+    ``version`` is the module version the workspace currently runs, parsed
+    from ``source-module-id`` (None when absent). ``upgrade_available`` is
+    HCP's own ``no-code-upgrade-available`` flag -- True/False, or None when
+    the attribute is absent. ``is_no_code`` is True when ``source`` is
+    ``tfe-module`` or a source-module-id is present. Every value degrades to
+    None/"" on a workspace that is not no-code (the VCS blueprint's), so the
+    XUI and the Deploy Latest Version action can call this on any workspace.
+    Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+          (workspace attributes source, source-module-id,
+          no-code-upgrade-available)
+    """
+    attributes = (workspace or {}).get("attributes", {}) or {}
+    source_module_id = attributes.get("source-module-id") or ""
+    parsed = parse_source_module_id(source_module_id) or {}
+    flag = attributes.get("no-code-upgrade-available")
+    return {
+        "is_no_code": (
+            attributes.get("source") == NO_CODE_WORKSPACE_SOURCE or bool(source_module_id)
+        ),
+        "name": parsed.get("name"),
+        "provider": parsed.get("provider"),
+        "namespace": parsed.get("namespace"),
+        "version": parsed.get("version"),
+        "source_module_id": source_module_id,
+        "upgrade_available": bool(flag) if flag is not None else None,
+    }
 
 
 def build_run_message(job_id, resource_global_id, blueprint_name):
@@ -2071,6 +2138,118 @@ class TFCClient(object):
                 options[name] = list(attributes.get("options") or [])
         return options
 
+    def get_no_code_module(self, nocode_module_id):
+        """The no-code module's properties: ``{"id", "enabled", "version_pin",
+        "registry_module_id"}``. ``version_pin`` is the module version HCP
+        designates as no-code ready -- the version new workspaces are created
+        from and the target a workspace upgrade moves to.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (GET /no-code-modules/:id -> data.attributes.{enabled,
+              version-pin}, data.relationships.registry-module.data.id)
+        """
+        response = self._request("GET", "/no-code-modules/{}".format(nocode_module_id))
+        data = response.json().get("data", {}) or {}
+        attributes = data.get("attributes", {}) or {}
+        registry_module = (
+            ((data.get("relationships") or {}).get("registry-module") or {}).get("data") or {}
+        )
+        return {
+            "id": data.get("id") or nocode_module_id,
+            "enabled": bool(attributes.get("enabled")),
+            "version_pin": str(attributes.get("version-pin") or ""),
+            "registry_module_id": registry_module.get("id") or "",
+        }
+
+    @staticmethod
+    def _upgrade_result(body):
+        """``{"id", "status", "plan_url"}`` from a workspace-upgrade document."""
+        data = (body or {}).get("data", {}) or {}
+        attributes = data.get("attributes", {}) or {}
+        return {
+            "id": data.get("id"),
+            "status": attributes.get("status") or "",
+            "plan_url": attributes.get("plan-url") or "",
+        }
+
+    def initiate_no_code_upgrade(self, nocode_module_id, workspace_id, message,
+                                 variables=None, sensitive_keys=None):
+        """Start upgrading a no-code workspace to the module's pinned version.
+
+        HCP builds a configuration version from the pinned module version and
+        queues a run on the workspace. The returned ``id`` IS that run's ID
+        (``run-...``; the documented sample response is a run ID and its
+        ``plan-url`` is the run's URL), so the standard run endpoints (poll,
+        discard) apply to it and the plan-approval engine can adopt it via
+        drive_run_with_plan_approval. ``message`` must come from
+        build_run_message() so the run stays attributable to its CloudBolt
+        job. ``variables`` (optional; same typing as the no-code create)
+        supplies values for input variables the new version introduced.
+        Returns ``{"id", "status", "plan_url"}``.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (POST /no-code-modules/:no_code_module_id/workspaces/:id/upgrade
+              with data.type "workspaces", data.attributes.message and
+              data.relationships.vars.data[]; response type "workspace-upgrade"
+              with attributes.{status, plan-url})
+        """
+        payload = {"data": {"type": "workspaces", "attributes": {"message": message}}}
+        if variables:
+            payload["data"]["relationships"] = {
+                "vars": {"data": self._no_code_var_relationship(variables, sensitive_keys)}
+            }
+        response = self._request(
+            "POST",
+            "/no-code-modules/{}/workspaces/{}/upgrade".format(nocode_module_id, workspace_id),
+            json_body=payload,
+        )
+        result = self._upgrade_result(response.json())
+        self._log.info(
+            "Initiated no-code upgrade of workspace %s from module %s (run %s, status '%s').",
+            workspace_id, nocode_module_id, result["id"], result["status"],
+        )
+        return result
+
+    def get_no_code_upgrade(self, nocode_module_id, workspace_id, upgrade_id):
+        """Status of a workspace upgrade plan: ``{"id", "status", "plan_url"}``.
+        ``status`` mirrors the run's state (pending, fetching, planning,
+        planned, cost_estimated, planned_and_finished, ...).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (GET /no-code-modules/:no_code_module_id/workspaces/:workspace_id/upgrade/:id)
+        """
+        response = self._request(
+            "GET",
+            "/no-code-modules/{}/workspaces/{}/upgrade/{}".format(
+                nocode_module_id, workspace_id, upgrade_id
+            ),
+        )
+        return self._upgrade_result(response.json())
+
+    def confirm_no_code_upgrade(self, nocode_module_id, workspace_id, upgrade_id,
+                                message=None):
+        """Confirm and apply a planned workspace upgrade. Used in place of
+        POST /runs/:id/actions/apply for an upgrade run so HCP also records
+        the workspace's new module version (the documented confirmation path;
+        the UI's "View update" flow ends here). The documented sample sends
+        no body; ``message`` is the one optional attribute. The response is a
+        plain confirmation text, not a JSON:API document, so it is not parsed.
+        A 409 (TFCConflictError) means the run was not awaiting confirmation
+        -- callers re-read the run state and re-branch, as with apply_run.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (POST /no-code-modules/:no_code_module_id/workspaces/:workspace_id/upgrade/:id
+              with optional data.attributes.message; 200 "Workspace update
+              completed")
+        """
+        payload = {"data": {"attributes": {"message": message}}} if message else None
+        self._request(
+            "POST",
+            "/no-code-modules/{}/workspaces/{}/upgrade/{}".format(
+                nocode_module_id, workspace_id, upgrade_id
+            ),
+            json_body=payload,
+        )
+        self._log.info(
+            "Confirmed no-code upgrade run %s on workspace %s.", upgrade_id, workspace_id
+        )
+
     def workspace_resource_tag_conflicts(self, workspace_id, resource_global_id):
         """True only when the workspace carries a ``cmp:resource-id`` tag whose
         value is a DIFFERENT resource -- the one case that must block name-based
@@ -3368,12 +3547,23 @@ def run_with_plan_approval(job, client, workspace_id, message,
     )
 
 
-def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=None):
+def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=None,
+                                 confirm=None):
     """Adopt an EXISTING run and drive it through the same plan-approval gate as
     run_with_plan_approval -- for the no-code build path, where
     POST /no-code-modules/:id/workspaces AUTO-QUEUES the run rather than letting
     CloudBolt create it (run_with_plan_approval creates its own run; this adopts
-    one the plugin already located via wait_for_initial_run / list_non_final_runs).
+    one the plugin already located via wait_for_initial_run / list_non_final_runs),
+    and for the no-code workspace UPGRADE, whose initiate call returns the run.
+
+    ``confirm`` (optional) replaces the apply step: a callable taking the
+    approval comment, invoked instead of ``client.apply_run`` once the approver
+    continues the job. The Deploy Latest Version action passes
+    ``client.confirm_no_code_upgrade`` so the upgrade is confirmed through the
+    documented upgrade endpoint; polling and the reject-path discard still use
+    the standard run endpoints (the upgrade ID is the run ID). A 409 from
+    ``confirm`` is treated exactly like a 409 from apply_run: re-read the run
+    and re-branch.
 
     Same ownership guarantees as run_with_plan_approval: this function -- never
     the calling plugin -- catches CancelJobException, discards + reverts while
@@ -3393,17 +3583,21 @@ def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=No
         tasks_done=1, total_tasks=TOTAL_ENGINE_TASKS,
     )
     return _drive_run_with_ownership(
-        job, client, run_id, run_url, auto_confirm=False, on_reject=on_reject
+        job, client, run_id, run_url, auto_confirm=False, on_reject=on_reject,
+        confirm=confirm,
     )
 
 
-def _drive_run_with_ownership(job, client, run_id, run_url, auto_confirm, on_reject):
+def _drive_run_with_ownership(job, client, run_id, run_url, auto_confirm, on_reject,
+                              confirm=None):
     """Shared reject/error-ownership wrapper around _drive_run, called by both
     run_with_plan_approval (CREATES the run) and drive_run_with_plan_approval
     (ADOPTS an existing run). Behavior is identical for both entry points.
     """
     try:
-        return _drive_run(job, client, run_id, run_url, auto_confirm=auto_confirm)
+        return _drive_run(
+            job, client, run_id, run_url, auto_confirm=auto_confirm, confirm=confirm
+        )
     except CancelJobException:
         # Reject path (user cancel or global job_timeout). Discard + revert
         # only while the run is still pre-apply; if the apply already started,
@@ -3554,8 +3748,9 @@ def _terminal_result(job, classification, run_id, run_url, summary=None):
     return result
 
 
-def _drive_run(job, client, run_id, run_url, auto_confirm):
-    """Plan-poll, decide (pause or auto-confirm), apply, poll to terminal."""
+def _drive_run(job, client, run_id, run_url, auto_confirm, confirm=None):
+    """Plan-poll, decide (pause or auto-confirm), apply, poll to terminal.
+    ``confirm`` is the optional apply replacement (see drive_run_with_plan_approval)."""
     classification, _run = client.poll_run(
         run_id,
         timeout_seconds=PLAN_PHASE_TIMEOUT_SECONDS,
@@ -3641,7 +3836,7 @@ def _drive_run(job, client, run_id, run_url, auto_confirm):
             tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS,
         )
 
-    _confirm_run(job, client, run_id, run_url)
+    _confirm_run(job, client, run_id, run_url, confirm=confirm)
 
     # --- apply phase ----------------------------------------------------------
     classification, _run = client.poll_run(
@@ -3659,21 +3854,25 @@ def _drive_run(job, client, run_id, run_url, auto_confirm):
     return _terminal_result(job, classification, run_id, run_url, summary=summary)
 
 
-def _confirm_run(job, client, run_id, run_url):
+def _confirm_run(job, client, run_id, run_url, confirm=None):
     """
     POST the apply, re-read-and-re-branch style: the run state is re-read
     first (it may have changed while the job was paused), a 409 on apply
     triggers another re-read, an out-of-band apply via the TFC UI is logged
     and accepted, and an out-of-band discard fails with the run URL.
+    ``confirm`` (optional) is called with the approval comment in place of
+    ``client.apply_run`` -- the no-code upgrade confirmation endpoint.
     """
     while True:
         run = client.get_run(run_id)
         classification = classify_run(run)
         if classification == RUN_CLASS_CONFIRMABLE:
+            comment = "Approved via CloudBolt job {}.".format(job.id)
             try:
-                client.apply_run(
-                    run_id, comment="Approved via CloudBolt job {}.".format(job.id)
-                )
+                if confirm is not None:
+                    confirm(comment)
+                else:
+                    client.apply_run(run_id, comment=comment)
             except TFCConflictError:
                 # 409: the run moved between our read and the apply.
                 logger.info(
