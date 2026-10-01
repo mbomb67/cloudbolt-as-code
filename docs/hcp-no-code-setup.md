@@ -90,17 +90,15 @@ Invoke-RestMethod -Method Post -Headers $h -Body $body "https://app.terraform.io
 
 The response's `data.id` is the **`nocode-…` ID — record it**; it is pinned in the form (§6). Later changes (moving the version pin, adding options) go to `PATCH https://app.terraform.io/api/v2/no-code-modules/<nocode-id>` with the same body shape; the ID does not change, so nothing changes in CloudBolt.
 
-**Finding the ID of a module enabled in the UI.** The HCP Terraform UI does not display the `nocode-…` ID, and there is no endpoint that lists an organization's no-code modules (`GET /organizations/<org>/no-code-modules` returns 404; the path is POST-only). The registry module does carry a `no-code-modules` relationship (a related link, per HashiCorp's OpenAPI description of the registry-modules object), so read the module and follow it:
+**Finding the ID of a module enabled in the UI.** The HCP Terraform UI does not display the `nocode-…` ID, and there is no endpoint that lists an organization's no-code modules (`GET /organizations/<org>/no-code-modules` returns 404; the path is POST-only). Read the registry module instead: once no-code provisioning is enabled, its `attributes.no-code` is `true` and its `relationships.no-code-modules.data` lists the no-code module's ID inline (verified live 2026-10):
 
 ```powershell
 $h = @{ Authorization = "Bearer $env:TFC_TOKEN" }
 $module = Invoke-RestMethod -Headers $h "https://app.terraform.io/api/v2/organizations/<org>/registry-modules/private/<org>/<module-name>/azurerm"
-$related = $module.data.relationships.'no-code-modules'.links.related
-$nocode = Invoke-RestMethod -Headers $h ("https://app.terraform.io" + $related)
-$nocode.data | Select-Object id, @{n='version_pin';e={$_.attributes.'version-pin'}}, @{n='enabled';e={$_.attributes.enabled}}
+$module.data.relationships.'no-code-modules'.data | Select-Object id
 ```
 
-`<org>` appears twice because a private module's namespace is the organization name; `azurerm` is the module's provider segment. Fallback if the link is absent: open the module's page in HCP Terraform with the browser's developer tools open, filter the network calls on `no-code-modules`, and read the `nocode-…` segment of the request path. To confirm what is pinned:
+`<org>` appears twice because a private module's namespace is the organization name; `azurerm` is the module's provider segment. If `data` is empty, no-code provisioning is not enabled on the module yet (**Configure Settings** in the UI, or the `POST` above). To confirm what is pinned:
 
 ```powershell
 Invoke-RestMethod -Headers $h "https://app.terraform.io/api/v2/no-code-modules/<nocode-id>?include=variable_options" | ConvertTo-Json -Depth 8
