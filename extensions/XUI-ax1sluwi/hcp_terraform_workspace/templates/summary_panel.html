@@ -3,6 +3,22 @@
   {% include "hcp_terraform_workspace/templates/_alert.html" %}
 {% else %}
 
+{# ── Live Source cell for the hero: the panel loader copies this into #tfws-source ── #}
+<div hidden data-tf-fill="#tfws-source">
+  {% if module %}
+    {% if module.name %}{{ module.name }}{% else %}<span class="tf-mono">{{ module.id }}</span>{% endif %}
+    {% if module.version %} <span class="tf-tag">v{{ module.version }}</span>{% endif %}
+    {% if module.upgrade_available %} <span class="tf-pill tf-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Update available" %}{% if module.pin %} &middot; v{{ module.pin }}{% endif %}</span>{% endif %}
+    {% if module.name and module.id %}<div class="tf-hint tf-mono">{{ module.id }}</div>{% endif %}
+    <div class="tf-hint">{% trans "No-code module" %}{% if module.provider %} &middot; {{ module.provider }}{% endif %}</div>
+  {% elif workspace.vcs_identifier %}
+    {{ workspace.vcs_identifier }}{% if workspace.vcs_branch %} <span class="tf-tag">{{ workspace.vcs_branch }}</span>{% endif %}
+    {% if workspace.working_directory %}<div class="tf-hint">{{ workspace.working_directory }}</div>{% endif %}
+  {% else %}
+    <span class="tf-muted">&mdash;</span>
+  {% endif %}
+</div>
+
 {% if pending %}
 <div class="tf-banner">
   <i class="bi bi-hourglass-split" aria-hidden="true"></i>
@@ -35,6 +51,24 @@
 </div>
 {% endif %}
 
+{% if module and module.upgrade_available %}
+<div class="tf-banner tf-banner-info">
+  <i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
+  <div class="tf-banner-body">
+    <div class="tf-banner-t">{% trans "A newer version of the no-code module is available" %}</div>
+    <div class="tf-banner-s">
+      {% if module.version %}{% blocktrans with current=module.version %}This workspace runs v{{ current }}{% endblocktrans %}{% else %}{% trans "This workspace runs an older module version" %}{% endif %}{% if module.pin %}; {% blocktrans with pin=module.pin %}the module is pinned to v{{ pin }}{% endblocktrans %}{% endif %}.
+      {% trans "Deploy Latest Version upgrades the workspace through a plan-approval job." %}
+    </div>
+  </div>
+  {% if module.upgrade_url %}
+  <a class="btn btn-sm btn-primary open-dialog tf-banner-btn" href="{{ module.upgrade_url }}">
+    <i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Deploy Latest Version" %}
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="tf-meta">
   <div class="cell">
     <div class="k">{% trans "Latest run" %}</div>
@@ -56,6 +90,24 @@
       {% endif %}
     </div>
   </div>
+
+  {% if module %}
+  <div class="cell">
+    <div class="k">{% trans "Module version" %}</div>
+    <div class="v">
+      {% if module.version %}v{{ module.version }}{% else %}<span class="tf-muted">&mdash;</span>{% endif %}
+      {% if module.upgrade_available %}
+        <span class="tf-pill tf-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Update available" %}</span>
+      {% elif module.pin %}
+        <span class="tf-pill tf-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "Latest" %}</span>
+      {% endif %}
+      <div class="tf-hint">
+        {% if module.pin %}{% blocktrans with pin=module.pin %}Pinned in HCP Terraform: v{{ pin }}{% endblocktrans %}{% else %}{% trans "Pinned version not available" %}{% endif %}
+        {% if module.enabled is False %} &middot; {% trans "no-code provisioning disabled on the module" %}{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="cell">
     <div class="k">{% trans "Workspace" %}</div>

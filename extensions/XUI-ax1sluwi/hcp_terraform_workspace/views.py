@@ -6,10 +6,12 @@ blueprints (HCP Terraform VM, BP-b0qm83lh; HCP Terraform No-Code Module,
 BP-00meiwwz) -- any resource carrying a tfc_workspace_id custom field:
 
 - Terraform: workspace summary (lock, Terraform version, execution mode,
-  VCS repo/branch or no-code module, drift assessment, cost estimate), a
-  pending-run banner with a permission-gated Discard, the run history with
-  plan counts and links to the owning CloudBolt jobs, and the resources
-  Terraform manages.
+  VCS repo/branch or no-code module name and version, drift assessment, cost
+  estimate), a pending-run banner with a permission-gated Discard, an
+  update-available banner for no-code workspaces whose module pin moved
+  (with a link to the Deploy Latest Version action when the viewer may run
+  it), the run history with plan counts and links to the owning CloudBolt
+  jobs, and the resources Terraform manages.
 - Terraform Variables: read-only workspace variables (sensitive values are
   never rendered) plus the variable sets the workspace inherits.
 
@@ -32,6 +34,7 @@ Vendor API references (each tfc_api call site cites its own doc):
     https://developer.hashicorp.com/terraform/cloud-docs/api-docs/variable-sets
     https://developer.hashicorp.com/terraform/cloud-docs/api-docs/assessment-results
     https://developer.hashicorp.com/terraform/cloud-docs/api-docs/cost-estimates
+    https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
 """
 import re
 from urllib.parse import urlencode
@@ -44,11 +47,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.html import format_html, mark_safe
 
+from cbhooks.models import ResourceAction
 from extensions.views import tab_extension, TabExtensionDelegate
 from jobs.models import Job
 from resources.models import Resource
 from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
+from utilities.permissions import resource_action_permitted
 
 from shared_modules.tfc_api import (
     RUN_CLASS_ABANDONED,
@@ -63,6 +68,7 @@ from shared_modules.tfc_api import (
     classify_run,
     get_options_client,
     parse_job_id_from_run_message,
+    workspace_module_info,
 )
 
 logger = ThreadLogger(__name__)
@@ -75,6 +81,12 @@ RUN_ID_RE = re.compile(r"^run-[A-Za-z0-9]+$")
 # run needs DISCARD_PERMISSION on the resource, or CloudBolt admin.
 VIEW_PERMISSION = "resource.view"
 DISCARD_PERMISSION = "resource.manage_parameters"
+
+# Plugin (hook) name of the Deploy Latest Version resource action
+# (plugins/OHK-4y8f1vff). The update-available banner links to that action's
+# dialog when it is synced, applies to the resource's blueprint, and the
+# viewer may run it on this resource.
+UPGRADE_ACTION_HOOK_NAME = "Deploy Latest Version"
 
 # Run classification (tfc_api.classify_run) -> pill style + Bootstrap icon.
 RUN_STYLES = {
@@ -125,6 +137,65 @@ def _can_view(profile, resource):
 
 def _can_discard(profile, resource):
     return _has_permission(profile, DISCARD_PERMISSION, resource)
+
+
+def _upgrade_action_url(profile, resource):
+    """Dialog URL of the Deploy Latest Version resource action for this
+    resource, or '' when the action is not synced, does not apply to the
+    resource's blueprint, or the viewer may not run it (the same checks the
+    resource page's action sidebar applies: blueprint scoping and
+    resource_action_permitted)."""
+    try:
+        actions = ResourceAction.objects.filter(
+            enabled=True, hook__name=UPGRADE_ACTION_HOOK_NAME
+        )
+        for action in actions:
+            blueprint_ids = list(action.blueprints.values_list("id", flat=True))
+            if blueprint_ids and resource.blueprint_id not in blueprint_ids:
+                continue
+            if not resource_action_permitted(profile, resource, action):
+                continue
+            return reverse("run_resource_action", args=[resource.id, action.id])
+    except Exception:
+        logger.exception(
+            "Could not resolve the '%s' action for resource %s",
+            UPGRADE_ACTION_HOOK_NAME, resource.id,
+        )
+    return ""
+
+
+def _module_context(client, resource, profile, workspace, warnings):
+    """No-code module facts for the summary: the module's name/provider and
+    the version the workspace runs (workspace source-module-id), the version
+    pinned on the module in HCP (version-pin), and whether an upgrade is
+    available -- HCP's own flag, or a pin that differs from the running
+    version. None for a workspace that is not no-code."""
+    info = workspace_module_info(workspace)
+    nocode_module_id = _attr(resource, "tfc_nocode_module_id") or ""
+    if not nocode_module_id and not info["is_no_code"]:
+        return None
+    module = {
+        "id": nocode_module_id,
+        "name": info["name"] or "",
+        "provider": info["provider"] or "",
+        "version": info["version"] or _attr(resource, "tfc_nocode_module_version") or "",
+        "pin": "",
+        "enabled": None,
+        "upgrade_available": bool(info["upgrade_available"]),
+        "upgrade_url": "",
+    }
+    if nocode_module_id:
+        try:
+            properties = client.get_no_code_module(nocode_module_id)
+            module["pin"] = properties["version_pin"]
+            module["enabled"] = properties["enabled"]
+        except TFCError as exc:
+            warnings.append("No-code module {} unavailable: {}".format(nocode_module_id, exc))
+    if module["pin"] and module["version"] and module["pin"] != module["version"]:
+        module["upgrade_available"] = True
+    if module["upgrade_available"]:
+        module["upgrade_url"] = _upgrade_action_url(profile, resource)
+    return module
 
 
 def _client_for(resource):
@@ -375,6 +446,11 @@ def summary_panel(request, resource_id):
         "vcs_branch": vcs.get("branch") or "",
         "working_directory": attrs.get("working-directory") or "",
     }
+
+    # No-code module: name, running version, pinned version, update flag.
+    context["module"] = _module_context(
+        client, resource, profile, workspace, context["warnings"]
+    )
 
     # Latest run, with its plan and cost estimate side-loaded.
     current_run_id, _ = _relationship_id(workspace, "current-run")

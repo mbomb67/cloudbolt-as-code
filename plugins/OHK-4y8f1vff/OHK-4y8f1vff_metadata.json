@@ -1,0 +1,18 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "id": "OHK-4y8f1vff",
+    "max_retries": 0,
+    "name": "Deploy Latest Version",
+    "resource_technologies": [],
+    "script_filename": "OHK-4y8f1vff_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

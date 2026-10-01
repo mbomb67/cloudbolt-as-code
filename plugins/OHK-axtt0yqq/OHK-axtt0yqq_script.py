@@ -110,6 +110,7 @@ from shared_modules.tfc_api import (
     portal_url_for_job,
     run_with_plan_approval,
     serialize_variable_mirror,
+    workspace_module_info,
 )
 
 logger = ThreadLogger(__name__)
@@ -190,8 +191,9 @@ def _ensure_custom_fields(variable_names, sensitive_names=()):
          "The nocode-* module this deployment was provisioned from.",
          FIELD_VISIBILITY_PARAMETER),
         ("tfc_nocode_module_version", "TFC No-Code Module Version",
-         "Module version this deployment was provisioned from; reserved for the "
-         "deferred module-version Upgrade action (HCP owns the version pin).",
+         "Module version the deployment's workspace currently runs (from the "
+         "workspace's source-module-id); recorded at provision and refreshed by "
+         "the Deploy Latest Version action. HCP owns the version pin.",
          FIELD_VISIBILITY_PARAMETER),
         ("tfc_env_id", "TFC Environment ID",
          "ID of the CloudBolt Environment this deployment was ordered into; "
@@ -465,6 +467,12 @@ def run(job, **kwargs):
         resource.set_value_for_custom_field("tfc_organization", tfc_organization)
         resource.set_value_for_custom_field("tfc_project", tfc_project)
         resource.set_value_for_custom_field("tfc_nocode_module_id", tfc_nocode_module_id)
+        # The module version HCP created the workspace from (its
+        # source-module-id). Shown on the Terraform tab and compared against
+        # the module's version pin by the Deploy Latest Version action.
+        module_version = workspace_module_info(workspace)["version"]
+        if module_version:
+            resource.set_value_for_custom_field("tfc_nocode_module_version", module_version)
         resource.set_value_for_custom_field("tfc_env_id", str(env.id))
         resource.set_value_for_custom_field("azure_subscription_id", azure["subscription_id"])
         if azure["tenant_id"]:

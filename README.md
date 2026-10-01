@@ -39,7 +39,7 @@ Sample blueprints, plugins, actions, shared modules, forms, and UI extensions fo
 
 ## Developing content
 
-Clone the repo to build your own content in the same layout. [docs/dev-environment-setup.md](docs/dev-environment-setup.md) covers copying the CloudBolt type stubs from your appliance and editor setup. [AGENTS.md](AGENTS.md) holds the authoring rules, which also apply if you work with an AI coding assistant; `.claude/skills/` adds Claude Code skills for scaffolding and validating content.
+Clone the repo to build your own content in the same layout. [docs/dev-environment-setup.md](docs/dev-environment-setup.md) covers copying the CloudBolt type stubs from your appliance and editor setup. [AGENTS.md](AGENTS.md) holds the authoring rules, which also apply if you work with an AI coding assistant. Opening the repo in Claude Code also loads the skills in `.claude/skills/` (`/cb-scaffold-blueprint`, `/cb-validate-metadata`, `/cb-package-zip`, and others) for scaffolding, validating, and packaging content; nothing else needs installing.
 
 ## Caveats
 

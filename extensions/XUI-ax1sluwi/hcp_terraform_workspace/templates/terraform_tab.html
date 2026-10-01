@@ -25,7 +25,8 @@
     <div class="tf-meta">
       <div class="cell">
         <div class="k">{% trans "Source" %}</div>
-        <div class="v">
+        {# Rendered from the resource's custom fields first; the summary panel replaces it with the live module name, version and update notice. #}
+        <div class="v" id="tfws-source">
           {% if nocode_module_id %}
             <span class="tf-mono">{{ nocode_module_id }}</span>{% if nocode_module_version %} <span class="tf-tag">v{{ nocode_module_version }}</span>{% endif %}
             <div class="tf-hint">{% trans "No-code module" %}</div>

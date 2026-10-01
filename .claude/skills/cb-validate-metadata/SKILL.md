@@ -1,11 +1,10 @@
 ---
-name: validate-metadata
+name: cb-validate-metadata
 description: Lint every <GLOBAL_ID>_metadata.json file in a CloudBolt Source Control Repos content repo. Reports missing required fields, dangling cross-references, ID/folder mismatches, enum violations, key-casing mismatches in action_inputs[], orphan transitive content, and secret-placeholder values.
-when-to-use: When the user says "validate my metadata", "lint the content", "check the repo for errors", "validate this folder", or before committing/pushing changes to a content repo. Also use after running any scaffold-* skill to confirm the generated files are clean.
+when_to_use: When the user says "validate my metadata", "lint the content", "check the repo for errors", "validate this folder", or before committing/pushing changes to a content repo. Also use after running any scaffold-* skill to confirm the generated files are clean.
 ---
 
-# validate-metadata
-
+# cb-validate-metadata
 Structural lint pass over every `<GLOBAL_ID>_metadata.json` file in the repo.
 
 This is a **best-effort linter**, not a full semantic validator. CloudBolt itself ships no JSON Schema or Pydantic model â€” full validation requires round-tripping through CloudBolt's DRF serializers. This skill catches structural mistakes that block sync.
@@ -22,7 +21,7 @@ When CloudBolt changes a schema, the linter inherits the change automatically â€
 ## When to use
 
 - Pre-commit / pre-push validation.
-- After running any `scaffold-*` skill.
+- After running any `cb-scaffold-*` skill.
 - When a sync is failing and you suspect a metadata problem.
 - Periodic health checks on a content repo.
 

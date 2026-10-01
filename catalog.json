@@ -10,7 +10,8 @@
       "forms/FRM-1dxfulvq",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-y9d1uwhw",
-      "resource_actions/RSA-dxrh4m6j"
+      "resource_actions/RSA-dxrh4m6j",
+      "resource_actions/RSA-pngq92ss"
     ],
     "used_by": []
   },
@@ -287,7 +288,7 @@
     "id": "XUI-ax1sluwi",
     "type": "extensions",
     "name": "HCP Terraform Workspace",
-    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
+    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
     "path": "extensions/XUI-ax1sluwi",
     "readme": "extensions/XUI-ax1sluwi/README.md",
     "uses": [],
@@ -707,6 +708,21 @@
     ],
     "used_by": [
       "blueprints/BP-zmeot1ff"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-4y8f1vff",
+    "type": "plugins",
+    "name": "Deploy Latest Version",
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "path": "plugins/OHK-4y8f1vff",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr"
+    ],
+    "used_by": [
+      "resource_actions/RSA-pngq92ss"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1952,6 +1968,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-pngq92ss",
+    "type": "resource_actions",
+    "name": "Deploy Latest Version",
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "path": "resource_actions/RSA-pngq92ss",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-4y8f1vff"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-qwku9lip",
     "type": "resource_actions",
     "name": "Manage Delete Lock",
@@ -2134,6 +2165,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-4y8f1vff",
       "plugins/OHK-fx500o2r",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24",
