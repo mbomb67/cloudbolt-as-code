@@ -15,6 +15,7 @@
         "templates/_assets.html",
         "templates/_alert.html",
         "templates/terraform_tab.html",
+        "templates/source_panel.html",
         "templates/summary_panel.html",
         "templates/runs_panel.html",
         "templates/resources_panel.html",

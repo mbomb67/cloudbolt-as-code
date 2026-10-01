@@ -1,0 +1,25 @@
+{% load i18n %}
+{% comment %}
+  Contents of the hero's Source cell. Rendered twice: inline by terraform_tab.html
+  from the values stored on the resource (module is None, live is False), then
+  replaced by the source panel view with the live workspace facts (live is True;
+  module is set for a no-code workspace). Both renders use the same markup so the
+  cell does not jump when the live answer arrives.
+{% endcomment %}
+{% if module %}
+  {% if module.name %}{{ module.name }}{% else %}<span class="tf-mono">{{ module.id }}</span>{% endif %}
+  {% if module.version %} <span class="tf-tag">v{{ module.version }}</span>{% endif %}
+  {% if module.upgrade_available %} <span class="tf-pill tf-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Update available" %}{% if module.pin %} &middot; v{{ module.pin }}{% endif %}</span>{% endif %}
+  {% if module.name and module.id %}<div class="tf-hint tf-mono">{{ module.id }}</div>{% endif %}
+  <div class="tf-hint">{% trans "No-code module" %}{% if module.provider %} &middot; {{ module.provider }}{% endif %}</div>
+{% elif nocode_module_id %}
+  {% if nocode_module_name %}{{ nocode_module_name }}{% else %}<span class="tf-mono">{{ nocode_module_id }}</span>{% endif %}
+  {% if nocode_module_version %} <span class="tf-tag">v{{ nocode_module_version }}</span>{% endif %}
+  {% if nocode_module_name %}<div class="tf-hint tf-mono">{{ nocode_module_id }}</div>{% endif %}
+  <div class="tf-hint">{% trans "No-code module" %}</div>
+{% elif repo_identifier %}
+  {{ repo_identifier }}{% if branch %} <span class="tf-tag">{{ branch }}</span>{% endif %}
+  {% if working_directory %}<div class="tf-hint">{{ working_directory }}</div>{% endif %}
+{% else %}
+  <span class="tf-muted">&mdash;</span>
+{% endif %}

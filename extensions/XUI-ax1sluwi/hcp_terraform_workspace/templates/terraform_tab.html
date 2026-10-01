@@ -25,17 +25,9 @@
     <div class="tf-meta">
       <div class="cell">
         <div class="k">{% trans "Source" %}</div>
-        {# Rendered from the resource's custom fields first; the summary panel replaces it with the live module name, version and update notice. #}
-        <div class="v" id="tfws-source">
-          {% if nocode_module_id %}
-            <span class="tf-mono">{{ nocode_module_id }}</span>{% if nocode_module_version %} <span class="tf-tag">v{{ nocode_module_version }}</span>{% endif %}
-            <div class="tf-hint">{% trans "No-code module" %}</div>
-          {% elif repo_identifier %}
-            {{ repo_identifier }}{% if branch %} <span class="tf-tag">{{ branch }}</span>{% endif %}
-            {% if working_directory %}<div class="tf-hint">{{ working_directory }}</div>{% endif %}
-          {% else %}
-            <span class="tf-muted">&mdash;</span>
-          {% endif %}
+        {# Loaded live (module name, version, update notice); the stored values below show until the panel answers. #}
+        <div class="v" data-tf-panel="source" data-tf-src="{{ source_url }}">
+          {% include "hcp_terraform_workspace/templates/source_panel.html" %}
         </div>
       </div>
       <div class="cell">
