@@ -6,7 +6,7 @@ Source-of-truth reference for every `<GLOBAL_ID>_metadata.json` shape CloudBolt'
 
 ## How skills consume this document
 
-This document is the single source of truth for per-content-type schemas. The skills under [`.claude/skills/cloudbolt-content/`](../../.claude/skills/cloudbolt-content) reference its sections by stable anchor rather than inlining JSON templates or required-field lists. **When invoking any `scaffold-*`, `validate-metadata`, or `find-content-by-name` skill, also load this file** — the skill body intentionally omits schema facts that live here so they don't drift out of sync.
+This document is the single source of truth for per-content-type schemas. The skills under [`.claude/skills/`](../../.claude/skills) reference its sections by stable anchor rather than inlining JSON templates or required-field lists. **When invoking any `cb-scaffold-*`, `cb-validate-metadata`, or `cb-find-content-by-name` skill, also load this file** — the skill body intentionally omits schema facts that live here so they don't drift out of sync.
 
 Section anchors are stable (renames break skills):
 
@@ -77,7 +77,7 @@ Every cross-reference between content units is a **repo-relative path string** o
 | Blueprint | `teardown_items[].dependencies.hook` | `plugins/OHK-*` | snake_case |
 | Blueprint | `discovery_plugin.dependencies.hook` | `plugins/OHK-*` | snake_case |
 | Blueprint | `management_actions[].dependencies.resource_action` | `resource_actions/RSA-*` | snake_case |
-| Blueprint | `parameters[].gen_options_hooks[].dependencies.*` | `plugins/OHK-*` | snake_case |
+| Blueprint | `parameters[].gen_options_hooks[].dependencies.orchestration_hook` | `orchestration_actions/HPA-*` | snake_case |
 | Blueprint | `dependencies.custom_form` | `forms/FRM-*` | snake_case |
 | Higher-level action (RSA/SVA/HPA/FCA/RJB/IWH/CIT) | `dependencies.hook` | `plugins/OHK-*` | snake_case key |
 | Higher-level action | `dependencies.displayCondition` | `plugins/OHK-*` | **camelCase** |
@@ -114,7 +114,7 @@ When editing an existing file, match the casing already present.
 | `global_options` | array | |
 | `field_dependency_controlling_set` / `field_dependency_dependent_set` | array[object] | Parameter dependencies (show/hide and dynamic option regeneration). Recreated on import. **Required** whenever a `generate_options_for_*` method takes `control_value`/`control_value_dict` — see [Parameter dependencies](#parameter-dependencies-field_dependency__set). |
 | `minimum`, `maximum`, `regex_constraint` | string | Only when a constraint exists. |
-| `gen_options_hooks` | array[object] | `[{"name","enabled"}]`; referenced actions exported as sibling files. |
+| `gen_options_hooks` | array[object] | `[{"name","enabled","dependencies":{"orchestration_hook":"orchestration_actions/HPA-*"}}]`; `name` must be a prefix of the HPA's `name`. |
 
 #### `action_inputs[].type` (ATTR_TYPES)
 
@@ -264,7 +264,7 @@ Other round-trip caveats apply across all types — see the per-type "Round-trip
 
 ### Validation
 
-CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Validation is "whatever the DRF serializer accepts." The strictest contract is the union of (a) each serializer's required-field validators and (b) what its `*_from_local_path` / `create_resource_from_metadata` actually reads. The `validate-metadata` skill in `.claude/skills/cloudbolt-content/` performs structural validation (required fields, cross-reference integrity, enum values, casing) — not full semantic validation.
+CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Validation is "whatever the DRF serializer accepts." The strictest contract is the union of (a) each serializer's required-field validators and (b) what its `*_from_local_path` / `create_resource_from_metadata` actually reads. The `cb-validate-metadata` skill in `.claude/skills/` performs structural validation (required fields, cross-reference integrity, enum values, casing) — not full semantic validation.
 
 ---
 
@@ -324,7 +324,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `teardown_items[].dependencies.hook` | `plugins/OHK-*` | |
 | `discovery_plugin.dependencies.hook` | `plugins/OHK-*` | |
 | `management_actions[].dependencies.resource_action` | `resource_actions/RSA-*` | |
-| `parameters[].gen_options_hooks[].dependencies.*` | `plugins/OHK-*` | |
+| `parameters[].gen_options_hooks[].dependencies.orchestration_hook` | `orchestration_actions/HPA-*` | The HPA (hook point "Generated Parameter Options") points at its plugin via its own `dependencies.hook`. |
 | `dependencies.custom_form` | `forms/FRM-*` | Top-level blueprint custom form. |
 
 ### Nested schemas
@@ -1299,7 +1299,7 @@ Grep across all `<GLOBAL_ID>_metadata.json` files for the plugin's path string `
 grep -rl '"plugins/OHK-<id>"' --include='*_metadata.json' .
 ```
 
-A reference may appear in any of: `dependencies.hook`, `dependencies.displayCondition`, `deployment_items[].dependencies.hook`, `teardown_items[].dependencies.hook`, `discovery_plugin.dependencies.hook`, `deployment_items[].dependencies.rate_hook`, `deployment_items[].dependencies.environment_selection_hook`, `parameters[].gen_options_hooks[].dependencies.*`.
+A reference may appear in any of: `dependencies.hook`, `dependencies.displayCondition`, `deployment_items[].dependencies.hook`, `teardown_items[].dependencies.hook`, `discovery_plugin.dependencies.hook`, `deployment_items[].dependencies.rate_hook`, `deployment_items[].dependencies.environment_selection_hook`, `parameters[].gen_options_hooks[].dependencies.orchestration_hook`.
 
 A plugin with zero matches is an **orphan** — possibly a shared utility intentionally not yet referenced, possibly dead.
 

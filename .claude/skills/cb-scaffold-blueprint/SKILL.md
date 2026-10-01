@@ -1,11 +1,10 @@
 ---
-name: scaffold-blueprint
+name: cb-scaffold-blueprint
 description: Scaffold a new CloudBolt blueprint — generates a blueprints/BP-<id>/ folder plus paired plugins/OHK-<id>/ folders for build/teardown/discovery plugins, with valid stub metadata wired via dependencies.hook cross-references.
-when-to-use: When the user says "scaffold a blueprint", "create a new blueprint", "add a blueprint for X", or wants to start a new orderable service in this CloudBolt content repo. Use as a faster alternative to hand-authoring the BP-/OHK- folder pair and their metadata wiring.
+when_to_use: When the user says "scaffold a blueprint", "create a new blueprint", "add a blueprint for X", or wants to start a new orderable service in this CloudBolt content repo. Use as a faster alternative to hand-authoring the BP-/OHK- folder pair and their metadata wiring.
 ---
 
-# scaffold-blueprint
-
+# cb-scaffold-blueprint
 Generate the folder set for a new CloudBolt blueprint and its paired plugins. Produces a runnable scaffold — does NOT pre-write CloudBolt plugin Python beyond a docstring stub and the canonical `run(job, **kwargs)` signature; the agent fills the body.
 
 ## Required reading
@@ -62,7 +61,7 @@ Ask the user:
    - Every cross-reference wired.
    - Reminder that plugin scripts are docstring stubs — the agent's next step is to fill the Python body.
    - If plugins will call third-party APIs, point at [docs/agents/external-apis.md](../../../docs/agents/external-apis.md).
-   - Suggestion to run `validate-metadata` to confirm the scaffold is clean.
+   - Suggestion to run `cb-validate-metadata` to confirm the scaffold is clean.
 
 ## Constraints
 

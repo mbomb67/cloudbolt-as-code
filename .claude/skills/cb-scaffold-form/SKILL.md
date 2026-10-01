@@ -1,11 +1,10 @@
 ---
-name: scaffold-form
+name: cb-scaffold-form
 description: Scaffold a CloudBolt custom form (forms/FRM-*) plus optional form_functions/FJS-* JavaScript helpers. Wires the form into a named parent content unit (blueprint or action) via dependencies.custom_form — without that wiring, the form will never sync into CloudBolt.
-when-to-use: When the user wants to add a custom order form to a blueprint, resource action, server action, recurring job, or inbound webhook. Trigger on "add a custom form to X", "create a SurveyJS form for X", "scaffold a form".
+when_to_use: When the user wants to add a custom order form to a blueprint, resource action, server action, recurring job, or inbound webhook. Trigger on "add a custom form to X", "create a SurveyJS form for X", "scaffold a form".
 ---
 
-# scaffold-form
-
+# cb-scaffold-form
 Generate `forms/FRM-<id>/` with stub SurveyJS metadata, optionally with `form_functions/FJS-<id>/` JS helpers, AND wire the form into a named parent so it actually imports.
 
 ## Required reading
@@ -28,7 +27,7 @@ This skill enforces parent attachment.
 Ask the user:
 
 1. **Form purpose / name** (for the description).
-2. **Parent content unit** (required). A blueprint folder (e.g. `blueprints/BP-5pei9cno`) or an action folder (RSA / SVA / HPA / FCA / RJB / IWH). If the user can't name one, abort: "A form must be referenced from a parent to import; tell me which content unit owns this form, or use `find-content-by-name` to locate it."
+2. **Parent content unit** (required). A blueprint folder (e.g. `blueprints/BP-5pei9cno`) or an action folder (RSA / SVA / HPA / FCA / RJB / IWH). If the user can't name one, abort: "A form must be referenced from a parent to import; tell me which content unit owns this form, or use `cb-find-content-by-name` to locate it."
 3. **Rendering mode** (default `"vue"`; alt `"jquery"`). See §12 Enums.
 4. **Whether to include CSS** (default no). If yes, scaffolds `<FRM-id>_css.css` as an empty file.
 5. **How many form_functions** to scaffold alongside (default 0). For each, ask the function's `name` (e.g. `"validateHostname"`).
@@ -57,7 +56,7 @@ Ask the user:
    - Reminder that `json` is an empty SurveyJS schema — the agent's next step is to fill it; consult SurveyJS docs per [external-apis.md](../../../docs/agents/external-apis.md), do NOT guess the schema.
    - **Pinned defaults must be mirrored.** A custom form bypasses the parent deployment item's `parameter_defaults`: the plugin receives only what the form submits. When filling the schema, add a hidden text question for every pinned input — `{"type": "text", "name": "plugin-bdi-<item>.<input>", "visible": false, "defaultValue": "<the BDI value>", "isRequired": true}` — and tell the user both copies must stay identical. Dropdowns for declared inputs use `parameterOptions`; fields inside a Dynamic Panel need an inbound webhook (`webhooks/IWH-yj93is5z`). See [plugin-templates.md → Custom forms and pinned defaults](../../../docs/agents/plugin-templates.md#custom-forms-and-pinned-defaults).
    - For each FJS scaffolded: the `code` field is a stub.
-   - Suggestion to run `validate-metadata`.
+   - Suggestion to run `cb-validate-metadata`.
 
 ## Constraints
 
