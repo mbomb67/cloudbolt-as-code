@@ -526,6 +526,8 @@ def run(job, **kwargs):
 
 **Entry Point:** `run(job, resource, **kwargs)` — note the `resource` parameter.
 
+**Bulk runs.** CloudBolt builds a hook job's kwargs from `HookParameters.as_dict()` (`jobs/models.py`): `resources` and `servers` are always passed (querysets, possibly empty) and the singular `resource` / `server` only when exactly one target was selected. A bulk run from the resource or server list (and an API or MCP call naming several targets) arrives as **one job** carrying every target, so an action marked "Allow Bulk Operation" (`list_view_visible`) must declare `run(job, resource=None, resources=None, server=None, servers=None, **kwargs)`, iterate the plural kwargs, continue past a failure on one target, and return the worst status with a per-target summary. Worked example: `plugins/OHK-4y8f1vff` (Deploy Latest Version).
+
 ### Day 2 Action Template
 
 ```python

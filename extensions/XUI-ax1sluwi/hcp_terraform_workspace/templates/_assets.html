@@ -58,6 +58,9 @@
   .tfws .tf-pager a { color: var(--tf-primary); text-decoration: none; }
   .tfws .tf-banner { display: flex; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--tf-line); background: color-mix(in srgb, var(--tf-warn) 12%, var(--surface, #fff)); }
   .tfws .tf-banner > .bi { font-size: 18px; color: var(--tf-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .tfws .tf-banner-info { background: color-mix(in srgb, var(--tf-primary) 9%, var(--surface, #fff)); }
+  .tfws .tf-banner-info > .bi { color: var(--tf-primary); }
+  .tfws .tf-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
   .tfws .tf-banner-body { flex: 1; min-width: 0; }
   .tfws .tf-banner-t { font-size: 13.5px; font-weight: 700; }
   .tfws .tf-banner-s { font-size: 12.5px; color: var(--tf-muted); font-weight: 600; }
@@ -76,7 +79,9 @@
   "use strict";
   // Loads every [data-tf-panel] inside a tab root from its data-tf-src URL and
   // wires pagination (data-tf-load), search forms (data-tf-search), client-side
-  // filters (data-tf-filter) and the Refresh button (data-tf-refresh).
+  // filters (data-tf-filter) and the Refresh button (data-tf-refresh). A loaded
+  // fragment may carry hidden [data-tf-fill="<selector>"] blocks; their HTML
+  // replaces the matching element in the tab (the hero's live Source cell).
   window.tfwsInit = function (rootId) {
     var $root = $("#" + rootId);
     if (!$root.length || $root.data("tfws-ready")) { return; }
@@ -87,7 +92,14 @@
       $panel.load(url, function (response, status, xhr) {
         if (status === "error") {
           $panel.html('<div class="tf-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
-        } else if (window.c2 && c2.tooltips) {
+          return;
+        }
+        $panel.find("[data-tf-fill]").each(function () {
+          var $target = $root.find($(this).data("tf-fill"));
+          if ($target.length) { $target.html($(this).html()); }
+          $(this).remove();
+        });
+        if (window.c2 && c2.tooltips) {
           c2.tooltips.init($panel);
         }
       });

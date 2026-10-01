@@ -31,7 +31,7 @@
     "id": "BP-00meiwwz",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-09-25",
+    "last_updated": "2026-10-01",
     "management_actions": [
         {
             "dependencies": {
@@ -39,6 +39,13 @@
             },
             "enabled": true,
             "label": "Update Variables"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-pngq92ss"
+            },
+            "enabled": true,
+            "label": "Deploy Latest Version"
         }
     ],
     "metadata_version": "2026.1.0",

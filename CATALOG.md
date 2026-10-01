@@ -6,13 +6,13 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | Type | Count |
 |---|---|
 | [Blueprints](#blueprints) | 16 |
-| [Resource actions](#resource-actions) | 23 |
+| [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 8 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 78 |
+| [Plugins](#plugins) | 79 |
 | [Shared modules](#shared-modules) | 11 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
@@ -52,6 +52,7 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Change SKU | [RSA-gr2wsfzx](resource_actions/RSA-gr2wsfzx/) | Changes the replication SKU of the Azure storage account. | [Change SKU](plugins/OHK-fel441xh/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Create Blob Container | [RSA-xzs5f3a2](resource_actions/RSA-xzs5f3a2/) | Creates a blob container in the resource's Azure storage account. | [Create Blob Container](plugins/OHK-l25x6wd8/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Delete Blob Container | [RSA-zmi15uts](resource_actions/RSA-zmi15uts/) | Deletes a blob container from the resource's Azure storage account. | [Delete Blob Container](plugins/OHK-y1120h61/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
+| Deploy Latest Version | [RSA-pngq92ss](resource_actions/RSA-pngq92ss/) | Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action. | [Deploy Latest Version](plugins/OHK-4y8f1vff/) | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | Drift Check | [RSA-5jeixn92](resource_actions/RSA-5jeixn92/) | Reports drift between a Bicep deployment stack and its template with a read-only what-if. | [Drift Check](plugins/OHK-9n4wfasa/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | Extend Expiration | [RSA-kx7mdgva](resource_actions/RSA-kx7mdgva/) | Extends a landing-zone project's expiration date on the resource and the namespace annotation. | [Extend Expiration](plugins/OHK-3w9nejn3/) | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
 | Grant Access | [RSA-1kpl3w0d](resource_actions/RSA-1kpl3w0d/) | Grants a user the CloudBolt Restricted Contributor role on the subscription. | [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
@@ -150,6 +151,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Delete Blob Container | [OHK-y1120h61](plugins/OHK-y1120h61/) | Deletes a blob container from the resource's Azure storage account. | CloudBolt Plug-in | [Delete Blob Container](resource_actions/RSA-zmi15uts/) |
 | Deploy AWS App Migration Agent | [OHK-5wpzgw68](plugins/OHK-5wpzgw68/) | Installs the AWS Application Migration Service replication agent on a Linux server. | CloudBolt Plug-in | [Deploy AWS App Migration Agent](server_actions/SVA-mwbtjfr0/README.md) |
 | Deploy Bicep Template | [OHK-gqvi9kv4](plugins/OHK-gqvi9kv4/) | Deploys an Azure deployment stack from a GitHub-hosted Bicep template after a what-if preview and approval. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
+| Deploy Latest Version | [OHK-4y8f1vff](plugins/OHK-4y8f1vff/) | Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action. | CloudBolt Plug-in | [Deploy Latest Version](resource_actions/RSA-pngq92ss/) |
 | Discover Azure Resource Groups | [OHK-e5a4m2bm](plugins/OHK-e5a4m2bm/) | Discovers Azure resource groups across all Azure resource handlers, including tags and lock state. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Discover Azure Storage Accounts | [OHK-h9lmvlkb](plugins/OHK-h9lmvlkb/) | Discovers Azure storage accounts across all Azure resource handlers. | CloudBolt Plug-in | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Discover Azure Subscriptions | [OHK-av52dzqm](plugins/OHK-av52dzqm/) | Discovers Azure subscriptions visible to each Azure resource handler's service principal. | CloudBolt Plug-in | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
@@ -220,7 +222,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
-| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
+| `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Deploy Latest Version](plugins/OHK-4y8f1vff/), [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
 | `windows_ca` | [SHM-nubxb8sn](shared_modules/SHM-nubxb8sn/) | Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation. | [Request Certificate (Windows CA)](plugins/OHK-67bw7wgu/), [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) |
 
 ## UI extensions
@@ -231,7 +233,7 @@ Django UI extensions (XUI). Each folder has a README.
 |---|---|---|
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
-| HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
+| HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |

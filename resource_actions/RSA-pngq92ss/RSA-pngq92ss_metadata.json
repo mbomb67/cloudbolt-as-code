@@ -1,0 +1,25 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [],
+    "allow_scheduling": false,
+    "always_allow_to_run": false,
+    "auto_submit_order": false,
+    "dangerous": false,
+    "dependencies": {
+        "hook": "plugins/OHK-4y8f1vff"
+    },
+    "dialog_message": "Upgrade this deployment's HCP Terraform workspace to the module version currently pinned in HCP Terraform. The change is planned in the workspace and the job PAUSES for plan review before anything is applied: 'Continue Job' confirms and applies the upgrade; canceling the job discards the run and leaves the deployment unchanged. Safe to run on a deployment that is already current: it reports that and creates no run. Selecting several deployments in the resource list upgrades each one in turn, pausing once per deployment that needs it.",
+    "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
+    "enabled": true,
+    "extra_classes": "fas fa-arrow-circle-up",
+    "has_custom_form": false,
+    "id": "RSA-pngq92ss",
+    "is_synchronous": false,
+    "label": "Deploy Latest Version",
+    "last_updated": null,
+    "list_view_visible": true,
+    "new_tab_url": null,
+    "requires_approval": false,
+    "sequence": 6,
+    "submit_button_label": "Deploy"
+}
