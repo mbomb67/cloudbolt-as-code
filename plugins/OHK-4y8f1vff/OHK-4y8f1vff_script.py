@@ -64,11 +64,13 @@ from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
 from shared_modules.tfc_api import (
+    FIELD_VISIBILITY_PARAMETER,
     RUN_CLASS_APPLIED,
     TFCError,
     TFCRunFailedError,
     build_run_message,
     drive_run_with_plan_approval,
+    ensure_custom_field,
     ensure_output_custom_fields,
     get_client,
     workspace_module_info,
@@ -89,6 +91,35 @@ STATUS_RANK = {"SUCCESS": 0, "WARNING": 1, "FAILURE": 2}
 def _field(resource, name):
     """A custom-field value on the resource as a stripped string ('' when unset)."""
     return str(resource.get_value_for_custom_field(name) or "").strip()
+
+
+# Module facts mirrored on the resource (shown on the Terraform tab's Source
+# cell). Created here too -- idempotent get_or_create -- because a deployment
+# provisioned before these fields existed may meet this action first.
+MODULE_FIELDS = (
+    ("tfc_nocode_module_name", "TFC No-Code Module Name",
+     "Registry name of the no-code module the deployment's workspace runs "
+     "(from the workspace's source-module-id); recorded at provision and "
+     "refreshed by the Deploy Latest Version action."),
+    ("tfc_nocode_module_version", "TFC No-Code Module Version",
+     "Module version the deployment's workspace currently runs (from the "
+     "workspace's source-module-id); recorded at provision and refreshed by "
+     "the Deploy Latest Version action. HCP owns the version pin."),
+)
+
+
+def _mirror_module(resource, info):
+    """Store the module name and version the workspace reports; returns True
+    when a value changed (the caller saves)."""
+    changed = False
+    for field_name, value in (
+        ("tfc_nocode_module_name", info["name"]),
+        ("tfc_nocode_module_version", info["version"]),
+    ):
+        if value and _field(resource, field_name) != value:
+            resource.set_value_for_custom_field(field_name, value)
+            changed = True
+    return changed
 
 
 def _targets(job, resource=None, resources=None, server=None, servers=None):
@@ -178,9 +209,13 @@ def _deploy_latest(job, resource):
         pinned_version = module["version_pin"]
         module_label = info["name"] or nocode_module_id
 
-        # Keep the mirror honest even when nothing else happens below.
-        if current_version and _field(resource, "tfc_nocode_module_version") != current_version:
-            resource.set_value_for_custom_field("tfc_nocode_module_version", current_version)
+        # Keep the mirrors honest even when nothing else happens below.
+        for field_name, field_label, field_description in MODULE_FIELDS:
+            ensure_custom_field(
+                field_name, field_label, field_description,
+                visibility=FIELD_VISIBILITY_PARAMETER,
+            )
+        if _mirror_module(resource, info):
             resource.save()
 
         if not info["is_no_code"] and info["upgrade_available"] is None:
@@ -285,8 +320,7 @@ def _deploy_latest(job, resource):
         # ---- Record the version HCP now reports for the workspace ----------
         upgraded = workspace_module_info(client.get_workspace(workspace_id))
         new_version = upgraded["version"] or ""
-        if new_version:
-            resource.set_value_for_custom_field("tfc_nocode_module_version", new_version)
+        _mirror_module(resource, upgraded)
         verification = ""
         status = "SUCCESS"
         if pinned_version and new_version and new_version != pinned_version:

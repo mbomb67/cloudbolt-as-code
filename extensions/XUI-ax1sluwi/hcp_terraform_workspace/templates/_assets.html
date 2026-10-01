@@ -71,6 +71,7 @@
   .tfws .tf-alert .bi { flex: 0 0 auto; margin-top: 2px; }
   .tfws .tf-note { padding: 8px 22px 12px; font-size: 12px; color: var(--tf-muted); font-weight: 600; }
   .tfws .tf-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--tf-muted); display: flex; align-items: center; gap: 8px; }
+  .tfws .v > .tf-loading { padding: 0; }
   .tfws .tf-spin { display: inline-block; animation: tf-spin 1s linear infinite; }
   @keyframes tf-spin { to { transform: rotate(360deg); } }
 </style>
@@ -79,9 +80,7 @@
   "use strict";
   // Loads every [data-tf-panel] inside a tab root from its data-tf-src URL and
   // wires pagination (data-tf-load), search forms (data-tf-search), client-side
-  // filters (data-tf-filter) and the Refresh button (data-tf-refresh). A loaded
-  // fragment may carry hidden [data-tf-fill="<selector>"] blocks; their HTML
-  // replaces the matching element in the tab (the hero's live Source cell).
+  // filters (data-tf-filter) and the Refresh button (data-tf-refresh).
   window.tfwsInit = function (rootId) {
     var $root = $("#" + rootId);
     if (!$root.length || $root.data("tfws-ready")) { return; }
@@ -92,14 +91,7 @@
       $panel.load(url, function (response, status, xhr) {
         if (status === "error") {
           $panel.html('<div class="tf-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
-          return;
-        }
-        $panel.find("[data-tf-fill]").each(function () {
-          var $target = $root.find($(this).data("tf-fill"));
-          if ($target.length) { $target.html($(this).html()); }
-          $(this).remove();
-        });
-        if (window.c2 && c2.tooltips) {
+        } else if (window.c2 && c2.tooltips) {
           c2.tooltips.init($panel);
         }
       });
