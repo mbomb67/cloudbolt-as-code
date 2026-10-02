@@ -277,7 +277,7 @@ def run(job, **kwargs):
 
 **Location:** `plugins/OHK-<id>/OHK-<id>_script.py`. Wired into a blueprint via `blueprints/BP-<id>/BP-<id>_metadata.json.discovery_plugin.dependencies.hook = "plugins/OHK-<id>"`.
 
-**Entry Point:** `discover_resources(**kwargs)`.
+**Entry Point:** `discover_resources(**kwargs)`. CloudBolt calls it as `discover_resources(blueprint=<ServiceBlueprint>)` (`servicecatalog/models.py`, `_get_resource_dicts`), so a plugin can read the blueprint's pinned parameters (`blueprint.custom_field_options`), its deployment items and its existing `blueprint.resource_set`. Raise to fail the sync with no changes; returning a list commits every dictionary in it.
 
 **Return Format:** List of dictionaries, each representing a resource.
 
@@ -390,6 +390,8 @@ def discover_resources(**kwargs):
 5. **Hydration:** If `list()` returns "thin" objects, call `get()` for each to fetch full properties.
 6. **Auto-Creation:** Discovery auto-creates custom fields from returned dictionaries.
 7. **`RESOURCE_IDENTIFIER`:** Must match a custom field name that contains the unique cloud ID.
+8. **Existing resources:** a dictionary whose identifier matches a resource of the blueprint updates it; every key is set as an attribute (`name`, `group` (a `Group`), `owner`, `lifecycle` and custom fields), so omit `name` / `group` for resources you do not want renamed or regrouped. Values must be `str`, `int`, `float`, `Decimal`, `datetime`, `date`, `bool` or `list` (`VALID_RESOURCE_DICT_VALUE_TYPES`); a `dict` is skipped.
+9. **Historical marking:** with the blueprint's `auto_historical_resources` on, every ACTIVE resource the plugin did not return is marked Historical, including deployments still provisioning. Prefer leaving it off and returning `{"<identifier>": ..., "lifecycle": "HISTORICAL"}` for a resource whose cloud object is confirmed gone (e.g. a 404).
 
 ## 3. Teardown Plugins
 
@@ -791,13 +793,15 @@ Rules:
 - `action_inputs` on the IWH or its plugin have no runtime effect. Read every input from `parameters`.
 - Prefer `authentication_method: "normal"` for browser-called hooks. Token mode has no user, and a missing `token` in metadata imports as an empty token that an empty `?token=` satisfies.
 - The form side: `choicesByUrl: {"url": "/api/v3/cmp/inboundWebHooks/<uri_path>/run/?source=…&group={group}&env_id={plugin-bdi-<id>.env_id}", "path": "options", "valueName": "value", "titleName": "title", "allowEmptyResponse": true}`. `{group}` is the relative href the standard group dropdown submits (`/api/v3/cmp/groups/GRP-…/`).
-- To read a deployment item's pinned values server-side instead of accepting them from the query string: `env_options.service_item_defaults("BDI-…")` returns `{bare input name: value}` from the blueprint's custom form (hidden `plugin-bdi-<id>.<input>` questions' `defaultValue`, via `ServiceItem.blueprint.custom_form.json`) overlaid on the item's `input_mappings` (`{m.hook_input.name: m.default_value.value}`, `_a<hookid>` suffix stripped).
+- To read a blueprint's pinned values server-side instead of accepting them from the query string: `env_options.blueprint_pinned_inputs(blueprint, names)` returns `{name: value}` for each named blueprint parameter that has exactly one option on the blueprint (`blueprint.custom_field_options`). Resolve the blueprint from a `blueprint=BP-…` query parameter (or the `blueprint` of a `service_item=BDI-…`).
 
 ## Parameter Handling Patterns
 
 ### Custom forms and pinned defaults
 
-**Observed on a live instance (2026-09): when a custom form is attached, a deployment item's `parameter_defaults` are not applied to the plugin's inputs.** Every pinned coordinate must therefore also appear in the form as a hidden text question with a `defaultValue`, e.g. `{"type": "text", "name": "plugin-bdi-<id>.tfc_project", "visible": false, "defaultValue": "...", "isRequired": true}` (see `forms/FRM-t3v8zpb7`, `forms/FRM-84n18crj`). A BDI `parameter_defaults` copy is optional once the form carries the values (`BP-b0qm83lh` omits it); if you keep one, keep the two copies identical. Server-side code that needs a pinned value (e.g. an inbound webhook) should resolve it from the deployment item with `env_options.service_item_defaults()` (the form's hidden pins, else the BDI's `input_mappings`) rather than accept it from the query string.
+**Observed on a live instance (2026-09): when a custom form is attached, a deployment item's `parameter_defaults` are not applied to the plugin's inputs.** Every pinned coordinate must therefore also appear in the form as a hidden text question with a `defaultValue`, e.g. `{"type": "text", "name": "plugin-bdi-<id>.tfc_project", "visible": false, "defaultValue": "...", "isRequired": true}` (see `forms/FRM-t3v8zpb7`, `forms/FRM-84n18crj`). A BDI `parameter_defaults` copy is optional once the form carries the values (`BP-b0qm83lh` omits it); if you keep one, keep the two copies identical. Server-side code that needs a pinned value (e.g. an inbound webhook) should read it from the blueprint rather than accept it from the query string.
+
+**Preferred for a blueprint that creates a Resource: pin per-blueprint values as blueprint parameters** (`parameters[]` with `destination: "Resource"` and exactly one `options[]` value; see `blueprints/BP-00meiwwz`). CloudBolt treats a single-option parameter as *provided*: it is hidden on every order form, custom ones included, and `jobengine/jobmodules/deploy_blueprint_job.py` copies it onto the deployed resource before any build item starts, so the build plugin reads it with `resource.get_value_for_custom_field(name)` and the form carries nothing. Blueprint parameters never render into a plugin's `{{ }}` inputs (`RunHookServiceItemMixIn.create_hook_context` reads only the hook's own `HookInput`s), so this works only for values read off the resource. Server-side code with a blueprint but no resource (discovery, generated options, webhooks) reads them with `env_options.blueprint_pinned_inputs(blueprint, names)`. A `gen_options_hooks` action on such a parameter receives `blueprint=` in the admin's *Add option* dialog (`AddParameterValueForm` → `form_field_for_cf(constrained=False, blueprint=…)`, no `group`), so it can offer live choices there and return `None` at order time; CloudBolt intersects generated options with the pinned one anyway. A sync re-imports `parameters[].options` from the metadata, so a value pinned in the UI must be exported or copied into the metadata to survive the next sync.
 
 Two ways a custom form fills a dropdown:
 - **A declared plugin input** → `/api/v3/cmp/customForms/{custom_form_id}/parameterOptions/plugin-bdi-<id>.<input>/?group={group}&blueprint={blueprint_id}&service_item=BDI-<id>[&inputs={"env_id": "{plugin-bdi-<id>.env_id}"}]`, which runs the plugin's `generate_options_for_<input>`. `inputs` is parsed into `control_value_dict`; `control_value` is set only when exactly one controller exists, and only REGENOPTIONS dependencies count.

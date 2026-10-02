@@ -20,9 +20,11 @@ ONLY material difference from OHK-pvo05e24 is the workspace-creation API path
 (no-code create + auto-queued-run adoption instead of VCS create + config-
 version wait).
 
-Pinned per blueprint (hidden defaultValue fields in the blueprint's custom
-form, read here as templated inputs; a custom form does not receive BDI
-parameter_defaults, so the build deployment item carries none):
+Pinned per blueprint as BLUEPRINT PARAMETERS (destination Resource, exactly
+one option each; see docs/hcp-no-code-setup.md section 6). CloudBolt treats a
+single-option parameter as provided -- hidden from the order form -- and
+copies it onto the deployment's Resource before any build item runs, so this
+plugin reads them from the resource. They are never order-form inputs:
   - tfc_connection_info : the 'tf-cloud'-labeled ConnectionInfo global_id
   - tfc_organization    : the HCP Terraform organization
   - tfc_project         : the HCP Terraform project
@@ -132,6 +134,15 @@ from shared_modules.tfc_api import (
 logger = ThreadLogger(__name__)
 
 BLUEPRINT_NAME = "HCP Terraform No-Code Module"
+
+# Blueprint parameters (destination Resource, one option each) that pin this
+# blueprint to its module; read off the resource, never from the order form.
+COORDINATE_FIELDS = (
+    "tfc_connection_info",
+    "tfc_organization",
+    "tfc_project",
+    "tfc_nocode_module_id",
+)
 
 # Reserved panel keys that are NOT terraform variables: the sensitive marker is
 # popped by pop_sensitive_marker; workspace_name is the orderer's name for the
@@ -332,34 +343,9 @@ def run(job, **kwargs):
 
     # Cardinal rule 3: every templated input quoted. The funnel is triple-quoted
     # so a rendered Python-repr / JSON blob survives intact for
-    # parse_params_payload. Coordinates + module ID are pinned per blueprint as
-    # hidden fields in the custom form (no dropdowns).
+    # parse_params_payload.
     params_json = """{{ parameters }}"""
     env_id = "{{ env_id }}".strip()
-    tfc_connection_info = "{{ tfc_connection_info }}".strip()
-    tfc_organization = "{{ tfc_organization }}".strip()
-    tfc_project = "{{ tfc_project }}".strip()
-    tfc_nocode_module_id = "{{ tfc_nocode_module_id }}".strip()
-
-    missing_coords = [
-        label
-        for label, value in (
-            ("tfc_connection_info", tfc_connection_info),
-            ("tfc_organization", tfc_organization),
-            ("tfc_project", tfc_project),
-            ("tfc_nocode_module_id", tfc_nocode_module_id),
-        )
-        if not value or "FILL-ME" in value
-    ]
-    if missing_coords:
-        return (
-            "FAILURE",
-            "",
-            "TFC coordinates are missing: {}. The connection, organization, "
-            "project, and no-code module ID are pinned as hidden fields in "
-            "the custom form of BP-00meiwwz (forms/FRM-1dxfulvq; see "
-            "docs/hcp-no-code-setup.md).".format(", ".join(missing_coords)),
-        )
     if not env_id:
         return "FAILURE", "", "An Environment is required (env_id arrived blank)."
 
@@ -372,6 +358,34 @@ def run(job, **kwargs):
             "deployment pattern requires one. Order this plugin through the "
             "'{}' blueprint.".format(BLUEPRINT_NAME),
         )
+
+    # ---- Coordinates: the blueprint's pinned parameters, off the resource --
+    # Single-option blueprint parameters (destination Resource) are copied onto
+    # the resource by the deploy job before build items start, so they are
+    # already here. A blueprint that has not pinned them (or still carries the
+    # FILL-ME placeholders) must fail before any TFC call.
+    coordinates = {
+        name: str(resource.get_value_for_custom_field(name) or "").strip()
+        for name in COORDINATE_FIELDS
+    }
+    missing_coords = [
+        name for name, value in coordinates.items() if not value or "FILL-ME" in value
+    ]
+    if missing_coords:
+        return (
+            "FAILURE",
+            "",
+            "TFC coordinates are missing: {}. The connection, organization, "
+            "project, and no-code module ID are pinned as blueprint parameters "
+            "of BP-00meiwwz (Parameters tab, destination Resource, exactly one "
+            "option each; see docs/hcp-no-code-setup.md section 6).".format(
+                ", ".join(missing_coords)
+            ),
+        )
+    tfc_connection_info = coordinates["tfc_connection_info"]
+    tfc_organization = coordinates["tfc_organization"]
+    tfc_project = coordinates["tfc_project"]
+    tfc_nocode_module_id = coordinates["tfc_nocode_module_id"]
 
     # ---- Re-check entitlement server-side (cardinal rule 4) ---------------
     env = entitled_environment(resource.group, env_id)

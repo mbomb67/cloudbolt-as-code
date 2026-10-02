@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7",
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Generates the dropdown choices an admin pins a no-code blueprint's HCP Terraform connection, organization, project and module from, each list narrowed by the pins before it.",
+    "id": "OHK-529jjzli",
+    "max_retries": 0,
+    "name": "Generate options for HCP Terraform coordinates",
+    "resource_technologies": [],
+    "script_filename": "OHK-529jjzli_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

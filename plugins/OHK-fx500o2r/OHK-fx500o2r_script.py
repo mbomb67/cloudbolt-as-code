@@ -20,12 +20,13 @@ Query parameters (all strings; 'filter' and 'last' are reserved by the API):
   env_id        the selected Environment id. Required for every env source
                 except 'environment'.
   cf_name       with source=cf: the custom field whose env options to list.
-  service_item  with source=tfc_variable_options: the build deployment item's
-                global ID (BDI-...). The 'tf-cloud' ConnectionInfo and the
-                nocode-* module ID are read server-side from that item's
-                pins (env_options.service_item_defaults: the blueprint's
-                custom form hidden plugin-bdi-<id>.* defaults, else the
-                item's parameter_defaults), never from the query string.
+  blueprint     with source=tfc_variable_options: the blueprint's global ID
+                (BP-...); service_item (its build item's BDI-... ID) is
+                accepted as an alias. The 'tf-cloud' ConnectionInfo and
+                the nocode-* module ID are read server-side from the
+                blueprint's single-option parameters
+                (env_options.blueprint_pinned_inputs), never from the
+                query string.
   variable      with source=tfc_variable_options: the Terraform variable
                 whose admin-defined options to return.
   resource      a deployed Resource's numeric pk (the object_id a custom
@@ -73,7 +74,7 @@ from shared_modules.env_options import (
     resolve_group,
     resolve_resource,
     resource_environment_id,
-    service_item_defaults,
+    blueprint_pinned_inputs,
 )
 from shared_modules.tfc_api import TFCError, day2_form_panel, get_options_client
 
@@ -102,29 +103,42 @@ def _param(parameters, name):
 
 def _tfc_variable_options(parameters):
     """Admin-defined allowed values for one variable of the no-code module a
-    blueprint is pinned to. The connection and module ID are resolved
-    server-side from the deployment item's pins (its blueprint's custom form
-    hidden fields, else its parameter_defaults), never from the query
-    string."""
+    blueprint is pinned to. The connection and module ID are the blueprint's
+    single-option parameters (resolved server-side from the blueprint named
+    by ``blueprint``, or the blueprint of the deployment item named by
+    ``service_item``), never query-string values."""
+    blueprint_ref = _param(parameters, "blueprint")
     service_item = _param(parameters, "service_item")
     variable = _param(parameters, "variable")
-    if not service_item or not variable:
-        return _fail(400, "source=tfc_variable_options requires service_item and variable.")
-    defaults = service_item_defaults(service_item)
-    connection_info = str(defaults.get("tfc_connection_info") or "").strip()
-    module_id = str(defaults.get("tfc_nocode_module_id") or "").strip()
+    if not variable or not (blueprint_ref or service_item):
+        return _fail(
+            400, "source=tfc_variable_options requires variable and blueprint (or service_item)."
+        )
+    from servicecatalog.models import ServiceBlueprint, ServiceItem
+    blueprint = None
+    if blueprint_ref:
+        blueprint = ServiceBlueprint.objects.filter(global_id=blueprint_ref).first()
+    if blueprint is None and service_item:
+        item = ServiceItem.objects.filter(global_id=service_item).first()
+        blueprint = getattr(item, "blueprint", None)
+    if blueprint is None:
+        return _fail(400, "No blueprint matches blueprint={!r} / service_item={!r}.".format(
+            blueprint_ref, service_item
+        ))
+    pins = blueprint_pinned_inputs(blueprint, ("tfc_connection_info", "tfc_nocode_module_id"))
+    connection_info = str(pins.get("tfc_connection_info") or "").strip()
+    module_id = str(pins.get("tfc_nocode_module_id") or "").strip()
     if not connection_info or not module_id or "FILL-ME" in connection_info or "FILL-ME" in module_id:
         return _fail(
             400,
-            "Deployment item {} has no pinned tfc_connection_info / "
-            "tfc_nocode_module_id (hidden fields in its blueprint's custom "
-            "form, or parameter_defaults).".format(service_item),
+            "Blueprint {} has no pinned tfc_connection_info / tfc_nocode_module_id "
+            "(blueprint parameters with exactly one option; see "
+            "docs/hcp-no-code-setup.md section 6).".format(blueprint.global_id),
         )
     client = get_options_client(connection_info)
     all_options = client.get_no_code_variable_options(module_id)
     values = all_options.get(variable, [])
     return _respond([{"value": value, "title": str(value)} for value in values])
-
 
 def _resource_context(parameters, profile):
     """(resource, group, env_id) for a day-2 call that passes resource=..., or

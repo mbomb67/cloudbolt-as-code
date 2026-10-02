@@ -6,14 +6,17 @@ resource handler (AGENTS.md cardinal rule 4): the user picks an Environment,
 and everything Azure-specific -- subscription, tenant, location, resource
 groups, subnets, images, sizes -- is derived from it server-side.
 
-Two consumers:
+Consumers:
   - the 'form-options' inbound webhook (webhooks/IWH-yj93is5z), which SurveyJS
     custom forms call through choicesByUrl for dropdowns inside a Dynamic
     Panel (where fields are not plugin inputs, so generate_options_for_* is
     unavailable);
   - build plugins, which call resolve_group / entitled_environment /
     subscription_context in run() to re-check entitlement and pull the
-    subscription coordinates.
+    subscription coordinates;
+  - discovery and generated-options plugins and the webhook, which read a
+    blueprint's pinned single-option parameters with
+    blueprint_pinned_inputs.
 
 Every option source returns a list of {"value": ..., "title": ...} dicts.
 Sources never raise for a caller-facing condition: an empty or placeholder
@@ -27,7 +30,6 @@ tenant-filtered unless the caller passes a cb_admin / global-viewer profile --
 so always pass the requesting profile and its tenant when you have them.
 """
 
-import json
 import re
 
 from accounts.models import Group
@@ -42,11 +44,6 @@ AZURE_RESOURCE_GROUP_CF = "resource_group_arm"
 AZURE_SIZE_CF = "node_size"
 
 GROUP_GLOBAL_ID_RE = re.compile(r"(GRP-[a-z0-9]{8})")
-# BDI input-mapping names carry CloudBolt's per-hook suffix: <input>_a<hookid>.
-HOOK_INPUT_SUFFIX_RE = re.compile(r"_a\d+$")
-# Custom-form question names that feed a deployment item's plugin inputs:
-# plugin-<bdi global_id, lowercased>.<input> (e.g. plugin-bdi-t474vto9.env_id).
-FORM_INPUT_NAME_PREFIX = "plugin-{}."
 
 SOURCES = ("environment", "resource_group", "subnet", "os_image", "vm_size", "location")
 
@@ -154,79 +151,29 @@ def subscription_context(env):
 # Form support
 # -----------------------------------------------------------------------------
 
-def _custom_form_pins(service_item):
-    """Hidden pins for one deployment item in its blueprint's custom form:
-    {bare input name: defaultValue} for every question named
-    plugin-<bdi>.<input> with visible false (the shape AGENTS.md prescribes for
-    a pinned per-blueprint value). Visible questions are orderer-editable, not
-    pins, and are skipped. Returns {} when the blueprint has no custom form or
-    its schema does not parse. Model chain: ServiceItem.blueprint ->
-    ServiceBlueprint.custom_form (HasCustomFormMixin) -> CustomForm.json."""
-    blueprint = getattr(service_item, "blueprint", None)
-    custom_form = getattr(blueprint, "custom_form", None) if blueprint is not None else None
-    raw = getattr(custom_form, "json", None) if custom_form is not None else None
-    if not raw:
-        return {}
-    try:
-        schema = json.loads(raw) if isinstance(raw, str) else raw
-    except ValueError:
-        logger.warning(
-            "Custom form %s of blueprint %s is not valid JSON; ignoring its pins.",
-            getattr(custom_form, "global_id", "?"), getattr(blueprint, "global_id", "?"),
-        )
-        return {}
-    prefix = FORM_INPUT_NAME_PREFIX.format(str(service_item.global_id).lower())
+def blueprint_pinned_inputs(blueprint, names):
+    """The per-blueprint pinned values of the named inputs, keyed by name,
+    read from the blueprint's own parameters: a blueprint-level parameter
+    (ServiceBlueprint.all_custom_fields) of that name with EXACTLY one
+    option on the blueprint (ServiceBlueprint.custom_field_options).
+    CloudBolt treats a single-option parameter as provided -- hidden from
+    the order form and, with destination Resource, written onto the
+    deployment's resource before build items run -- so one option IS the
+    pin. Names with zero or several options are absent from the result.
+
+    Readers: a build plugin takes the same values off its resource
+    (resource.get_value_for_custom_field); discovery plugins, generated-
+    options plugins and webhooks, which have a blueprint but no resource,
+    read them here. Never read a pin from a custom form: the form is an
+    order-time artifact, and a custom form cannot carry a value the orderer
+    must not see."""
+    wanted = [str(name) for name in names]
     pins = {}
-
-    def _walk(elements):
-        for element in elements or []:
-            if not isinstance(element, dict):
-                continue
-            name = str(element.get("name") or "")
-            if (
-                name.startswith(prefix)
-                and element.get("visible") is False
-                and "defaultValue" in element
-            ):
-                pins[name[len(prefix):]] = element["defaultValue"]
-            _walk(element.get("elements"))
-            _walk(element.get("templateElements"))
-
-    if isinstance(schema, dict):
-        for page in schema.get("pages") or []:
-            if isinstance(page, dict):
-                _walk(page.get("elements"))
+    for field in blueprint.all_custom_fields().filter(name__in=wanted):
+        options = list(blueprint.custom_field_options.filter(field=field)[:2])
+        if len(options) == 1:
+            pins[field.name] = options[0].value
     return pins
-
-
-def service_item_defaults(bdi_global_id):
-    """The pinned per-blueprint inputs of a plugin deployment item, keyed by
-    bare input name: the hidden plugin-<bdi>.<input> defaultValues of the
-    blueprint's custom form (what the plugin actually receives when a custom
-    form is attached -- CloudBolt then ignores the item's parameter_defaults)
-    overlaid on the item's own parameter_defaults (ServiceItem.input_mappings
-    -> RunHookInputMapping(hook_input, default_value CFV), '_a<hookid>' suffix
-    stripped), which cover blueprints without a custom form or that keep a BDI
-    copy. Lets a webhook read coordinates (connection, module ID, ...) from
-    where they are pinned instead of accepting them from the query string."""
-    from servicecatalog.models import ServiceItem
-    service_item = ServiceItem.objects.filter(global_id=str(bdi_global_id).strip()).first()
-    if service_item is None:
-        raise EnvOptionsError("No deployment item '{}' exists.".format(bdi_global_id))
-    service_item = service_item.cast()
-    mappings = getattr(service_item, "input_mappings", None)
-    if mappings is None:
-        raise EnvOptionsError(
-            "Deployment item '{}' is not a plugin item and has no input defaults.".format(bdi_global_id)
-        )
-    defaults = {}
-    for mapping in mappings.select_related("hook_input", "default_value"):
-        if mapping.default_value is None:
-            continue
-        name = HOOK_INPUT_SUFFIX_RE.sub("", mapping.hook_input.name)
-        defaults[name] = mapping.default_value.value
-    defaults.update(_custom_form_pins(service_item))
-    return defaults
 
 
 # -----------------------------------------------------------------------------
