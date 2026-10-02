@@ -1,0 +1,40 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "Ansible Automation Configurations to apply to every server of the deployment, chosen by NAME. Options are the distinct configuration names defined on the AAP configuration managers mapped to the environments the ordering group may use; each label lists the managers that define it. For each server the plugin uses its environment's manager, so the same name defined on several managers serves servers wherever they land. Optional: nothing chosen means nothing to apply.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-aj78eghl",
+            "label": "Ansible Automation Configurations",
+            "name": "aap_configuration_names",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "aap_configuration_names"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7"
+        ]
+    },
+    "description": "Applies the chosen Ansible Automation Platform configurations, matched by name on each server's own configuration manager, to every server of the deployment through CloudBolt's built-in AAP methods; a deployment without servers is a no-op.",
+    "id": "OHK-cwqouaqn",
+    "max_retries": 0,
+    "name": "Apply Ansible Automation Configurations to Servers",
+    "resource_technologies": [],
+    "script_filename": "OHK-cwqouaqn_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

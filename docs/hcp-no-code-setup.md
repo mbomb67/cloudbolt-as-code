@@ -129,7 +129,7 @@ Docs: [API tokens](https://developer.hashicorp.com/terraform/cloud-docs/users-te
 
 **The form is the only place these are pinned.** With a custom form attached, CloudBolt does not apply a deployment item's `parameter_defaults`, so the build item of `blueprints/BP-00meiwwz` carries none; the plugin receives exactly what the hidden form fields submit. The build plugin refuses to run while any value still contains `FILL-ME`.
 
-**The order form** (`forms/FRM-1dxfulvq`) has two parts:
+**The order form** (`forms/FRM-1dxfulvq`) has three parts:
 
 - An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the build plugin's `generate_options_for_env_id` through the `parameterOptions` endpoint — only Azure environments the ordering group may use. The chosen environment's subscription and tenant become the workspace's `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID`; the resource handler is never shown.
 - A **Module Variables** Dynamic Panel. It ships authored for the sample module (`workspace_name`, then `vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`): resource group, subnet, VM size and image are all listed from the selected CloudBolt environment, so every choice is constrained by CloudBolt. For another module, replace the variable fields with one per input variable:
@@ -140,6 +140,7 @@ Docs: [API tokens](https://developer.hashicorp.com/terraform/cloud-docs/users-te
   - A map/object variable (e.g. `tags`) uses a `matrixdynamic` (key/value) and is written `hcl: true`.
   - Keep the required `workspace_name` field: it names the HCP Terraform workspace and the CloudBolt resource, is NOT sent to Terraform, and must be unique in the organization.
   - Keep descriptions to one sentence and tooltips to a few words.
+- An **Ansible Automation** page with one multi-select (`plugin-bdi-5keoarr3.aap_configuration_names`) filled by the second build item's `generate_options_for_aap_configuration_names` through `parameterOptions`: the distinct configuration names on the AAP managers mapped to the group's environments, each labeled with the managers that define it. Nothing is pinned. The build step resolves each server's manager from its environment and applies that manager's configurations with the chosen names, so define the same name on every manager your environments use. Remove the page and disable the build item if the blueprint should not configure servers.
 - The form ships with `rendering_mode: jquery` and a colocated CSS file (the same layout as the VM blueprint's form). Keep both; a form imported without `rendering_mode` renders in Vue mode, where the CSS does not apply.
 
 **Onboarding another module** = a new blueprint (cloned wiring) + a new form whose hidden fields pin the new coordinates. Zero changes to the plugins or `tfc_api`.
@@ -206,6 +207,10 @@ Run after the first sync + restart (§7), with the coordinates pinned in the for
 | 20 | Server record from `cloudbolt_vm_ids` | After provision with the sample module, the resource's Servers tab lists the VM (IP, power state, size filled; *Created By Terraform* true, tag present); the job output reports the record created | _pending_ |
 | 21 | Server record reconcile | An Update Variables run that forces VM replacement (e.g. a new `os_image`) creates a record for the new VM and retires the old one as Historical; a run that changes nothing about the VM leaves the record in place, refreshed | _pending_ |
 | 22 | Server record on teardown | Deleting the resource retires its server record (Historical) in the teardown step and spawns no server-decommission sub-job; the VM is gone in Azure via the destroy run | _pending_ |
+| 24 | Ansible step, configuration chosen | After the plan applies and the VM is adopted, the second build step adds the host to the configuration's inventory/group on the environment's AAP manager, launches its job template/workflow and waits; the AAP job's status and stdout are in the CloudBolt job log; SUCCESS | _pending_ |
+| 25 | Ansible step, same name on two managers | Two environments mapped to different AAP managers that each define the same configuration name: the form lists the name once with both managers in its label; a deployment in either environment runs that manager's configuration | _pending_ |
+| 26 | Ansible step, edge cases | Nothing chosen, or no `cloudbolt_vm_ids`: SUCCESS with a nothing-to-do message; a chosen name not defined on the server's manager: WARNING naming it, the other configurations still run; an environment without an AAP manager: WARNING, server skipped; a failed AAP job: FAILURE with the AAP job id | _pending_ |
+| 27 | Ansible step, teardown | Deleting a deployment whose VM was configured runs the AAP removal step first (teardown deploy_seq -2): the host disappears from the AAP inventory and the server's AAPHost rows are gone before the destroy run; a host deleted in AAP beforehand is reported as already gone (SUCCESS/WARNING note); with AAP unreachable the step is WARNING and the destroy still runs | _pending_ |
 
 Item 4 is the one residual design risk: the no-code create auto-queues a run with `auto_apply: false`, but whether it honors submitted variables (as the docs say, and unlike `tag-bindings` which it ignores) must be confirmed here. The build plugin sends vars in the create; if item 4 fails, the documented fallback is to upsert variables then drive a fresh run instead of adopting the auto-queued one.
 

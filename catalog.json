@@ -8,7 +8,9 @@
     "readme": "blueprints/BP-00meiwwz/README.md",
     "uses": [
       "forms/FRM-1dxfulvq",
+      "plugins/OHK-8v830go3",
       "plugins/OHK-axtt0yqq",
+      "plugins/OHK-cwqouaqn",
       "plugins/OHK-y9d1uwhw",
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
@@ -835,6 +837,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-8v830go3",
+    "type": "plugins",
+    "name": "Remove Servers from Ansible Automation Platform",
+    "description": "Removes the host records a deployment's servers hold in Ansible Automation Platform inventories through CloudBolt's own connector method, before the infrastructure is destroyed; a missing host or unreachable AAP is a warning, never a blocker.",
+    "path": "plugins/OHK-8v830go3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-96zebx6i",
     "type": "plugins",
     "name": "Build Azure Subscription",
@@ -1006,6 +1021,21 @@
     "uses": [],
     "used_by": [
       "orchestration_actions/HPA-qb0w86mi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-cwqouaqn",
+    "type": "plugins",
+    "name": "Apply Ansible Automation Configurations to Servers",
+    "description": "Applies the chosen Ansible Automation Platform configurations, matched by name on each server's own configuration manager, to every server of the deployment through CloudBolt's built-in AAP methods; a deployment without servers is a no-op.",
+    "path": "plugins/OHK-cwqouaqn",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2239,6 +2269,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-cwqouaqn",
       "plugins/OHK-r9cm4oar",
       "plugins/OHK-fx500o2r",
       "plugins/OHK-axtt0yqq",
