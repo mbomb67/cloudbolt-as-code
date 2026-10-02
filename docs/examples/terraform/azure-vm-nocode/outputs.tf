@@ -13,6 +13,17 @@ output "vm_id" {
   value       = one(concat(azurerm_linux_virtual_machine.vm[*].id, azurerm_windows_virtual_machine.vm[*].id))
 }
 
+# CloudBolt's server-record contract: the provider IDs of every VM this module
+# manages. CloudBolt looks each one up through the ordered environment's
+# resource handler and creates a child Server of the deployment's resource,
+# flagged "Created By Terraform". For Azure that is the azurerm_*_virtual_machine
+# `id` (the ARM resource ID); for aws_instance use `id` or `arn`; for
+# vsphere_virtual_machine use `moid`. Empty when the module manages no VM.
+output "cloudbolt_vm_ids" {
+  description = "Provider IDs of the VMs this deployment manages; CloudBolt creates one Server record per entry."
+  value       = concat(azurerm_linux_virtual_machine.vm[*].id, azurerm_windows_virtual_machine.vm[*].id)
+}
+
 output "private_ip_address" {
   description = "Primary private IP address of the VM's NIC."
   value       = azurerm_network_interface.nic.private_ip_address

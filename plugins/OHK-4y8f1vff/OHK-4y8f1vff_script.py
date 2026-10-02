@@ -63,6 +63,11 @@ Returns a 3-tuple: (status, output_msg, error_msg)
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    outcome as adoption_outcome,
+    resource_environment,
+)
 from shared_modules.tfc_api import (
     FIELD_VISIBILITY_PARAMETER,
     RUN_CLASS_APPLIED,
@@ -155,7 +160,8 @@ def _targets(job, resource=None, resources=None, server=None, servers=None):
 def _refresh_outputs(client, resource, workspace_id):
     """Record every output of the applied state as tfc_output_* (fields created
     on the fly for outputs the new version added) and rename the resource if
-    its naming output changed. Returns a note for the result message."""
+    its naming output changed. Returns ``(note, outputs)``: a note for the
+    result message and the outputs, for the server reconcile."""
     outputs = client.wait_for_outputs(workspace_id) or {}
     for output_name in ensure_output_custom_fields(sorted(outputs)):
         value = outputs.get(output_name)
@@ -166,11 +172,11 @@ def _refresh_outputs(client, resource, workspace_id):
     new_name = next(
         (outputs[key] for key in NAME_OUTPUTS if outputs.get(key) is not None), None
     )
+    note = ""
     if new_name is not None and str(new_name) != resource.name:
         note = " Resource renamed '{}' -> '{}'.".format(resource.name, new_name)
         resource.name = str(new_name)
-        return note
-    return ""
+    return note, outputs
 
 
 def _deploy_latest(job, resource):
@@ -338,16 +344,27 @@ def _deploy_latest(job, resource):
 
         rename_note = ""
         if result["status"] == RUN_CLASS_APPLIED:
-            rename_note = _refresh_outputs(client, resource, workspace_id)
+            rename_note, outputs = _refresh_outputs(client, resource, workspace_id)
             resource.save()
+            # Reconcile child Server records with the upgraded state
+            # (cloudbolt_vm_ids, vm_adoption): a version that replaced the VM
+            # yields a new record and retires the old one. A problem here is
+            # a WARNING for this target, never a FAILURE.
+            adoption = adopt_from_outputs(
+                resource, resource_environment(resource), outputs,
+                progress=set_progress,
+            )
+            adoption_status, adoption_note = adoption_outcome(adoption)
+            if STATUS_RANK[adoption_status] > STATUS_RANK[status]:
+                status = adoption_status
             return (
                 status,
                 "{}: upgraded workspace '{}' to module {} v{} (run {}: {} to add, "
-                "{} to change, {} to destroy).{}{} Run URL: {}".format(
+                "{} to change, {} to destroy).{}{} Run URL: {}{}".format(
                     label, workspace_name, module_label, new_version or pinned_version,
                     result["run_id"], result.get("additions", "?"),
                     result.get("changes", "?"), result.get("destructions", "?"),
-                    rename_note, verification, result["run_url"],
+                    rename_note, verification, result["run_url"], adoption_note,
                 ),
             )
         resource.save()

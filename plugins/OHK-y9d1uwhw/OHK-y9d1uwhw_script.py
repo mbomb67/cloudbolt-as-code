@@ -49,6 +49,7 @@ from common.methods import set_progress
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import retire_servers, retired_note
 from shared_modules.tfc_api import (
     APPLY_PHASE_TIMEOUT_SECONDS,
     RUN_CLASS_APPLIED,
@@ -342,6 +343,18 @@ def run(job, **kwargs):
             destroy_summary = "applied (managed infrastructure destroyed)"
         else:
             destroy_summary = "found no changes (empty state -- nothing was ever applied)"
+
+        # ---- Retire the child Server records the destroy removed ----------
+        # Delete Resource runs this teardown item first (deploy_seq -1), then
+        # spawns decommission jobs for every non-historical child server --
+        # jobs that would try to power off and delete, through the handler,
+        # VMs that no longer exist. Marking the created_by_terraform records
+        # HISTORICAL here (vm_adoption) leaves those jobs nothing to do.
+        retired = retire_servers(
+            resource,
+            "Terraform destroy run {} {}.".format(result["run_id"], destroy_summary),
+            progress=set_progress,
+        )
         set_progress(
             "TFC destroy run {} {}; deleting workspace '{}'...".format(
                 result["run_id"], destroy_summary, workspace_name
@@ -353,10 +366,10 @@ def run(job, **kwargs):
         )
 
         msg = (
-            "TFC destroy run {} {} and workspace '{}' ({}) was safe-deleted. Run "
+            "TFC destroy run {} {} and workspace '{}' ({}) was safe-deleted.{} Run "
             "URL: {}".format(
                 result["run_id"], destroy_summary, workspace_name, workspace_id,
-                result["run_url"],
+                retired_note(retired), result["run_url"],
             )
         )
         logger.info(msg)

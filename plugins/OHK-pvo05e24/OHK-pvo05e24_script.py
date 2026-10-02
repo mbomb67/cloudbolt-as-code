@@ -83,7 +83,9 @@ environment variables. The variable set must not be flagged "priority" in
 HCP, or its ARM_SUBSCRIPTION_ID would win over the workspace's.
 
 Returns a 3-tuple: (status, output_msg, error_msg)
-  status: "SUCCESS" | "FAILURE"
+  status: "SUCCESS" | "WARNING" | "FAILURE" (WARNING: provisioned, but a VM
+          listed in the template's cloudbolt_vm_ids output could not be
+          adopted as a CloudBolt server record)
 """
 
 import re
@@ -97,6 +99,11 @@ from shared_modules.env_options import (
     environment_options,
     resolve_group,
     subscription_context,
+)
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    missing_output_note,
+    outcome as adoption_outcome,
 )
 from shared_modules.tfc_api import (
     FIELD_VISIBILITY_ATTRIBUTE,
@@ -329,6 +336,17 @@ def _hydrate_resource(resource, outputs, variables, vm_name, sensitive_keys=()):
         )
     resource.name = str(outputs.get("vm_name") or vm_name)
     resource.save()
+
+
+def _no_contract_note(client, workspace_id):
+    """The template exposes no cloudbolt_vm_ids output: say so, naming the VM
+    resources Terraform did create (HCP's workspace-resources listing carries
+    addresses and types only -- no state values, no secrets)."""
+    try:
+        resources = client.list_workspace_resources(workspace_id)
+    except TFCError:
+        resources = []
+    return missing_output_note(resources)
 
 
 def run(job, **kwargs):
@@ -652,6 +670,17 @@ def run(job, **kwargs):
         )
         set_progress("Stored TFC outputs and variable mirrors on the resource.")
 
+        # ---- Adopt the VMs Terraform created as child Server records --------
+        # Contract: the template's cloudbolt_vm_ids output (vm_adoption shared
+        # module). Each id is looked up through the ordered environment's
+        # handler and hydrated like a Sync VMs discovery, flagged
+        # created_by_terraform. A problem here is a WARNING, never a FAILURE:
+        # the infrastructure exists and its outputs are recorded.
+        adoption = adopt_from_outputs(resource, env, outputs or {}, progress=set_progress)
+        status, adoption_note = adoption_outcome(
+            adoption, _no_contract_note(client, workspace_id) if adoption is None else ""
+        )
+
         if result["status"] == RUN_CLASS_APPLIED:
             output_msg = (
                 "VM '{}' provisioned via TFC workspace '{}' (run {}: {} to "
@@ -667,7 +696,7 @@ def run(job, **kwargs):
                 "from the current state of workspace '{}'. Run URL: "
                 "{}".format(result["run_id"], workspace_name, result["run_url"])
             )
-        return "SUCCESS", output_msg, ""
+        return status, output_msg + adoption_note, ""
 
     except TFCError as exc:
         # Every shared-module failure (config, auth, validation, timeout,

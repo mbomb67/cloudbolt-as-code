@@ -137,6 +137,7 @@ Where each value lives:
 | Environment (subscription, tenant) | chosen on the order form; derived from the environment's Azure resource handler | orderer |
 | Template variables | the order form's variables panel | orderer |
 | State outputs | none: every output in the applied state is recorded as `tfc_output_<name>` | - |
+| Server records | the template's `cloudbolt_vm_ids` output, a `list(string)` of the VMs' provider IDs (see below) | template author |
 
 What the build records on the resource, and where it shows. These are creation defaults set by `ensure_custom_field` in the `tfc_api` shared module; a field that already exists keeps its flags, so adjust *Show on Servers* / *Show as Attribute* under *Admin > Parameters* to change the split on a running instance.
 
@@ -145,6 +146,8 @@ What the build records on the resource, and where it shows. These are creation d
 | Overview attributes panel and Parameters tab | `tfc_workspace_name`, `tfc_run_url`, every `tfc_output_<name>` |
 | Parameters tab | `tfc_workspace_id`, `tfc_organization`, `tfc_project`, `tfc_repo_identifier`, `tfc_branch`, `tfc_working_directory`, `azure_subscription_id`, `azure_tenant_id`, every `tfc_var_<name>` |
 | Hidden | `tfc_connection_info`, `tfc_env_id`, `tfc_variable_names`, `tfc_sensitive_variable_names`, `tfc_hcl_variable_names` |
+
+**Server records.** CloudBolt never reads the state file, so a template declares its VMs through an output: `cloudbolt_vm_ids`, a `list(string)` of provider IDs (the sample module emits it). After every apply the plugins look each ID up through the chosen environment's resource handler and create or refresh a child **Server** of the resource with the same code the Sync VMs job uses (power state, IP, NICs, disks, OS family, size, tags), flagged with CloudBolt's `created_by_terraform` boolean and tagged *Created By Terraform*. Accepted IDs: Azure, the `azurerm_linux_virtual_machine` / `azurerm_windows_virtual_machine` `id` (the ARM resource ID); AWS, the `aws_instance` `id` or `arn` (the region comes from the ARN or the environment); VMware, the `vsphere_virtual_machine` `moid` (or `id`). Day-2 runs re-adopt from the refreshed outputs, so a replaced VM gets a new record and its old one is retired; teardown retires the records after the destroy run so CloudBolt does not try to delete the VMs itself. A lookup problem makes the job a WARNING, never a failure. Without the output nothing is created; the job output then names any VM resources Terraform did create. Code: the `vm_adoption` shared module (`shared_modules/SHM-9h13o859`).
 
 ### 8a. Account-level: nothing to edit
 
@@ -283,5 +286,6 @@ Quick smoke checklist before handing the instance over (the full lifecycle pass 
 - [ ] Ordering `BP-b0qm83lh` renders the **custom form**: group, an **Environment** dropdown listing only Azure environments the group may use, and a variables panel whose Resource Group / Subnet / VM Size / OS Image dropdowns fill once an environment is chosen (browser network tab: `form-options/run/` returns 200 with `options`).
 - [ ] After approval, the workspace in HCP shows `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID` as workspace environment variables matching the chosen environment's subscription.
 - [ ] After a first successful provision, the resource's Overview attributes panel shows a `tfc_output_<name>` field for **every** output in the template's `outputs.tf` (auto-discovered — no output list is configured anywhere), and its Parameters tab lists the `tfc_var_<name>` mirrors of the submitted variables.
+- [ ] With the sample module (or any template emitting `cloudbolt_vm_ids`), the resource's **Servers** tab lists one server per VM with its IP, power state and size filled in, *Created By Terraform* checked on the server, and the job output reporting the record created. Deleting the resource later retires that record (status Historical) and creates no server-decommission sub-job.
 - [ ] A `cb_admin` knows they own approvals (§10), reads the **⚠ Terraform warnings block** before approving (§10 — it is the only signal for a mistyped variable name), and knows where to find a paused job.
 - [ ] Whoever runs the jobengine knows the restart-recovery drill (§11).

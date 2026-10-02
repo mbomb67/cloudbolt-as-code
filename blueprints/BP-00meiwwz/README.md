@@ -11,6 +11,7 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 | Day-2 action | RSA-pngq92ss | Deploy Latest Version (hook OHK-4y8f1vff) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
+| Shared module | SHM-9h13o859 | vm_adoption |
 | Webhook | IWH-yj93is5z | Form Options (hook OHK-fx500o2r) |
 | Form | FRM-1dxfulvq | HCP Terraform No-Code Module order form |
 
@@ -33,6 +34,7 @@ Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup
 - The no-code create carries the variables and the `ARM_*` environment variables, so the auto-queued first run already targets the chosen subscription; the build plugin adopts that run into the approval pause. Continue Job applies; canceling discards the run and leaves the resource `PROVFAILED` with its workspace ID stored.
 - Update Variables is the shared Terraform Update action: a form built from this blueprint's order form and pre-filled with the deployment's current values. Unknown and sensitive keys are rejected, a blank field keeps its value, and it fails fast if the workspace has a pending run.
 - Deploy Latest Version upgrades a deployment's workspace to the module version pinned in HCP Terraform (HCP's workspace-upgrade API), with the same plan-approval pause. It is idempotent: a deployment already on the pinned version reports that and creates no run. It is bulk-safe: selecting several deployments in the resource list runs them in one job, one after another, pausing once per deployment that needs the upgrade; a failure on one does not stop the others. If the new version adds a required variable, the plan fails; set it on the workspace in HCP Terraform and run the action again. Moving the pin itself is an HCP step ([docs/hcp-no-code-setup.md section 9](../../docs/hcp-no-code-setup.md#9-module-version-changes)).
+- If the template emits a `cloudbolt_vm_ids` output (the sample module does), each VM becomes a child **Server** of the resource: looked up through the chosen environment's handler, hydrated like a Sync VMs discovery, flagged `created_by_terraform` and tagged *Created By Terraform*. Day-2 runs re-adopt from the refreshed outputs (a replaced VM gets a new record, the old one is retired) and teardown retires the records after the destroy run, so CloudBolt never deletes the VMs itself. Without the output nothing is created.
 - If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.

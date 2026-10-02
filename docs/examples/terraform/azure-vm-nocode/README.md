@@ -19,7 +19,7 @@ It follows HashiCorp's no-code module rules: standard module layout in the repos
 | `os_type` | (none) | `auto` (default), `linux` or `windows`. `auto` picks Windows when the image publisher or offer contains "windows". |
 | `os_disk_storage_account_type` | (none) | Default `Standard_LRS`. |
 
-Outputs: `vm_name` (names the CloudBolt resource), `vm_id`, `private_ip_address`, `location`, `os_type`. No secret outputs; add `sensitive = true` to any you introduce.
+Outputs: `vm_name` (names the CloudBolt resource), `cloudbolt_vm_ids` (the VM's ARM resource ID in a list; CloudBolt creates one child Server record per entry), `vm_id`, `private_ip_address`, `location`, `os_type`. No secret outputs; add `sensitive = true` to any you introduce.
 
 ## Use with the No-Code Module blueprint
 
