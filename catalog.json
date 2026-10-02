@@ -357,7 +357,7 @@
     "id": "FRM-1dxfulvq",
     "type": "forms",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply.",
+    "description": "Provisions an HCP Terraform no-code module; the job pauses for plan review before apply.",
     "path": "forms/FRM-1dxfulvq",
     "readme": null,
     "uses": [],

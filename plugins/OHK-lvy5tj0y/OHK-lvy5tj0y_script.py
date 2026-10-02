@@ -68,7 +68,8 @@ Flow after validation (plan U5):
   the snapshot -> on "applied": refresh tfc_var_* mirrors AND tfc_output_*
   for EVERY output discovered in the applied state (fields created on the
   fly for outputs the template grew since provision), rename the resource if
-  the name/vm_name output changed, store tfc_run_url; on
+  the name/vm_name output changed (VCS deployments only -- a no-code
+  deployment keeps the Workspace Name its orderer chose), store tfc_run_url; on
   "planned_and_finished" (no-op submit): refresh tfc_var_* mirrors ONLY and
   report success-with-no-changes -- tfc_output_* is NOT touched.
 
@@ -118,9 +119,10 @@ from shared_modules.tfc_api import (
 
 logger = ThreadLogger(__name__)
 
-# Outputs a template may use to name its deployment; the first one present
-# wins. The no-code blueprint's modules report "name", the VM template
-# reports "vm_name". A changed value renames the CloudBolt resource on apply.
+# Outputs a VCS template may use to name its deployment; the first one present
+# wins (the VM template reports "vm_name"). A changed value renames the
+# CloudBolt resource on apply. No-code deployments are exempt: their resource
+# name is the Workspace Name the orderer chose at order time.
 NAME_OUTPUTS = ("name", "vm_name")
 
 
@@ -523,7 +525,14 @@ def run(job, resource=None, **kwargs):
             (outputs[key] for key in NAME_OUTPUTS if outputs.get(key) is not None),
             None,
         )
-        if output_name_value is not None and str(output_name_value) != resource.name:
+        is_no_code = bool(
+            (resource.get_value_for_custom_field("tfc_nocode_module_id") or "").strip()
+        )
+        if (
+            output_name_value is not None
+            and not is_no_code
+            and str(output_name_value) != resource.name
+        ):
             rename_note = " Resource renamed '{}' -> '{}'.".format(
                 resource.name, output_name_value
             )
