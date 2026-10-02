@@ -2,7 +2,7 @@
 # renaming one means editing the form.
 
 variable "vm_name" {
-  description = "Name of the virtual machine. Also the CloudBolt resource name after apply."
+  description = "Name of the virtual machine (the HCP Terraform VM blueprint also uses it as the CloudBolt resource name)."
   type        = string
 
   validation {
