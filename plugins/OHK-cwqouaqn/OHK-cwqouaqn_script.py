@@ -5,9 +5,38 @@ Second build step of the "HCP Terraform No-Code Module" blueprint
 (BP-00meiwwz, deploy_seq 2). It runs after the no-code module has applied and
 the module's VMs have been adopted as child Server records of the resource
 (shared module vm_adoption, from the cloudbolt_vm_ids output), and applies the
-Ansible Automation Platform (AAP) configurations the orderer picked to every
-server the resource owns. It is blueprint-agnostic: any blueprint whose
-resource ends up owning servers can add it as a later build step.
+Ansible Automation Platform (AAP) configurations predetermined for the
+blueprint to every server the resource owns. It is blueprint-agnostic: any
+blueprint whose resource ends up owning servers can add it as a later build
+step.
+
+Which configurations
+--------------------
+The plugin declares no inputs and the order form carries nothing. The names
+come from the blueprint parameter aap_configuration_names (STR, multiple
+values, destination Resource, optional): the admin pins the names as the
+parameter's options on the blueprint's Parameters tab, where "Add option"
+lists the names defined on the instance's AAP managers (the "Generate options
+for Ansible Automation Configurations" action, orchestration_actions/
+HPA-aualk6ei). The plugin reads, in order:
+
+1. the resource's own values of aap_configuration_names: what an order placed
+   through CloudBolt's native order form picked from the pinned options
+   (CloudBolt writes Resource-destination blueprint parameters onto the
+   resource before build items run);
+2. when the resource has none and the blueprint uses a custom form, every
+   option pinned on the blueprint. A custom form replaces the native order
+   form completely and submits no blueprint-level parameters, and CloudBolt
+   copies a parameter onto the resource on its own only when it is
+   "provided" (required, with exactly one option; servicecatalog/forms.py
+   get_provided_cfvs inserts an empty choice for an optional one), so an
+   optional multi-value parameter never reaches the resource on a
+   custom-form order. The pinned options are the admin's predetermined
+   list; the plugin records them on the resource so it shows what was
+   applied.
+
+No names anywhere means nothing to apply: the step succeeds without touching
+AAP.
 
 Matching configurations across configuration managers
 -----------------------------------------------------
@@ -16,14 +45,13 @@ AAPApplication) belongs to exactly ONE Ansible Automation Platform
 configuration manager (AAPConf), and its name is NOT unique across managers:
 the model declares no uniqueness constraint and neither the creation form nor
 AAPService.add_application checks for one. "Install Postgres" can therefore be
-defined on every AAP manager. The orderer picks configuration NAMES (one
-multi-select, deduplicated across the managers mapped to the environments the
-ordering group may use); for each server the plugin resolves the manager its
-environment maps to -- connector_for(environment, "install_application"), the
-very lookup the out-of-the-box provisioning hook and server action use -- and
-applies that manager's configurations with the chosen names. A server in an
-environment mapped to AAP East gets East's "Install Postgres"; one mapped to
-AAP West gets West's.
+defined on every AAP manager. The pinned values are configuration NAMES; for
+each server the plugin resolves the manager its environment maps to --
+connector_for(environment, "install_application"), the very lookup the
+out-of-the-box provisioning hook and server action use -- and applies that
+manager's configurations with the pinned names. A server in an environment
+mapped to AAP East gets East's "Install Postgres"; one mapped to AAP West
+gets West's.
 
 Applying
 --------
@@ -36,37 +64,29 @@ the server's parameters); AAPConf.wait_for_completion_in_aap polls the launched
 AAP jobs to completion and logs their stdout. Servers are processed one after
 another; a failure on one does not stop the others.
 
-Input
------
-aap_configuration_names (STR, multi-select): the configuration names to
-apply. Optional -- nothing selected means nothing to do. Options come from
-generate_options_for_aap_configuration_names, scoped by the ordering group's
-entitled environments (group.get_available_environments(), cardinal rule 4).
-
-Outcome per server: SUCCESS when every chosen configuration ran; WARNING when
-the server has no environment, its environment has no AAP manager, or a chosen
+Outcome per server: SUCCESS when every pinned configuration ran; WARNING when
+the server has no environment, its environment has no AAP manager, or a pinned
 configuration is not defined on that manager (the others still run); FAILURE
 when AAP rejected the host or a launched job failed, canceled or errored. The
-job returns the worst outcome. A resource with no servers (the module emitted
-no cloudbolt_vm_ids, or none could be adopted) is SUCCESS: there is nothing
-to configure.
+job returns the worst outcome. No pinned names, or a resource with no servers
+(the module emitted no cloudbolt_vm_ids, or none could be adopted), is
+SUCCESS: there is nothing to configure.
 
 Returns a 3-tuple: (status, output_msg, error_msg).
 """
 
-import ast
-
 from common.methods import set_progress
 from connectors import connector_for
 from connectors.ansible_automation_platform.models import AAPApplication, AAPConf
-from connectors.models import FeatureMap
 from utilities.logger import ThreadLogger
-
-from shared_modules.env_options import resolve_group
 
 logger = ThreadLogger(__name__)
 
 ACTION_NAME = "Apply Ansible Automation Configurations to Servers"
+
+# The blueprint parameter (destination Resource, multiple values) that holds
+# the configuration names; see the module docstring.
+NAMES_FIELD = "aap_configuration_names"
 
 # The connector feature an Environment's Configuration Management setting maps
 # to; connector_for(env, INSTALL_FEATURE) is how the platform's own AAP hooks
@@ -77,80 +97,51 @@ STATUS_RANK = {"SUCCESS": 0, "WARNING": 1, "FAILURE": 2}
 
 
 # =============================================================================
-# == Options ==================================================================
+# == Configuration names ======================================================
 # =============================================================================
 
-def _managers_for_group(group):
-    """
-    The AAP configuration managers mapped (Configuration Management feature)
-    to any environment the group may order into. None when no group is in
-    context (e.g. the blueprint editor's preview), meaning "every manager".
-    """
-    if group is None:
-        return None
-    # Cardinal rule 4: the platform's entitlement query (explicit grants, the
-    # ancestors' grants, and unconstrained environments), never group__in.
-    environments = list(group.get_available_environments())
-    if not environments:
-        return AAPConf.objects.none()
-    conf_ids = FeatureMap.objects.filter(
-        feature__name=INSTALL_FEATURE, environment__in=environments
-    ).values_list("connector_conf_id", flat=True)
-    # AAPConf extends ConnectorConf by multi-table inheritance, so the ids
-    # match; non-AAP managers (Chef, Puppet, ...) simply do not join.
-    return AAPConf.objects.filter(id__in=list(conf_ids))
-
-
-def generate_options_for_aap_configuration_names(field=None, **kwargs):
-    """
-    Configuration names available to the ordering group, one option per
-    distinct name. The label lists the managers that define the name, so an
-    orderer can see "Install Postgres (AAP East, AAP West)" is served
-    wherever the deployment's servers land.
-    """
-    group = resolve_group(kwargs.get("group"))
-    managers = _managers_for_group(group)
-    apps = AAPApplication.objects.all()
-    if managers is not None:
-        apps = apps.filter(aap__in=managers)
-    by_name = {}
-    for name, manager_name in apps.values_list("name", "aap__name").order_by(
-        "name", "aap__name"
-    ):
-        defined_on = by_name.setdefault(name, [])
-        if manager_name not in defined_on:
-            defined_on.append(manager_name)
-    return [
-        (name, "{} ({})".format(name, ", ".join(defined_on)))
-        for name, defined_on in by_name.items()
-    ]
-
-
-# =============================================================================
-# == Input parsing ============================================================
-# =============================================================================
-
-def _parse_names(rendered):
-    """
-    The chosen names from the rendered multi-select input: CloudBolt renders a
-    multi-value input as the Python repr of a list of strings (nothing chosen
-    renders empty). A value that is not a literal is taken as one name.
-    Blank entries and duplicates are dropped; order is preserved.
-    """
-    text = (rendered or "").strip()
-    if not text or text in ("None", "[]"):
-        return []
-    try:
-        value = ast.literal_eval(text)
-    except (ValueError, SyntaxError):
-        value = text
-    items = list(value) if isinstance(value, (list, tuple, set)) else [value]
+def _clean_names(values):
+    """Distinct, non-blank names in their original order."""
     names = []
-    for item in items:
-        name = str(item or "").strip()
+    for value in values or []:
+        name = str(value or "").strip()
         if name and name not in names:
             names.append(name)
     return names
+
+
+def _names_for(resource):
+    """
+    The configuration names for this deployment and where they came from:
+    ``("resource", names)``, ``("blueprint", names)`` or ``("none", [])``.
+    """
+    on_resource = resource.get_value_for_custom_field(NAMES_FIELD)
+    if isinstance(on_resource, str):
+        on_resource = [on_resource]
+    names = _clean_names(on_resource)
+    if names:
+        return "resource", names
+
+    # Only a custom-form order can have pinned options that never reached the
+    # resource. On the native order form the orderer saw them and picked
+    # (or picked none), and the resource is the answer.
+    blueprint = getattr(resource, "blueprint", None)
+    if blueprint is None or not getattr(blueprint, "custom_form", None):
+        return "none", []
+    pinned = blueprint.custom_field_options.filter(field__name=NAMES_FIELD).order_by("id")
+    names = _clean_names(option.value for option in pinned)
+    return ("blueprint", names) if names else ("none", [])
+
+
+def _record_on_resource(resource, names):
+    """Store the pinned names on the resource; a failure to do so is logged
+    and does not affect the apply."""
+    try:
+        resource.set_value_for_custom_field(NAMES_FIELD, names)
+    except Exception:  # noqa: BLE001 -- bookkeeping only
+        logger.exception(
+            "Could not record %s on resource %s", NAMES_FIELD, resource.id
+        )
 
 
 # =============================================================================
@@ -189,7 +180,7 @@ def _configure_server(job, server, names):
             ),
         )
 
-    # One configuration per chosen name: names are not unique even within a
+    # One configuration per pinned name: names are not unique even within a
     # manager, so a duplicate definition is applied once (the oldest) and
     # reported rather than run twice.
     apps, duplicates = [], []
@@ -216,7 +207,7 @@ def _configure_server(job, server, names):
     if not apps:
         return (
             "WARNING",
-            "{}: none of the chosen configurations are defined on '{}' "
+            "{}: none of the pinned configurations are defined on '{}' "
             "({}); skipped.".format(hostname, manager.name, "; ".join(notes)),
         )
 
@@ -278,13 +269,9 @@ def _configure_server(job, server, names):
 # =============================================================================
 
 def run(job, **kwargs):
-    """Apply the chosen AAP configurations to every server of the resource."""
+    """Apply the pinned AAP configurations to every server of the resource."""
     set_progress("Starting {}...".format(ACTION_NAME))
     logger.info("%s build plugin started for job %s", ACTION_NAME, job.id)
-
-    # Cardinal rule 3: the multi-select renders as a list repr, so it is
-    # triple-quoted and parsed rather than used raw.
-    names = _parse_names("""{{ aap_configuration_names }}""")
 
     resource = job.resource_set.first()
     if resource is None:
@@ -295,6 +282,23 @@ def run(job, **kwargs):
             "build step of a blueprint whose earlier steps create the "
             "resource's servers.",
         )
+
+    source, names = _names_for(resource)
+    if not names:
+        message = (
+            "No Ansible Automation Configurations are set for '{}' (the "
+            "blueprint parameter '{}' has no options and the resource carries "
+            "none); nothing to apply.".format(resource.name, NAMES_FIELD)
+        )
+        set_progress(message)
+        return "SUCCESS", message, ""
+    if source == "blueprint":
+        set_progress(
+            "Using the configurations pinned on blueprint '{}': {}".format(
+                getattr(resource.blueprint, "name", "?"), ", ".join(names)
+            )
+        )
+        _record_on_resource(resource, names)
 
     # Historical records are retired VMs (replaced or destroyed); configuring
     # them is pointless and AAP would fail on the stale host.
@@ -307,13 +311,6 @@ def run(job, **kwargs):
             "cloudbolt_vm_ids, or no VM could be adopted); nothing to do.".format(
                 resource.name
             )
-        )
-        set_progress(message)
-        return "SUCCESS", message, ""
-    if not names:
-        message = (
-            "No Ansible Automation Configurations were chosen; nothing to apply "
-            "to the {} server(s) of '{}'.".format(len(servers), resource.name)
         )
         set_progress(message)
         return "SUCCESS", message, ""

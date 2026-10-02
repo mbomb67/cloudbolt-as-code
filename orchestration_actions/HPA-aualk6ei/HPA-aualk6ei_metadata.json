@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-7i1fk0l5"
+    },
+    "description": "Lists the configuration names defined on the Ansible Automation Platform managers so an admin pins a blueprint's aap_configuration_names parameter from a dropdown.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-aualk6ei",
+    "last_updated": null,
+    "name": "Generate options for Ansible Automation Configurations",
+    "run_on_statuses": "",
+    "run_seq": null
+}

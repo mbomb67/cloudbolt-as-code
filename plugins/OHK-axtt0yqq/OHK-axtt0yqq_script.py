@@ -362,8 +362,8 @@ def run(job, **kwargs):
     # ---- Coordinates: the blueprint's pinned parameters, off the resource --
     # Single-option blueprint parameters (destination Resource) are copied onto
     # the resource by the deploy job before build items start, so they are
-    # already here. A blueprint that has not pinned them (or still carries the
-    # FILL-ME placeholders) must fail before any TFC call.
+    # already here. A blueprint that has not pinned them (the shipped metadata
+    # pins nothing) must fail before any TFC call.
     coordinates = {
         name: str(resource.get_value_for_custom_field(name) or "").strip()
         for name in COORDINATE_FIELDS
