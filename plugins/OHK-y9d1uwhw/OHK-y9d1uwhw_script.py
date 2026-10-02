@@ -93,7 +93,7 @@ def _guard_live_resource_jobs(job, resource, workspace_name):
     'something is mid-flight; do not tear down under it'.
     """
     other_live = (
-        Job.objects.filter(resource_set=resource, status__in=LIVE_JOB_STATUSES)
+        Job.objects.filter(resource=resource, status__in=LIVE_JOB_STATUSES)
         .exclude(id=job.id)
     )
     live = list(other_live[:5])
