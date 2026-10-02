@@ -86,7 +86,9 @@ credentials, so this action only edits terraform-category variables and never
 touches a resource handler (AGENTS.md cardinal rule 4).
 
 Returns a 3-tuple: (status, output_msg, error_msg)
-  status: "SUCCESS" | "FAILURE"
+  status: "SUCCESS" | "WARNING" | "FAILURE" (WARNING: applied, but a VM listed
+          in the template's cloudbolt_vm_ids output could not be adopted as a
+          CloudBolt server record)
 """
 
 import json
@@ -94,6 +96,11 @@ import json
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    outcome as adoption_outcome,
+    resource_environment,
+)
 from shared_modules.tfc_api import (
     RUN_CLASS_NO_CHANGES,
     TFCError,
@@ -524,14 +531,23 @@ def run(job, resource=None, **kwargs):
         resource.save()
         set_progress("Refreshed TFC variable mirrors and state outputs.")
 
+        # ---- Reconcile child Server records with the applied state ----------
+        # cloudbolt_vm_ids (vm_adoption): a replaced VM gets a new record and
+        # the old one is retired; no output means nothing is touched. A
+        # problem here is a WARNING, never a FAILURE.
+        adoption = adopt_from_outputs(
+            resource, resource_environment(resource), outputs, progress=set_progress
+        )
+        status, adoption_note = adoption_outcome(adoption)
+
         return (
-            "SUCCESS",
+            status,
             "Terraform Update applied on workspace '{}' (run {}: {} to add, "
-            "{} to change, {} to destroy).{} Run URL: {}".format(
+            "{} to change, {} to destroy).{} Run URL: {}{}".format(
                 workspace_name, result["run_id"],
                 result.get("additions", "?"), result.get("changes", "?"),
                 result.get("destructions", "?"), rename_note,
-                result["run_url"],
+                result["run_url"], adoption_note,
             ),
             "",
         )

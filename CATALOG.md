@@ -13,7 +13,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Webhooks](#webhooks) | 1 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
 | [Plugins](#plugins) | 79 |
-| [Shared modules](#shared-modules) | 11 |
+| [Shared modules](#shared-modules) | 12 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
 | [Form functions](#form-functions) | 1 |
@@ -223,6 +223,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
 | `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Deploy Latest Version](plugins/OHK-4y8f1vff/), [Form Options](plugins/OHK-fx500o2r/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
+| `vm_adoption` | [SHM-9h13o859](shared_modules/SHM-9h13o859/) | Adopts the VMs a Terraform deployment created (from its cloudbolt_vm_ids output) as CloudBolt Server records under the resource, hydrated through the Azure, AWS, or VMware handler, and retires them on teardown. | [Deploy Latest Version](plugins/OHK-4y8f1vff/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
 | `windows_ca` | [SHM-nubxb8sn](shared_modules/SHM-nubxb8sn/) | Certificate enrollment client for Microsoft AD CS Web Enrollment, with key and CSR generation. | [Request Certificate (Windows CA)](plugins/OHK-67bw7wgu/), [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) |
 
 ## UI extensions

@@ -125,8 +125,9 @@
     ],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-r0oq14r7",
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-9h13o859",
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-r0oq14r7"
         ]
     },
     "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply.",

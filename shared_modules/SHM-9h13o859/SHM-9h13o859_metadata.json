@@ -1,0 +1,12 @@
+{
+    "description": "Adopts the VMs a Terraform deployment created (from its cloudbolt_vm_ids output) as CloudBolt Server records under the resource, hydrated through the Azure, AWS, or VMware handler, and retires them on teardown.",
+    "id": "SHM-9h13o859",
+    "label": "VM Adoption",
+    "max_retries": 0,
+    "module_name": "vm_adoption",
+    "name": "vm_adoption",
+    "resource_technologies": [],
+    "script_filename": "SHM-9h13o859_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -11,6 +11,7 @@ Provisions a VM through HCP Terraform (TFC) using one dedicated, VCS-backed TFC 
 | Day-2 action | RSA-e59s1v24 | Resize (hook OHK-9xffkz53) |
 | Shared module | SHM-jlguerjr | tfc_api |
 | Shared module | SHM-r0oq14r7 | env_options |
+| Shared module | SHM-9h13o859 | vm_adoption |
 | Webhook | IWH-yj93is5z | Form Options (hook OHK-fx500o2r) |
 | Form | FRM-t3v8zpb7 | HCP Terraform VM order form |
 
@@ -36,5 +37,6 @@ Full walkthrough: [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-s
 - Terraform Update opens a form built from this blueprint's order form: the same fields, scoped to the environment the deployment was ordered into and pre-filled with its current values; a blank field keeps its value and sensitive variables are not shown. Resize changes only `vm_size`. Both fail fast if the workspace has a pending run.
 - Teardown runs an auto-confirmed destroy, then safe-deletes the workspace. A missing workspace is a WARNING, so PROVFAILED resources clean up.
 - Every non-sensitive Terraform output is recorded on the resource as `tfc_output_<name>` and shown on its Overview; the submitted variables are recorded as `tfc_var_<name>` on its Parameters tab. Mark secret-bearing outputs `sensitive = true`.
+- If the template emits a `cloudbolt_vm_ids` output (the sample module does), each VM becomes a child **Server** of the resource: looked up through the chosen environment's handler, hydrated like a Sync VMs discovery, flagged `created_by_terraform` and tagged *Created By Terraform*. Day-2 runs re-adopt from the refreshed outputs (a replaced VM gets a new record, the old one is retired) and teardown retires the records after the destroy run, so CloudBolt never deletes the VMs itself. Without the output nothing is created.
 - If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - The HCP Terraform Workspace extension ([XUI-ax1sluwi](../../extensions/XUI-ax1sluwi/)) adds Terraform and Terraform Variables tabs to these resources: workspace state, run history, pending-run discard, managed resources, and read-only variables.

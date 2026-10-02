@@ -607,6 +607,7 @@
     "path": "plugins/OHK-2b9qu490",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -719,6 +720,7 @@
     "path": "plugins/OHK-4y8f1vff",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -909,6 +911,7 @@
     "path": "plugins/OHK-9xffkz53",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -954,6 +957,7 @@
     "path": "plugins/OHK-axtt0yqq",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr",
       "shared_modules/SHM-r0oq14r7"
     ],
@@ -1240,6 +1244,7 @@
     "path": "plugins/OHK-lvy5tj0y",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -1343,6 +1348,7 @@
     "path": "plugins/OHK-pvo05e24",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr",
       "shared_modules/SHM-r0oq14r7"
     ],
@@ -1619,6 +1625,7 @@
     "path": "plugins/OHK-y9d1uwhw",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -2095,6 +2102,24 @@
     "used_by": [
       "plugins/OHK-bjgpsxoq",
       "plugins/OHK-vg0rmi7i"
+    ]
+  },
+  {
+    "id": "SHM-9h13o859",
+    "type": "shared_modules",
+    "name": "vm_adoption",
+    "description": "Adopts the VMs a Terraform deployment created (from its cloudbolt_vm_ids output) as CloudBolt Server records under the resource, hydrated through the Azure, AWS, or VMware handler, and retires them on teardown.",
+    "path": "shared_modules/SHM-9h13o859",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-4y8f1vff",
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-pvo05e24",
+      "plugins/OHK-9xffkz53",
+      "plugins/OHK-y9d1uwhw",
+      "plugins/OHK-2b9qu490",
+      "plugins/OHK-lvy5tj0y"
     ]
   },
   {
