@@ -29,7 +29,7 @@
                 "hook": "plugins/OHK-cwqouaqn"
             },
             "deploy_seq": 2,
-            "description": "Applies the Ansible Automation Configurations chosen on the order form to every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), each through the AAP configuration manager its environment maps to, and waits for the AAP jobs. Nothing chosen or no servers is a successful no-op.",
+            "description": "Applies the Ansible Automation Configurations pinned as the blueprint's aap_configuration_names parameter to every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), each through the AAP configuration manager its environment maps to, and waits for the AAP jobs. No pinned names or no servers is a successful no-op.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-5keoarr3",
@@ -79,7 +79,7 @@
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "Global ID of the 'tf-cloud'-labeled ConnectionInfo this deployment provisions through; read by the day-2 and teardown actions.",
+            "description": "Global ID of the 'tf-cloud'-labeled ConnectionInfo this deployment provisions through, pinned as this parameter's only option and read by the build, discovery, webhook and day-2 code.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -96,9 +96,7 @@
             "id": "CF-srk375z5",
             "label": "TF Cloud Connection",
             "name": "tfc_connection_info",
-            "options": [
-                "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
-            ],
+            "options": [],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
@@ -111,7 +109,7 @@
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "HCP Terraform organization this deployment's workspace lives in.",
+            "description": "HCP Terraform organization this deployment's workspace lives in, pinned as this parameter's only option.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -128,9 +126,7 @@
             "id": "CF-08m4lxj5",
             "label": "TFC Organization",
             "name": "tfc_organization",
-            "options": [
-                "FILL-ME (HCP Terraform organization name)"
-            ],
+            "options": [],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
@@ -143,7 +139,7 @@
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "HCP Terraform project this deployment's workspace lives in.",
+            "description": "HCP Terraform project this deployment's workspace lives in, pinned as this parameter's only option.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -160,9 +156,7 @@
             "id": "CF-5a0mfzlv",
             "label": "TFC Project",
             "name": "tfc_project",
-            "options": [
-                "FILL-ME (HCP Terraform project name)"
-            ],
+            "options": [],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
@@ -175,7 +169,7 @@
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "The nocode-* module this deployment was provisioned from.",
+            "description": "The nocode-* module this deployment is provisioned from, pinned as this parameter's only option.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -192,14 +186,42 @@
             "id": "CF-679cv8ny",
             "label": "TFC No-Code Module ID",
             "name": "tfc_nocode_module_id",
-            "options": [
-                "FILL-ME (no-code module ID, e.g. nocode-xxxxxxxxxxxxxxxx)"
-            ],
+            "options": [],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
             "show_as_attribute": false,
             "show_on_servers": true,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Ansible Automation Configurations, by name, that the second build step applies to every server of the deployment; with no options the step does nothing.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-aualk6ei"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for Ansible Automation Configurations"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-aj78eghl",
+            "label": "Ansible Automation Configurations",
+            "name": "aap_configuration_names",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
         }

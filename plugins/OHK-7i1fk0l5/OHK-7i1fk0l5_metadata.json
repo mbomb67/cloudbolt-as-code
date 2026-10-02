@@ -1,0 +1,12 @@
+{
+    "dependencies": {},
+    "description": "Generates the dropdown choices an admin pins a blueprint's aap_configuration_names parameter from: every configuration name defined on the Ansible Automation Platform managers, labeled with the managers that define it.",
+    "id": "OHK-7i1fk0l5",
+    "max_retries": 0,
+    "name": "Generate options for Ansible Automation Configurations",
+    "resource_technologies": [],
+    "script_filename": "OHK-7i1fk0l5_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
