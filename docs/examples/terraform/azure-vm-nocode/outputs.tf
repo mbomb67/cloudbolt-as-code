@@ -4,7 +4,7 @@
 # never stores it. This module deliberately has no password output.
 
 output "vm_name" {
-  description = "Name of the VM. CloudBolt uses a vm_name (or name) output to name the resource."
+  description = "Name of the VM. The HCP Terraform VM blueprint names its CloudBolt resource from this output; the no-code blueprint uses the order form's Workspace Name."
   value       = var.vm_name
 }
 
