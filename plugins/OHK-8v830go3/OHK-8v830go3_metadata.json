@@ -1,0 +1,12 @@
+{
+    "dependencies": {},
+    "description": "Removes the host records a deployment's servers hold in Ansible Automation Platform inventories through CloudBolt's own connector method, before the infrastructure is destroyed; a missing host or unreachable AAP is a warning, never a blocker.",
+    "id": "OHK-8v830go3",
+    "max_retries": 0,
+    "name": "Remove Servers from Ansible Automation Platform",
+    "resource_technologies": [],
+    "script_filename": "OHK-8v830go3_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

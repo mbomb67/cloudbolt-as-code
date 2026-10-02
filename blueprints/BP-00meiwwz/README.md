@@ -6,7 +6,9 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-axtt0yqq | HCP Terraform No-Code Module |
-| Teardown | OHK-y9d1uwhw | Teardown HCP Terraform No-Code Module |
+| Build (step 2) | OHK-cwqouaqn | Apply Ansible Automation Configurations to Servers |
+| Teardown (step 1) | OHK-8v830go3 | Remove Servers from Ansible Automation Platform |
+| Teardown (step 2) | OHK-y9d1uwhw | Teardown HCP Terraform No-Code Module |
 | Day-2 action | RSA-dxrh4m6j | Update Variables (the shared Terraform Update action: hook OHK-lvy5tj0y, form FRM-h4py5w3a) |
 | Day-2 action | RSA-pngq92ss | Deploy Latest Version (hook OHK-4y8f1vff) |
 | Shared module | SHM-jlguerjr | tfc_api |
@@ -21,20 +23,23 @@ Provisions infrastructure through HCP Terraform's no-code provisioning workflow.
 - A team or user API token in the `password` field of a ConnectionInfo labeled `tf-cloud`. Organization tokens are rejected by the no-code endpoints.
 - CloudBolt Environments on Azure resource handlers, entitled to the ordering groups.
 - A `cb_admin` user to approve plans.
+- Optional, for the Ansible step: an Ansible Automation Platform configuration manager set as the Configuration Management feature of each target environment, with its Configurations (inventory or group + job template or workflow) defined. Use the same configuration name on every manager.
 
 Full walkthrough: [../../docs/hcp-no-code-setup.md](../../docs/hcp-no-code-setup.md); shared mechanics (ConnectionInfo, approval gate, recovery) are in [../../docs/hcp-terraform-setup.md](../../docs/hcp-terraform-setup.md).
 
 ## Setup
 1. In `forms/FRM-1dxfulvq`, set the `defaultValue` of each hidden `plugin-bdi-t474vto9.<name>` field: `tfc_connection_info` (`CON-…`), `tfc_organization`, `tfc_project`, `tfc_nocode_module_id` (`nocode-…`). The form is the only place these are pinned (the build item carries no `parameter_defaults`, which a custom form would not receive anyway). The build plugin refuses to run while any value contains `FILL-ME`.
 2. The form's Module Variables panel ships authored for the sample module (`vm_size` lists the variable options defined on the module in HCP; resource group, subnet and image come from the environment). For another module, replace the fields with one per input variable, named exactly as the variable. For HCP-defined options use the Form Options webhook with `source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>` (it reads the connection and module ID from the form's hidden fields server-side); for environment-derived values use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>`. List sensitive variables in the hidden `_sensitive` field; use a key/value matrix for map variables. Keep the naming-only `deployment_name` field.
-3. Sync the repo, then restart CloudBolt so the shared modules are reloaded. Inbound webhooks sync separately from a blueprint: after a change to the Form Options webhook or its plugin, sync `webhooks/` explicitly, or the form keeps calling the old plugin.
-4. Re-enter the token in every `tf-cloud` ConnectionInfo after each sync.
+3. The form's Ansible Automation page lists configuration names from the AAP managers mapped to the ordering group's environments; nothing is pinned. To drop the step, remove the page from the form and disable the second build item.
+4. Sync the repo, then restart CloudBolt so the shared modules are reloaded. Inbound webhooks sync separately from a blueprint: after a change to the Form Options webhook or its plugin, sync `webhooks/` explicitly, or the form keeps calling the old plugin.
+5. Re-enter the token in every `tf-cloud` ConnectionInfo after each sync.
 
 ## Notes
 - The no-code create carries the variables and the `ARM_*` environment variables, so the auto-queued first run already targets the chosen subscription; the build plugin adopts that run into the approval pause. Continue Job applies; canceling discards the run and leaves the resource `PROVFAILED` with its workspace ID stored.
 - Update Variables is the shared Terraform Update action: a form built from this blueprint's order form and pre-filled with the deployment's current values. Unknown and sensitive keys are rejected, a blank field keeps its value, and it fails fast if the workspace has a pending run.
 - Deploy Latest Version upgrades a deployment's workspace to the module version pinned in HCP Terraform (HCP's workspace-upgrade API), with the same plan-approval pause. It is idempotent: a deployment already on the pinned version reports that and creates no run. It is bulk-safe: selecting several deployments in the resource list runs them in one job, one after another, pausing once per deployment that needs the upgrade; a failure on one does not stop the others. If the new version adds a required variable, the plan fails; set it on the workspace in HCP Terraform and run the action again. Moving the pin itself is an HCP step ([docs/hcp-no-code-setup.md section 9](../../docs/hcp-no-code-setup.md#9-module-version-changes)).
 - If the template emits a `cloudbolt_vm_ids` output (the sample module does), each VM becomes a child **Server** of the resource: looked up through the chosen environment's handler, hydrated like a Sync VMs discovery, flagged `created_by_terraform` and tagged *Created By Terraform*. Day-2 runs re-adopt from the refreshed outputs (a replaced VM gets a new record, the old one is retired) and teardown retires the records after the destroy run, so CloudBolt never deletes the VMs itself. Without the output nothing is created.
+- The second build step applies the chosen Ansible Automation Configurations to each child server through the AAP manager its environment maps to (the same `install_application` lookup CloudBolt's own provisioning hook uses), matched by **name**: configuration names are not unique across managers, so one selection serves deployments that land on different managers. A server whose environment has no AAP manager, or whose manager lacks a chosen name, is a warning; a failed AAP job fails the step. With `continue_on_failure` false (as shipped) that fails the order and leaves the resource PROVFAILED; set it true to keep the deployment and re-run through the server's built-in Ansible Automation Configuration action. The first teardown step removes the servers' AAP host records through CloudBolt's own connector method (the one the server decommission job calls, which retired records never reach) before the destroy run; a host AAP already deleted counts as removed, and an unreachable AAP is a warning that does not block the destroy.
 - If a jobengine restart kills a paused job, the orphaned TFC run blocks the workspace; discard it from the resource's Terraform tab, in TFC, or delete the resource.
 - Teardown fails fast if another live CloudBolt job owns the resource; otherwise it discards orphaned runs, runs an auto-confirmed destroy, and safe-deletes the workspace. A retry re-adopts the workspace by its `cb-nc-<resource global ID>` name.
 - Onboarding another module means cloning this blueprint, authoring a new form with its own pinned coordinates and variables. Freeze the build plugin's `action_inputs` before authoring the form.

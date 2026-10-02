@@ -21,6 +21,23 @@
             "run_on_scale_up": false,
             "show_on_order_form": true,
             "tier_type": "plugin"
+        },
+        {
+            "action_name": "Apply Ansible Automation Configurations to Servers",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-cwqouaqn"
+            },
+            "deploy_seq": 2,
+            "description": "Applies the Ansible Automation Configurations chosen on the order form to every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), each through the AAP configuration manager its environment maps to, and waits for the AAP jobs. Nothing chosen or no servers is a successful no-op.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-5keoarr3",
+            "name": "Apply Ansible Automation Configurations to Servers",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
         }
     ],
     "deployment_permissions": [],
@@ -31,7 +48,7 @@
     "id": "BP-00meiwwz",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-10-01",
+    "last_updated": "2026-10-02",
     "management_actions": [
         {
             "dependencies": {
@@ -64,6 +81,23 @@
     "sequence": 0,
     "show_recipient_field_on_order_form": false,
     "teardown_items": [
+        {
+            "action_name": "Remove Servers from Ansible Automation Platform",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-8v830go3"
+            },
+            "deploy_seq": -2,
+            "description": "Runs before the HCP Terraform teardown: removes every AAP host record the deployment's servers hold (created by the Ansible build step) through CloudBolt's connector method and drops the link rows. A host AAP already deleted counts as removed; an unreachable AAP is a WARNING so the destroy still proceeds.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-tgizb185",
+            "name": "Remove Servers from Ansible Automation Platform",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        },
         {
             "action_name": "Teardown HCP Terraform No-Code Module",
             "continue_on_failure": false,
