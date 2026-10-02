@@ -88,7 +88,7 @@ $body = @'
 Invoke-RestMethod -Method Post -Headers $h -Body $body "https://app.terraform.io/api/v2/organizations/<org>/no-code-modules"
 ```
 
-The response's `data.id` is the **`nocode-…` ID — record it**; it is pinned in the form (§6). Later changes (moving the version pin, adding options) go to `PATCH https://app.terraform.io/api/v2/no-code-modules/<nocode-id>` with the same body shape; the ID does not change, so nothing changes in CloudBolt.
+The response's `data.id` is the **`nocode-…` ID — record it**; it is pinned on the blueprint (§6). Later changes (moving the version pin, adding options) go to `PATCH https://app.terraform.io/api/v2/no-code-modules/<nocode-id>` with the same body shape; the ID does not change, so nothing changes in CloudBolt.
 
 **Finding the ID of a module enabled in the UI.** The HCP Terraform UI does not display the `nocode-…` ID, and there is no endpoint that lists an organization's no-code modules (`GET /organizations/<org>/no-code-modules` returns 404; the path is POST-only). Read the registry module instead: once no-code provisioning is enabled, its `attributes.no-code` is `true` and its `relationships.no-code-modules.data` lists the no-code module's ID inline (verified live 2026-10):
 
@@ -118,30 +118,34 @@ Docs: [API tokens](https://developer.hashicorp.com/terraform/cloud-docs/users-te
 
 ## 6. CloudBolt: pin the coordinates and author the form
 
-**One blueprint targets one module.** Pin the coordinates as the `defaultValue` of the hidden `plugin-bdi-t474vto9.<name>` text fields in the custom form (`forms/FRM-1dxfulvq`):
+**One blueprint targets one module.** The four coordinates are **blueprint parameters** of `blueprints/BP-00meiwwz` (Blueprint → **Parameters** tab), each with destination *Resource* and **exactly one option**:
 
-| hidden field | value |
+| parameter | value |
 |---|---|
 | `tfc_connection_info` | the `tf-cloud` ConnectionInfo global ID (`CON-…`, §5) — **FILL ME** |
 | `tfc_organization` | the HCP Terraform organization name (§1) — **FILL ME** |
 | `tfc_project` | the HCP Terraform project **name** (§1) — **FILL ME** |
 | `tfc_nocode_module_id` | the `nocode-…` ID this blueprint deploys (§4) — **FILL ME** |
 
-**The form is the only place these are pinned.** With a custom form attached, CloudBolt does not apply a deployment item's `parameter_defaults`, so the build item of `blueprints/BP-00meiwwz` carries none; the plugin receives exactly what the hidden form fields submit. The build plugin refuses to run while any value still contains `FILL-ME`.
+A parameter with a single option is *provided*: CloudBolt hides it from the order form and writes the value onto the deployment's resource before the build plugin runs. That resource value is what the build plugin, the Form Options webhook, discovery and the day-2 actions read; nothing is pinned in the order form or in the deployment item. The build plugin refuses to run while a value still contains `FILL-ME`.
 
-**The order form** (`forms/FRM-1dxfulvq`) has two parts:
+**Pinning from dropdowns.** Each parameter carries the *Generate options for HCP Terraform coordinates* action (`orchestration_actions/HPA-swe1kifa`, plugin `OHK-529jjzli`). On the Parameters tab, remove the `FILL-ME` option and click **Add option**: the dialog lists the `tf-cloud` ConnectionInfos; once the connection is pinned, the organizations its token can see; once the organization is pinned, its projects and its private registry modules with no-code provisioning enabled (shown as `name (provider) -- nocode-…`). Pin in that order. The action lists live values only in that dialog (CloudBolt calls it with the blueprint and no ordering group there); at order time it returns nothing, so the pinned value is used as-is with no HCP round-trip. If a listing cannot run (nothing pinned yet, token blank), the dialog falls back to a text field.
+
+**The repo is still the source of truth.** A sync re-creates the blueprint's parameters and their options from `BP-00meiwwz_metadata.json` (`parameters[].options`), so a value pinned in the UI lasts until the next sync unless it is also in the repo: export the blueprint back to the repo (or put the value in `options` by hand) and commit. Pinning in the UI first is still worth it: the dropdowns validate the IDs against HCP Terraform before they reach the metadata.
+
+**The order form** (`forms/FRM-1dxfulvq`) carries no coordinates. It has two parts:
 
 - An **Environment** dropdown (`plugin-bdi-t474vto9.env_id`) filled by the build plugin's `generate_options_for_env_id` through the `parameterOptions` endpoint — only Azure environments the ordering group may use. The chosen environment's subscription and tenant become the workspace's `ARM_SUBSCRIPTION_ID` / `ARM_TENANT_ID`; the resource handler is never shown.
 - A **Module Variables** Dynamic Panel. It ships authored for the sample module (`vm_name`, `resource_group_name`, `subnet_id`, `vm_size`, `admin_username`, `admin_password`, `os_image`, `tags`): resource group, subnet and image are listed from the environment, and `vm_size` lists the variable options defined on the module in HCP (§4), so define at least that one. For another module, replace the fields with one per input variable:
   - Each field's **name must equal the Terraform variable name exactly**.
-  - For a variable whose allowed values you defined in §4, use a dropdown with `choicesByUrl` pointing at the Form Options webhook: `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&service_item=BDI-t474vto9&variable=<name>` (`path: options`, `valueName: value`, `titleName: title`). The webhook resolves the connection and module ID server-side from the named deployment item's pins — the hidden `tfc_*` fields of this blueprint's custom form — so the query string never carries them.
+  - For a variable whose allowed values you defined in §4, use a dropdown with `choicesByUrl` pointing at the Form Options webhook: `/api/v3/cmp/inboundWebHooks/form-options/run/?source=tfc_variable_options&blueprint={blueprint_id}&variable=<name>` (`path: options`, `valueName: value`, `titleName: title`; `service_item=BDI-t474vto9` is accepted instead of `blueprint`). The webhook reads the connection and module ID server-side from the blueprint's pinned parameters, so the query string never carries them.
   - For a variable that should come from the CloudBolt environment (resource group, subnet, size, image, location, or any env-scoped custom field), use `source=resource_group|subnet|vm_size|os_image|location|cf:<field>` with `&group={group}&env_id={plugin-bdi-t474vto9.env_id}`.
   - Mark sensitive variables' names in the hidden `_sensitive` checkbox's `choices`/`defaultValue` — they are written to the workspace `sensitive: true` and never mirrored in CloudBolt.
   - A map/object variable (e.g. `tags`) uses a `matrixdynamic` (key/value) and is written `hcl: true`.
   - Keep the naming-only `deployment_name` field (it names the CloudBolt resource and is NOT sent to Terraform).
 - The form ships with `rendering_mode: jquery` and a colocated CSS file (the same layout as the VM blueprint's form). Keep both; a form imported without `rendering_mode` renders in Vue mode, where the CSS does not apply.
 
-**Onboarding another module** = a new blueprint (cloned wiring) + a new form whose hidden fields pin the new coordinates. Zero changes to the plugins or `tfc_api`.
+**Onboarding another module** = a new blueprint (cloned wiring, its own four pinned parameters) + a new form for the module's variables. Zero changes to the plugins or `tfc_api`.
 
 **Freeze the build plugin's `action_inputs` before authoring the form** — the form hardcodes the panel funnel name `plugin-bdi-<build-item-id>.parameters`; editing the plugin's inputs afterward can regenerate the field-dependency suffix and break the binding.
 
@@ -178,7 +182,7 @@ Day-2 **Update Variables** (the shared Terraform Update action: a form built fro
 
 ## 10. Live end-to-end checklist
 
-Run after the first sync + restart (§7), with the coordinates pinned in the form (§6) and the form authored for the pinned module. The blueprint's code is validated offline (metadata cross-references, script compilation, and `tfc_api` symbol resolution all pass in-repo), but the following behaviors can only be confirmed against a live instance + HCP Terraform organization. Record pass/fail + evidence.
+Run after the first sync + restart (§7), with the coordinates pinned on the blueprint (§6) and the form authored for the pinned module. The blueprint's code is validated offline (metadata cross-references, script compilation, and `tfc_api` symbol resolution all pass in-repo), but the following behaviors can only be confirmed against a live instance + HCP Terraform organization. Record pass/fail + evidence.
 
 | # | Scenario | Expected | Result |
 |---|----------|----------|--------|
@@ -205,3 +209,27 @@ Run after the first sync + restart (§7), with the coordinates pinned in the for
 Item 4 is the one residual design risk: the no-code create auto-queues a run with `auto_apply: false`, but whether it honors submitted variables (as the docs say, and unlike `tag-bindings` which it ignores) must be confirmed here. The build plugin sends vars in the create; if item 4 fails, the documented fallback is to upsert variables then drive a fresh run instead of adopting the auto-queued one.
 
 Item 17 carries the second: the upgrade run is confirmed through `POST /no-code-modules/<id>/workspaces/<ws>/upgrade/<run>` rather than the generic run apply, because that is the documented confirmation and the one that should record the workspace's new module version. The documented statuses are 200 / 404 / 422; a 409 is handled like a 409 on apply (re-read the run and re-branch). If HCP answers the confirmation with 422 while the run is awaiting confirmation, the engine discards the run and the job fails with the run URL; the fallback is to switch the action's `confirm` callable to the generic `apply_run` and verify the workspace's `source-module-id` afterwards.
+
+## 11. Sync Resources (discovery)
+
+The blueprint's discovery plugin (`plugins/OHK-b1n02ula`) keeps CloudBolt's view of the deployments current with HCP Terraform. Run it from the blueprint's **Sync Resources** button, or let CloudBolt's built-in **Sync Resources** recurring job run it on its schedule (it syncs every active blueprint that has a discovery plugin, one child job per blueprint).
+
+What one sync does:
+
+1. Reads the coordinates from the blueprint's single-option parameters (§6). Missing or `FILL-ME` coordinates fail the sync before anything is read.
+2. Resolves the pinned `nocode-…` module to its registry identity (`GET /no-code-modules/<id>` → `registry-module`, then the organization's `registry-modules` listing) and lists the organization's workspaces. A workspace is in scope when its `source-module-id` names that namespace, module and provider, whatever version it runs and whichever project it is in. Workspaces of other modules, including the VM blueprint's `cb-vm-*` ones, are ignored.
+3. For each in-scope workspace, refreshes the resource matched by `tfc_workspace_id`: workspace name, `tfc_nocode_module_name` / `tfc_nocode_module_version`, `tfc_nocode_upgrade_available` (HCP's flag), the newest run's status (`tfc_run_status`) and, when that run is final, `tfc_run_id` / `tfc_run_url`, the state outputs (`tfc_output_*`), the non-sensitive variables (`tfc_var_*`) and the three variable-name sets, `azure_subscription_id` / `azure_tenant_id` from the workspace's `ARM_*` variables, and `tfc_env_id` when exactly one Azure environment has that subscription (or the recorded one still does). A run still in progress is left attributed to the job that owns it.
+4. Onboards a workspace with no resource: group and owner come from the resource its `cmp:resource-id` tag or `cb-nc-<global ID>` name points at when it still exists, else the Unassigned group; the name is the state's `name` / `vm_name` output, else the workspace name. Existing resources keep their name, group and owner.
+5. Marks a resource Historical only when HCP answers 404 for its stored workspace. `auto_historical_resources` stays **off** on the blueprint: that flag would also retire a deployment that is mid-provision (its workspace does not exist yet).
+
+Sensitive variable values are never read into CloudBolt. An HCP error while establishing scope (token, module, workspace listing) fails the sync with no change; an error reading one workspace's details is logged and that workspace carries what was read. Cost: one listing plus three to four requests per in-scope workspace.
+
+Live checks:
+
+| # | Scenario | Expected | Result |
+|---|----------|----------|--------|
+| D1 | Sync with every deployment current | Each resource "Finished syncing"; no attribute-change events except a first-time `tfc_run_status` / `tfc_nocode_upgrade_available` | _pending_ |
+| D2 | Move the module's version pin (§9), then sync | `tfc_nocode_upgrade_available` becomes True on every deployment on the old version; the Terraform tab's banner agrees; Deploy Latest Version then clears it on the next sync | _pending_ |
+| D3 | Create a workspace from the same module in the HCP UI, then sync | A new resource appears in the Unassigned group named after the workspace (or its `name` output), with `tfc_workspace_id`, module facts and variables; the VM blueprint's workspaces are untouched | _pending_ |
+| D4 | Delete a deployment's workspace in HCP (not in CloudBolt), then sync | The resource is marked Historical with a progress line naming the 404; a sync during a provision leaves the provisioning resource active | _pending_ |
+| D5 | Sync with the ConnectionInfo token blank or wrong | The sync job fails on the connection error; no resource changes | _pending_ |

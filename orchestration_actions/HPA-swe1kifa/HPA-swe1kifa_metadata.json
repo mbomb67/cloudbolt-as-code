@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-529jjzli"
+    },
+    "description": "Lists HCP Terraform connections, organizations, projects and no-code modules so an admin pins a no-code blueprint's coordinates from dropdowns.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-swe1kifa",
+    "last_updated": null,
+    "name": "Generate options for HCP Terraform coordinates",
+    "run_on_statuses": "",
+    "run_seq": null
+}

@@ -8,7 +8,9 @@
     "readme": "blueprints/BP-00meiwwz/README.md",
     "uses": [
       "forms/FRM-1dxfulvq",
+      "orchestration_actions/HPA-swe1kifa",
       "plugins/OHK-axtt0yqq",
+      "plugins/OHK-b1n02ula",
       "plugins/OHK-y9d1uwhw",
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
@@ -518,6 +520,22 @@
     "enabled": true
   },
   {
+    "id": "HPA-swe1kifa",
+    "type": "orchestration_actions",
+    "name": "Generate options for HCP Terraform coordinates",
+    "description": "Lists HCP Terraform connections, organizations, projects and no-code modules so an admin pins a no-code blueprint's coordinates from dropdowns.",
+    "path": "orchestration_actions/HPA-swe1kifa",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-529jjzli"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true
+  },
+  {
     "id": "HPA-t7hlyvyy",
     "type": "orchestration_actions",
     "name": "Azure Resource Manager Rate Hook",
@@ -740,6 +758,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-529jjzli",
+    "type": "plugins",
+    "name": "Generate options for HCP Terraform coordinates",
+    "description": "Generates the dropdown choices an admin pins a no-code blueprint's HCP Terraform connection, organization, project and module from, each list narrowed by the pins before it.",
+    "path": "plugins/OHK-529jjzli",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr",
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-swe1kifa"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-597w4hvq",
     "type": "plugins",
     "name": "Teardown Azure Subscription",
@@ -952,6 +986,22 @@
     "name": "HCP Terraform No-Code Module",
     "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply.",
     "path": "plugins/OHK-axtt0yqq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-jlguerjr",
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-b1n02ula",
+    "type": "plugins",
+    "name": "Discover HCP Terraform No-Code Workspaces",
+    "description": "Syncs the no-code blueprint's resources with the HCP Terraform workspaces created from its pinned module: refreshes module version, update flag, latest run, outputs and variables, onboards unmanaged workspaces, and retires deleted ones.",
+    "path": "plugins/OHK-b1n02ula",
     "readme": null,
     "uses": [
       "shared_modules/SHM-jlguerjr",
@@ -2166,7 +2216,9 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-4y8f1vff",
+      "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",
+      "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24",
       "plugins/OHK-9xffkz53",
@@ -2215,7 +2267,9 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-r9cm4oar",
+      "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",
+      "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24"
     ]

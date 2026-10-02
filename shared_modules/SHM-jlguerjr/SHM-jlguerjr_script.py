@@ -452,6 +452,28 @@ def workspace_module_info(workspace):
     }
 
 
+def workspace_from_module(workspace, identity):
+    """True when ``workspace`` (a workspace document) was created from the
+    no-code module whose registry identity is ``identity`` (see
+    TFCClient.no_code_module_identity): its source-module-id names the same
+    namespace, module name and provider. Version-independent -- a workspace
+    still running an older version of the same module matches -- and
+    case-insensitive, so a registry that normalizes case cannot break the
+    match. False for any workspace that is not no-code."""
+    info = workspace_module_info(workspace)
+    if not info["is_no_code"] or not info["name"]:
+        return False
+
+    def _norm(value):
+        return str(value or "").strip().lower()
+
+    return (
+        _norm(info["namespace"]) == _norm(identity.get("namespace"))
+        and _norm(info["name"]) == _norm(identity.get("name"))
+        and _norm(info["provider"]) == _norm(identity.get("provider"))
+    )
+
+
 def build_run_message(job_id, resource_global_id, blueprint_name):
     """
     Compose the TFC run message. Non-PII identifiers ONLY -- CloudBolt job ID,
@@ -1752,6 +1774,64 @@ class TFCClient(object):
         ]
         return sorted(name for name in names if name)
 
+    def project_names_by_id(self):
+        """
+        ``{project id: project name}`` for every project in the client's
+        organization -- the reverse of get_project_id, for callers holding a
+        workspace document (whose relationships name the project by ID).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/projects
+              (GET /organizations/:organization_name/projects; paginated;
+              data[].id, data[].attributes.name)
+        """
+        names = {}
+        projects = self._list_all(
+            "/organizations/{}/projects".format(self._require_org())
+        )
+        for project in projects:
+            name = (project.get("attributes", {}) or {}).get("name")
+            if project.get("id") and name:
+                names[project["id"]] = name
+        return names
+
+    def list_workspaces(self, project_id=None, wildcard_name=None):
+        """
+        Every workspace document of the client's organization (paginated,
+        bounded by LIST_MAX_PAGES), optionally narrowed server-side to one
+        project and/or a ``*``-wildcard name pattern. Items are full
+        workspace documents (attributes source, source-module-id,
+        no-code-upgrade-available; relationships project), so callers
+        classify no-code workspaces with workspace_module_info without a
+        per-workspace GET.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces
+              (GET /organizations/:organization_name/workspaces;
+              filter[project][id]; search[wildcard-name]; paginated)
+        """
+        params = {}
+        if project_id:
+            params["filter[project][id]"] = project_id
+        if wildcard_name:
+            params["search[wildcard-name]"] = wildcard_name
+        return self._list_all(
+            "/organizations/{}/workspaces".format(self._require_org()), params=params
+        )
+
+    def list_registry_modules(self, registry_name="private"):
+        """
+        Every registry module of the client's organization (paginated), by
+        default the private registry only. Items carry ``id`` (mod-...) and
+        attributes name / namespace / provider / registry-name.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/private-registry/modules
+              (GET /organizations/:organization_name/registry-modules;
+              filter[registry_name]; paginated)
+        """
+        params = {}
+        if registry_name:
+            params["filter[registry_name]"] = registry_name
+        return self._list_all(
+            "/organizations/{}/registry-modules".format(self._require_org()),
+            params=params,
+        )
+
     def list_workspace_repo_identifiers(self, project_name=None):
         """
         Distinct VCS repo identifiers (``org/repo``) tracked by the
@@ -2159,6 +2239,88 @@ class TFCClient(object):
             "version_pin": str(attributes.get("version-pin") or ""),
             "registry_module_id": registry_module.get("id") or "",
         }
+
+    def list_no_code_modules(self):
+        """
+        The organization's private registry modules that have no-code
+        provisioning enabled, one dict each: ``{"nocode_module_id",
+        "registry_module_id", "namespace", "name", "provider"}``. Read from
+        the registry-modules listing: a module enabled for no-code carries
+        ``attributes.no-code`` true and ``relationships.no-code-modules.data``
+        with its nocode-* ID -- observed live on HCP Terraform (2026-10,
+        docs/hcp-no-code-setup.md section 4); the public reference documents
+        the listing but not those two keys, so a module without them is
+        skipped rather than guessed at. A module with several no-code IDs
+        (not seen in practice) yields one entry per ID.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/private-registry/modules
+              (GET /organizations/:organization_name/registry-modules)
+              https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+        """
+        modules = []
+        for item in self.list_registry_modules():
+            attributes = item.get("attributes", {}) or {}
+            relationship = ((item.get("relationships") or {}).get("no-code-modules") or {}).get("data")
+            if not attributes.get("no-code") or not relationship:
+                continue
+            if isinstance(relationship, dict):
+                relationship = [relationship]
+            for linked in relationship:
+                nocode_id = (linked or {}).get("id")
+                if not nocode_id:
+                    continue
+                modules.append({
+                    "nocode_module_id": nocode_id,
+                    "registry_module_id": item.get("id") or "",
+                    "namespace": attributes.get("namespace") or "",
+                    "name": attributes.get("name") or "",
+                    "provider": attributes.get("provider") or "",
+                })
+        return modules
+
+    def no_code_module_identity(self, nocode_module_id):
+        """
+        The registry identity of a no-code module -- what a workspace created
+        from it records in ``source-module-id``: ``{"nocode_module_id",
+        "registry_module_id", "namespace", "name", "provider", "version_pin",
+        "enabled"}``. Resolved in two documented hops: the no-code module's
+        registry-module relationship (a mod-... ID), then the organization's
+        registry-modules listing, whose item with that ID carries the
+        module's namespace / name / provider. Raises TFCNotFoundError when
+        the registry module is not listed (deleted, or owned by another
+        organization than the client's).
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
+              (GET /no-code-modules/:id -> relationships.registry-module.data.id)
+              https://developer.hashicorp.com/terraform/cloud-docs/api-docs/private-registry/modules
+              (GET /organizations/:organization_name/registry-modules ->
+              data[].id, data[].attributes.{namespace, name, provider})
+        """
+        module = self.get_no_code_module(nocode_module_id)
+        registry_module_id = module["registry_module_id"]
+        if not registry_module_id:
+            raise TFCNotFoundError(
+                "No-code module {} does not reference a registry module.".format(
+                    nocode_module_id
+                )
+            )
+        for item in self.list_registry_modules():
+            if item.get("id") != registry_module_id:
+                continue
+            attributes = item.get("attributes", {}) or {}
+            return {
+                "nocode_module_id": module["id"],
+                "registry_module_id": registry_module_id,
+                "namespace": attributes.get("namespace") or "",
+                "name": attributes.get("name") or "",
+                "provider": attributes.get("provider") or "",
+                "version_pin": module["version_pin"],
+                "enabled": module["enabled"],
+            }
+        raise TFCNotFoundError(
+            "Registry module {} (referenced by no-code module {}) is not listed in "
+            "organization '{}'.".format(
+                registry_module_id, nocode_module_id, self._require_org()
+            )
+        )
 
     @staticmethod
     def _upgrade_result(body):
@@ -2820,6 +2982,18 @@ class TFCClient(object):
             "included": self._index_included(body),
             "total": pagination.get("total-count"),
         }
+
+    def latest_run(self, workspace_id):
+        """
+        The workspace's newest run document (no side-loaded documents), or
+        None when the workspace has never run. One request.
+        Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run
+              (GET /workspaces/:workspace_id/runs; page[size]=1; TFC orders
+              runs newest first)
+        """
+        page = self.list_runs_page(workspace_id, page_number=1, page_size=1, include=())
+        runs = page["runs"]
+        return runs[0] if runs else None
 
     def get_run_with_related(self, run_id, include=("plan", "cost_estimate")):
         """

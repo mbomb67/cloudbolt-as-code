@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7",
+            "shared_modules/SHM-jlguerjr"
+        ]
+    },
+    "description": "Syncs the no-code blueprint's resources with the HCP Terraform workspaces created from its pinned module: refreshes module version, update flag, latest run, outputs and variables, onboards unmanaged workspaces, and retires deleted ones.",
+    "id": "OHK-b1n02ula",
+    "max_retries": 0,
+    "name": "Discover HCP Terraform No-Code Workspaces",
+    "resource_technologies": [],
+    "script_filename": "OHK-b1n02ula_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

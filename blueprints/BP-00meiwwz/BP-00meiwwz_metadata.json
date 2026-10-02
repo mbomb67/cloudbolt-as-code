@@ -25,6 +25,13 @@
     ],
     "deployment_permissions": [],
     "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-b1n02ula"
+        },
+        "href": "/api/v3/cmp/actions/OHK-b1n02ula/",
+        "title": "Discover HCP Terraform No-Code Workspaces"
+    },
     "favorited": false,
     "has_custom_form": true,
     "icon": "terraform_rTNoRQp.png",
@@ -50,16 +57,146 @@
     ],
     "metadata_version": "2026.1.0",
     "name": "HCP Terraform No-Code Module",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Global ID of the 'tf-cloud'-labeled ConnectionInfo this deployment provisions through; read by the day-2 and teardown actions.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for HCP Terraform coordinates"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-srk375z5",
+            "label": "TF Cloud Connection",
+            "name": "tfc_connection_info",
+            "options": [
+                "FILL-ME (tf-cloud ConnectionInfo global_id, e.g. CON-xxxxxxxx)"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "HCP Terraform organization this deployment's workspace lives in.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for HCP Terraform coordinates"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-08m4lxj5",
+            "label": "TFC Organization",
+            "name": "tfc_organization",
+            "options": [
+                "FILL-ME (HCP Terraform organization name)"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "HCP Terraform project this deployment's workspace lives in.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for HCP Terraform coordinates"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-5a0mfzlv",
+            "label": "TFC Project",
+            "name": "tfc_project",
+            "options": [
+                "FILL-ME (HCP Terraform project name)"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "The nocode-* module this deployment was provisioned from.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for HCP Terraform coordinates"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-679cv8ny",
+            "label": "TFC No-Code Module ID",
+            "name": "tfc_nocode_module_id",
+            "options": [
+                "FILL-ME (no-code module ID, e.g. nocode-xxxxxxxxxxxxxxxx)"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
     "resource_name_template": null,
     "resource_type": {
         "icon": "fas fa-cloud",
         "id": "RT-nbw86jvn",
         "internal_only": false,
-        "label": "HCP Terraform No-Code Module",
+        "label": "HCP Terraform Workspace",
         "lifecycle": "ACTIVE",
         "list_view_columns": [],
         "name": "hcp_terraform_no_code_module",
-        "plural_label": "HCP Terraform No-Code Modules"
+        "plural_label": "HCP Terraform Workspaces"
     },
     "sequence": 0,
     "show_recipient_field_on_order_form": false,
