@@ -9,8 +9,10 @@
     "uses": [
       "forms/FRM-1dxfulvq",
       "orchestration_actions/HPA-swe1kifa",
+      "plugins/OHK-8v830go3",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-b1n02ula",
+      "plugins/OHK-cwqouaqn",
       "plugins/OHK-y9d1uwhw",
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
@@ -357,7 +359,7 @@
     "id": "FRM-1dxfulvq",
     "type": "forms",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions infrastructure from an HCP Terraform no-code module and pauses for plan review before apply.",
+    "description": "Provisions an HCP Terraform no-code module; the job pauses for plan review before apply.",
     "path": "forms/FRM-1dxfulvq",
     "readme": null,
     "uses": [],
@@ -625,6 +627,7 @@
     "path": "plugins/OHK-2b9qu490",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -737,6 +740,7 @@
     "path": "plugins/OHK-4y8f1vff",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -867,6 +871,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-8v830go3",
+    "type": "plugins",
+    "name": "Remove Servers from Ansible Automation Platform",
+    "description": "Removes the host records a deployment's servers hold in Ansible Automation Platform inventories through CloudBolt's own connector method, before the infrastructure is destroyed; a missing host or unreachable AAP is a warning, never a blocker.",
+    "path": "plugins/OHK-8v830go3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-96zebx6i",
     "type": "plugins",
     "name": "Build Azure Subscription",
@@ -943,6 +960,7 @@
     "path": "plugins/OHK-9xffkz53",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -988,6 +1006,7 @@
     "path": "plugins/OHK-axtt0yqq",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr",
       "shared_modules/SHM-r0oq14r7"
     ],
@@ -1052,6 +1071,21 @@
     "uses": [],
     "used_by": [
       "orchestration_actions/HPA-qb0w86mi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-cwqouaqn",
+    "type": "plugins",
+    "name": "Apply Ansible Automation Configurations to Servers",
+    "description": "Applies the chosen Ansible Automation Platform configurations, matched by name on each server's own configuration manager, to every server of the deployment through CloudBolt's built-in AAP methods; a deployment without servers is a no-op.",
+    "path": "plugins/OHK-cwqouaqn",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-00meiwwz"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1290,6 +1324,7 @@
     "path": "plugins/OHK-lvy5tj0y",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -1393,6 +1428,7 @@
     "path": "plugins/OHK-pvo05e24",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr",
       "shared_modules/SHM-r0oq14r7"
     ],
@@ -1669,6 +1705,7 @@
     "path": "plugins/OHK-y9d1uwhw",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-9h13o859",
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
@@ -2148,6 +2185,24 @@
     ]
   },
   {
+    "id": "SHM-9h13o859",
+    "type": "shared_modules",
+    "name": "vm_adoption",
+    "description": "Adopts the VMs a Terraform deployment created (from its cloudbolt_vm_ids output) as CloudBolt Server records under the resource, hydrated through the Azure, AWS, or VMware handler, and retires them on teardown.",
+    "path": "shared_modules/SHM-9h13o859",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-4y8f1vff",
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-pvo05e24",
+      "plugins/OHK-9xffkz53",
+      "plugins/OHK-y9d1uwhw",
+      "plugins/OHK-2b9qu490",
+      "plugins/OHK-lvy5tj0y"
+    ]
+  },
+  {
     "id": "SHM-bbswv27r",
     "type": "shared_modules",
     "name": "bicep_engine",
@@ -2266,6 +2321,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-cwqouaqn",
       "plugins/OHK-r9cm4oar",
       "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",

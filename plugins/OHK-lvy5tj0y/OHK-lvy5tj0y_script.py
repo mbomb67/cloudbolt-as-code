@@ -68,7 +68,8 @@ Flow after validation (plan U5):
   the snapshot -> on "applied": refresh tfc_var_* mirrors AND tfc_output_*
   for EVERY output discovered in the applied state (fields created on the
   fly for outputs the template grew since provision), rename the resource if
-  the name/vm_name output changed, store tfc_run_url; on
+  the name/vm_name output changed (VCS deployments only -- a no-code
+  deployment keeps the Workspace Name its orderer chose), store tfc_run_url; on
   "planned_and_finished" (no-op submit): refresh tfc_var_* mirrors ONLY and
   report success-with-no-changes -- tfc_output_* is NOT touched.
 
@@ -86,7 +87,9 @@ credentials, so this action only edits terraform-category variables and never
 touches a resource handler (AGENTS.md cardinal rule 4).
 
 Returns a 3-tuple: (status, output_msg, error_msg)
-  status: "SUCCESS" | "FAILURE"
+  status: "SUCCESS" | "WARNING" | "FAILURE" (WARNING: applied, but a VM listed
+          in the template's cloudbolt_vm_ids output could not be adopted as a
+          CloudBolt server record)
 """
 
 import json
@@ -94,6 +97,11 @@ import json
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    outcome as adoption_outcome,
+    resource_environment,
+)
 from shared_modules.tfc_api import (
     RUN_CLASS_NO_CHANGES,
     TFCError,
@@ -111,9 +119,10 @@ from shared_modules.tfc_api import (
 
 logger = ThreadLogger(__name__)
 
-# Outputs a template may use to name its deployment; the first one present
-# wins. The no-code blueprint's modules report "name", the VM template
-# reports "vm_name". A changed value renames the CloudBolt resource on apply.
+# Outputs a VCS template may use to name its deployment; the first one present
+# wins (the VM template reports "vm_name"). A changed value renames the
+# CloudBolt resource on apply. No-code deployments are exempt: their resource
+# name is the Workspace Name the orderer chose at order time.
 NAME_OUTPUTS = ("name", "vm_name")
 
 
@@ -516,7 +525,14 @@ def run(job, resource=None, **kwargs):
             (outputs[key] for key in NAME_OUTPUTS if outputs.get(key) is not None),
             None,
         )
-        if output_name_value is not None and str(output_name_value) != resource.name:
+        is_no_code = bool(
+            (resource.get_value_for_custom_field("tfc_nocode_module_id") or "").strip()
+        )
+        if (
+            output_name_value is not None
+            and not is_no_code
+            and str(output_name_value) != resource.name
+        ):
             rename_note = " Resource renamed '{}' -> '{}'.".format(
                 resource.name, output_name_value
             )
@@ -524,14 +540,23 @@ def run(job, resource=None, **kwargs):
         resource.save()
         set_progress("Refreshed TFC variable mirrors and state outputs.")
 
+        # ---- Reconcile child Server records with the applied state ----------
+        # cloudbolt_vm_ids (vm_adoption): a replaced VM gets a new record and
+        # the old one is retired; no output means nothing is touched. A
+        # problem here is a WARNING, never a FAILURE.
+        adoption = adopt_from_outputs(
+            resource, resource_environment(resource), outputs, progress=set_progress
+        )
+        status, adoption_note = adoption_outcome(adoption)
+
         return (
-            "SUCCESS",
+            status,
             "Terraform Update applied on workspace '{}' (run {}: {} to add, "
-            "{} to change, {} to destroy).{} Run URL: {}".format(
+            "{} to change, {} to destroy).{} Run URL: {}{}".format(
                 workspace_name, result["run_id"],
                 result.get("additions", "?"), result.get("changes", "?"),
                 result.get("destructions", "?"), rename_note,
-                result["run_url"],
+                result["run_url"], adoption_note,
             ),
             "",
         )

@@ -148,11 +148,12 @@ TFC_DEFAULT_HOST = "app.terraform.io"
 WORKSPACE_NAME_PREFIX = "cb-vm-"
 WORKSPACE_NAME_MAX_LENGTH = 90  # conservative cap; names stay ~18 chars anyway
 RESOURCE_ID_TAG_KEY = "cmp:resource-id"
-# No-code deployments get a distinct prefix so they are visually separable from
-# the VCS blueprint's cb-vm-* workspaces in the TFC UI. Same immutable-global_id
-# basis; see no_code_workspace_name_for_resource. Ownership of a no-code
-# workspace is proven by this deterministic name (the no-code create ignores a
-# tag-bindings relationship -- U1), with the cmp:resource-id tag confirmatory.
+# Legacy no-code workspace name prefix. No-code deployments are now named by
+# the orderer (the order form's Workspace Name); this prefix survives only so
+# the no-code teardown can still find a workspace created before that change
+# (see no_code_workspace_name_for_resource). Ownership of a no-code workspace
+# is the stored tfc_workspace_id, else the cmp:resource-id tag applied
+# best-effort after the create (the create ignores tag-bindings -- U1).
 NO_CODE_WORKSPACE_NAME_PREFIX = "cb-nc-"
 
 # Plan-log presentation: keep at most this many lines, preserving the END of
@@ -380,12 +381,11 @@ def _sanitize_workspace_name(prefix, resource_global_id):
 
 def no_code_workspace_name_for_resource(resource_global_id):
     """
-    Deterministic TFC workspace name for a no-code deployment:
-    ``cb-nc-<resource global_id>``. Same immutable-global_id basis and charset
-    sanitization as workspace_name_for_resource; the distinct ``cb-nc-`` prefix
-    keeps no-code workspaces visually separate from the VCS blueprint's
-    ``cb-vm-*`` and is the load-bearing ownership signal for the no-code build
-    (the no-code create ignores tag-bindings -- U1).
+    LEGACY deterministic TFC workspace name for a no-code deployment:
+    ``cb-nc-<resource global_id>``. No-code workspaces are now named by the
+    orderer; this remains the fallback the no-code build uses when no name is
+    given and the name the no-code teardown still checks for deployments
+    created before orderer-chosen names.
     """
     return _sanitize_workspace_name(NO_CODE_WORKSPACE_NAME_PREFIX, resource_global_id)
 
@@ -2414,12 +2414,12 @@ class TFCClient(object):
 
     def workspace_resource_tag_conflicts(self, workspace_id, resource_global_id):
         """True only when the workspace carries a ``cmp:resource-id`` tag whose
-        value is a DIFFERENT resource -- the one case that must block name-based
-        adoption of a no-code workspace. An ABSENT tag is NOT a conflict: the
+        value is a DIFFERENT resource. An ABSENT tag is NOT a conflict: the
         no-code create silently drops a tag-bindings relationship (U1), so the
-        deterministic ``cb-nc-<global_id>`` name is the ownership proof and the
-        tag is confirmatory only. (Contrast workspace_has_resource_tag, which
-        REQUIRES the tag for the VCS stored-ID adoption path.)
+        tag is applied best-effort afterward. Used by the no-code teardown's
+        legacy ``cb-nc-<global_id>`` name fallback, where the name itself
+        embeds the resource's global_id. (Contrast workspace_has_resource_tag,
+        which REQUIRES the tag -- the test for an orderer-named workspace.)
         """
         wanted_key = RESOURCE_ID_TAG_KEY.lower()
         wanted_value = str(resource_global_id).lower()
@@ -2433,9 +2433,11 @@ class TFCClient(object):
     def apply_resource_tag(self, workspace_id, resource_global_id):
         """Best-effort: bind ``cmp:resource-id=<global_id>`` to the workspace
         AFTER a no-code create (the create ignores a tag-bindings relationship
-        -- U1). Never raises: the deterministic workspace name is the
-        load-bearing ownership signal, so a failed tag write must not fail
-        provisioning. Returns True on success, False on a tolerated failure.
+        -- U1). Never raises: the stored tfc_workspace_id is the primary
+        ownership record, so a failed tag write must not fail provisioning
+        (it only costs the name-based re-adoption after a crash between the
+        create and the resource save). Returns True on success, False on a
+        tolerated failure.
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces
               (PATCH /workspaces/:workspace_id, data.relationships.tag-bindings.data[])
         """
@@ -2471,22 +2473,29 @@ class TFCClient(object):
 
     def create_no_code_workspace(self, nocode_module_id, resource_global_id,
                                  project_name, variables, sensitive_keys=None,
-                                 description="", env_variables=None, source_url=""):
+                                 description="", env_variables=None, source_url="",
+                                 workspace_name=None):
         """Create a dedicated workspace FROM a no-code module; returns the
         workspace ``data`` dict (id at ["id"], name at ["attributes"]["name"]).
 
-        ``auto-apply`` is pinned False so the run HCP auto-queues pauses at the
-        confirmable gate for the plan-approval engine to adopt (U1-confirmed).
-        tag-bindings are NOT sent -- the endpoint ignores them (U1) -- so the
-        caller applies the tag best-effort afterward. A 422 name collision from
-        a prior attempt adopts the existing workspace by name unless it carries
-        a different resource-id tag (name is the ownership proof).
+        ``workspace_name`` is the orderer's chosen name (the caller validates
+        it against TFC's charset); None falls back to the legacy deterministic
+        ``cb-nc-<global_id>`` name. ``auto-apply`` is pinned False so the run
+        HCP auto-queues pauses at the confirmable gate for the plan-approval
+        engine to adopt (U1-confirmed). tag-bindings are NOT sent -- the
+        endpoint ignores them (U1) -- so the caller applies the tag
+        best-effort afterward. A 422 name collision adopts the existing
+        workspace only when it carries THIS resource's ``cmp:resource-id`` tag
+        (a retry after a crash between the create and the resource save); any
+        other same-named workspace is a collision the orderer resolves by
+        choosing another name.
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
               (POST /no-code-modules/:id/workspaces with data.attributes.{name,
               description, auto-apply, source-name, source-url} and
               data.relationships.{project.data, vars.data[]})
         """
-        workspace_name = no_code_workspace_name_for_resource(resource_global_id)
+        if not workspace_name:
+            workspace_name = no_code_workspace_name_for_resource(resource_global_id)
         project_id = self.get_project_id(project_name)
         payload = {
             "data": {
@@ -2518,22 +2527,25 @@ class TFCClient(object):
                 json_body=payload,
             )
         except TFCValidationError as create_error:
-            # 422: most likely the deterministic name already exists from a
-            # prior attempt. Adopt by name unless a different resource owns it.
+            # 422: most likely the name already exists. Adopt it only when it
+            # is tagged for THIS resource (a prior attempt of this very
+            # deployment); otherwise it is someone else's workspace.
             try:
                 existing = self.get_workspace_by_name(workspace_name)
             except TFCNotFoundError:
                 raise create_error
-            if self.workspace_resource_tag_conflicts(existing["id"], resource_global_id):
+            if not self.workspace_has_resource_tag(existing["id"], resource_global_id):
                 raise TFCError(
-                    "No-code workspace '{}' already exists but is tagged for a "
-                    "different resource; refusing to adopt a foreign workspace. "
-                    "Resolve the name collision in TFC, then retry. Original "
-                    "error: {}".format(workspace_name, _safe_text(create_error))
+                    "A workspace named '{}' already exists in organization '{}' "
+                    "and is not tagged for this resource. Choose a different "
+                    "Workspace Name, or delete that workspace in HCP Terraform, "
+                    "then order again. Original error: {}".format(
+                        workspace_name, self._require_org(), _safe_text(create_error)
+                    )
                 )
             self._log.info(
-                "No-code workspace '%s' already exists (name-owned); adopting it.",
-                workspace_name,
+                "No-code workspace '%s' already exists and is tagged for this "
+                "resource; adopting it.", workspace_name,
             )
             return existing
         workspace = response.json()["data"]

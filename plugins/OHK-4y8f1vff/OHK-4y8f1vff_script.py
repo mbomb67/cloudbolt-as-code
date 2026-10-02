@@ -43,9 +43,9 @@ Flow per target:
   pause -> 'Continue Job' confirms it through the documented upgrade
   confirmation endpoint; canceling the job discards the run (nothing to
   revert: no variables were written) -> on apply, re-read the workspace,
-  record tfc_nocode_module_version / tfc_run_id / tfc_run_url, refresh every
-  tfc_output_* from the applied state, and rename the resource if the
-  name/vm_name output changed.
+  record tfc_nocode_module_version / tfc_run_id / tfc_run_url, and refresh
+  every tfc_output_* from the applied state (the resource keeps the Workspace
+  Name its orderer chose; outputs never rename a no-code deployment).
 
 New required input variables: if the pinned version adds a variable with no
 default, the plan errors and the job fails with the run URL. Set the variable
@@ -63,6 +63,11 @@ Returns a 3-tuple: (status, output_msg, error_msg)
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    outcome as adoption_outcome,
+    resource_environment,
+)
 from shared_modules.tfc_api import (
     FIELD_VISIBILITY_PARAMETER,
     RUN_CLASS_APPLIED,
@@ -79,10 +84,6 @@ from shared_modules.tfc_api import (
 logger = ThreadLogger(__name__)
 
 ACTION_NAME = "Deploy Latest Version"
-
-# Outputs a module may use to name its deployment; the first one present wins
-# (mirrors the Terraform Update plugin). A changed value renames the resource.
-NAME_OUTPUTS = ("name", "vm_name")
 
 # Worst-status aggregation for a multi-target run.
 STATUS_RANK = {"SUCCESS": 0, "WARNING": 1, "FAILURE": 2}
@@ -154,8 +155,9 @@ def _targets(job, resource=None, resources=None, server=None, servers=None):
 
 def _refresh_outputs(client, resource, workspace_id):
     """Record every output of the applied state as tfc_output_* (fields created
-    on the fly for outputs the new version added) and rename the resource if
-    its naming output changed. Returns a note for the result message."""
+    on the fly for outputs the new version added) and return the outputs for
+    the server reconcile. The resource name is never touched: a no-code
+    deployment is named by its orderer's Workspace Name."""
     outputs = client.wait_for_outputs(workspace_id) or {}
     for output_name in ensure_output_custom_fields(sorted(outputs)):
         value = outputs.get(output_name)
@@ -163,14 +165,7 @@ def _refresh_outputs(client, resource, workspace_id):
             resource.set_value_for_custom_field(
                 "tfc_output_{}".format(output_name), str(value)
             )
-    new_name = next(
-        (outputs[key] for key in NAME_OUTPUTS if outputs.get(key) is not None), None
-    )
-    if new_name is not None and str(new_name) != resource.name:
-        note = " Resource renamed '{}' -> '{}'.".format(resource.name, new_name)
-        resource.name = str(new_name)
-        return note
-    return ""
+    return outputs
 
 
 def _deploy_latest(job, resource):
@@ -336,18 +331,28 @@ def _deploy_latest(job, resource):
                 "workspace; check it in HCP Terraform."
             )
 
-        rename_note = ""
         if result["status"] == RUN_CLASS_APPLIED:
-            rename_note = _refresh_outputs(client, resource, workspace_id)
+            outputs = _refresh_outputs(client, resource, workspace_id)
             resource.save()
+            # Reconcile child Server records with the upgraded state
+            # (cloudbolt_vm_ids, vm_adoption): a version that replaced the VM
+            # yields a new record and retires the old one. A problem here is
+            # a WARNING for this target, never a FAILURE.
+            adoption = adopt_from_outputs(
+                resource, resource_environment(resource), outputs,
+                progress=set_progress,
+            )
+            adoption_status, adoption_note = adoption_outcome(adoption)
+            if STATUS_RANK[adoption_status] > STATUS_RANK[status]:
+                status = adoption_status
             return (
                 status,
                 "{}: upgraded workspace '{}' to module {} v{} (run {}: {} to add, "
-                "{} to change, {} to destroy).{}{} Run URL: {}".format(
+                "{} to change, {} to destroy).{} Run URL: {}{}".format(
                     label, workspace_name, module_label, new_version or pinned_version,
                     result["run_id"], result.get("additions", "?"),
                     result.get("changes", "?"), result.get("destructions", "?"),
-                    rename_note, verification, result["run_url"],
+                    verification, result["run_url"], adoption_note,
                 ),
             )
         resource.save()

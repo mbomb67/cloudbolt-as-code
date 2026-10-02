@@ -26,9 +26,13 @@ Two no-code-specific deltas:
   2. Missing-workspace-ID fallback (plan R9): a crash between the no-code
      create and the resource save can leave a workspace with no stored
      tfc_workspace_id. Before returning the "nothing to clean" WARNING, this
-     plugin looks the workspace up by its deterministic cb-nc-<global_id> name
-     (the ownership signal -- the no-code create ignores tag-bindings, U1) and
-     adopts it if present and not tagged for a different resource.
+     plugin looks the workspace up by name -- the stored tfc_workspace_name,
+     the resource name (the build sets it to the orderer's Workspace Name
+     before the create), then the legacy deterministic cb-nc-<global_id>
+     name -- and adopts a match only when it is tagged cmp:resource-id for
+     this resource (the tag is applied best-effort after the create, which
+     ignores tag-bindings -- U1), or, for the legacy name alone (it embeds
+     this resource's global_id), when it is not tagged for a different one.
 
 Idempotency / PROVFAILED tolerance (teardown convention -- WARNING, not
 FAILURE, when already gone): no resource, no workspace (by ID or name), or an
@@ -43,12 +47,14 @@ Returns a 3-tuple: (status, output_msg, error_msg)
   status: "SUCCESS" | "WARNING" | "FAILURE"
 """
 
+import re
 import time
 
 from common.methods import set_progress
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
+from shared_modules.vm_adoption import retire_servers, retired_note
 from shared_modules.tfc_api import (
     APPLY_PHASE_TIMEOUT_SECONDS,
     RUN_CLASS_APPLIED,
@@ -59,6 +65,7 @@ from shared_modules.tfc_api import (
     TFCError,
     TFCNotFoundError,
     TFCRunFailedError,
+    WORKSPACE_NAME_MAX_LENGTH,
     build_run_message,
     classify_run,
     get_client,
@@ -75,6 +82,10 @@ BLUEPRINT_NAME = "HCP Terraform No-Code Module"
 # FAILURE, WARNING, CANCELED, TO_CANCEL -- means no code is left to manage its
 # run: safe to discard. Mirrors the VCS teardown by deliberate copy.
 LIVE_JOB_STATUSES = ("RUNNING", "PAUSED")
+
+# TFC's workspace-name charset; a candidate name outside it (e.g. a resource
+# renamed with spaces) cannot be a workspace and is not looked up.
+WORKSPACE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,%d}$" % WORKSPACE_NAME_MAX_LENGTH)
 
 SAFE_DELETE_MAX_ATTEMPTS = 6
 SAFE_DELETE_RETRY_INTERVAL_SECONDS = 10
@@ -252,30 +263,52 @@ def _safe_delete_with_retries(client, workspace_id, workspace_name, run_url):
 
 def _resolve_workspace(client, resource, workspace_id):
     """Return (workspace_id, workspace) for the deployment, or (None, None) when
-    nothing TFC-side exists. A stored ID is used first; a blank ID falls back to
-    the deterministic cb-nc-<global_id> name (ownership signal), adopting it
-    unless it is tagged for a different resource -- closing the crash-before-save
-    leak (R9)."""
+    nothing TFC-side exists. A stored ID is used first. A blank ID (a crash
+    between the no-code create and the resource save, R9) falls back to a
+    name lookup: the stored tfc_workspace_name, the resource name (set to the
+    orderer's Workspace Name before the create), then the legacy
+    cb-nc-<global_id> name. A match is adopted only when it carries this
+    resource's cmp:resource-id tag, or, for the legacy name alone, when it is
+    not tagged for a different resource; an orderer-chosen name without the
+    tag could be anyone's workspace and is left alone."""
     if workspace_id:
         try:
             return workspace_id, client.get_workspace(workspace_id)
         except TFCNotFoundError:
             return None, None
-    name = no_code_workspace_name_for_resource(resource.global_id)
-    try:
-        workspace = client.get_workspace_by_name(name)
-    except TFCNotFoundError:
-        return None, None
-    if client.workspace_resource_tag_conflicts(workspace["id"], resource.global_id):
-        logger.warning(
-            "Workspace '%s' exists but is tagged for a different resource; not "
-            "adopting it for teardown.", name,
+    legacy_name = no_code_workspace_name_for_resource(resource.global_id)
+    candidates = []
+    for name in (
+        (resource.get_value_for_custom_field("tfc_workspace_name") or "").strip(),
+        (resource.name or "").strip(),
+        legacy_name,
+    ):
+        if name and name not in candidates and WORKSPACE_NAME_PATTERN.match(name):
+            candidates.append(name)
+    for name in candidates:
+        try:
+            workspace = client.get_workspace_by_name(name)
+        except TFCNotFoundError:
+            continue
+        if client.workspace_has_resource_tag(workspace["id"], resource.global_id):
+            owned = True
+        elif name == legacy_name:
+            owned = not client.workspace_resource_tag_conflicts(
+                workspace["id"], resource.global_id
+            )
+        else:
+            owned = False
+        if not owned:
+            logger.warning(
+                "Workspace '%s' exists but is not tagged for resource %s; not "
+                "adopting it for teardown.", name, resource.global_id,
+            )
+            continue
+        set_progress(
+            "No stored workspace ID; adopted workspace '{}' by name for teardown.".format(name)
         )
-        return None, None
-    set_progress(
-        "No stored workspace ID; adopted workspace '{}' by name for teardown.".format(name)
-    )
-    return workspace["id"], workspace
+        return workspace["id"], workspace
+    return None, None
 
 
 def run(job, **kwargs):
@@ -308,8 +341,9 @@ def run(job, **kwargs):
         if workspace_id is None:
             msg = (
                 "Resource '{}' has no HCP Terraform workspace to clean (no stored "
-                "ID and none found by name); nothing to do. (Expected for "
-                "resources that failed before workspace creation.)".format(resource.name)
+                "ID and none tagged for it found by name); nothing to do. "
+                "(Expected for resources that failed before workspace "
+                "creation.)".format(resource.name)
             )
             logger.warning(msg)
             set_progress(msg)
@@ -342,6 +376,18 @@ def run(job, **kwargs):
             destroy_summary = "applied (managed infrastructure destroyed)"
         else:
             destroy_summary = "found no changes (empty state -- nothing was ever applied)"
+
+        # ---- Retire the child Server records the destroy removed ----------
+        # Delete Resource runs this teardown item first (deploy_seq -1), then
+        # spawns decommission jobs for every non-historical child server --
+        # jobs that would try to power off and delete, through the handler,
+        # VMs that no longer exist. Marking the created_by_terraform records
+        # HISTORICAL here (vm_adoption) leaves those jobs nothing to do.
+        retired = retire_servers(
+            resource,
+            "Terraform destroy run {} {}.".format(result["run_id"], destroy_summary),
+            progress=set_progress,
+        )
         set_progress(
             "TFC destroy run {} {}; deleting workspace '{}'...".format(
                 result["run_id"], destroy_summary, workspace_name
@@ -353,10 +399,10 @@ def run(job, **kwargs):
         )
 
         msg = (
-            "TFC destroy run {} {} and workspace '{}' ({}) was safe-deleted. Run "
+            "TFC destroy run {} {} and workspace '{}' ({}) was safe-deleted.{} Run "
             "URL: {}".format(
                 result["run_id"], destroy_summary, workspace_name, workspace_id,
-                result["run_url"],
+                retired_note(retired), result["run_url"],
             )
         )
         logger.info(msg)

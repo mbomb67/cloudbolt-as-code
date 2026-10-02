@@ -19,12 +19,12 @@ It follows HashiCorp's no-code module rules: standard module layout in the repos
 | `os_type` | (none) | `auto` (default), `linux` or `windows`. `auto` picks Windows when the image publisher or offer contains "windows". |
 | `os_disk_storage_account_type` | (none) | Default `Standard_LRS`. |
 
-Outputs: `vm_name` (names the CloudBolt resource), `vm_id`, `private_ip_address`, `location`, `os_type`. No secret outputs; add `sensitive = true` to any you introduce.
+Outputs: `vm_name` (names the resource for the HCP Terraform VM blueprint; the no-code blueprint names it from the order form's Workspace Name), `cloudbolt_vm_ids` (the VM's ARM resource ID in a list; CloudBolt creates one child Server record per entry), `vm_id`, `private_ip_address`, `location`, `os_type`. No secret outputs; add `sensitive = true` to any you introduce.
 
 ## Use with the No-Code Module blueprint
 
 1. Copy this folder into its own Git repository (module files at the root) and push a semver tag, e.g. `v1.0.0`.
-2. Publish it to the organization's private registry, enable no-code provisioning, pin the version and define variable options (at least `vm_size`, which the shipped form lists from HCP). Steps: [docs/hcp-no-code-setup.md](../../../hcp-no-code-setup.md) §2–§4.
+2. Publish it to the organization's private registry, enable no-code provisioning and pin the version (variable options are optional; the shipped form lists `vm_size` from the CloudBolt environment). Steps: [docs/hcp-no-code-setup.md](../../../hcp-no-code-setup.md) §2–§4.
 3. Pin the `nocode-…` ID in the blueprint's form. The form's Module Variables panel already matches this module.
 
 ## Use with the HCP Terraform VM blueprint

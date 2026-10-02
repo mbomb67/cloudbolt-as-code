@@ -4,13 +4,24 @@
 # never stores it. This module deliberately has no password output.
 
 output "vm_name" {
-  description = "Name of the VM. CloudBolt uses a vm_name (or name) output to name the resource."
+  description = "Name of the VM. The HCP Terraform VM blueprint names its CloudBolt resource from this output; the no-code blueprint uses the order form's Workspace Name."
   value       = var.vm_name
 }
 
 output "vm_id" {
   description = "Azure resource ID of the VM."
   value       = one(concat(azurerm_linux_virtual_machine.vm[*].id, azurerm_windows_virtual_machine.vm[*].id))
+}
+
+# CloudBolt's server-record contract: the provider IDs of every VM this module
+# manages. CloudBolt looks each one up through the ordered environment's
+# resource handler and creates a child Server of the deployment's resource,
+# flagged "Created By Terraform". For Azure that is the azurerm_*_virtual_machine
+# `id` (the ARM resource ID); for aws_instance use `id` or `arn`; for
+# vsphere_virtual_machine use `moid`. Empty when the module manages no VM.
+output "cloudbolt_vm_ids" {
+  description = "Provider IDs of the VMs this deployment manages; CloudBolt creates one Server record per entry."
+  value       = concat(azurerm_linux_virtual_machine.vm[*].id, azurerm_windows_virtual_machine.vm[*].id)
 }
 
 output "private_ip_address" {

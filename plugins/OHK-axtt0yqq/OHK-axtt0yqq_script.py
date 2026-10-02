@@ -45,16 +45,23 @@ Order-collected:
                        '_sensitive' key (a hidden form field listing variable
                        names) is popped and those variables are written
                        sensitive:true with no tfc_var_* mirror. The reserved
-                       'deployment_name' key (naming only, never sent to
-                       terraform) names the CloudBolt resource when no naming
-                       output is present.
+                       'workspace_name' key (required; never sent to
+                       terraform) is the orderer's name for the HCP Terraform
+                       workspace AND the CloudBolt resource; the resource is
+                       renamed to it before any TFC call, and outputs never
+                       rename it afterwards. Uniqueness is the orderer's: a
+                       name already in use in the organization fails the
+                       order before anything is created.
 
 Flow (plan U3):
   parse the funnel payload (BEFORE any TFC call, so a malformed payload fails
-  fast with no workspace/run) -> pop '_sensitive' and 'deployment_name' ->
-  collapse tag rows, drop blank values -> ensure custom fields -> get client ->
-  get-or-adopt the workspace by its deterministic cb-nc-<global_id> name
-  (name-primary ownership; the no-code create ignores tag-bindings -- U1) ->
+  fast with no workspace/run) -> pop '_sensitive' and 'workspace_name'
+  (validated against TFC's name charset) -> name the resource -> collapse tag
+  rows, drop blank values -> ensure custom fields -> get client ->
+  get-or-adopt the workspace: the stored tfc_workspace_id first, else a
+  same-named workspace ONLY if it carries this resource's cmp:resource-id tag
+  (the tag is applied best-effort right after the create, which ignores
+  tag-bindings -- U1); any other same-named workspace is a collision ->
   store the workspace ID + coordinates IMMEDIATELY (before any run/poll) so a
   later failure leaves a cleanable, tracked resource -> obtain the run:
     * fresh create -> adopt the auto-queued run (drive_run_with_plan_approval);
@@ -62,8 +69,8 @@ Flow (plan U3):
     * adopted workspace (retry) -> adopt an orphaned pending run, or fail fast
       if a live CloudBolt job owns one, else upsert vars + fresh run
   -> plan-approval pause ('Continue Job' applies; cancel rejects+discards) ->
-  store the run URL, every discovered tfc_output_* field, tfc_var_* mirrors,
-  and name the resource.
+  store the run URL, every discovered tfc_output_* field and the tfc_var_*
+  mirrors (the resource keeps the orderer's Workspace Name).
 
 Approval/reject ownership: the shared engine owns the reject path -- it catches
 CancelJobException (a BaseException subclass), discards the run, and re-raises.
@@ -76,8 +83,12 @@ client ID/secret); CloudBolt contributes only WHERE to deploy -- the chosen
 environment's subscription and tenant -- as workspace environment variables.
 
 Returns a 3-tuple: (status, output_msg, error_msg)
-  status: "SUCCESS" | "FAILURE"
+  status: "SUCCESS" | "WARNING" | "FAILURE" (WARNING: provisioned, but a VM
+          listed in the module's cloudbolt_vm_ids output could not be
+          adopted as a CloudBolt server record)
 """
+
+import re
 
 from common.methods import set_progress
 from jobs.models import Job
@@ -90,6 +101,11 @@ from shared_modules.env_options import (
     resolve_group,
     subscription_context,
 )
+from shared_modules.vm_adoption import (
+    adopt_from_outputs,
+    missing_output_note,
+    outcome as adoption_outcome,
+)
 from shared_modules.tfc_api import (
     FIELD_VISIBILITY_ATTRIBUTE,
     FIELD_VISIBILITY_HIDDEN,
@@ -99,13 +115,13 @@ from shared_modules.tfc_api import (
     TFCError,
     TFCNotFoundError,
     TFCRunFailedError,
+    WORKSPACE_NAME_MAX_LENGTH,
     build_run_message,
     collapse_key_value_rows,
     drive_run_with_plan_approval,
     ensure_custom_field,
     ensure_output_custom_fields,
     get_client,
-    no_code_workspace_name_for_resource,
     parse_job_id_from_run_message,
     parse_params_payload,
     pop_sensitive_marker,
@@ -129,10 +145,15 @@ COORDINATE_FIELDS = (
 )
 
 # Reserved panel keys that are NOT terraform variables: the sensitive marker is
-# popped by pop_sensitive_marker; deployment_name is a naming-only field so a
-# friendly resource name can be collected without writing an undeclared
-# variable to the workspace.
-DEPLOYMENT_NAME_KEY = "deployment_name"
+# popped by pop_sensitive_marker; workspace_name is the orderer's name for the
+# HCP Terraform workspace and the CloudBolt resource, collected without writing
+# an undeclared variable to the workspace.
+WORKSPACE_NAME_KEY = "workspace_name"
+
+# TFC's documented workspace-name charset ("Workspace names can only include
+# letters, numbers, -, and _"), capped at tfc_api's conservative length limit.
+# Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/workspaces
+WORKSPACE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,%d}$" % WORKSPACE_NAME_MAX_LENGTH)
 
 # Job.status values meaning a run's owning CloudBolt job is still LIVE (owns its
 # TFC run via a paused approval gate or an active poll loop). Mirrored from the
@@ -281,15 +302,12 @@ def _find_owning_job(current_job, run_message):
     return Job.objects.filter(id=owning_job_id).first()
 
 
-def _hydrate_resource(resource, outputs, variables, deployment_name, sensitive_keys=()):
-    """Store EVERY discovered state output + tfc_var_* mirrors and name the
-    resource. Used on both terminal-success paths (real apply + no-op reconcile
-    against an existing state). The output set is whatever wait_for_outputs
-    discovered -- no declared allowlist.
-
-    Naming precedence: a 'name'/'vm_name' OUTPUT, then the form's
-    deployment_name, then a same-named variable value, else the workspace name
-    is left as the resource name (unchanged).
+def _hydrate_resource(resource, outputs, variables, sensitive_keys=()):
+    """Store EVERY discovered state output + tfc_var_* mirrors. Used on both
+    terminal-success paths (real apply + no-op reconcile against an existing
+    state). The output set is whatever wait_for_outputs discovered -- no
+    declared allowlist. The resource keeps the orderer's Workspace Name;
+    outputs never rename it.
     """
     for output_name in ensure_output_custom_fields(sorted(outputs)):
         value = outputs.get(output_name)
@@ -304,16 +322,18 @@ def _hydrate_resource(resource, outputs, variables, deployment_name, sensitive_k
             "tfc_var_{}".format(variable_name),
             serialize_variable_mirror(value),
         )
-    chosen_name = (
-        outputs.get("name")
-        or outputs.get("vm_name")
-        or deployment_name
-        or variables.get("name")
-        or variables.get("vm_name")
-    )
-    if chosen_name:
-        resource.name = str(chosen_name)
     resource.save()
+
+
+def _no_contract_note(client, workspace_id):
+    """The module exposes no cloudbolt_vm_ids output: say so, naming the VM
+    resources Terraform did create (HCP's workspace-resources listing carries
+    addresses and types only -- no state values, no secrets)."""
+    try:
+        resources = client.list_workspace_resources(workspace_id)
+    except TFCError:
+        resources = []
+    return missing_output_note(resources)
 
 
 def run(job, **kwargs):
@@ -395,9 +415,32 @@ def run(job, **kwargs):
 
         # ---- Pop reserved, non-terraform panel keys ------------------------
         sensitive_names = pop_sensitive_marker(panel_variables)
-        deployment_name = str(
-            panel_variables.pop(DEPLOYMENT_NAME_KEY, "") or ""
+        workspace_name = str(
+            panel_variables.pop(WORKSPACE_NAME_KEY, "") or ""
         ).strip()
+        if not workspace_name:
+            return (
+                "FAILURE",
+                "",
+                "A Workspace Name is required (the form's '{}' field arrived "
+                "blank).".format(WORKSPACE_NAME_KEY),
+            )
+        if not WORKSPACE_NAME_PATTERN.match(workspace_name):
+            return (
+                "FAILURE",
+                "",
+                "Workspace Name '{}' is not a valid HCP Terraform workspace name: "
+                "use 1-{} letters, numbers, hyphens or underscores.".format(
+                    workspace_name, WORKSPACE_NAME_MAX_LENGTH
+                ),
+            )
+
+        # ---- Name the resource from the form BEFORE any TFC call -----------
+        # The Workspace Name is the resource name for the deployment's whole
+        # life; nothing downstream (outputs, day-2 runs) renames it.
+        resource.name = workspace_name
+        resource.save()
+        set_progress("Resource named '{}'.".format(workspace_name))
 
         # ---- Compose the workspace variable set (form is the manifest) -----
         variables = {}
@@ -426,12 +469,14 @@ def run(job, **kwargs):
 
         client = get_client(tfc_organization, tfc_connection_info)
 
-        # ---- Get-or-adopt the workspace (name-primary ownership) -----------
-        # The no-code create ignores tag-bindings (U1), so the deterministic
-        # cb-nc-<global_id> name -- which embeds this resource's unique,
-        # immutable global_id -- is the ownership proof. A stored ID or a
-        # name match is adopted unless it carries a DIFFERENT resource-id tag.
-        workspace_name = no_code_workspace_name_for_resource(resource.global_id)
+        # ---- Get-or-adopt the workspace ------------------------------------
+        # Ownership: the stored tfc_workspace_id (written right after the
+        # create) first. With none, a workspace already carrying the orderer's
+        # name is adopted ONLY when it is tagged cmp:resource-id=<this
+        # resource> -- the tag is applied best-effort right after the create
+        # (which ignores tag-bindings -- U1), so a crash between the create and
+        # the resource save is recoverable. Any other same-named workspace is
+        # a name collision the orderer resolves by choosing another name.
         stored_workspace_id = (
             resource.get_value_for_custom_field("tfc_workspace_id") or ""
         ).strip()
@@ -443,35 +488,43 @@ def run(job, **kwargs):
                 existing = None
         if existing is None:
             try:
-                existing = client.get_workspace_by_name(workspace_name)
+                same_name = client.get_workspace_by_name(workspace_name)
             except TFCNotFoundError:
-                existing = None
+                same_name = None
+            if same_name is not None:
+                if not client.workspace_has_resource_tag(same_name["id"], resource.global_id):
+                    return (
+                        "FAILURE",
+                        "",
+                        "A workspace named '{}' already exists in HCP Terraform "
+                        "organization '{}' and does not belong to this resource. "
+                        "Choose a different Workspace Name, or delete that "
+                        "workspace in HCP Terraform, then order again.".format(
+                            workspace_name, tfc_organization
+                        ),
+                    )
+                existing = same_name
 
         created = False
         if existing is not None:
-            if client.workspace_resource_tag_conflicts(existing["id"], resource.global_id):
-                return (
-                    "FAILURE",
-                    "",
-                    "No-code workspace '{}' already exists but is tagged for a "
-                    "different resource; refusing to adopt a foreign workspace. "
-                    "Resolve the collision in TFC, then retry.".format(workspace_name),
-                )
             workspace = existing
             set_progress("Adopting existing workspace '{}' (retry).".format(workspace_name))
         else:
             workspace = client.create_no_code_workspace(
                 tfc_nocode_module_id, resource.global_id, tfc_project,
                 variables, sensitive_keys=sensitive_keys,
-                description="CloudBolt deployment '{}'".format(
-                    deployment_name or resource.global_id
+                description="CloudBolt resource {} ({})".format(
+                    resource.global_id, BLUEPRINT_NAME
                 ),
                 env_variables=arm_variables,
                 source_url=portal_url_for_job(job),
+                workspace_name=workspace_name,
             )
             created = True
             # Best-effort tag (the create ignores tag-bindings -- U1); never
-            # fatal, the name is the load-bearing ownership signal.
+            # fatal. The stored workspace ID below is the primary ownership
+            # record; the tag only enables name-based re-adoption after a
+            # crash before that save.
             client.apply_resource_tag(workspace["id"], resource.global_id)
 
         workspace_id = workspace["id"]
@@ -587,10 +640,20 @@ def run(job, **kwargs):
             )
 
         _hydrate_resource(
-            resource, outputs or {}, variables, deployment_name,
-            sensitive_keys=sensitive_keys,
+            resource, outputs or {}, variables, sensitive_keys=sensitive_keys,
         )
         set_progress("Stored TFC outputs and variable mirrors on the resource.")
+
+        # ---- Adopt the VMs Terraform created as child Server records --------
+        # Contract: the module's cloudbolt_vm_ids output (vm_adoption shared
+        # module). Each id is looked up through the ordered environment's
+        # handler and hydrated like a Sync VMs discovery, flagged
+        # created_by_terraform. A problem here is a WARNING, never a FAILURE:
+        # the infrastructure exists and its outputs are recorded.
+        adoption = adopt_from_outputs(resource, env, outputs or {}, progress=set_progress)
+        status, adoption_note = adoption_outcome(
+            adoption, _no_contract_note(client, workspace_id) if adoption is None else ""
+        )
 
         if result["status"] == RUN_CLASS_APPLIED:
             output_msg = (
@@ -610,7 +673,7 @@ def run(job, **kwargs):
                     result["run_id"], workspace_name, result["run_url"]
                 )
             )
-        return "SUCCESS", output_msg, ""
+        return status, output_msg + adoption_note, ""
 
     except TFCError as exc:
         logger.exception("HCP Terraform No-Code Module provisioning failed")

@@ -31,12 +31,13 @@ mirrors of the non-sensitive ones plus the variable-name sets), the Azure
 subscription / tenant the workspace targets and the CloudBolt Environment
 that supplies them. Sensitive variable values are never read into CloudBolt.
 
-A workspace with no CloudBolt Resource is onboarded. Its group and owner
-come from the Resource its cmp:resource-id tag or cb-nc-<global_id> name
-points at when that Resource still exists (a deployment deleted in CloudBolt
-but not in HCP), else CloudBolt's Unassigned group. Its name is the state's
-name / vm_name output, else the workspace name. Existing Resources keep
-their name, group and owner.
+A workspace with no CloudBolt Resource is onboarded under the workspace's
+name -- the blueprint's convention: the order form's Workspace Name names
+both the workspace and the resource, and nothing renames it afterwards.
+Its group and owner come from the Resource its cmp:resource-id tag (or a
+legacy cb-nc-<global_id> name) points at when that Resource still exists (a
+deployment deleted in CloudBolt but not in HCP), else CloudBolt's Unassigned
+group. Existing Resources keep their name, group and owner.
 
 A Resource whose stored workspace HCP answers 404 for is returned with
 lifecycle HISTORICAL. The blueprint keeps auto_historical_resources false on
@@ -353,8 +354,9 @@ def _run_facts(client, workspace_id, workspace_name):
 def _prior_resource(client, workspace_id, workspace_name):
     """The Resource an unmanaged workspace once belonged to, if CloudBolt
     still has it: by the cmp:resource-id tag the build applies, else by the
-    global ID embedded in the deterministic cb-nc-<global_id> name. None for
-    a workspace created outside CloudBolt."""
+    global ID embedded in a legacy cb-nc-<global_id> name (deployments made
+    before orderers named their workspaces). None for a workspace created
+    outside CloudBolt."""
     global_ids = []
     try:
         for binding in client.get_workspace_tag_bindings(workspace_id):
@@ -462,10 +464,9 @@ def _workspace_record(client, workspace, coordinates, project_names, existing, e
             record["group"] = prior.group
             if prior.owner is not None:
                 record["owner"] = prior.owner
-        chosen_name = None
-        if outputs:
-            chosen_name = outputs.get("name") or outputs.get("vm_name")
-        record["name"] = str(chosen_name or workspace_name)
+        # The workspace name IS the resource name (the order form's Workspace
+        # Name convention); outputs never name a resource.
+        record["name"] = str(workspace_name)
 
     return record
 
