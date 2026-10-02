@@ -15,8 +15,9 @@ Two no-code-specific deltas:
      auto-queues on a no-code create carries a TFC-authored message
      ("Triggered via no-code provision"), which parse_job_id_from_run_message
      cannot attribute. So instead of parsing each run's message, this plugin
-     fails fast if ANY live (RUNNING/PAUSED) CloudBolt job other than this
-     teardown is attached to the resource -- that is the authoritative "a
+     fails fast if ANY live (RUNNING/PAUSED) CloudBolt job outside this
+     teardown's own job tree (the Delete Resource parent and its children)
+     is attached to the resource -- that is the authoritative "a
      provision/day-2 is mid-flight, do not tear down under it" signal (plan
      R9). If no live job owns the resource, every non-final run is an orphan
      (e.g. a jobengine restart killed a paused approval) and is discarded so
@@ -85,16 +86,38 @@ _DISCARD_COMMENT = (
 )
 
 
+def _own_job_tree_ids(job):
+    """Return the IDs of every job in this teardown's own job tree: the
+    top-level job (e.g. the Delete Resource job), its ancestors, and all of
+    their descendants (this teardown and any sibling teardown items). These
+    are always live while the teardown runs, so they can never be the
+    competing provision/day-2 job the guard is looking for."""
+    root = job.top_level_job
+    tree_ids = {root.id}
+    frontier = [root.id]
+    while frontier:
+        frontier = list(
+            Job.objects.filter(parent_job_id__in=frontier)
+            .exclude(id__in=tree_ids)
+            .values_list("id", flat=True)
+        )
+        tree_ids.update(frontier)
+    return tree_ids
+
+
 def _guard_live_resource_jobs(job, resource, workspace_name):
-    """Fail fast if a live (RUNNING/PAUSED) CloudBolt job OTHER than this
-    teardown is attached to the resource. This is the no-code attribution
-    signal: the auto-queued run's TFC-authored message is not parseable, so a
-    live provision/day-2 job -- not a run message -- is the authority on
-    'something is mid-flight; do not tear down under it'.
+    """Fail fast if a live (RUNNING/PAUSED) CloudBolt job OUTSIDE this
+    teardown's own job tree is attached to the resource. This is the no-code
+    attribution signal: the auto-queued run's TFC-authored message is not
+    parseable, so a live provision/day-2 job -- not a run message -- is the
+    authority on 'something is mid-flight; do not tear down under it'. The
+    teardown's parent (the Delete Resource job) is itself RUNNING and attached
+    to the resource for the whole teardown, so the exclusion must cover the
+    tree, not just this job.
     """
     other_live = (
         Job.objects.filter(resource=resource, status__in=LIVE_JOB_STATUSES)
-        .exclude(id=job.id)
+        .exclude(id__in=_own_job_tree_ids(job))
     )
     live = list(other_live[:5])
     if live:
