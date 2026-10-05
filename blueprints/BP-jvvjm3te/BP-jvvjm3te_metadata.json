@@ -1,0 +1,71 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Run Azure PowerShell Script",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-pmyb1car"
+            },
+            "deploy_seq": 1,
+            "description": "Pick an Environment and one of this blueprint's scripts; the runner signs Az PowerShell in with the environment's app registration and runs the script on its Run on Server host.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-9c6bb45b",
+            "name": "Run Azure PowerShell Script",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Azure PS - List Resource Groups",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-z9p72xu7"
+            },
+            "deploy_seq": 2,
+            "description": "Catalog entry (disabled on purpose): run by the Run Azure PowerShell Script step, never directly by the deployment.",
+            "enabled": false,
+            "execute_in_parallel": false,
+            "id": "BDI-3e2lg9nk",
+            "name": "Azure PS - List Resource Groups",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        },
+        {
+            "action_name": "Azure PS - Tag Resource Group",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-a7e4s2od"
+            },
+            "deploy_seq": 3,
+            "description": "Catalog entry (disabled on purpose): run by the Run Azure PowerShell Script step, never directly by the deployment.",
+            "enabled": false,
+            "execute_in_parallel": false,
+            "id": "BDI-bzuuwdcg",
+            "name": "Azure PS - Tag Resource Group",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
+    "favorited": false,
+    "id": "BP-jvvjm3te",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-05",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Run an Azure PowerShell Script",
+    "resource_name_template": "",
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

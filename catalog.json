@@ -127,6 +127,20 @@
     "used_by": []
   },
   {
+    "id": "BP-jvvjm3te",
+    "type": "blueprints",
+    "name": "Run an Azure PowerShell Script",
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
+    "path": "blueprints/BP-jvvjm3te",
+    "readme": "blueprints/BP-jvvjm3te/README.md",
+    "uses": [
+      "plugins/OHK-a7e4s2od",
+      "plugins/OHK-pmyb1car",
+      "plugins/OHK-z9p72xu7"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-lt6a3yzf",
     "type": "blueprints",
     "name": "Request Certificate (Windows CA)",
@@ -1014,6 +1028,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-a7e4s2od",
+    "type": "plugins",
+    "name": "Azure PS - Tag Resource Group",
+    "description": "Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags.",
+    "path": "plugins/OHK-a7e4s2od",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-av52dzqm",
     "type": "plugins",
     "name": "Discover Azure Subscriptions",
@@ -1419,6 +1446,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-pmyb1car",
+    "type": "plugins",
+    "name": "Run Azure PowerShell Script",
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host.",
+    "path": "plugins/OHK-pmyb1car",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-pr8q2szp",
     "type": "plugins",
     "name": "Grant Restricted Contributor Access",
@@ -1779,6 +1821,19 @@
       "blueprints/BP-b91c5f90"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-z9p72xu7",
+    "type": "plugins",
+    "name": "Azure PS - List Resource Groups",
+    "description": "Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter.",
+    "path": "plugins/OHK-z9p72xu7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "RJB-nsx4v2s1",
@@ -2354,7 +2409,8 @@
       "plugins/OHK-fx500o2r",
       "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
-      "plugins/OHK-pvo05e24"
+      "plugins/OHK-pvo05e24",
+      "plugins/OHK-pmyb1car"
     ]
   },
   {

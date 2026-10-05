@@ -5,14 +5,14 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Blueprints](#blueprints) | 16 |
+| [Blueprints](#blueprints) | 17 |
 | [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 10 |
 | [Recurring jobs](#recurring-jobs) | 2 |
 | [Webhooks](#webhooks) | 1 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 84 |
+| [Plugins](#plugins) | 87 |
 | [Shared modules](#shared-modules) | 12 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 5 |
@@ -39,6 +39,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | OpenShift Project Landing Zone | [BP-tikkhf2y](blueprints/BP-tikkhf2y/README.md) | Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it. |
 | Postgres Database | [BP-b91c5f90](blueprints/BP-b91c5f90/README.md) | Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role. |
 | Request Certificate (Windows CA) | [BP-lt6a3yzf](blueprints/BP-lt6a3yzf/README.md) | Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource. |
+| Run an Azure PowerShell Script | [BP-jvvjm3te](blueprints/BP-jvvjm3te/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler. |
 | Windows File Server | [BP-psw7rclb](blueprints/BP-psw7rclb/README.md) | Deploys a Windows server and installs the File Server role. |
 
 ## Resource actions
@@ -142,6 +143,8 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Azure NSG - Attach VM to NSG | [OHK-t8fjx0kz](plugins/OHK-t8fjx0kz/) | Attaches a provisioned Azure VM's network interfaces to the network security group in its azure_nsg field. | CloudBolt Plug-in | [Azure NSG - Attach VM to NSG](orchestration_actions/HPA-vo2ghe4x/README.md) |
 | Azure NSG - Generate Options | [OHK-vswf8b1m](plugins/OHK-vswf8b1m/) | Generates azure_nsg options from the network security groups in the selected environment's subscription and region. | CloudBolt Plug-in | standalone |
 | Azure Price Sheet Refresh | [OHK-bjgpsxoq](plugins/OHK-bjgpsxoq/) | Downloads each Azure handler's negotiated Price Sheet and caches it on disk for the rate hook. | CloudBolt Plug-in | [Azure Price Sheet Refresh](recurring_jobs/RJB-reblryol/README.md) |
+| Azure PS - List Resource Groups | [OHK-z9p72xu7](plugins/OHK-z9p72xu7/) | Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter. | Remote Script | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
+| Azure PS - Tag Resource Group | [OHK-a7e4s2od](plugins/OHK-a7e4s2od/) | Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags. | Remote Script | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Azure Resource Group | [OHK-7c5xywbx](plugins/OHK-7c5xywbx/) | Creates an Azure resource group in the selected environment's subscription and region with generated and order-form tags. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Azure Resource Manager Rate Hook | [OHK-vg0rmi7i](plugins/OHK-vg0rmi7i/) | Computes an Azure VM's rate from negotiated Price Sheet prices, falling back to the public Retail Prices API. | CloudBolt Plug-in | [Azure Resource Manager Rate Hook](orchestration_actions/HPA-t7hlyvyy/README.md) |
 | Azure Storage Account | [OHK-qev70tpa](plugins/OHK-qev70tpa/) | Creates an Azure storage account. | CloudBolt Plug-in | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
@@ -198,6 +201,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Resize | [OHK-9xffkz53](plugins/OHK-9xffkz53/) | Resizes an HCP Terraform VM by updating the vm_size variable and running with a plan-approval pause. | CloudBolt Plug-in | [Resize](resource_actions/RSA-e59s1v24/) |
 | Retrieve Pending Certificate | [OHK-ul8wbswa](plugins/OHK-ul8wbswa/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | CloudBolt Plug-in | [Retrieve Pending Certificate](resource_actions/RSA-7cjsqrwy/) |
 | Revoke Restricted Contributor Access | [OHK-myrfeogg](plugins/OHK-myrfeogg/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | CloudBolt Plug-in | [Revoke Access](resource_actions/RSA-8zwsrcbv/) |
+| Run Azure PowerShell Script | [OHK-pmyb1car](plugins/OHK-pmyb1car/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
 | Set Resource Name From Field | [OHK-yw0klpjg](plugins/OHK-yw0klpjg/) | Renames the resource from a chosen field value and the first server's hostname. | CloudBolt Plug-in | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Set URL Parameter | [OHK-1rel6s64](plugins/OHK-1rel6s64/) | Sets the website URL parameter on the web application resource. | CloudBolt Plug-in | [IIS Web Application](blueprints/BP-122nbdt5/README.md), [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
@@ -225,7 +229,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
-| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/) |
+| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Run Azure PowerShell Script](plugins/OHK-pmyb1car/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch. | [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
