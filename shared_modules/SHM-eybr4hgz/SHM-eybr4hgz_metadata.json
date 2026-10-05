@@ -1,5 +1,5 @@
 {
-    "description": "GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch.",
+    "description": "GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch.",
     "id": "SHM-eybr4hgz",
     "label": "GitHub",
     "max_retries": 0,
