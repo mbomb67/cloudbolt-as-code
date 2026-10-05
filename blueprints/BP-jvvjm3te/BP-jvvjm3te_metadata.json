@@ -1,6 +1,9 @@
 {
     "any_group_can_deploy": false,
     "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-mfveruw6"
+    },
     "deployment_items": [
         {
             "action_name": "Run Azure PowerShell Script",
@@ -57,6 +60,7 @@
     "deployment_permissions": [],
     "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
     "favorited": false,
+    "has_custom_form": true,
     "id": "BP-jvvjm3te",
     "is_orderable": true,
     "labels": [],

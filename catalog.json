@@ -134,6 +134,7 @@
     "path": "blueprints/BP-jvvjm3te",
     "readme": "blueprints/BP-jvvjm3te/README.md",
     "uses": [
+      "forms/FRM-mfveruw6",
       "plugins/OHK-a7e4s2od",
       "plugins/OHK-pmyb1car",
       "plugins/OHK-z9p72xu7"
@@ -359,6 +360,18 @@
     "enabled": true
   },
   {
+    "id": "FJS-ouuq5zsq",
+    "type": "form_functions",
+    "name": "azpsBuildScriptPanel",
+    "description": "Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook, installs them as the Script Parameters Dynamic Panel's template, and rebuilds the panel whenever the Script dropdown changes.",
+    "path": "form_functions/FJS-ouuq5zsq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-mfveruw6"
+    ]
+  },
+  {
     "id": "FJS-ylyi1tc0",
     "type": "form_functions",
     "name": "tfcBuildDay2Panel",
@@ -418,6 +431,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-p7zmh96m"
+    ]
+  },
+  {
+    "id": "FRM-mfveruw6",
+    "type": "forms",
+    "name": "Run an Azure PowerShell Script",
+    "description": "Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here.",
+    "path": "forms/FRM-mfveruw6",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-ouuq5zsq"
+    ],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
     ]
   },
   {
@@ -1115,6 +1142,21 @@
     ],
     "used_by": [
       "recurring_jobs/RJB-reblryol"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-bvn2l7q1",
+    "type": "plugins",
+    "name": "Azure PS Script Panel",
+    "description": "Serves the Run an Azure PowerShell Script order form the SurveyJS fields for the chosen catalog script's declared action inputs, built from CloudBolt's own parameter metadata.",
+    "path": "plugins/OHK-bvn2l7q1",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "webhooks/IWH-vfkvduxm"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2404,6 +2446,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-bvn2l7q1",
       "plugins/OHK-r9cm4oar",
       "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",
@@ -2425,6 +2468,19 @@
       "plugins/OHK-vklpnqhq",
       "plugins/OHK-2vpg4pff"
     ]
+  },
+  {
+    "id": "IWH-vfkvduxm",
+    "type": "webhooks",
+    "name": "Azure PS Script Panel",
+    "description": "GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs.",
+    "path": "webhooks/IWH-vfkvduxm",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-bvn2l7q1"
+    ],
+    "used_by": [],
+    "enabled": true
   },
   {
     "id": "IWH-yj93is5z",
