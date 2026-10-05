@@ -10,7 +10,7 @@ Generate an orderable CloudBolt blueprint for a specific Azure Bicep template, w
 ## Required reading
 
 - [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md): §0 (universal rules), §1 (blueprints), §2 (plugins), §3 (resource_actions).
-- [docs/bicep-deployment-setup.md](../../../docs/bicep-deployment-setup.md): the engine prerequisites (GitHub ConnectionInfo, Azure handler, the pinned Bicep binary config block).
+- [docs/bicep-deployment-setup.md](../../../docs/bicep-deployment-setup.md): the engine prerequisites (GitHub ConnectionInfo for private repos, Azure handler, the pinned Bicep binary config block).
 - The generic engine this scaffold targets: build plugin `plugins/OHK-gqvi9kv4`, teardown `plugins/OHK-t2gs5caq`, generic Update `resource_actions/RSA-fa7r7cg7`, Drift Check `resource_actions/RSA-5jeixn92`, and the shared modules `shared_modules/SHM-eybr4hgz` (github) + `shared_modules/SHM-bbswv27r` (bicep_engine). If these are absent, stop and tell the user to build the engine first.
 
 ## When to use

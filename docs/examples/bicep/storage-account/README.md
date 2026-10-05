@@ -2,8 +2,8 @@
 
 A minimal, generic Bicep template for exercising the CloudBolt Bicep deployment
 engine end to end. In real use this lives in a customer's GitHub repo; for
-testing, push this folder to a sandbox repo the engine's "GitHub" ConnectionInfo
-can read.
+testing, push this folder to a public sandbox repo, or to a private one the
+engine's "GitHub" ConnectionInfo can read.
 
 ## What it exercises
 

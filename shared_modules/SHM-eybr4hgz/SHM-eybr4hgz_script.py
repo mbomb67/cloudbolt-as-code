@@ -18,15 +18,24 @@ For the Bicep deployment engine this module adds:
 Auth tokens appear ONLY in the Authorization header — never in a URL, log line,
 or job output (AGENTS.md cardinal rule 3 / docs/agents/rbac-and-security.md).
 
+Credentials are optional for public repositories (POC posture, see
+ALLOW_ANONYMOUS_FALLBACK): when the "GitHub" ConnectionInfo is missing, its
+token field is empty, or GitHub rejects the credential (HTTP 401/403), the
+client drops the Authorization header, says so in the job log, and continues
+anonymously. Anonymous requests share GitHub's per-IP primary rate limit of
+60/hour versus 5,000/hour with a token:
+https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+
 The connection-class shape (auth_mode + ConnectionInfo) leaves an explicit slot
 for an Azure DevOps sibling module later; ADO is out of scope here.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 from jwt import encode as jwt_encode
 from requests import Session
 
+from common.methods import set_progress
 from utilities.logger import ThreadLogger
 from utilities.models import ConnectionInfo
 
@@ -42,6 +51,17 @@ HTTP_TIMEOUT_S = 60
 # the ConnectionInfo password (PAT) field and is re-entered after every repo
 # sync (export redacts it — docs/agents/metadata-schemas.md round-trip caveat).
 CONNECTION_INFO_NAME = "GitHub"
+
+# POC posture: fall back to unauthenticated GitHub access when the ConnectionInfo
+# is missing, has an empty token, or the credential is rejected. Public repos
+# only; anonymous requests share GitHub's 60/hour per-IP primary rate limit
+# (5,000/hour with a token). Set False to require a working credential.
+# https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+ALLOW_ANONYMOUS_FALLBACK = True
+ANONYMOUS_RATE_LIMIT_PER_HOUR = 60
+AUTHENTICATED_RATE_LIMIT_PER_HOUR = 5000
+# GitHub answers a rejected or insufficient credential with 401 or 403.
+AUTH_FAILURE_STATUSES = (401, 403)
 
 # GitHub api host. Cross-host redirects (api.github.com -> codeload.github.com)
 # cause requests to strip the Authorization header automatically, which is the
@@ -59,11 +79,14 @@ class GitHubConnection(Session):
     requests. Should be used as a context manager.
 
     Required Init Parameters:
-        auth_mode: str - 'token' or 'app'
+        auth_mode: str - 'token', 'app' or 'anonymous'
             - token mode: the ConnectionInfo password field holds the PAT
             - app mode: the ConnectionInfo username field holds the app_id and
               the private key is added as an SSH key on the ConnectionInfo
-        conn_info_id: int - id of the ConnectionInfo to use
+            - anonymous mode: no ConnectionInfo and no Authorization header;
+              public repositories only (see ALLOW_ANONYMOUS_FALLBACK)
+        conn_info_id: int - id of the ConnectionInfo to use (None in
+            anonymous mode)
 
     Optional Init Parameters (app mode only; precedence
     installation_id > org > username > repo):
@@ -75,7 +98,7 @@ class GitHubConnection(Session):
             data = gh.get_repo_archive("octocat/Hello-World", "main")
     """
 
-    def __init__(self, auth_mode: str, conn_info_id: int,
+    def __init__(self, auth_mode: str, conn_info_id: int = None,
                  installation_id: str = None, username: str = None,
                  org: str = None, repo: str = None):
         super(GitHubConnection, self).__init__()
@@ -83,6 +106,12 @@ class GitHubConnection(Session):
         self.headers.update({"Accept": "application/vnd.github+json"})
         self.auth_mode = auth_mode
         self.verify = VERIFY_CERTS
+        self.conn_info = None
+        self.token = None
+        self.jwt = None
+        if self.auth_mode == "anonymous":
+            # No ConnectionInfo: public repositories only, per-IP rate limit.
+            return
         try:
             self.conn_info = ConnectionInfo.objects.get(id=conn_info_id)
         except ConnectionInfo.DoesNotExist:
@@ -114,14 +143,21 @@ class GitHubConnection(Session):
         Resolve a ConnectionInfo by name and build a connection. This is the
         entry point the Bicep plugins use so the integration references the
         connection by a stable name rather than a numeric id.
+
+        When the ConnectionInfo does not exist and ALLOW_ANONYMOUS_FALLBACK is
+        set, returns an anonymous connection instead of raising.
         """
         try:
             conn = ConnectionInfo.objects.get(name=name)
         except ConnectionInfo.DoesNotExist:
-            raise Exception(
-                f'ConnectionInfo "{name}" does not exist. Create it per '
-                f"docs/bicep-deployment-setup.md (PAT in the password field)."
-            )
+            if not ALLOW_ANONYMOUS_FALLBACK:
+                raise Exception(
+                    f'ConnectionInfo "{name}" does not exist. Create it per '
+                    f"docs/bicep-deployment-setup.md (PAT in the password field)."
+                )
+            gh = cls("anonymous")
+            gh._notify_anonymous(f'ConnectionInfo "{name}" does not exist')
+            return gh
         return cls(auth_mode, conn.id, **kwargs)
 
     def update_bearer(self, bearer_token):
@@ -164,19 +200,107 @@ class GitHubConnection(Session):
                 raise Exception(resp.content)
 
     def __enter__(self):
+        if self.is_anonymous:
+            return self
         if self.auth_mode == "token":
-            self.headers.update({"Authorization": f"token {self.token}"})
-        else:
+            if self.token:
+                self.headers.update({"Authorization": f"token {self.token}"})
+            elif ALLOW_ANONYMOUS_FALLBACK:
+                self._go_anonymous(
+                    f'the "{self.conn_info.name}" ConnectionInfo has no token '
+                    f"in its password field")
+            else:
+                raise Exception(
+                    f'The "{self.conn_info.name}" ConnectionInfo has no token '
+                    f"in its password field; re-enter it (exports redact "
+                    f"secrets).")
+            return self
+        try:
             self.jwt = self.create_jwt()
             self.update_bearer(self.jwt)
             if not self.installation_id:
                 app_installation = self.get_app_installation()
                 self.installation_id = app_installation["id"]
             self.request_token()
+        except Exception as e:  # noqa: BLE001 — any app-auth failure
+            if not ALLOW_ANONYMOUS_FALLBACK:
+                raise
+            # Reason only — never the response body, which may echo the JWT.
+            logger.debug(f"GitHub App authentication failed: {type(e).__name__}")
+            self._go_anonymous("GitHub App authentication failed")
         return self
 
     def __exit__(self, *args):
         self.close()
+
+    # --- anonymous fallback -------------------------------------------------
+
+    @property
+    def is_anonymous(self):
+        return self.auth_mode == "anonymous"
+
+    def _notify_anonymous(self, reason):
+        msg = (
+            f"GitHub: {reason}; continuing without credentials. Only public "
+            f"repositories are reachable and requests share GitHub's "
+            f"{ANONYMOUS_RATE_LIMIT_PER_HOUR}/hour per-IP limit "
+            f"({AUTHENTICATED_RATE_LIMIT_PER_HOUR}/hour with a token in the "
+            f'"{CONNECTION_INFO_NAME}" ConnectionInfo).'
+        )
+        logger.warning(msg)
+        set_progress(msg)
+
+    def _go_anonymous(self, reason):
+        """Drop the credential for the rest of this session and say so once."""
+        self.headers.pop("Authorization", None)
+        self.auth_mode = "anonymous"
+        self.token = None
+        self.jwt = None
+        self._notify_anonymous(reason)
+
+    def _get_with_fallback(self, url, **kwargs):
+        """
+        GET `url`. If GitHub rejects the credential (401/403) and the fallback
+        is enabled, drop the Authorization header for the rest of the session
+        and issue the same request once more anonymously.
+        """
+        resp = self.get(url, **kwargs)
+        if (resp.status_code in AUTH_FAILURE_STATUSES
+                and not self.is_anonymous and ALLOW_ANONYMOUS_FALLBACK):
+            resp.close()
+            self._go_anonymous(
+                f"GitHub rejected the credential (HTTP {resp.status_code})")
+            resp = self.get(url, **kwargs)
+        return resp
+
+    def _access_hint(self, resp):
+        """One sentence explaining a failed fetch, matched to the auth mode."""
+        if (resp.status_code in (403, 429)
+                and resp.headers.get("X-RateLimit-Remaining") == "0"):
+            reset = resp.headers.get("X-RateLimit-Reset", "")
+            when = ""
+            if reset.isdigit():
+                at = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+                when = f" It resets at {at.strftime('%H:%M:%S')} UTC."
+            if self.is_anonymous:
+                return (
+                    f"GitHub's anonymous rate limit "
+                    f"({ANONYMOUS_RATE_LIMIT_PER_HOUR}/hour per IP) is "
+                    f'exhausted.{when} Create the "{CONNECTION_INFO_NAME}" '
+                    f"ConnectionInfo with a token to raise it to "
+                    f"{AUTHENTICATED_RATE_LIMIT_PER_HOUR}/hour."
+                )
+            return f"The GitHub token's rate limit is exhausted.{when}"
+        if self.is_anonymous:
+            return (
+                f"The request ran without credentials (no usable "
+                f'"{CONNECTION_INFO_NAME}" ConnectionInfo); verify the repo '
+                f"and ref, and add a token to reach private repositories."
+            )
+        return (
+            f'Verify the repo, ref, and that the "{CONNECTION_INFO_NAME}" '
+            f"ConnectionInfo token has read access."
+        )
 
     def get_app_installation(self):
         # Per the docs, this should either be: /users/{username}/installation,
@@ -248,7 +372,7 @@ class GitHubConnection(Session):
         """
         url = f"{self.base_url}/repos/{repo}/contents/{path.strip('/')}"
         params = {"ref": ref} if ref else None
-        resp = self.get(url, params=params, timeout=HTTP_TIMEOUT_S)
+        resp = self._get_with_fallback(url, params=params, timeout=HTTP_TIMEOUT_S)
         if resp.status_code == 404:
             return None
         try:
@@ -257,8 +381,7 @@ class GitHubConnection(Session):
             # Status + coordinates only — never the response body.
             raise Exception(
                 f"Failed to list '{path}' in {repo}@{ref or 'default-branch'} "
-                f"(HTTP {resp.status_code}). Verify the repo, ref, and that the "
-                f'"{CONNECTION_INFO_NAME}" ConnectionInfo token has read access.'
+                f"(HTTP {resp.status_code}). {self._access_hint(resp)}"
             )
         return resp.json()
 
@@ -276,14 +399,15 @@ class GitHubConnection(Session):
         """
         url = f"{self.base_url}/repos/{repo}/contents/{path.strip('/')}"
         params = {"ref": ref} if ref else None
-        resp = self.get(url, params=params, stream=True, timeout=HTTP_TIMEOUT_S,
-                        headers={"Accept": "application/vnd.github.raw+json"})
+        resp = self._get_with_fallback(
+            url, params=params, stream=True, timeout=HTTP_TIMEOUT_S,
+            headers={"Accept": "application/vnd.github.raw+json"})
         try:
             resp.raise_for_status()
         except requests.HTTPError:
             raise Exception(
                 f"Failed to download '{path}' from {repo}@{ref or 'default-branch'} "
-                f"(HTTP {resp.status_code})."
+                f"(HTTP {resp.status_code}). {self._access_hint(resp)}"
             )
         chunks, total = [], 0
         for chunk in resp.iter_content(chunk_size=64 * 1024):
@@ -322,8 +446,8 @@ class GitHubConnection(Session):
         """
         ref_path = f"/{ref}" if ref else ""
         url = f"{self.base_url}/repos/{repo}/tarball{ref_path}"
-        resp = self.get(url, allow_redirects=True, stream=False,
-                        timeout=HTTP_TIMEOUT_S)
+        resp = self._get_with_fallback(url, allow_redirects=True, stream=False,
+                                       timeout=HTTP_TIMEOUT_S)
         try:
             resp.raise_for_status()
         except requests.HTTPError:
@@ -335,8 +459,7 @@ class GitHubConnection(Session):
             )
             raise Exception(
                 f"Failed to fetch archive for {repo}@{ref or 'default-branch'} "
-                f"(HTTP {resp.status_code}). Verify the repo, ref, and that the "
-                f'"{CONNECTION_INFO_NAME}" ConnectionInfo token has read access.'
+                f"(HTTP {resp.status_code}). {self._access_hint(resp)}"
             )
         return resp.content
 

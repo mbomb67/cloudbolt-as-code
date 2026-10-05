@@ -7,7 +7,16 @@ skill). A fresh operator should be able to follow this end to end with no other
 source. POC posture: a sandbox Azure subscription, GitHub only, resource-group
 and subscription scopes (see §4a).
 
-## 1. GitHub connection
+## 1. GitHub connection (optional for public repositories)
+
+The engine looks for a ConnectionInfo named `GitHub`. When it is missing, its
+token field is empty, or GitHub rejects the token (HTTP 401/403), the engine
+writes a warning to the job and fetches the template **anonymously**. That is
+enough for public repositories such as `Azure/azure-quickstart-templates`, but
+anonymous requests share GitHub's per-IP limit of 60/hour (5,000/hour with a
+token), so a busy appliance can exhaust it after a handful of orders. Private
+repositories always need the connection. To require a credential instead, set
+`ALLOW_ANONYMOUS_FALLBACK = False` in `shared_modules/SHM-eybr4hgz`.
 
 1. Create a **fine-grained, read-only Personal Access Token** scoped to just the
    template repositories (`Contents: read`). Prefer a short expiry (e.g. 90
@@ -20,7 +29,8 @@ and subscription scopes (see §4a).
 3. **Secrets-redaction caveat:** on every repo sync, CloudBolt redacts
    ConnectionInfo secrets to a placeholder and the importer skips them — so the
    GitHub token must be **re-entered after every sync**. This is expected; it is
-   not a failure.
+   not a failure. Until it is re-entered, orders from public repositories run
+   anonymously (see above) rather than failing.
 
 ## 2. Azure subscription, service principal, and RBAC
 
@@ -142,8 +152,9 @@ Blueprints wired to the engine today:
 | `Bicep Deployment` (`BP-nibk4erf`) | `docs/examples/bicep/storage-account/main.bicep` in this repo | resource group |
 | `Azure Resource Group - Bicep` (`BP-p7zmh96m`) | `subscription-deployments/create-rg/main.bicep` in the public [`Azure/azure-quickstart-templates`](https://github.com/Azure/azure-quickstart-templates/tree/master/subscription-deployments/create-rg) repo, ref `master` | subscription |
 
-The public quickstart repo is anonymously readable but still fetched through
-the `GitHub` ConnectionInfo (the engine always authenticates). Its `master`
+The public quickstart repo is fetched through the `GitHub` ConnectionInfo when
+one is usable and anonymously otherwise (§1), so this blueprint orders with no
+GitHub setup at the cost of the 60/hour per-IP rate limit. Its `master`
 ref is mutable — pin a commit SHA in the blueprint's defaults before using it
 for anything beyond a demo (§7).
 
