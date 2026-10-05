@@ -16,12 +16,12 @@ Deploys infrastructure from an Azure Bicep template hosted in GitHub as an Azure
 ## Prerequisites
 - An Azure Resource Manager resource handler and at least one Environment on it. The order form exposes only the Environment; the handler is derived from it and never shown.
 - Handler service principal with `Microsoft.Resources/deploymentStacks/*`, `Microsoft.Resources/deployments/*` (what-if) and rights to the resource types the template deploys. Contributor on the target resource group covers this.
-- A ConnectionInfo named exactly `GitHub` (protocol https, host `api.github.com`, port 443) with a read-only token in the password field. Required even for public repositories; the engine always authenticates.
+- For private repositories, a ConnectionInfo named exactly `GitHub` (protocol https, host `api.github.com`, port 443) with a read-only token in the password field. Public repositories work without it: when the connection is missing or its token is rejected, the engine logs a warning and fetches anonymously under GitHub's 60 requests/hour per-IP limit (5,000/hour with a token).
 - Appliance: jobengine workers must be able to execute a downloaded binary under `PROSERV_DIR` (no `noexec` mount or SELinux block), with outbound HTTPS to GitHub releases, `api.github.com`, `management.azure.com` and `login.microsoftonline.com`.
 
 ## Setup
 1. Follow the runbook: [../../docs/bicep-deployment-setup.md](../../docs/bicep-deployment-setup.md).
-2. Re-enter the `GitHub` ConnectionInfo token after every repo sync; CloudBolt redacts it on export.
+2. Re-enter the `GitHub` ConnectionInfo token after every repo sync; CloudBolt redacts it on export. Until you do, orders from public repositories run anonymously and log a warning.
 3. The deployment item defaults are Repository `mbomb67/cloudbolt-as-code`, Ref `main`, Template Path `docs/examples/bicep/storage-account/main.bicep`. Change them (in the blueprint's parameter defaults and the hidden fields of FRM-84n18crj) to your own template, and pin a tag or commit SHA for anything beyond a demo.
 4. The form's "Input Parameters" panel is hand-built for the sample template (`storageAccountName`, `sku`, `accessTier`). If you point at a different template, edit that panel or use the `scaffold-bicep` skill to generate a typed blueprint.
 5. Review the config block at the top of `shared_modules/SHM-bbswv27r/SHM-bbswv27r_script.py` (pinned Bicep version and SHA256, download URL or mirror, deny settings). Shared modules are cached in the running process; restart CloudBolt after changing one.

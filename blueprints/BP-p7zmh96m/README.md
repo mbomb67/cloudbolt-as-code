@@ -21,7 +21,7 @@ Creates an Azure resource group by deploying Microsoft's public `subscription-de
 
 ## Setup
 1. Follow [../../docs/bicep-deployment-setup.md](../../docs/bicep-deployment-setup.md), in particular section 4a (template scopes) and "Optional: offer the new resource group on the Environment".
-2. Re-enter the `GitHub` ConnectionInfo token after every repo sync. The quickstart repo is public but is still fetched through this connection.
+2. Optional: a `GitHub` ConnectionInfo with a token. The quickstart repo is public, so without one the engine fetches anonymously (60 requests/hour per appliance IP, 5,000/hour with a token) and logs a warning in the job. If you create one, re-enter its token after every repo sync.
 3. The default Ref is `master`, a mutable branch. Pin a commit SHA in the deployment item's parameter defaults and in the form's hidden Ref field before using this beyond a demo.
 4. The Location dropdown in FRM-i9zadhpc is a fixed list of regions; trim or extend it to match your Environments.
 

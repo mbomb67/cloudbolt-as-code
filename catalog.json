@@ -2265,7 +2265,7 @@
     "id": "SHM-eybr4hgz",
     "type": "shared_modules",
     "name": "github",
-    "description": "GitHub API client backed by a ConnectionInfo, with directory listing, raw file download, and archive fetch.",
+    "description": "GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch.",
     "path": "shared_modules/SHM-eybr4hgz",
     "readme": null,
     "uses": [],
