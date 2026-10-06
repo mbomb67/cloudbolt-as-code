@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "Azure PS Script Panel",
+    "dependencies": {
+        "hook": "plugins/OHK-bvn2l7q1"
+    },
+    "description": "GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs.",
+    "enabled": true,
+    "id": "IWH-vfkvduxm",
+    "label": "Azure PS Script Panel",
+    "last_updated": "2026-10-05",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "azps-script-panel"
+}

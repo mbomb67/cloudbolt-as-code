@@ -127,6 +127,21 @@
     "used_by": []
   },
   {
+    "id": "BP-jvvjm3te",
+    "type": "blueprints",
+    "name": "Run an Azure PowerShell Script",
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
+    "path": "blueprints/BP-jvvjm3te",
+    "readme": "blueprints/BP-jvvjm3te/README.md",
+    "uses": [
+      "forms/FRM-mfveruw6",
+      "plugins/OHK-a7e4s2od",
+      "plugins/OHK-pmyb1car",
+      "plugins/OHK-z9p72xu7"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-lt6a3yzf",
     "type": "blueprints",
     "name": "Request Certificate (Windows CA)",
@@ -345,6 +360,18 @@
     "enabled": true
   },
   {
+    "id": "FJS-ouuq5zsq",
+    "type": "form_functions",
+    "name": "azpsBuildScriptPanel",
+    "description": "Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
+    "path": "form_functions/FJS-ouuq5zsq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-mfveruw6"
+    ]
+  },
+  {
     "id": "FJS-ylyi1tc0",
     "type": "form_functions",
     "name": "tfcBuildDay2Panel",
@@ -404,6 +431,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-p7zmh96m"
+    ]
+  },
+  {
+    "id": "FRM-mfveruw6",
+    "type": "forms",
+    "name": "Run an Azure PowerShell Script",
+    "description": "Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here.",
+    "path": "forms/FRM-mfveruw6",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-ouuq5zsq"
+    ],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
     ]
   },
   {
@@ -1014,6 +1055,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-a7e4s2od",
+    "type": "plugins",
+    "name": "Azure PS - Tag Resource Group",
+    "description": "Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags.",
+    "path": "plugins/OHK-a7e4s2od",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-av52dzqm",
     "type": "plugins",
     "name": "Discover Azure Subscriptions",
@@ -1104,6 +1158,21 @@
     ],
     "used_by": [
       "recurring_jobs/RJB-reblryol"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-bvn2l7q1",
+    "type": "plugins",
+    "name": "Azure PS Script Panel",
+    "description": "Serves the Run an Azure PowerShell Script order form the SurveyJS fields for the chosen catalog script's declared action inputs, built from CloudBolt's own parameter metadata.",
+    "path": "plugins/OHK-bvn2l7q1",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "webhooks/IWH-vfkvduxm"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1431,6 +1500,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-f7wb11ny"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-pmyb1car",
+    "type": "plugins",
+    "name": "Run Azure PowerShell Script",
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host.",
+    "path": "plugins/OHK-pmyb1car",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1795,6 +1879,19 @@
       "blueprints/BP-b91c5f90"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-z9p72xu7",
+    "type": "plugins",
+    "name": "Azure PS - List Resource Groups",
+    "description": "Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter.",
+    "path": "plugins/OHK-z9p72xu7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-jvvjm3te"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "RJB-nsx4v2s1",
@@ -2381,12 +2478,14 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-bvn2l7q1",
       "plugins/OHK-r9cm4oar",
       "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",
       "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
-      "plugins/OHK-pvo05e24"
+      "plugins/OHK-pvo05e24",
+      "plugins/OHK-pmyb1car"
     ]
   },
   {
@@ -2401,6 +2500,19 @@
       "plugins/OHK-vklpnqhq",
       "plugins/OHK-2vpg4pff"
     ]
+  },
+  {
+    "id": "IWH-vfkvduxm",
+    "type": "webhooks",
+    "name": "Azure PS Script Panel",
+    "description": "GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs.",
+    "path": "webhooks/IWH-vfkvduxm",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-bvn2l7q1"
+    ],
+    "used_by": [],
+    "enabled": true
   },
   {
     "id": "IWH-yj93is5z",
