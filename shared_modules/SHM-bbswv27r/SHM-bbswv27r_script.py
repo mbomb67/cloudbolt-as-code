@@ -39,15 +39,20 @@ import os
 import posixpath
 import re
 import shutil
+import socket
+import ssl
 import subprocess
 import tarfile
 import tempfile
 import time
+from urllib.parse import urlparse
 
+import certifi
 import requests
 from django.conf import settings
 
 from common.methods import set_progress
+from utilities.helpers import get_ssl_verification
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
@@ -244,6 +249,166 @@ class BicepEngineError(Exception):
     """Operator-legible engine error. Never carries a token or secret value."""
 
 
+# ---------------------------------------------------------------------------
+# TLS diagnostics — turn "certificate verify failed" into something an admin
+# can act on from the job log: which host, which CA actually signed the
+# certificate the appliance received (behind an SSL-inspecting proxy that is
+# the proxy's CA, not the public one), and whether CloudBolt's trust store
+# (Admin > SSL Certificates) contains it. Everything here is best-effort and
+# never raises: a diagnostic must not mask the failure it explains.
+# ---------------------------------------------------------------------------
+TLS_PEEK_TIMEOUT_S = 15
+_PEM_CERT_RE = re.compile(
+    r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", re.S)
+
+
+def _redact_url(error):
+    """Strip the request URL from a requests error before it reaches a job
+    log: a redirected asset URL can carry a signed query string (rule 3)."""
+    return re.sub(r"with url: \S+", "with url: <redacted>", str(error))
+
+
+def _tls_failed_host(url, error):
+    """The host whose certificate failed. requests names it in the error,
+    which is what matters after a redirect (github.com -> an asset CDN)."""
+    m = re.search(r"host='([^']+)'", str(error))
+    return m.group(1) if m else (urlparse(url).hostname or url)
+
+
+def tls_presented_chain(host, port=443):
+    """
+    [(subject, issuer), ...] for the certificate chain `host` actually sends
+    the appliance, leaf first, read WITHOUT verifying it. The last issuer is
+    the CA the client must trust. Needs `cryptography`, which CloudBolt ships.
+    """
+    from cryptography import x509
+    ctx = ssl.create_default_context()
+    # Diagnostic peek: hostname/chain checks are off on purpose (we are
+    # reading what the server presents), but never negotiate below TLS 1.2.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    with socket.create_connection((host, port), timeout=TLS_PEEK_TIMEOUT_S) as sock:
+        with ctx.wrap_socket(sock, server_hostname=host) as tls:
+            certs = [x509.load_der_x509_certificate(
+                tls.getpeercert(binary_form=True))]
+            try:
+                # CPython >= 3.10 exposes the unverified chain on the private
+                # SSL object; the leaf alone is the fallback.
+                chain = tls._sslobj.get_unverified_chain()  # noqa: SLF001
+                if chain:
+                    loaded = []
+                    for c in chain:
+                        pem = c.public_bytes()
+                        pem = pem.encode() if isinstance(pem, str) else pem
+                        loaded.append(x509.load_pem_x509_certificate(pem))
+                    certs = loaded
+            except Exception:  # noqa: BLE001 — best effort
+                pass
+    return [(c.subject.rfc4514_string(), c.issuer.rfc4514_string())
+            for c in certs]
+
+
+def tls_trust_store(verify=None):
+    """
+    What `requests` trusts right now: (bundle_path, cert_count, uploaded) where
+    `uploaded` lists the subjects of the CAs an admin added at Admin > SSL
+    Certificates. When the global SSL-verification preference is off the path
+    is the string "off" and the count 0 (uploaded is still reported).
+    """
+    if verify is None:
+        verify = get_ssl_verification()
+    uploaded = []
+    try:
+        from cryptography import x509
+        from utilities.models import RootCertificate
+        for rc in RootCertificate.objects.active():
+            cert = x509.load_pem_x509_certificate(rc.certificate.encode())
+            uploaded.append(cert.subject.rfc4514_string())
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"Could not list uploaded root certificates: {e}")
+    if verify is False:
+        return "off", 0, uploaded
+    path = verify if isinstance(verify, str) else certifi.where()
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fd:
+            count = len(_PEM_CERT_RE.findall(fd.read()))
+    except OSError:
+        count = 0
+    return path, count, uploaded
+
+
+def _bundle_subjects(path):
+    from cryptography import x509
+    subjects = set()
+    with open(path, "r", encoding="utf-8", errors="replace") as fd:
+        for pem in _PEM_CERT_RE.findall(fd.read()):
+            try:
+                subjects.add(x509.load_pem_x509_certificate(
+                    pem.encode()).subject.rfc4514_string())
+            except Exception:  # noqa: BLE001
+                continue
+    return subjects
+
+
+def describe_tls_failure(url, error, verify=None):
+    """
+    Operator-facing explanation of an SSL verification failure against `url`:
+    the host, the CA that signed what the appliance received, whether that CA
+    is in CloudBolt's trust store, and the fix. Never raises.
+    """
+    host = _tls_failed_host(url, error)
+    lines = [f"TLS certificate verification failed for {host}."]
+    chain = []
+    try:
+        chain = tls_presented_chain(host)
+    except Exception as e:  # noqa: BLE001
+        lines.append(f"Could not read the certificate {host} presents: {e}.")
+    if chain:
+        subject, issuer = chain[0]
+        lines.append(f"Certificate received: {subject}; issued by: {issuer}.")
+        if len(chain) > 1:
+            lines.append("Chain sent: " + " -> ".join(s for s, _ in chain) + ".")
+    store, count, uploaded = tls_trust_store(verify)
+    shown = "; ".join(uploaded) or "none"
+    if store == "off":
+        lines.append("CloudBolt's global SSL verification is OFF, so this did "
+                     f"not come from CloudBolt's trust settings (uploaded CAs: {shown}).")
+    else:
+        lines.append(f"CloudBolt trust store: {store} ({count} CAs; uploaded at "
+                     f"Admin > SSL Certificates: {shown}).")
+        if chain:
+            needed = chain[-1][1]
+            try:
+                present = needed in _bundle_subjects(store)
+            except Exception:  # noqa: BLE001
+                present = None
+            if present is False:
+                lines.append(
+                    f"The signing CA '{needed}' is NOT in the store. Upload it (and "
+                    f"any intermediate between it and the certificate above) at "
+                    f"Admin > SSL Certificates; the next run picks it up, no restart.")
+            elif present:
+                lines.append(
+                    f"The signing CA '{needed}' IS in the store, so a missing CA is "
+                    f"not the cause; check the error for a hostname mismatch or an "
+                    f"expired certificate.")
+    lines.append(f"Error: {_redact_url(error)}")
+    return "\n".join(lines)
+
+
+def _tls_failure(url, error):
+    """
+    Write the full TLS diagnosis to the job log, where an administrator reads
+    it, and return the short error the job page shows the person who ordered.
+    """
+    logger.error(describe_tls_failure(url, error))
+    host = _tls_failed_host(url, error)
+    return BicepEngineError(
+        f"The secure connection to {host} failed certificate verification. "
+        f"Details for the administrator are in the job log.")
+
+
 def _versioned_binary_path(version=BICEP_VERSION):
     return os.path.join(BICEP_CACHE_ROOT, version, "bicep")
 
@@ -291,12 +456,17 @@ def ensure_bicep_binary(version=BICEP_VERSION, sha256=BICEP_SHA256):
     os.close(fd)
     try:
         try:
-            resp = requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT_S)
+            resp = requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT_S,
+                                verify=get_ssl_verification())
             resp.raise_for_status()
+        except requests.exceptions.SSLError as e:
+            raise _tls_failure(url, e)
         except requests.RequestException as e:
             raise BicepEngineError(
-                f"Bicep binary download failed from {url}: {e}. Check appliance "
-                f"egress or set a mirror URL in the engine config block."
+                f"Bicep binary download failed from {url}: {_redact_url(e)}. Check appliance "
+                f"egress or set a mirror URL in the engine config block. Behind "
+                f"an SSL-inspecting proxy, upload its CA at Admin > SSL "
+                f"Certificates (the engine follows CloudBolt's SSL settings)."
             )
         downloaded = 0
         with open(tmp_path, "wb") as out:
@@ -470,11 +640,17 @@ def fetch_template_checkout(gh, repo, ref, template_path, workdir):
     except BicepEngineError as e:
         set_progress(f"Sparse fetch not possible ({e}); fetching the full "
                      f"repository archive...")
+    except requests.exceptions.SSLError as e:
+        # Deterministic: the tarball path would fail on the same certificate.
+        raise _tls_failure(getattr(gh, "base_url", "https://api.github.com"), e)
     except Exception as e:  # noqa: BLE001 — GitHub client raises plain Exception
         logger.debug(f"Sparse fetch failed: {e}")
         set_progress("Sparse fetch failed; fetching the full repository archive...")
     shutil.rmtree(sparse_dir, ignore_errors=True)
-    archive = gh.get_repo_archive(repo, ref)
+    try:
+        archive = gh.get_repo_archive(repo, ref)
+    except requests.exceptions.SSLError as e:
+        raise _tls_failure(getattr(gh, "base_url", "https://api.github.com"), e)
     return safe_extract_tarball(archive, workdir)
 
 
@@ -824,8 +1000,11 @@ class BicepArmClient(object):
             "scope": ARM_SCOPE,
         }
         try:
-            resp = requests.post(url, data=data, timeout=HTTP_TIMEOUT_S)
+            resp = requests.post(url, data=data, timeout=HTTP_TIMEOUT_S,
+                                 verify=get_ssl_verification())
             resp.raise_for_status()
+        except requests.exceptions.SSLError as e:
+            raise _tls_failure(url, e)
         except requests.RequestException:
             # Never echo the response body — it can carry token material.
             raise BicepEngineError(
@@ -840,12 +1019,20 @@ class BicepArmClient(object):
         self._token_expiry = time.time() + int(body.get("expires_in", 3600)) - 60
         return self._token
 
+    @staticmethod
+    def _send(method, url, headers, kwargs):
+        try:
+            return requests.request(method, url, headers=headers, **kwargs)
+        except requests.exceptions.SSLError as e:
+            raise _tls_failure(url, e)
+
     def _request(self, method, url, **kwargs):
         """HTTP with bearer auth; strips Authorization before any logging/re-raise."""
         headers = kwargs.pop("headers", {})
         headers["Authorization"] = f"Bearer {self._get_token()}"
         kwargs.setdefault("timeout", HTTP_TIMEOUT_S)
-        resp = requests.request(method, url, headers=headers, **kwargs)
+        kwargs.setdefault("verify", get_ssl_verification())
+        resp = self._send(method, url, headers, kwargs)
         if resp.status_code == 429:
             # Honor Retry-After once before failing on ARM throttling.
             retry_after = resp.headers.get("Retry-After", "")
@@ -854,7 +1041,7 @@ class BicepArmClient(object):
             except ValueError:
                 delay = 10
             time.sleep(delay)
-            resp = requests.request(method, url, headers=headers, **kwargs)
+            resp = self._send(method, url, headers, kwargs)
         if resp.status_code >= 400:
             # ARM error text names the failure (a constraint, a validation error,
             # etc.) and carries no token material, so surface it. The status code
@@ -916,7 +1103,11 @@ class BicepArmClient(object):
         """
         url = self._stack_url(rg, name)
         headers = {"Authorization": f"Bearer {self._get_token()}"}
-        resp = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT_S)
+        try:
+            resp = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT_S,
+                                verify=get_ssl_verification())
+        except requests.exceptions.SSLError as e:
+            raise _tls_failure(url, e)
         if resp.status_code == 404:
             return None
         if resp.status_code >= 400:

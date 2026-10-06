@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "allow_parallel_jobs": false,
+    "create_date": "2026-10-06 15:00:00.000000",
+    "dependencies": {
+        "hook": "plugins/OHK-b21biimg"
+    },
+    "description": "On-demand check of every external host the Bicep deployment engine needs, reporting the CA each presents and whether it passes under the current SSL setting and with verification forced on.",
+    "enabled": false,
+    "id": "RJB-zdmcbqb6",
+    "last_run": null,
+    "last_updated": null,
+    "name": "Bicep Engine Connectivity Check",
+    "schedule": "0 6 * * 1",
+    "type": "orchestration_hook"
+}

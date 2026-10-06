@@ -36,12 +36,16 @@ from jwt import encode as jwt_encode
 from requests import Session
 
 from common.methods import set_progress
+from utilities.helpers import get_ssl_verification
 from utilities.logger import ThreadLogger
 from utilities.models import ConnectionInfo
 
 logger = ThreadLogger(__name__)
 
-VERIFY_CERTS = True
+# TLS verification follows CloudBolt's platform setting: the global "enable
+# SSL verification" preference plus any CA uploaded at Admin > SSL
+# Certificates. Never hard-code True/False here; an SSL-inspecting proxy
+# would otherwise break every call regardless of what the admin configured.
 
 # Bound every HTTP call so a hung GitHub request cannot pin a jobengine thread.
 HTTP_TIMEOUT_S = 60
@@ -105,7 +109,7 @@ class GitHubConnection(Session):
         self.base_url = GITHUB_API_BASE
         self.headers.update({"Accept": "application/vnd.github+json"})
         self.auth_mode = auth_mode
-        self.verify = VERIFY_CERTS
+        self.verify = get_ssl_verification()
         self.conn_info = None
         self.token = None
         self.jwt = None
