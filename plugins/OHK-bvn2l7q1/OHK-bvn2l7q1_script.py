@@ -39,6 +39,7 @@ depend on another input's value (such an input renders as a text box with a
 hint).
 """
 
+import time
 from decimal import Decimal
 
 from api.parameter_helper_methods import get_runhook_parameter_metadata
@@ -141,10 +142,29 @@ def _element(name, meta, hook_input):
     return element
 
 
-def _panel(item, hook, group, blueprint, profile, env):
+class _Trace:
+    """Step timing for application.log: grep 'azps-script-panel' to see how far
+    a call got and how long each step took."""
+
+    def __init__(self, script_ref):
+        self.script_ref = script_ref
+        self.started = time.monotonic()
+        self.last = self.started
+
+    def step(self, name):
+        now = time.monotonic()
+        logger.info(
+            "azps-script-panel %s: %s (+%.0f ms, %.0f ms total)",
+            self.script_ref, name, (now - self.last) * 1000, (now - self.started) * 1000,
+        )
+        self.last = now
+
+
+def _panel(item, hook, group, blueprint, profile, env, trace):
     action_context = {"group": group, "blueprint": blueprint}
     if env is not None:
         action_context["environment"] = env
+    trace.step("building parameter metadata for {} input(s)".format(hook.input_fields.count()))
     metadata = get_runhook_parameter_metadata(
         hook,
         item.input_mappings,
@@ -156,6 +176,7 @@ def _panel(item, hook, group, blueprint, profile, env):
         execute_gen_options=True,
         include_labels=True,
     )
+    trace.step("parameter metadata built for {}".format(", ".join(metadata) or "no inputs"))
     inputs_by_name = {
         hook_input.name.replace("_a{}".format(hook.id), ""): hook_input
         for hook_input in hook.input_fields.all()
@@ -183,11 +204,14 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     if not blueprint_ref or not script_ref:
         # SurveyJS may call before the dropdowns have values: nothing to build yet.
         return _fail(400, "blueprint and script are required.")
+    trace = _Trace(script_ref)
+    trace.step("request received for blueprint {}".format(blueprint_ref))
     group = resolve_group(_param(parameters, "group"))
     if group is None:
         return _fail(400, "group is required and must name an existing group.")
     if not profile_may_act_for_group(profile, group):
         return _fail(403, "You are not a member of group '{}'.".format(group.name))
+    trace.step("group {} resolved and authorized".format(group.name))
 
     blueprint = ServiceBlueprint.objects.filter(global_id=blueprint_ref.rstrip("/").rsplit("/", 1)[-1]).first()
     if blueprint is None:
@@ -195,6 +219,7 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     # groups_that_can_deploy is a cached_property (a queryset), not a method.
     if not blueprint.groups_that_can_deploy.filter(id=group.id).exists():
         return _fail(403, "Group '{}' may not deploy blueprint '{}'.".format(group.name, blueprint.name))
+    trace.step("blueprint {} deployable by group".format(blueprint.name))
 
     item = (
         RunRemoteScriptHookServiceItem.objects.filter(
@@ -206,6 +231,7 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     if item is None:
         return _fail(404, "'{}' is not a disabled Remote Script item of blueprint '{}'.".format(script_ref, blueprint.name))
     hook = item.hook.cast()
+    trace.step("catalog item '{}' found".format(hook.name))
 
     env = None
     env_id = _param(parameters, "env_id")
@@ -213,9 +239,12 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
         env = entitled_environment(group, env_id, profile=profile)
         if env is None:
             return _fail(403, "Group '{}' is not entitled to environment id {}.".format(group.name, env_id))
+        trace.step("environment {} entitled".format(env.name))
 
     try:
-        return {"panel": _panel(item, hook, group, blueprint, profile, env)}
+        panel = _panel(item, hook, group, blueprint, profile, env, trace)
     except Exception as exc:  # noqa: BLE001 -- an uncaught exception is a 500 whose text reaches the browser
         logger.exception("azps-script-panel failed for %s", script_ref)
         return _fail(400, str(exc))
+    trace.step("responding with {} element(s)".format(len(panel["elements"])))
+    return {"panel": panel}
