@@ -39,5 +39,6 @@ The custom order form asks for Group, Environment and Script, then rebuilds its 
 - The token travels only inside the script body over WinRM and is removed from the PowerShell session right after sign-in; `-Scope Process` keeps the Az context out of the host's user profile. Nothing logs the rendered script. Script output is written to the job log, so scripts should not print secrets.
 - Each run leaves a MODIFICATION event on the Run on Server host, as a native Remote Script run does.
 - Value substitution is textual, as for any Remote Script: quote inputs in the script (`'{{ name }}'`) and keep inputs that feed PowerShell literals constrained with options or a regex.
+- Troubleshooting the form: every webhook call logs its steps and timings to `application.log` under `azps-script-panel <script id>`, and the form gives up on a call after 45 seconds with an error that says so.
 - Form limits in this version: show/hide dependencies between inputs are not rendered, and an input whose options depend on another input renders as a text box with a hint. Inputs typed TXT or CODE render as multi-line text; PWD and ETXT as password fields.
 - The form's hidden `blueprint_id`, `custom_form_id` and build-item question names (`plugin-bdi-9c6bb45b.*`) are tied to this blueprint's IDs; a copy of the blueprint needs its own form.
