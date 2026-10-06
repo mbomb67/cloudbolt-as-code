@@ -84,8 +84,10 @@ The engine self-bootstraps the Bicep binary on first use — **no manual install
 To diagnose egress or TLS problems without appliance access, run the
 `Bicep Engine Connectivity Check` recurring job (`RJB-zdmcbqb6`, imported
 disabled; use **Run Now**). It probes every host above under the current SSL
-setting and, when global verification is off, with it forced on, naming the
-CA each host presents. A failed order reports the same detail in its error.
+setting and, when global verification is off, with it forced on. The job page
+shows pass/fail per host; the job log names the CA each host presents and the
+fix. A failed order writes the same detail to its job log and keeps the error
+the orderer sees short.
 
 ## 4. Engine config block
 

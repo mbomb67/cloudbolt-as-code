@@ -11,9 +11,10 @@ proxy every inspected host shows the proxy's CA as issuer; upload that CA at
 Admin > SSL Certificates and re-run until each host is OK with verification on.
 
 Read-only: anonymous requests only, nothing stored. Run it from Admin >
-Recurring Jobs > Bicep Engine Connectivity Check > Run Now and read the job's
-progress output. The same diagnosis is embedded in the engine's own errors,
-so a failed order names the host and CA without this job.
+Recurring Jobs > Bicep Engine Connectivity Check > Run Now. The job page
+shows one pass/fail line per host; the evidence (issuing CA, chain, what the
+trust store holds, the fix) is written to the job log for the administrator.
+A failed order writes the same diagnosis to its own job log.
 """
 import os
 
@@ -96,45 +97,52 @@ def run(job, *args, **kwargs):
     current = get_ssl_verification()
     store, count, uploaded = tls_trust_store(current)
     if store == "off":
-        set_progress("CloudBolt global SSL verification: OFF (requests accept any certificate).")
+        set_progress("CloudBolt global SSL verification is OFF; also testing each host "
+                     "with verification on. Details are in the job log.")
         forced = _forced_bundle()
-        set_progress(f"Also testing each host with verification ON using {forced}.")
+        logger.info(f"Verification OFF: requests accept any certificate. Forced-on "
+                    f"probes use {forced}.")
     else:
-        set_progress(f"CloudBolt global SSL verification: ON, bundle {store} ({count} CAs).")
+        set_progress("CloudBolt global SSL verification is ON. Details are in the job log.")
         forced = None
-    set_progress(f"CAs uploaded at Admin > SSL Certificates: {'; '.join(uploaded) or 'none'}")
+        logger.info(f"Verification ON: bundle {store} ({count} CAs).")
+    logger.info(f"CAs uploaded at Admin > SSL Certificates: {'; '.join(uploaded) or 'none'}")
 
     failures, would_fail = [], []
     for label, url, why in PROBES:
         host = _hostname(url)
-        set_progress(f"--- {label}: {host} ({why})")
+        logger.info(f"--- {label}: {host} ({why})")
         try:
             chain = tls_presented_chain(host)
-            line = f"    certificate issued by: {chain[0][1]}"
+            line = f"certificate issued by: {chain[0][1]}"
             if len(chain) > 1 and chain[-1][1] != chain[0][1]:
                 line += f"; root the trust store must hold: {chain[-1][1]}"
-            set_progress(line)
+            logger.info(line)
         except Exception as e:  # noqa: BLE001 — diagnostics never fail the job
-            set_progress(f"    could not read the presented certificate: {e}")
+            logger.info(f"could not read the presented certificate: {e}")
 
         ok, detail = _probe(url, current)
-        set_progress(f"    with current setting: {'OK' if ok else 'FAILED'} - {detail}")
+        logger.info(f"with current setting: {'OK' if ok else 'FAILED'} - {detail}")
         if not ok:
             failures.append(label)
 
+        verdict = "OK" if ok else "FAILED (see job log)"
         if forced is not None:
             ok_on, detail_on = _probe(url, forced)
-            set_progress(f"    with verification ON: {'OK' if ok_on else 'WOULD FAIL'} - {detail_on}")
+            logger.info(f"with verification ON: {'OK' if ok_on else 'WOULD FAIL'} - {detail_on}")
             if not ok_on:
                 would_fail.append(label)
+                if ok:
+                    verdict = "OK now, would fail with verification on (see job log)"
+        set_progress(f"{label}: {verdict}")
 
     if failures:
         return ("FAILURE",
                 f"Unreachable under the current SSL setting: {', '.join(failures)}. "
-                f"See the progress output for the host, issuer, and fix.", "")
+                f"The job log has the host, issuer, and fix.", "")
     if would_fail:
         return ("WARNING",
                 f"All hosts reachable now, but turning SSL verification on would break: "
-                f"{', '.join(would_fail)}. Upload the issuing CAs shown above at "
-                f"Admin > SSL Certificates first.", "")
+                f"{', '.join(would_fail)}. Upload the issuing CAs named in the job log "
+                f"at Admin > SSL Certificates first.", "")
     return "SUCCESS", "All Bicep engine hosts are reachable under the current SSL setting.", ""

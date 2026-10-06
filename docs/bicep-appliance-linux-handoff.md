@@ -15,7 +15,7 @@ On the first Bicep order, a CloudBolt job downloads Microsoft's Bicep CLI and ru
 
 ## What can block it, and the fix
 
-1. **Egress blocked.** Allow HTTPS from the appliance to `github.com` and `release-assets.githubusercontent.com` (older redirects use `objects.githubusercontent.com`). SSL inspection is fine: the download follows CloudBolt's SSL settings, so upload the inspecting CA at Admin > SSL Certificates in CloudBolt rather than exempting the hosts. A failed job names the host, the CA it presented, and whether CloudBolt trusts it; the `Bicep Engine Connectivity Check` recurring job (Run Now) probes every host the same way. Or pre-stage it: put the file at the destination path, `chown` to the job-engine account, `chmod 0755`. CloudBolt checks the SHA-256 and skips the download when it matches.
+1. **Egress blocked.** Allow HTTPS from the appliance to `github.com` and `release-assets.githubusercontent.com` (older redirects use `objects.githubusercontent.com`). SSL inspection is fine: the download follows CloudBolt's SSL settings, so upload the inspecting CA at Admin > SSL Certificates in CloudBolt rather than exempting the hosts. A failed job's log names the host, the CA it presented, and whether CloudBolt trusts it; the `Bicep Engine Connectivity Check` recurring job (Run Now) probes every host the same way. Or pre-stage it: put the file at the destination path, `chown` to the job-engine account, `chmod 0755`. CloudBolt checks the SHA-256 and skips the download when it matches.
 
 2. **`noexec` mount.** `findmnt -T /var/opt/cloudbolt/proserv` and check the options. Remount without `noexec`, or tell CloudBolt and the cache can be pointed at another directory. Check the extraction directory from the runtime note the same way.
 

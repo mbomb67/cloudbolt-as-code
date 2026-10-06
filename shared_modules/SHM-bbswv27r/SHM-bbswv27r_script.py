@@ -251,7 +251,7 @@ class BicepEngineError(Exception):
 
 # ---------------------------------------------------------------------------
 # TLS diagnostics — turn "certificate verify failed" into something an admin
-# can act on from the job page: which host, which CA actually signed the
+# can act on from the job log: which host, which CA actually signed the
 # certificate the appliance received (behind an SSL-inspecting proxy that is
 # the proxy's CA, not the public one), and whether CloudBolt's trust store
 # (Admin > SSL Certificates) contains it. Everything here is best-effort and
@@ -397,6 +397,18 @@ def describe_tls_failure(url, error, verify=None):
     return "\n".join(lines)
 
 
+def _tls_failure(url, error):
+    """
+    Write the full TLS diagnosis to the job log, where an administrator reads
+    it, and return the short error the job page shows the person who ordered.
+    """
+    logger.error(describe_tls_failure(url, error))
+    host = _tls_failed_host(url, error)
+    return BicepEngineError(
+        f"The secure connection to {host} failed certificate verification. "
+        f"Details for the administrator are in the job log.")
+
+
 def _versioned_binary_path(version=BICEP_VERSION):
     return os.path.join(BICEP_CACHE_ROOT, version, "bicep")
 
@@ -448,7 +460,7 @@ def ensure_bicep_binary(version=BICEP_VERSION, sha256=BICEP_SHA256):
                                 verify=get_ssl_verification())
             resp.raise_for_status()
         except requests.exceptions.SSLError as e:
-            raise BicepEngineError(describe_tls_failure(url, e))
+            raise _tls_failure(url, e)
         except requests.RequestException as e:
             raise BicepEngineError(
                 f"Bicep binary download failed from {url}: {_redact_url(e)}. Check appliance "
@@ -630,8 +642,7 @@ def fetch_template_checkout(gh, repo, ref, template_path, workdir):
                      f"repository archive...")
     except requests.exceptions.SSLError as e:
         # Deterministic: the tarball path would fail on the same certificate.
-        raise BicepEngineError(describe_tls_failure(
-            getattr(gh, "base_url", "https://api.github.com"), e))
+        raise _tls_failure(getattr(gh, "base_url", "https://api.github.com"), e)
     except Exception as e:  # noqa: BLE001 — GitHub client raises plain Exception
         logger.debug(f"Sparse fetch failed: {e}")
         set_progress("Sparse fetch failed; fetching the full repository archive...")
@@ -639,8 +650,7 @@ def fetch_template_checkout(gh, repo, ref, template_path, workdir):
     try:
         archive = gh.get_repo_archive(repo, ref)
     except requests.exceptions.SSLError as e:
-        raise BicepEngineError(describe_tls_failure(
-            getattr(gh, "base_url", "https://api.github.com"), e))
+        raise _tls_failure(getattr(gh, "base_url", "https://api.github.com"), e)
     return safe_extract_tarball(archive, workdir)
 
 
@@ -994,7 +1004,7 @@ class BicepArmClient(object):
                                  verify=get_ssl_verification())
             resp.raise_for_status()
         except requests.exceptions.SSLError as e:
-            raise BicepEngineError(describe_tls_failure(url, e))
+            raise _tls_failure(url, e)
         except requests.RequestException:
             # Never echo the response body — it can carry token material.
             raise BicepEngineError(
@@ -1014,7 +1024,7 @@ class BicepArmClient(object):
         try:
             return requests.request(method, url, headers=headers, **kwargs)
         except requests.exceptions.SSLError as e:
-            raise BicepEngineError(describe_tls_failure(url, e))
+            raise _tls_failure(url, e)
 
     def _request(self, method, url, **kwargs):
         """HTTP with bearer auth; strips Authorization before any logging/re-raise."""
@@ -1097,7 +1107,7 @@ class BicepArmClient(object):
             resp = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT_S,
                                 verify=get_ssl_verification())
         except requests.exceptions.SSLError as e:
-            raise BicepEngineError(describe_tls_failure(url, e))
+            raise _tls_failure(url, e)
         if resp.status_code == 404:
             return None
         if resp.status_code >= 400:
