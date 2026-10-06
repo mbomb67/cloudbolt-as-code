@@ -1062,6 +1062,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-b21biimg",
+    "type": "plugins",
+    "name": "Bicep Engine Connectivity Check",
+    "description": "Probes every host the Bicep engine needs and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on.",
+    "path": "plugins/OHK-b21biimg",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-bbswv27r",
+      "shared_modules/SHM-eybr4hgz"
+    ],
+    "used_by": [
+      "recurring_jobs/RJB-zdmcbqb6"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-b2az2bn6",
     "type": "plugins",
     "name": "Apply Public-Exposure Policy",
@@ -1809,6 +1825,20 @@
     "schedule": "0 2 * * *"
   },
   {
+    "id": "RJB-zdmcbqb6",
+    "type": "recurring_jobs",
+    "name": "Bicep Engine Connectivity Check",
+    "description": "On-demand check of every external host the Bicep deployment engine needs, reporting the CA each presents and whether it passes under the current SSL setting and with verification forced on.",
+    "path": "recurring_jobs/RJB-zdmcbqb6",
+    "readme": "recurring_jobs/RJB-zdmcbqb6/README.md",
+    "uses": [
+      "plugins/OHK-b21biimg"
+    ],
+    "used_by": [],
+    "enabled": false,
+    "schedule": "0 6 * * 1"
+  },
+  {
     "id": "RSA-0ldsokuc",
     "type": "resource_actions",
     "name": "Change Access Tier",
@@ -2239,6 +2269,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-b21biimg",
       "plugins/OHK-gqvi9kv4",
       "plugins/OHK-9n4wfasa",
       "plugins/OHK-t2gs5caq",
@@ -2270,6 +2301,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-b21biimg",
       "plugins/OHK-gqvi9kv4",
       "plugins/OHK-9n4wfasa",
       "plugins/OHK-9f45ede7"

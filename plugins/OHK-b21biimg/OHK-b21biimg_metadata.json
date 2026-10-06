@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eybr4hgz",
+            "shared_modules/SHM-bbswv27r"
+        ]
+    },
+    "description": "Probes every host the Bicep engine needs and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on.",
+    "id": "OHK-b21biimg",
+    "max_retries": 0,
+    "name": "Bicep Engine Connectivity Check",
+    "resource_technologies": [],
+    "script_filename": "OHK-b21biimg_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

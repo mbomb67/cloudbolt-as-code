@@ -67,6 +67,10 @@ The engine self-bootstraps the Bicep binary on first use — **no manual install
    pinned binary to `<PROSERV_DIR>/bicep/<version>/bicep`, `chmod +x`, run
    `bicep --version`.)
 2. **Egress.** The appliance needs outbound HTTPS to:
+   - *(SSL inspection)* every call the engine makes follows CloudBolt's SSL
+     settings: the global "enable SSL verification" preference and the CAs
+     uploaded at **Admin > SSL Certificates**. Behind an inspecting proxy,
+     upload its forward-trust CA there; no firewall exemption is needed.
    - the Bicep release host (GitHub releases by default; set a mirror URL in the
      config block for restricted networks)
    - `api.github.com` (template archive fetch)
@@ -76,6 +80,12 @@ The engine self-bootstraps the Bicep binary on first use — **no manual install
 3. **Disk.** Each paused deployment holds an extracted template checkout for the
    length of the approval window (up to the global job timeout, default 8h).
    Size disk for one checkout per concurrently-paused order.
+
+To diagnose egress or TLS problems without appliance access, run the
+`Bicep Engine Connectivity Check` recurring job (`RJB-zdmcbqb6`, imported
+disabled; use **Run Now**). It probes every host above under the current SSL
+setting and, when global verification is off, with it forced on, naming the
+CA each host presents. A failed order reports the same detail in its error.
 
 ## 4. Engine config block
 
@@ -100,11 +110,6 @@ Edit the config block at the top of
   (ARM requires it; RG-scoped stacks inherit the RG's). The plugins use the
   value of the first listed template parameter that is set (e.g. `rgLocation`),
   else the default.
-- `AZURE_RETRY_INTERVAL_S` / `AZURE_RETRY_WINDOW_S` — every Azure HTTP call
-  (token, ARM, what-if, stack polls) retries transient failures (connection
-  errors such as "Network is unreachable", timeouts, HTTP 429/5xx) every
-  10 s for up to 60 s before failing with a clean "could not reach
-  management.azure.com" message. 4xx responses are never retried.
 - `DENY_SETTINGS_MODE` — `none` for the POC (see §6).
 
 The pinned version must match what `scaffold-bicep` uses locally so the schema
