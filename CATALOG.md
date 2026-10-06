@@ -273,5 +273,5 @@ Form JavaScript helpers. A function syncs only as a dependency of a form.
 
 | Function | ID | Description | Form |
 |---|---|---|---|
-| azpsBuildScriptPanel | [FJS-ouuq5zsq](form_functions/FJS-ouuq5zsq/) | Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook, installs them as the Script Parameters Dynamic Panel's template, and rebuilds the panel whenever the Script dropdown changes. | [Run an Azure PowerShell Script](forms/FRM-mfveruw6/) |
+| azpsBuildScriptPanel | [FJS-ouuq5zsq](form_functions/FJS-ouuq5zsq/) | Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script. | [Run an Azure PowerShell Script](forms/FRM-mfveruw6/) |
 | tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |

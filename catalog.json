@@ -363,7 +363,7 @@
     "id": "FJS-ouuq5zsq",
     "type": "form_functions",
     "name": "azpsBuildScriptPanel",
-    "description": "Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook, installs them as the Script Parameters Dynamic Panel's template, and rebuilds the panel whenever the Script dropdown changes.",
+    "description": "Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
     "path": "form_functions/FJS-ouuq5zsq",
     "readme": null,
     "uses": [],
