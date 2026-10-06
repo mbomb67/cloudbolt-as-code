@@ -10,6 +10,9 @@
 # environment's subscription. CloudBolt substitutes the action inputs below
 # before the script is sent to the Run on Server host.
 #
+# Error handling: CloudBolt sees only what the script prints plus its exit
+# code, so failures are written with Write-Output and the script exits 1.
+#
 # Get-AzResourceGroup: https://learn.microsoft.com/en-us/powershell/module/az.resources/get-azresourcegroup
 #   -Name supports wildcards at the beginning and/or the end of the string.
 
@@ -17,21 +20,28 @@ $ErrorActionPreference = 'Stop'
 
 $nameFilter = '{{ name_filter }}'.Trim()
 
-$context = Get-AzContext
-Write-Output ("Subscription: {0} ({1})" -f $context.Subscription.Name, $context.Subscription.Id)
+try {
+    $context = Get-AzContext
+    if (-not $context) { throw "No Azure context is available; the sign-in step did not run." }
+    Write-Output ("Subscription: {0} ({1})" -f $context.Subscription.Name, $context.Subscription.Id)
 
-if ([string]::IsNullOrWhiteSpace($nameFilter) -or $nameFilter -eq '*') {
-    $groups = @(Get-AzResourceGroup)
-    Write-Output ("Resource groups: {0}" -f $groups.Count)
-} else {
-    $groups = @(Get-AzResourceGroup -Name $nameFilter)
-    Write-Output ("Resource groups matching '{0}': {1}" -f $nameFilter, $groups.Count)
+    if ([string]::IsNullOrWhiteSpace($nameFilter) -or $nameFilter -eq '*') {
+        $groups = @(Get-AzResourceGroup)
+        Write-Output ("Resource groups: {0}" -f $groups.Count)
+    } else {
+        $groups = @(Get-AzResourceGroup -Name $nameFilter)
+        Write-Output ("Resource groups matching '{0}': {1}" -f $nameFilter, $groups.Count)
+    }
+
+    $groups |
+        Sort-Object ResourceGroupName |
+        Select-Object ResourceGroupName, Location, ProvisioningState,
+            @{ Name = 'TagCount'; Expression = { if ($_.Tags) { $_.Tags.Count } else { 0 } } } |
+        Format-Table -AutoSize |
+        Out-String -Width 200 |
+        Write-Output
+} catch {
+    Write-Output ("ERROR: " + $_.Exception.GetType().Name + ": " + $_.Exception.Message)
+    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) { Write-Output $_.InvocationInfo.PositionMessage }
+    exit 1
 }
-
-$groups |
-    Sort-Object ResourceGroupName |
-    Select-Object ResourceGroupName, Location, ProvisioningState,
-        @{ Name = 'TagCount'; Expression = { if ($_.Tags) { $_.Tags.Count } else { 0 } } } |
-    Format-Table -AutoSize |
-    Out-String -Width 200 |
-    Write-Output
