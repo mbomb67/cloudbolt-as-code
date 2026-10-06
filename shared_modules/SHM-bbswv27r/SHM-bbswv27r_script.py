@@ -283,6 +283,9 @@ def tls_presented_chain(host, port=443):
     """
     from cryptography import x509
     ctx = ssl.create_default_context()
+    # Diagnostic peek: hostname/chain checks are off on purpose (we are
+    # reading what the server presents), but never negotiate below TLS 1.2.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     with socket.create_connection((host, port), timeout=TLS_PEEK_TIMEOUT_S) as sock:
