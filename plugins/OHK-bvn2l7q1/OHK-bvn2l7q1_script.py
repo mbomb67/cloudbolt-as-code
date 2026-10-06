@@ -192,7 +192,8 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     blueprint = ServiceBlueprint.objects.filter(global_id=blueprint_ref.rstrip("/").rsplit("/", 1)[-1]).first()
     if blueprint is None:
         return _fail(404, "Blueprint '{}' was not found.".format(blueprint_ref))
-    if not blueprint.groups_that_can_deploy().filter(id=group.id).exists():
+    # groups_that_can_deploy is a cached_property (a queryset), not a method.
+    if not blueprint.groups_that_can_deploy.filter(id=group.id).exists():
         return _fail(403, "Group '{}' may not deploy blueprint '{}'.".format(group.name, blueprint.name))
 
     item = (
