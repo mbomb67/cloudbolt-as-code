@@ -4,12 +4,12 @@
     "dependencies": {
         "hook": "plugins/OHK-7i1fk0l5"
     },
-    "description": "Lists the configuration names defined on the Ansible Automation Platform managers so an admin pins a blueprint's aap_configuration_names parameter from a dropdown.",
+    "description": "Lists the Variable Maps that are Ansible job template maps so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
     "enabled": true,
     "hook_point": "Generated Parameter Options",
     "id": "HPA-aualk6ei",
     "last_updated": null,
-    "name": "Generate options for Ansible Automation Configurations",
+    "name": "Generate options for Ansible job template maps",
     "run_on_statuses": "",
     "run_seq": null
 }

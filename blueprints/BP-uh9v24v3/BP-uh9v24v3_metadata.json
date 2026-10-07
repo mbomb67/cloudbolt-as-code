@@ -2,7 +2,7 @@
     "any_group_can_deploy": false,
     "auto_historical_resources": false,
     "dependencies": {
-        "custom_form": "forms/FRM-1dxfulvq"
+        "custom_form": "forms/FRM-ai7lwb13"
     },
     "deployment_items": [
         {
@@ -15,8 +15,25 @@
             "description": "Provisions infrastructure through HCP Terraform's no-code provisioning workflow: creates a dedicated workspace from the pinned no-code module, sets the workspace variables from the form's Module Variables panel, adopts the auto-queued run, and pauses the job for human plan review before any apply. 'Continue Job' approves and applies the plan; canceling the job rejects it and discards the TFC run.",
             "enabled": true,
             "execute_in_parallel": false,
-            "id": "BDI-t474vto9",
+            "id": "BDI-do4ec0ft",
             "name": "HCP Terraform No-Code Module",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Run Ansible Job Templates on Servers",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-cwqouaqn"
+            },
+            "deploy_seq": 2,
+            "description": "Launches the Ansible Automation Platform job templates declared by the job template maps (Variable Maps with a job_template key) pinned as the blueprint's ansible_job_template_maps parameter on every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory, through the AAP manager the server's environment maps to, and waits for the AAP jobs. No pinned maps or no servers is a successful no-op.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-mo4z6ayd",
+            "name": "Run Ansible Job Templates on Servers",
             "rate": null,
             "run_on_scale_up": false,
             "show_on_order_form": true,
@@ -24,7 +41,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply, then runs the pinned Ansible job templates on the deployment's servers.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-b1n02ula"
@@ -35,7 +52,7 @@
     "favorited": false,
     "has_custom_form": true,
     "icon": "terraform_rTNoRQp.png",
-    "id": "BP-00meiwwz",
+    "id": "BP-uh9v24v3",
     "is_orderable": true,
     "labels": [],
     "last_updated": "2026-10-07",
@@ -56,7 +73,7 @@
         }
     ],
     "metadata_version": "2026.1.0",
-    "name": "HCP Terraform No-Code Module",
+    "name": "HCP Terraform No-Code + Ansible",
     "parameters": [
         {
             "allow_multiple": false,
@@ -177,6 +194,36 @@
             "show_on_servers": true,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Ansible job template maps (Variable Maps whose JSON has a job_template key), by global ID or name, whose AAP job templates the second build step launches on every server of the deployment; with no options the step does nothing.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-aualk6ei"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for Ansible job template maps"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-e9ll8cop",
+            "label": "Ansible Job Template Maps",
+            "name": "ansible_job_template_maps",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
         }
     ],
     "resource_name_template": null,
@@ -203,7 +250,7 @@
             "description": "Destroys the deployment's infrastructure via an auto-confirmed TFC destroy run, then deletes its dedicated workspace via the safe-delete endpoint. Idempotent and PROVFAILED-tolerant: a missing or already-deleted workspace is a warning, not a failure.",
             "enabled": true,
             "execute_in_parallel": false,
-            "id": "BDI-kouqj7km",
+            "id": "BDI-kbsb2jty",
             "name": "Teardown HCP Terraform No-Code Module",
             "rate": null,
             "run_on_scale_up": false,

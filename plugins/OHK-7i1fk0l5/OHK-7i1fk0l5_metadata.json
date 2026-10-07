@@ -1,9 +1,9 @@
 {
     "dependencies": {},
-    "description": "Generates the dropdown choices an admin pins a blueprint's aap_configuration_names parameter from: every configuration name defined on the Ansible Automation Platform managers, labeled with the managers that define it.",
+    "description": "Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every Variable Map on the instance whose JSON has a job_template key, labeled with the AAP job template it launches.",
     "id": "OHK-7i1fk0l5",
     "max_retries": 0,
-    "name": "Generate options for Ansible Automation Configurations",
+    "name": "Generate options for Ansible job template maps",
     "resource_technologies": [],
     "script_filename": "OHK-7i1fk0l5_script.py",
     "shared": false,
