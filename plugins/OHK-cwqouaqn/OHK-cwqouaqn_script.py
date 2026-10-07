@@ -67,9 +67,10 @@ No maps anywhere means nothing to run: the step succeeds without touching AAP.
 
 Per server, per map
 -------------------
-1. Resolve the AAP manager: the map's ``manager`` by name, else
+1. Resolve the AAP manager from the server's environment:
    connector_for(server.environment, "install_application"), the lookup
-   CloudBolt's own provisioning hook uses.
+   CloudBolt's own provisioning hook uses. A map never names a manager, so
+   one map serves deployments wherever they land.
 2. Find the job template by exact name on that manager (a live AAP query, so
    nothing has to be imported into CloudBolt first).
 3. Read the template's launch metadata and render the map.
@@ -115,7 +116,7 @@ MAPS_FIELD = "ansible_job_template_maps"
 # Keys a job template map's JSON may carry; anything else is a typo and fails
 # fast. A Variable Map without job_template is not a job template map.
 MAP_KEYS = {
-    "job_template", "manager", "limit", "inventory", "scm_branch",
+    "job_template", "limit", "inventory", "scm_branch",
     "extra_vars", "sensitive", "wait",
 }
 
@@ -190,7 +191,6 @@ class JobTemplateMap(object):
         self.name = variable_map.name
         self.global_id = variable_map.global_id
         self.job_template = str(spec.get("job_template") or "").strip()
-        self.manager = str(spec.get("manager") or "").strip()
         self.limit = str(spec.get("limit") or "").strip()
         self.inventory = str(spec.get("inventory") or "").strip()
         self.scm_branch = str(spec.get("scm_branch") or "").strip()
@@ -320,21 +320,9 @@ def _manager_note(manager):
     )
 
 
-def _resolve_manager(server, tmap):
-    """The AAPConf to launch through, or ``(None, warning)`` when the server's
-    environment gives none. A manager the map names that does not exist is a
-    MapError."""
-    if tmap.manager:
-        manager = AAPConf.objects.filter(name=tmap.manager).first()
-        if manager is None:
-            raise MapError(
-                "job template map {} names manager '{}', which is not an Ansible "
-                "Automation Platform configuration manager on this instance.".format(
-                    tmap, tmap.manager
-                )
-            )
-        return manager, None
-
+def _resolve_manager(server):
+    """The AAPConf the server's environment maps to, or ``(None, warning)``
+    when it gives none."""
     environment = server.environment
     if environment is None or environment.is_unassigned:
         return None, "no environment, so no Ansible Automation Platform can be resolved"
@@ -494,7 +482,7 @@ def _configure_server(job, server, maps, context):
     outcomes = []
     for tmap in maps:
         try:
-            manager, skip = _resolve_manager(server, tmap)
+            manager, skip = _resolve_manager(server)
             if manager is None:
                 outcomes.append(("WARNING", "{}: {}; skipped.".format(tmap, skip)))
                 continue
