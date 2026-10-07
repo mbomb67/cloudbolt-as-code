@@ -29,7 +29,7 @@
                 "hook": "plugins/OHK-cwqouaqn"
             },
             "deploy_seq": 2,
-            "description": "Launches the Ansible Automation Platform job templates declared by the job template maps pinned as the blueprint's ansible_job_template_maps parameter on every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory, through the AAP manager the map names or the server's environment maps to, and waits for the AAP jobs. No pinned maps or no servers is a successful no-op.",
+            "description": "Launches the Ansible Automation Platform job templates declared by the job template maps (Variable Maps with a job_template key) pinned as the blueprint's ansible_job_template_maps parameter on every server the deployment owns (the VMs adopted from the module's cloudbolt_vm_ids output), building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory, through the AAP manager the map names or the server's environment maps to, and waits for the AAP jobs. No pinned maps or no servers is a successful no-op.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-mo4z6ayd",
@@ -199,7 +199,7 @@
             "allow_multiple": true,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "Ansible job template maps (shared modules named ansible_job_template_*), by module name, whose AAP job templates the second build step launches on every server of the deployment; with no options the step does nothing.",
+            "description": "Ansible job template maps (Variable Maps whose JSON has a job_template key), by global ID or name, whose AAP job templates the second build step launches on every server of the deployment; with no options the step does nothing.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],

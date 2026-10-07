@@ -21,33 +21,37 @@ and the deployment needs no AAP teardown step. The template is launched as-is
 (its own inventory unless the map overrides it) and the host is passed through
 the launch's limit and/or extra vars exactly as the map declares.
 
-Job template maps
------------------
-A map is a shared module whose module_name starts with
-``ansible_job_template_`` and that defines a module-level dict JOB_TEMPLATE
-(shared_modules/SHM-119fepar is the shipped example; the blueprint README
-documents every key). The map names the template to launch and says how to
-build the payload from CloudBolt data. String values are Django templates
-rendered by CloudBolt's own engine (common.methods
-generate_string_from_template_for_server, the one behind hostname templates)
-with server, resource, blueprint, group, environment, os_build, os_family,
-job, order and profile in context, plus every parameter of the server and of
-the resource by name. Non-string values (bool, number, list, dict) are passed
-through unchanged. Each template declares its own variable names, so two maps
-can feed the same CloudBolt fact under different names (one template wants
-survey_ip_address, another ip_address); this is why the step builds extra vars
-itself instead of using the platform's generate_extra_vars.
+Job template maps are Variable Maps
+-----------------------------------
+A map is a CloudBolt Variable Map (generic_jobs.models.VariableMap: Admin >
+Variable Maps, or POST /api/v3/cmp/variableMaps/) whose JSON has a
+``job_template`` key; the blueprint README documents every key and
+docs/examples/ansible holds a ready-to-paste example. Variable Maps are the
+platform's own "templated JSON config" object: Terraform Operation items
+render them with common.methods.generate_string_from_template, and so does
+this step (through generate_string_from_template_for_server, the engine
+behind hostname templates). String values are rendered with server,
+resource, blueprint, group, environment, os_build, os_family, job, order and
+profile in context, plus every parameter of the server and of the resource by
+name. Non-string values (bool, number, list, dict) are passed through
+unchanged. Each template declares its own variable names, so two maps can
+feed the same CloudBolt fact under different names (one template wants
+survey_ip_address, another ip_address); this is why the step builds extra
+vars itself instead of using the platform's generate_extra_vars.
 
-A map is loaded fresh on every run (import + reload), so editing a map in the
-repo and syncing takes effect without a CloudBolt restart.
+Maps are read from the database on every run, so editing one in Admin >
+Variable Maps takes effect on the next order. Variable Maps are not a Source
+Control Repos content type, so they do not sync from the repo: create them on
+the instance from the example JSON (UI or API).
 
 Which maps run
 --------------
-The plugin declares no inputs and the order form carries nothing. The map
-module names come from the blueprint parameter ansible_job_template_maps
-(STR, multiple values, destination Resource, optional) that the admin pins on
-the blueprint's Parameters tab, where "Add option" lists the maps the repo
-ships (orchestration_actions/HPA-aualk6ei). The plugin reads, in order:
+The plugin declares no inputs and the order form carries nothing. The maps
+come from the blueprint parameter ansible_job_template_maps (STR, multiple
+values, destination Resource, optional) that the admin pins on the blueprint's
+Parameters tab, where "Add option" lists the instance's job template maps
+(orchestration_actions/HPA-aualk6ei). A pinned value is a Variable Map's
+global ID (MAP-...) or its exact name. The plugin reads, in order:
 
 1. the resource's own values of the parameter: what an order placed through
    CloudBolt's native order form picked (CloudBolt writes Resource-destination
@@ -79,16 +83,14 @@ Per server, per map
 
 Outcome per server: SUCCESS when every map ran; WARNING when the server has no
 environment, its environment has no AAP manager, a template is not defined on
-its manager, or AAP ignored a field; FAILURE when a map cannot be loaded, a
-required survey variable is empty, AAP rejected the launch, or a launched job
-failed. The job returns the worst outcome. No maps pinned, or a resource with
-no servers (the module emitted no cloudbolt_vm_ids), is SUCCESS.
+its manager, or AAP ignored a field; FAILURE when a map cannot be found or is
+malformed, a required survey variable is empty, AAP rejected the launch, or a
+launched job failed. The job returns the worst outcome. No maps pinned, or a
+resource with no servers (the module emitted no cloudbolt_vm_ids), is SUCCESS.
 
 Returns a 3-tuple: (status, output_msg, error_msg).
 """
 
-import importlib
-import re
 from urllib.parse import quote
 
 from common.methods import (
@@ -99,6 +101,7 @@ from common.methods import (
 from connectors import connector_for
 from connectors.ansible_automation_platform.models import AAPConf
 from connectors.ansible_automation_platform.service import AAPService
+from generic_jobs.models import VariableMap
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
@@ -106,16 +109,11 @@ logger = ThreadLogger(__name__)
 ACTION_NAME = "Run Ansible Job Templates on Servers"
 
 # The blueprint parameter (destination Resource, multiple values) that holds
-# the map module names; see the module docstring.
+# the Variable Map global IDs or names; see the module docstring.
 MAPS_FIELD = "ansible_job_template_maps"
 
-# Only shared modules named like this are loaded as maps; the options hook
-# lists the same set. CloudBolt restricts module names to lowercase letters
-# and underscores.
-MAP_MODULE_PREFIX = "ansible_job_template_"
-MAP_MODULE_PATTERN = re.compile(r"^ansible_job_template_[a-z][a-z_]*$")
-
-# Keys a JOB_TEMPLATE dict may carry; anything else is a typo and fails fast.
+# Keys a job template map's JSON may carry; anything else is a typo and fails
+# fast. A Variable Map without job_template is not a job template map.
 MAP_KEYS = {
     "job_template", "manager", "limit", "inventory", "scm_branch",
     "extra_vars", "sensitive", "wait",
@@ -136,30 +134,30 @@ class MapError(Exception):
 
 
 # =============================================================================
-# == Map names ================================================================
+# == Pinned maps ==============================================================
 # =============================================================================
 
-def _clean_names(values):
-    """Distinct, non-blank names in their original order."""
-    names = []
+def _clean_values(values):
+    """Distinct, non-blank values in their original order."""
+    cleaned = []
     for value in values or []:
-        name = str(value or "").strip()
-        if name and name not in names:
-            names.append(name)
-    return names
+        text = str(value or "").strip()
+        if text and text not in cleaned:
+            cleaned.append(text)
+    return cleaned
 
 
-def _map_names_for(resource):
+def _pinned_maps_for(resource):
     """
-    The map module names for this deployment and where they came from:
-    ``("resource", names)``, ``("blueprint", names)`` or ``("none", [])``.
+    The pinned map references for this deployment and where they came from:
+    ``("resource", values)``, ``("blueprint", values)`` or ``("none", [])``.
     """
     on_resource = resource.get_value_for_custom_field(MAPS_FIELD)
     if isinstance(on_resource, str):
         on_resource = [on_resource]
-    names = _clean_names(on_resource)
-    if names:
-        return "resource", names
+    values = _clean_values(on_resource)
+    if values:
+        return "resource", values
 
     # Only a custom-form order can have pinned options that never reached the
     # resource. On the native order form the orderer saw them and picked
@@ -168,15 +166,15 @@ def _map_names_for(resource):
     if blueprint is None or not getattr(blueprint, "custom_form", None):
         return "none", []
     pinned = blueprint.custom_field_options.filter(field__name=MAPS_FIELD).order_by("id")
-    names = _clean_names(option.value for option in pinned)
-    return ("blueprint", names) if names else ("none", [])
+    values = _clean_values(option.value for option in pinned)
+    return ("blueprint", values) if values else ("none", [])
 
 
-def _record_on_resource(resource, names):
-    """Store the pinned names on the resource; a failure to do so is logged
-    and does not affect the run."""
+def _record_on_resource(resource, values):
+    """Store the pinned references on the resource; a failure to do so is
+    logged and does not affect the run."""
     try:
-        resource.set_value_for_custom_field(MAPS_FIELD, names)
+        resource.set_value_for_custom_field(MAPS_FIELD, values)
     except Exception:  # noqa: BLE001 -- bookkeeping only
         logger.exception("Could not record %s on resource %s", MAPS_FIELD, resource.id)
 
@@ -186,10 +184,11 @@ def _record_on_resource(resource, names):
 # =============================================================================
 
 class JobTemplateMap(object):
-    """A validated JOB_TEMPLATE dict."""
+    """A validated job template map read from a Variable Map."""
 
-    def __init__(self, module_name, spec):
-        self.module_name = module_name
+    def __init__(self, variable_map, spec):
+        self.name = variable_map.name
+        self.global_id = variable_map.global_id
         self.job_template = str(spec.get("job_template") or "").strip()
         self.manager = str(spec.get("manager") or "").strip()
         self.limit = str(spec.get("limit") or "").strip()
@@ -200,52 +199,59 @@ class JobTemplateMap(object):
         self.wait = bool(spec.get("wait", True))
 
     def __str__(self):
-        return "'{}' ({})".format(self.job_template, self.module_name)
+        return "'{}' (Variable Map '{}')".format(self.job_template, self.name)
 
 
-def _load_map(module_name):
-    """Import (and reload) the shared module and validate its JOB_TEMPLATE."""
-    if not MAP_MODULE_PATTERN.match(module_name):
+def _find_variable_map(reference):
+    """The shared Variable Map a pinned value refers to, by global ID first,
+    then by exact name."""
+    # VariableMap.objects is the platform's manager for shared maps (the ones
+    # on Admin > Variable Maps); Local Variable Maps belong to one Terraform
+    # item and are not reusable.
+    variable_map = VariableMap.objects.filter(global_id=reference).first()
+    if variable_map is not None:
+        return variable_map
+    matches = list(VariableMap.objects.filter(name=reference).order_by("id"))
+    if len(matches) > 1:
         raise MapError(
-            "'{}' is not a job template map: the shared module's name must "
-            "start with '{}' and use lowercase letters and underscores only.".format(
-                module_name, MAP_MODULE_PREFIX
+            "{} Variable Maps are named '{}'; pin the map by its global ID "
+            "instead ({}).".format(
+                len(matches), reference, ", ".join(m.global_id for m in matches)
             )
         )
-    try:
-        module = importlib.import_module("shared_modules." + module_name)
-        # Shared modules are cached in-process; reload so a synced edit to the
-        # map is used without a CloudBolt restart.
-        module = importlib.reload(module)
-    except Exception as exc:  # ModuleNotFoundError, SyntaxError, anything at import
+    if not matches:
         raise MapError(
-            "job template map '{}' could not be loaded (is the shared module "
-            "synced and valid Python?): {}".format(module_name, exc)
+            "no Variable Map has the global ID or name '{}' (Admin > Variable "
+            "Maps); create it from docs/examples/ansible or fix the option "
+            "pinned on '{}'.".format(reference, MAPS_FIELD)
         )
-    spec = getattr(module, "JOB_TEMPLATE", None)
+    return matches[0]
+
+
+def _load_map(reference):
+    """Resolve a pinned value to a Variable Map and validate its JSON."""
+    variable_map = _find_variable_map(reference)
+    label = "Variable Map '{}' ({})".format(variable_map.name, variable_map.global_id)
+    spec = variable_map.map
     if not isinstance(spec, dict):
+        raise MapError("{}: its map is not a JSON object.".format(label))
+    if not str(spec.get("job_template") or "").strip():
         raise MapError(
-            "job template map '{}' defines no JOB_TEMPLATE dict.".format(module_name)
+            "{} is not a job template map: its JSON has no 'job_template' key "
+            "(the template's name in AAP).".format(label)
         )
     unknown = sorted(set(spec) - MAP_KEYS)
     if unknown:
         raise MapError(
-            "job template map '{}' has unknown key(s) {}; allowed: {}.".format(
-                module_name, ", ".join(unknown), ", ".join(sorted(MAP_KEYS))
+            "{} has unknown key(s) {}; allowed: {}.".format(
+                label, ", ".join(unknown), ", ".join(sorted(MAP_KEYS))
             )
         )
     if not isinstance(spec.get("extra_vars") or {}, dict):
         raise MapError(
-            "job template map '{}': extra_vars must be a dict of variable name "
-            "to value.".format(module_name)
+            "{}: extra_vars must be a JSON object of variable name to value.".format(label)
         )
-    tmap = JobTemplateMap(module_name, spec)
-    if not tmap.job_template:
-        raise MapError(
-            "job template map '{}': JOB_TEMPLATE['job_template'] (the template's "
-            "name in AAP) is required.".format(module_name)
-        )
-    return tmap
+    return JobTemplateMap(variable_map, spec)
 
 
 # =============================================================================
@@ -539,8 +545,8 @@ def run(job, **kwargs):
             "resource's servers.",
         )
 
-    source, names = _map_names_for(resource)
-    if not names:
+    source, references = _pinned_maps_for(resource)
+    if not references:
         message = (
             "No Ansible job template maps are set for '{}' (the blueprint "
             "parameter '{}' has no options and the resource carries none); "
@@ -551,17 +557,17 @@ def run(job, **kwargs):
     if source == "blueprint":
         set_progress(
             "Using the maps pinned on blueprint '{}': {}".format(
-                getattr(resource.blueprint, "name", "?"), ", ".join(names)
+                getattr(resource.blueprint, "name", "?"), ", ".join(references)
             )
         )
-        _record_on_resource(resource, names)
+        _record_on_resource(resource, references)
 
     # A bad map is a configuration error for every server: fail before AAP is
     # touched rather than once per server.
     maps = []
-    for name in names:
+    for reference in references:
         try:
-            maps.append(_load_map(name))
+            maps.append(_load_map(reference))
         except MapError as exc:
             return "FAILURE", "", str(exc)
 

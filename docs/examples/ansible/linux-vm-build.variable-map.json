@@ -1,0 +1,22 @@
+{
+    "name": "Ansible: Linux VM Build",
+    "map": {
+        "job_template": "Linux VM Build",
+        "manager": "",
+        "limit": "",
+        "inventory": "",
+        "scm_branch": "",
+        "extra_vars": {
+            "vm_name": "{{ server.hostname }}{% if server.domain %}.{{ server.domain }}{% endif %}",
+            "ip_address": "{{ server.ip }}",
+            "application": "{{ group.name }}",
+            "sdlc_environment": "{{ environment.name }}",
+            "os_image": "{{ tfc_var_os_image }}",
+            "requested_by": "{{ profile.user.username }}",
+            "config_managed": "yes",
+            "create_snow_incidents": false
+        },
+        "sensitive": [],
+        "wait": true
+    }
+}
