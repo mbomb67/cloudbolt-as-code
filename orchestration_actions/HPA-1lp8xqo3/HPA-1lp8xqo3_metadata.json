@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-tswevdir"
+    },
+    "description": "Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy, at Post Group Creation.",
+    "enabled": true,
+    "hook_point": "Post Group Creation",
+    "id": "HPA-1lp8xqo3",
+    "last_updated": null,
+    "minimum_version_required": "8.6",
+    "name": "Add Parent Blueprints to Group",
+    "run_on_statuses": "",
+    "run_seq": null
+}

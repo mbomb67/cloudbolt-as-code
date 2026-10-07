@@ -517,6 +517,20 @@
     "mcp_tool_name": "order_counts_by_blueprint"
   },
   {
+    "id": "HPA-1lp8xqo3",
+    "type": "orchestration_actions",
+    "name": "Add Parent Blueprints to Group",
+    "description": "Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy, at Post Group Creation.",
+    "path": "orchestration_actions/HPA-1lp8xqo3",
+    "readme": "orchestration_actions/HPA-1lp8xqo3/README.md",
+    "uses": [
+      "plugins/OHK-tswevdir"
+    ],
+    "used_by": [],
+    "hook_point": "Post Group Creation",
+    "enabled": true
+  },
+  {
     "id": "HPA-aualk6ei",
     "type": "orchestration_actions",
     "name": "Generate options for Ansible job template maps",
@@ -1703,6 +1717,19 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-tqy61754"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-tswevdir",
+    "type": "plugins",
+    "name": "Add Parent Blueprints to Group",
+    "description": "Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy.",
+    "path": "plugins/OHK-tswevdir",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-1lp8xqo3"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
