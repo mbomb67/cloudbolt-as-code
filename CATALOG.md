@@ -8,11 +8,11 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Blueprints](#blueprints) | 17 |
 | [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
-| [Orchestration actions](#orchestration-actions) | 10 |
+| [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 3 |
 | [Webhooks](#webhooks) | 2 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 89 |
+| [Plugins](#plugins) | 90 |
 | [Shared modules](#shared-modules) | 12 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 6 |
@@ -89,6 +89,7 @@ Lifecycle hooks. Actions marked disabled ship that way on purpose; read the READ
 |---|---|---|---|---|---|
 | AD DNS - Create A Record | [HPA-dnscrt01](orchestration_actions/HPA-dnscrt01/README.md) | Registers an AD-integrated DNS A record for each provisioned server at Post-Provision. | Post-Provision | no | [AD DNS - Create A Record](plugins/OHK-dnsadd01/) |
 | AD DNS - Delete A Record | [HPA-dnsdec01](orchestration_actions/HPA-dnsdec01/README.md) | Tombstones the AD-integrated DNS A record CloudBolt registered for each server at Pre-Delete. | Pre-Delete | no | [AD DNS - Delete A Record](plugins/OHK-dnsdel01/) |
+| Add Parent Blueprints to Group | [HPA-1lp8xqo3](orchestration_actions/HPA-1lp8xqo3/README.md) | Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy, at Post Group Creation. | Post Group Creation | yes | [Add Parent Blueprints to Group](plugins/OHK-tswevdir/) |
 | Azure CMK - Per-VM Disk Encryption Set | [HPA-w1dmx20b](orchestration_actions/HPA-w1dmx20b/README.md) | Encrypts each provisioned Azure VM's disks with a per-VM customer-managed key and disk encryption set at Post-Provision. | Post-Provision | no | [Azure CMK - Per-VM Disk Encryption Set](plugins/OHK-vklpnqhq/) |
 | Azure CMK - Remove Per-VM Disk Encryption Set | [HPA-h7g0i0dx](orchestration_actions/HPA-h7g0i0dx/README.md) | Removes the per-VM disk encryption set, key-access grant, and Key Vault key at Post-Delete after an Azure VM is destroyed. | Post-Delete | no | [Azure CMK - Remove Per-VM Disk Encryption Set](plugins/OHK-2vpg4pff/) |
 | Azure NSG - Attach VM to NSG | [HPA-vo2ghe4x](orchestration_actions/HPA-vo2ghe4x/README.md) | Attaches each provisioned Azure VM to the network security group selected on the order form at Post-Provision. | Post-Provision | no | [Azure NSG - Attach VM to NSG](plugins/OHK-t8fjx0kz/) |
@@ -134,6 +135,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 |---|---|---|---|---|
 | AD DNS - Create A Record | [OHK-dnsadd01](plugins/OHK-dnsadd01/) | Creates an AD-integrated DNS A record for each provisioned server over LDAPS and records its identity for teardown. | CloudBolt Plug-in | [AD DNS - Create A Record](orchestration_actions/HPA-dnscrt01/README.md) |
 | AD DNS - Delete A Record | [OHK-dnsdel01](plugins/OHK-dnsdel01/) | Tombstones the AD-integrated DNS A record recorded on each decommissioned server. | CloudBolt Plug-in | [AD DNS - Delete A Record](orchestration_actions/HPA-dnsdec01/README.md) |
+| Add Parent Blueprints to Group | [OHK-tswevdir](plugins/OHK-tswevdir/) | Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy. | CloudBolt Plug-in | [Add Parent Blueprints to Group](orchestration_actions/HPA-1lp8xqo3/README.md) |
 | Add Resource Group to Environment | [OHK-r1imfgdx](plugins/OHK-r1imfgdx/) | Adds the created resource group as a resource_group_arm option on the provisioning environment. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
 | Ansible Ad-Hoc | [OHK-xdjd5o9b](plugins/OHK-xdjd5o9b/) | Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
 | Apply Ansible Automation Configurations to Servers | [OHK-cwqouaqn](plugins/OHK-cwqouaqn/) | Applies the Ansible Automation Platform configurations pinned on the blueprint's aap_configuration_names parameter, matched by name on each server's own configuration manager, to every server of the deployment through CloudBolt's built-in AAP methods; no pinned names or no servers is a no-op. | CloudBolt Plug-in | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
