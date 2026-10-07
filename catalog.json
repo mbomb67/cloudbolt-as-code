@@ -8,12 +8,9 @@
     "readme": "blueprints/BP-00meiwwz/README.md",
     "uses": [
       "forms/FRM-1dxfulvq",
-      "orchestration_actions/HPA-aualk6ei",
       "orchestration_actions/HPA-swe1kifa",
-      "plugins/OHK-8v830go3",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-b1n02ula",
-      "plugins/OHK-cwqouaqn",
       "plugins/OHK-y9d1uwhw",
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
@@ -254,6 +251,26 @@
     "used_by": []
   },
   {
+    "id": "BP-uh9v24v3",
+    "type": "blueprints",
+    "name": "HCP Terraform No-Code + Ansible",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply, then runs the pinned Ansible job templates on the deployment's servers.",
+    "path": "blueprints/BP-uh9v24v3",
+    "readme": "blueprints/BP-uh9v24v3/README.md",
+    "uses": [
+      "forms/FRM-ai7lwb13",
+      "orchestration_actions/HPA-aualk6ei",
+      "orchestration_actions/HPA-swe1kifa",
+      "plugins/OHK-axtt0yqq",
+      "plugins/OHK-b1n02ula",
+      "plugins/OHK-cwqouaqn",
+      "plugins/OHK-y9d1uwhw",
+      "resource_actions/RSA-dxrh4m6j",
+      "resource_actions/RSA-pngq92ss"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-zmeot1ff",
     "type": "blueprints",
     "name": "Azure Resource Group",
@@ -408,6 +425,18 @@
     ]
   },
   {
+    "id": "FRM-ai7lwb13",
+    "type": "forms",
+    "name": "HCP Terraform No-Code + Ansible",
+    "description": "Provisions an HCP Terraform no-code module and runs the pinned Ansible job templates on its servers; the job pauses for plan review before apply.",
+    "path": "forms/FRM-ai7lwb13",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-uh9v24v3"
+    ]
+  },
+  {
     "id": "FRM-h4py5w3a",
     "type": "forms",
     "name": "Terraform Update",
@@ -490,15 +519,15 @@
   {
     "id": "HPA-aualk6ei",
     "type": "orchestration_actions",
-    "name": "Generate options for Ansible Automation Configurations",
-    "description": "Lists the configuration names defined on the Ansible Automation Platform managers so an admin pins a blueprint's aap_configuration_names parameter from a dropdown.",
+    "name": "Generate options for Ansible job template maps",
+    "description": "Lists the Ansible job template maps synced to the instance so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
     "path": "orchestration_actions/HPA-aualk6ei",
     "readme": null,
     "uses": [
       "plugins/OHK-7i1fk0l5"
     ],
     "used_by": [
-      "blueprints/BP-00meiwwz"
+      "blueprints/BP-uh9v24v3"
     ],
     "hook_point": "Generated Parameter Options",
     "enabled": true
@@ -590,6 +619,7 @@
       "plugins/OHK-529jjzli"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz"
     ],
     "hook_point": "Generated Parameter Options",
@@ -918,8 +948,8 @@
   {
     "id": "OHK-7i1fk0l5",
     "type": "plugins",
-    "name": "Generate options for Ansible Automation Configurations",
-    "description": "Generates the dropdown choices an admin pins a blueprint's aap_configuration_names parameter from: every configuration name defined on the Ansible Automation Platform managers, labeled with the managers that define it.",
+    "name": "Generate options for Ansible job template maps",
+    "description": "Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every job template map shared module synced to the instance, labeled with the AAP job template it launches.",
     "path": "plugins/OHK-7i1fk0l5",
     "readme": null,
     "uses": [],
@@ -949,9 +979,7 @@
     "path": "plugins/OHK-8v830go3",
     "readme": null,
     "uses": [],
-    "used_by": [
-      "blueprints/BP-00meiwwz"
-    ],
+    "used_by": [],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -1095,6 +1123,7 @@
       "shared_modules/SHM-r0oq14r7"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz"
     ],
     "plugin_type": "CloudBolt Plug-in"
@@ -1111,6 +1140,7 @@
       "shared_modules/SHM-r0oq14r7"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz"
     ],
     "plugin_type": "CloudBolt Plug-in"
@@ -1192,13 +1222,13 @@
   {
     "id": "OHK-cwqouaqn",
     "type": "plugins",
-    "name": "Apply Ansible Automation Configurations to Servers",
-    "description": "Applies the Ansible Automation Platform configurations pinned on the blueprint's aap_configuration_names parameter, matched by name on each server's own configuration manager, to every server of the deployment through CloudBolt's built-in AAP methods; no pinned names or no servers is a no-op.",
+    "name": "Run Ansible Job Templates on Servers",
+    "description": "Launches the Ansible Automation Platform job templates declared by the job template maps pinned on the blueprint's ansible_job_template_maps parameter for every server of the deployment, building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory; no pinned maps or no servers is a no-op.",
     "path": "plugins/OHK-cwqouaqn",
     "readme": null,
     "uses": [],
     "used_by": [
-      "blueprints/BP-00meiwwz"
+      "blueprints/BP-uh9v24v3"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1837,6 +1867,7 @@
       "shared_modules/SHM-jlguerjr"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz"
     ],
     "plugin_type": "CloudBolt Plug-in"
@@ -2068,6 +2099,7 @@
       "plugins/OHK-lvy5tj0y"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz",
       "blueprints/BP-b0qm83lh"
     ],
@@ -2220,6 +2252,7 @@
       "plugins/OHK-4y8f1vff"
     ],
     "used_by": [
+      "blueprints/BP-uh9v24v3",
       "blueprints/BP-00meiwwz"
     ],
     "enabled": true
@@ -2309,6 +2342,16 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "SHM-119fepar",
+    "type": "shared_modules",
+    "name": "ansible_job_template_linux_vm_build",
+    "description": "Example Ansible job template map: declares the AAP job template the + Ansible blueprint launches per server and how its launch payload is built from CloudBolt data with Django templates.",
+    "path": "shared_modules/SHM-119fepar",
+    "readme": null,
+    "uses": [],
+    "used_by": []
   },
   {
     "id": "SHM-5hjzm9e4",
