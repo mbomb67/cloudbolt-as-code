@@ -1,0 +1,12 @@
+{
+    "description": "Example Ansible job template map: declares the AAP job template the + Ansible blueprint launches per server and how its launch payload is built from CloudBolt data with Django templates.",
+    "id": "SHM-119fepar",
+    "label": "Ansible Job Template Map: Linux VM Build",
+    "max_retries": 0,
+    "module_name": "ansible_job_template_linux_vm_build",
+    "name": "ansible_job_template_linux_vm_build",
+    "resource_technologies": [],
+    "script_filename": "SHM-119fepar_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}
