@@ -44,10 +44,7 @@ def _map_options():
         template = str(spec.get("job_template") or "").strip()
         if not template:
             continue
-        manager = str(spec.get("manager") or "").strip()
         detail = "{}, {}".format(variable_map.name, variable_map.global_id)
-        if manager:
-            detail += ", manager {}".format(manager)
         options.append((variable_map.global_id, "{} ({})".format(template, detail)))
     return options
 

@@ -26,7 +26,7 @@ Deployed resources are of type **HCP Terraform Workspace**.
 - It runs after the module has applied and its VMs have been adopted as child servers of the resource (from the module's `cloudbolt_vm_ids` output). No servers means nothing to do.
 - **CloudBolt never adds a server to an AAP inventory.** The job templates are expected to be bound to inventories managed outside CloudBolt; the step launches each template as-is and passes the host through the launch's limit and/or extra vars. Nothing is created in AAP, so the blueprint has no AAP teardown step.
 - Which templates run, and what each receives, is declared in **job template maps**: one CloudBolt Variable Map per AAP job template. The blueprint pins the maps it uses as options of its `ansible_job_template_maps` parameter.
-- For each server and each pinned map the step resolves the AAP configuration manager (the map's `manager`, else the one the server's environment maps to), finds the template by name on it, reads the template's launch metadata, renders the map, launches, and waits for the AAP job. The AAP job's status and stdout land in the CloudBolt job log.
+- For each server and each pinned map the step resolves the AAP configuration manager from the server's environment (its Configuration Management feature), finds the template by name on it, reads the template's launch metadata, renders the map, launches, and waits for the AAP job. The AAP job's status and stdout land in the CloudBolt job log.
 
 ## Job template maps
 A map is a **Variable Map** (Admin > Variable Maps) whose JSON has a `job_template` key. Variable Maps are CloudBolt's templated-JSON configuration object, the same one Terraform Operation items use, edited in a JSON editor with pickers for `group`, `environment`, `job`, `server` and `resource`. The step reads the map from the database on every run, so an edit takes effect on the next order. Configuration, not code: no Python, no restart.
@@ -42,7 +42,6 @@ Keep the JSON files in the repo (`docs/examples/ansible/`) as the source of trut
 | Key | Meaning |
 |---|---|
 | `job_template` | Exact name of the job template in AAP. Required; a Variable Map without it is not listed as a job template map. |
-| `manager` | AAP configuration manager name to launch through. Blank: the manager the server's environment maps to. |
 | `limit` | Host pattern for the launch's limit. Blank: no limit is sent. Dropped with a warning when the template does not prompt for a limit. |
 | `inventory` | Inventory name to launch against instead of the template's own. Blank: the template's inventory. Needs the template's inventory prompt on launch. |
 | `scm_branch` | Branch, tag or commit for the template's project. Blank: the template's configured branch. Needs the branch prompt on launch. |
@@ -81,7 +80,7 @@ Before launching, the step compares the rendered payload with what the template 
 
 ## Prerequisites
 - Everything the [HCP Terraform No-Code Module](../BP-00meiwwz/README.md#prerequisites) blueprint needs; the module must emit `cloudbolt_vm_ids`, or there are no servers to configure.
-- An Ansible Automation Platform configuration manager (Admin > Configuration Managers) with a connection that may read job templates and launch them, set as the Configuration Management feature of each target environment, or named in the map's `manager`.
+- An Ansible Automation Platform configuration manager (Admin > Configuration Managers) with a connection that may read job templates and launch them, set as the Configuration Management feature of each environment you order into; the server's environment is what selects the manager.
 - The job templates, each bound to its inventory, with the variables the maps send either prompted for on launch or declared in the template's survey.
 
 ## Setup
@@ -92,7 +91,7 @@ Before launching, the step compares the rendered payload with what the template 
 5. Sync the repo and restart CloudBolt once so the shared modules load; re-enter the `tf-cloud` token after every sync.
 
 ## Notes
-- A template missing on a server's manager is a warning and the other maps still run; a map that cannot be found or has an unknown key, a required survey variable left empty, a rejected launch or a failed AAP job is a failure. With `continue_on_failure` false (as shipped) a failure fails the order and leaves the resource PROVFAILED; set it true to keep the deployment and re-run the template from AAP.
+- A template missing on a server's manager is a warning and the other maps still run; a map that cannot be found or has an unknown key (`manager` is not one), a required survey variable left empty, a rejected launch or a failed AAP job is a failure. With `continue_on_failure` false (as shipped) a failure fails the order and leaves the resource PROVFAILED; set it true to keep the deployment and re-run the template from AAP.
 - The order form reads the blueprint's pinned parameters by the form's own IDs, so this blueprint has its own form (FRM-ai7lwb13); the field layout is the one from BP-00meiwwz. Author it for another module the same way.
 - Pin a different `nocode-*` module here than on BP-00meiwwz, or disable discovery on one of them: both discovery plugins claim every workspace of their pinned module.
 - Day-2 runs (Update Variables, Deploy Latest Version) do not re-run the job templates; a replaced VM gets a new server record but no Ansible run. Run the template from AAP or order again.

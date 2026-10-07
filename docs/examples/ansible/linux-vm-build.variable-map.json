@@ -2,7 +2,6 @@
     "name": "Ansible: Linux VM Build",
     "map": {
         "job_template": "Linux VM Build",
-        "manager": "",
         "limit": "",
         "inventory": "",
         "scm_branch": "",
