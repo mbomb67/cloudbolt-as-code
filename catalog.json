@@ -520,7 +520,7 @@
     "id": "HPA-aualk6ei",
     "type": "orchestration_actions",
     "name": "Generate options for Ansible job template maps",
-    "description": "Lists the Ansible job template maps synced to the instance so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
+    "description": "Lists the Variable Maps that are Ansible job template maps so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
     "path": "orchestration_actions/HPA-aualk6ei",
     "readme": null,
     "uses": [
@@ -949,7 +949,7 @@
     "id": "OHK-7i1fk0l5",
     "type": "plugins",
     "name": "Generate options for Ansible job template maps",
-    "description": "Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every job template map shared module synced to the instance, labeled with the AAP job template it launches.",
+    "description": "Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every Variable Map on the instance whose JSON has a job_template key, labeled with the AAP job template it launches.",
     "path": "plugins/OHK-7i1fk0l5",
     "readme": null,
     "uses": [],
@@ -1223,7 +1223,7 @@
     "id": "OHK-cwqouaqn",
     "type": "plugins",
     "name": "Run Ansible Job Templates on Servers",
-    "description": "Launches the Ansible Automation Platform job templates declared by the job template maps pinned on the blueprint's ansible_job_template_maps parameter for every server of the deployment, building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory; no pinned maps or no servers is a no-op.",
+    "description": "Launches the Ansible Automation Platform job templates declared by the job template maps (Variable Maps with a job_template key) pinned on the blueprint's ansible_job_template_maps parameter for every server of the deployment, building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory; no pinned maps or no servers is a no-op.",
     "path": "plugins/OHK-cwqouaqn",
     "readme": null,
     "uses": [],
@@ -2342,16 +2342,6 @@
     ],
     "used_by": [],
     "enabled": true
-  },
-  {
-    "id": "SHM-119fepar",
-    "type": "shared_modules",
-    "name": "ansible_job_template_linux_vm_build",
-    "description": "Example Ansible job template map: declares the AAP job template the + Ansible blueprint launches per server and how its launch payload is built from CloudBolt data with Django templates.",
-    "path": "shared_modules/SHM-119fepar",
-    "readme": null,
-    "uses": [],
-    "used_by": []
   },
   {
     "id": "SHM-5hjzm9e4",

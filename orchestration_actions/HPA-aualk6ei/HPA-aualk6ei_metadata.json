@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-7i1fk0l5"
     },
-    "description": "Lists the Ansible job template maps synced to the instance so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
+    "description": "Lists the Variable Maps that are Ansible job template maps so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown.",
     "enabled": true,
     "hook_point": "Generated Parameter Options",
     "id": "HPA-aualk6ei",
