@@ -1,0 +1,37 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "One URL per line. A bare host is checked as https://host; lines starting with # are ignored.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": false,
+            "id": "CF-xzu9q0up",
+            "label": "URLs to check",
+            "name": "target_urls",
+            "placeholder": null,
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "TXT",
+            "value-pattern-string": null
+        }
+    ],
+    "allow_parallel_jobs": false,
+    "create_date": "2026-10-08 15:00:00.000000",
+    "dependencies": {
+        "hook": "plugins/OHK-7ctf42u7"
+    },
+    "description": "On-demand check of any URLs entered on the job, reporting the CA each presents and whether it passes under the current SSL setting and with verification forced on.",
+    "enabled": false,
+    "id": "RJB-z3cr1xra",
+    "last_run": null,
+    "last_updated": null,
+    "name": "URL Connectivity Check",
+    "schedule": "0 6 * * 1",
+    "type": "orchestration_hook"
+}

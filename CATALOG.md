@@ -9,10 +9,10 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 11 |
-| [Recurring jobs](#recurring-jobs) | 3 |
+| [Recurring jobs](#recurring-jobs) | 4 |
 | [Webhooks](#webhooks) | 2 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 93 |
+| [Plugins](#plugins) | 94 |
 | [Shared modules](#shared-modules) | 12 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 8 |
@@ -110,6 +110,7 @@ Cron-scheduled jobs.
 | Azure Price Sheet Refresh | [RJB-reblryol](recurring_jobs/RJB-reblryol/README.md) | Downloads each Azure subscription's negotiated Price Sheet daily and caches it for the rate hook. | `0 2 * * *` | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/) |
 | Bicep Engine Connectivity Check | [RJB-zdmcbqb6](recurring_jobs/RJB-zdmcbqb6/README.md) | On-demand check of every external host the Bicep deployment engine needs, reporting the CA each presents and whether it passes under the current SSL setting and with verification forced on. | `0 6 * * 1` | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/) |
 | Expire Servers | [RJB-nsx4v2s1](recurring_jobs/RJB-nsx4v2s1/README.md) | Finds expired servers daily and runs the configured expiration orchestration action on them. | `0 0 * * *` | [Expire Servers](plugins/OHK-59t2apzf/) |
+| URL Connectivity Check | [RJB-z3cr1xra](recurring_jobs/RJB-z3cr1xra/README.md) | On-demand check of any URLs entered on the job, reporting the CA each presents and whether it passes under the current SSL setting and with verification forced on. | `0 6 * * 1` | [URL Connectivity Check](plugins/OHK-7ctf42u7/) |
 
 ## Webhooks
 
@@ -228,6 +229,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Test Postgres Connection | [OHK-wr079u8q](plugins/OHK-wr079u8q/) | Tests the connection to the PostgreSQL database. | CloudBolt Plug-in | [Test Postgres Connection](resource_actions/RSA-9tfwebk7/) |
 | Update Bicep Deployment | [OHK-9f45ede7](plugins/OHK-9f45ede7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | CloudBolt Plug-in | [Update Bicep Deployment](resource_actions/RSA-fa7r7cg7/) |
 | Update Tags | [OHK-nwcyoto7](plugins/OHK-nwcyoto7/) | Merges or replaces the tags on the Azure resource group. | CloudBolt Plug-in | [Update Tags](resource_actions/RSA-kbikieh7/) |
+| URL Connectivity Check | [OHK-7ctf42u7](plugins/OHK-7ctf42u7/) | Probes the URLs entered on the job and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on. | CloudBolt Plug-in | [URL Connectivity Check](recurring_jobs/RJB-z3cr1xra/README.md) |
 
 ## Shared modules
 
