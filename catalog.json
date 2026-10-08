@@ -395,23 +395,12 @@
     "id": "FJS-ouuq5zsq",
     "type": "form_functions",
     "name": "azpsBuildScriptPanel",
-    "description": "Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
+    "description": "Async form function shared by the order forms of the two Azure PowerShell blueprints (the build-item prefix is its optional second argument): fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
     "path": "form_functions/FJS-ouuq5zsq",
     "readme": null,
     "uses": [],
     "used_by": [
-      "forms/FRM-mfveruw6"
-    ]
-  },
-  {
-    "id": "FJS-qfhsd08t",
-    "type": "form_functions",
-    "name": "azdsBuildScriptPanel",
-    "description": "Async form function for the Run an Azure PowerShell Script (Deployment Script) order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
-    "path": "form_functions/FJS-qfhsd08t",
-    "readme": null,
-    "uses": [],
-    "used_by": [
+      "forms/FRM-mfveruw6",
       "forms/FRM-qfupiiyj"
     ]
   },
@@ -511,7 +500,7 @@
     "path": "forms/FRM-qfupiiyj",
     "readme": null,
     "uses": [
-      "form_functions/FJS-qfhsd08t"
+      "form_functions/FJS-ouuq5zsq"
     ],
     "used_by": [
       "blueprints/BP-qo1stxre"

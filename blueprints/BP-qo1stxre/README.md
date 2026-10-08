@@ -27,7 +27,7 @@ The one enabled step mints a short-lived access token from the environment's Azu
 | Catalog (Remote Script, seq 2, disabled) | OHK-kun5r55v | Azure PS (Deployment Script) - List Resource Groups |
 | Catalog (Remote Script, seq 3, disabled) | OHK-pmng6q6r | Azure PS (Deployment Script) - Tag Resource Group |
 | Custom form | FRM-qfupiiyj | Run an Azure PowerShell Script (Deployment Script) |
-| Form function | FJS-qfhsd08t | azdsBuildScriptPanel |
+| Form function (shared with BP-jvvjm3te) | FJS-ouuq5zsq | azpsBuildScriptPanel, called with this blueprint's build-item prefix |
 | Inbound webhook (shared with BP-jvvjm3te) | IWH-vfkvduxm | Azure PS Script Panel (`/api/v3/cmp/inboundWebHooks/azps-script-panel/run/`) |
 | Webhook plugin | OHK-bvn2l7q1 | Azure PS Script Panel |
 | Shared module | SHM-r0oq14r7 | env_options (RBAC-aware environment helpers) |
