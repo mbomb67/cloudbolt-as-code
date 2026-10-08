@@ -56,39 +56,19 @@
             "show_on_servers": false,
             "type": "TXT",
             "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "description": "Resource group in the environment's subscription that hosts the deployment script resource and its temporary storage account and container instance; created in the environment's location when missing. Pinned on the custom order form as a hidden question.",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [],
-            "hide_if_default_value": false,
-            "id": "CF-w1opp7yv",
-            "label": "Script Resource Group",
-            "name": "script_resource_group",
-            "placeholder": "cloudbolt-deployment-scripts",
-            "relevant_osfamilies": [],
-            "required": true,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "STR",
-            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
         "env_id",
         "script",
-        "script_parameters",
-        "script_resource_group"
+        "script_parameters"
     ],
     "dependencies": {
         "sharedModules": [
             "shared_modules/SHM-r0oq14r7"
         ]
     },
-    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host.",
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script hosted by the blueprint's pinned execution environment, with no Run on Server host.",
     "id": "OHK-oblhxhw2",
     "max_retries": 0,
     "name": "Run Azure PowerShell Script (Deployment Script)",

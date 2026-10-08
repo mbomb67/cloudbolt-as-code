@@ -18,7 +18,9 @@ This repo ships two blueprints with the same script catalog model and the same o
 
 ## How it works
 
-The one enabled step mints a short-lived access token from the environment's Azure resource handler, renders the chosen Remote Script exactly as CloudBolt would, submits it as a `Microsoft.Resources/deploymentScripts` resource (kind AzurePowerShell) with the token in a secure environment variable, polls it, writes the container's output to the job and deletes the resource. Azure removes the temporary storage account and container itself. Everything is ARM REST from the appliance; nothing is installed on it.
+The one enabled step mints a short-lived access token from the ordered environment's Azure resource handler, renders the chosen Remote Script exactly as CloudBolt would, submits it as a `Microsoft.Resources/deploymentScripts` resource (kind AzurePowerShell) with the token in a secure environment variable, polls it, writes the container's output to the job and deletes the resource. Azure removes the temporary storage account and container itself. Everything is ARM REST from the appliance; nothing is installed on it.
+
+Where the container runs is set by two blueprint parameters, not by the orderer: **Execution Environment** (optional; the Azure-backed Environment whose subscription, region and app registration host the container, defaulting to the ordered Environment) and **Execution Resource Group** (the group that holds the transient resources, created if missing). When the execution environment differs from the ordered one, its app registration creates the storage account and container and the ordered environment's app registration is only what the script signs in as, so target subscriptions need no container or storage permissions.
 
 ## Contents
 | Role | ID | Name |
@@ -28,30 +30,32 @@ The one enabled step mints a short-lived access token from the environment's Azu
 | Catalog (Remote Script, seq 3, disabled) | OHK-pmng6q6r | Azure PS (Deployment Script) - Tag Resource Group |
 | Custom form | FRM-qfupiiyj | Run an Azure PowerShell Script (Deployment Script) |
 | Form function (shared with BP-jvvjm3te) | FJS-ouuq5zsq | azpsBuildScriptPanel, called with this blueprint's build-item prefix |
+| Generated options (Execution Environment) | HPA-o8ri018x | Generate options for Azure execution environment |
+| Generated-options plugin | OHK-wkubyobz | Generate options for Azure execution environment |
 | Inbound webhook (shared with BP-jvvjm3te) | IWH-vfkvduxm | Azure PS Script Panel (`/api/v3/cmp/inboundWebHooks/azps-script-panel/run/`) |
 | Webhook plugin | OHK-bvn2l7q1 | Azure PS Script Panel |
 | Shared module | SHM-r0oq14r7 | env_options (RBAC-aware environment helpers) |
 
 ## Prerequisites
-- An Azure resource handler whose app registration has the RBAC the scripts need (Reader for the list sample, Tag Contributor or Contributor for the tag sample) **and** can create and delete deployment scripts, storage accounts and container instances in the host resource group. Contributor on that group is the simple choice; Microsoft documents a least-privilege custom role in the deployment-script article above. The runner creates the group when it is missing, which needs that right at subscription scope; otherwise create it by hand.
-- Each Environment's location set to a region where Azure Container Instances is available. The container runs there.
-- The `Microsoft.Storage` and `Microsoft.ContainerInstance` resource providers registered in the subscription.
+- For each Environment users order into: an Azure resource handler whose app registration has the RBAC the scripts need (Reader for the list sample, Tag Contributor or Contributor for the tag sample).
+- For the execution environment (the pinned one, or each ordered Environment when none is pinned): an app registration that can create and delete deployment scripts, storage accounts and container instances in the Execution Resource Group. Contributor on that group is the simple choice; Microsoft documents a least-privilege custom role in the deployment-script article above. The runner creates the group when it is missing, which needs that right at subscription scope; otherwise create it by hand. Its location must be a region where Azure Container Instances is available, and the `Microsoft.Storage` and `Microsoft.ContainerInstance` resource providers must be registered in its subscription.
 - Azure public cloud. The sign-in block does not pass `-Environment`, so sovereign clouds need a one-line change in the runner.
 
 ## Setup
 1. Sync the blueprint, then sync `webhooks/` separately: a blueprint sync imports the form and form function but does not refresh the inbound webhook the form calls. The webhook is the one BP-jvvjm3te uses; syncing it once serves both.
-2. Optional: change the host resource group. The default `cloudbolt-deployment-scripts` is pinned in the form as the hidden question `plugin-bdi-ohh6grk9.script_resource_group`; edit its `defaultValue`.
+2. On the blueprint's Parameters tab, pin **Execution Environment** if runs should not be hosted by the ordered Environment: *Add option* offers a dropdown of every Azure-backed Environment (the stored value is its global ID). Leave it without options to keep each run in the ordered Environment. **Execution Resource Group** ships pinned to `cloudbolt-deployment-scripts`; change the option to use another group. Each parameter must have exactly one option or none. A sync recreates blueprint parameters from the metadata, so copy a pinned environment into `parameters[].options` in your copy of this repo, or re-pin it after each sync.
 3. Optional: change the Az module version, `AZ_POWERSHELL_VERSION` in the runner. Supported values are the tags of the [azuredeploymentscripts-powershell image](https://mcr.microsoft.com/v2/azuredeploymentscripts-powershell/tags/list) without the `az` prefix.
 4. Grant the blueprint to the groups that may run scripts. Environment entitlement is evaluated per order from `group.get_available_environments()`, and the webhook only answers for groups that may deploy the blueprint.
 
 ## Adding a script
 Same as BP-jvvjm3te: add the `.ps1` as a Remote Script build item, **untick Enabled**, declare its inputs as action inputs, and do not call `Connect-AzAccount`. Differences:
 - The script runs under PowerShell 7 on Linux, so Windows-only cmdlets are unavailable; line endings are normalised for you. There is no Run on Server to set and the item's OS family is informational.
-- Extra template variables: `cb_azure_subscription_id`, `cb_azure_tenant_id`, `cb_azure_location`, `cb_target_environment`, `cb_script_resource_group`. There is no server in the context, so server variables do not resolve.
+- Extra template variables: `cb_azure_subscription_id`, `cb_azure_tenant_id`, `cb_azure_location`, `cb_target_environment` (all for the ordered Environment), `cb_execution_environment`, `cb_execution_resource_group`. There is no server in the context, so server variables do not resolve.
 - Command-line arguments on the Remote Script are passed as the deployment script's `arguments`.
 
 ## Notes
 - Azure needs one to three minutes to provision the storage account and container before the script starts; the job reports each state. The Remote Script's execution timeout bounds the container run (one day at most) and the job waits 15 minutes longer than that before giving up.
+- The Execution Environment is admin-chosen infrastructure, not an order-time choice: no group entitlement is evaluated for it, and its app registration performs the container-hosting ARM calls for every order of this blueprint. The ordered Environment is still entitlement-checked per order.
 - Access tokens last 60 to 90 minutes by default; keep the execution timeout below that. Scripts that must run longer need a user-assigned managed identity on the deployment script resource, which this runner does not implement.
 - The token travels only as a secure environment variable, which Azure never returns when the resource is read, and the wrapper removes it from the environment right after sign-in. Nothing logs the rendered script. Script output is written to the job log, so scripts should not print secrets.
 - Failures: the wrapper traps terminating errors into `CB_ERROR:` lines and exits 1, which Azure reports as a Failed deployment script; a `CB_INFO:` line confirms the Az.Accounts version and subscription, and a `CB_WARNING:` block lists non-terminating errors. The job's error field shows Azure's error plus the output tail; the full output is behind the job's output link.

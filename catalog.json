@@ -241,6 +241,7 @@
     "readme": "blueprints/BP-qo1stxre/README.md",
     "uses": [
       "forms/FRM-qfupiiyj",
+      "orchestration_actions/HPA-o8ri018x",
       "plugins/OHK-kun5r55v",
       "plugins/OHK-oblhxhw2",
       "plugins/OHK-pmng6q6r"
@@ -630,6 +631,22 @@
     ],
     "used_by": [],
     "hook_point": "Post-Provision",
+    "enabled": true
+  },
+  {
+    "id": "HPA-o8ri018x",
+    "type": "orchestration_actions",
+    "name": "Generate options for Azure execution environment",
+    "description": "Lists every Azure-backed Environment so an admin pins the Deployment Script blueprint's execution environment, where its containers run, from a dropdown.",
+    "path": "orchestration_actions/HPA-o8ri018x",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-wkubyobz"
+    ],
+    "used_by": [
+      "blueprints/BP-qo1stxre"
+    ],
+    "hook_point": "Generated Parameter Options",
     "enabled": true
   },
   {
@@ -1579,7 +1596,7 @@
     "id": "OHK-oblhxhw2",
     "type": "plugins",
     "name": "Run Azure PowerShell Script (Deployment Script)",
-    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host.",
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script hosted by the blueprint's pinned execution environment, with no Run on Server host.",
     "path": "plugins/OHK-oblhxhw2",
     "readme": null,
     "uses": [
@@ -1899,6 +1916,21 @@
     "readme": null,
     "uses": [],
     "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-wkubyobz",
+    "type": "plugins",
+    "name": "Generate options for Azure execution environment",
+    "description": "Generates the dropdown of Azure-backed Environments an admin pins the Deployment Script blueprint's execution environment from, valued by environment global ID.",
+    "path": "plugins/OHK-wkubyobz",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-o8ri018x"
+    ],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -2613,6 +2645,7 @@
       "plugins/OHK-r9cm4oar",
       "plugins/OHK-b1n02ula",
       "plugins/OHK-fx500o2r",
+      "plugins/OHK-wkubyobz",
       "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24",

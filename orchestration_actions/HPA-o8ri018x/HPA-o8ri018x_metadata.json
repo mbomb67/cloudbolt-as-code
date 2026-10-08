@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-wkubyobz"
+    },
+    "description": "Lists every Azure-backed Environment so an admin pins the Deployment Script blueprint's execution environment, where its containers run, from a dropdown.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-o8ri018x",
+    "last_updated": null,
+    "name": "Generate options for Azure execution environment",
+    "run_on_statuses": "",
+    "run_seq": null
+}

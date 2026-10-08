@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7"
+        ]
+    },
+    "description": "Generates the dropdown of Azure-backed Environments an admin pins the Deployment Script blueprint's execution environment from, valued by environment global ID.",
+    "id": "OHK-wkubyobz",
+    "max_retries": 0,
+    "name": "Generate options for Azure execution environment",
+    "resource_technologies": [],
+    "script_filename": "OHK-wkubyobz_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

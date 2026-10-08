@@ -72,5 +72,61 @@
     "resource_name_template": "",
     "sequence": 0,
     "show_recipient_field_on_order_form": false,
-    "teardown_items": []
+    "teardown_items": [],
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Optional: the Azure-backed CloudBolt Environment whose subscription, region and app registration host the deployment script container for every run of this blueprint, pinned as this parameter's only option (global ID, chosen from the generated dropdown); leave it without options to run each script's container in the Environment the orderer picked.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-o8ri018x"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for Azure execution environment"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-tfr1vo79",
+            "label": "Execution Environment",
+            "name": "azps_execution_environment",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Name of the resource group, in the execution subscription, that holds the deployment script resource and its temporary storage account and container instance, pinned as this parameter's only option; created in the execution environment's location when it does not exist.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [],
+            "global_options": [],
+            "id": "CF-4jp2h9oa",
+            "label": "Execution Resource Group",
+            "name": "azps_execution_resource_group",
+            "options": [
+                "cloudbolt-deployment-scripts"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ]
 }
