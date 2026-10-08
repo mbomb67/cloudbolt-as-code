@@ -58,7 +58,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment on a Windows host you manage (the script's Run on Server), with the sign-in handled by CloudBolt from the environment's resource handler.",
     "favorited": false,
     "has_custom_form": true,
     "icon": "azure_powershell.png",

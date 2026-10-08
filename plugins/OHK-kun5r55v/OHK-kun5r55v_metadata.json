@@ -1,0 +1,39 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Resource group name filter; wildcards are allowed at the start and/or end (e.g. rg-prod-*). Leave blank or * to list every resource group.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-tyb70xyo",
+            "label": "Name Filter",
+            "name": "name_filter",
+            "placeholder": "rg-*",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter, run in Azure's deployment-script container.",
+    "execution_timeout": 600,
+    "id": "OHK-kun5r55v",
+    "max_retries": 0,
+    "name": "Azure PS (Deployment Script) - List Resource Groups",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-kun5r55v_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Linux"
+    ],
+    "type": "Remote Script"
+}

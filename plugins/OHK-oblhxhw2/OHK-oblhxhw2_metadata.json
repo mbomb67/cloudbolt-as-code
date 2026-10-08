@@ -1,0 +1,100 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt Environment whose Azure resource handler supplies the app registration that signs the Az PowerShell session in; only Azure-backed environments the ordering group may use are listed.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-tlcgjn34",
+            "label": "Environment",
+            "name": "env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Which Remote Script to run: one of the disabled Remote Script build items on this blueprint, listed by item name; it runs under PowerShell 7 in Azure's deployment-script container.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-n7wwwrjc",
+            "label": "Script",
+            "name": "script",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "JSON object of the chosen script's action-input values keyed by input name, e.g. {\"name_filter\": \"rg-prod-*\"}; inputs left out fall back to the build item's pinned defaults.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-byrmxnhe",
+            "label": "Script Parameters (JSON)",
+            "name": "script_parameters",
+            "placeholder": "{}",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Resource group in the environment's subscription that hosts the deployment script resource and its temporary storage account and container instance; created in the environment's location when missing. Pinned on the custom order form as a hidden question.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-w1opp7yv",
+            "label": "Script Resource Group",
+            "name": "script_resource_group",
+            "placeholder": "cloudbolt-deployment-scripts",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "env_id",
+        "script",
+        "script_parameters",
+        "script_resource_group"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-r0oq14r7"
+        ]
+    },
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host.",
+    "id": "OHK-oblhxhw2",
+    "max_retries": 0,
+    "name": "Run Azure PowerShell Script (Deployment Script)",
+    "resource_technologies": [],
+    "script_filename": "OHK-oblhxhw2_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

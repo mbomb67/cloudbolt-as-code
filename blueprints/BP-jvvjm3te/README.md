@@ -1,6 +1,6 @@
 # Run an Azure PowerShell Script
 
-Ad-hoc Azure PowerShell against the subscription behind a CloudBolt Environment, with no credentials on the order form. The blueprint creates no resource: each order is one job that runs one script from the blueprint's catalog.
+Ad-hoc Azure PowerShell against the subscription behind a CloudBolt Environment, with no credentials on the order form. The blueprint creates no resource: each order is one job that runs one script from the blueprint's catalog **on a Windows host you manage**. For the same catalog with no host at all, see [Run an Azure PowerShell Script (Deployment Script)](../BP-qo1stxre/README.md), which runs each script in a container Azure starts for the run; its README compares the two.
 
 The catalog is the blueprint's Build tab: every **disabled** Remote Script item is a selectable script. The one enabled step, the runner plugin, mints a short-lived access token from the environment's Azure resource handler, renders the chosen Remote Script exactly as CloudBolt would, prepends a `Connect-AzAccount -AccessToken` block, and runs it on the Remote Script's own Run on Server host over WinRM.
 
