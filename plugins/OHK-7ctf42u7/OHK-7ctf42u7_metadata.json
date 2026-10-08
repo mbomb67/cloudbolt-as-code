@@ -1,0 +1,32 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "One URL per line. A bare host is checked as https://host; lines starting with # are ignored.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xzu9q0up",
+            "label": "URLs to check",
+            "name": "target_urls",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Probes the URLs entered on the job and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on.",
+    "id": "OHK-7ctf42u7",
+    "max_retries": 0,
+    "name": "URL Connectivity Check",
+    "resource_technologies": [],
+    "script_filename": "OHK-7ctf42u7_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

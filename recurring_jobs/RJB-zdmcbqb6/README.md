@@ -19,3 +19,4 @@ Schedule: `0 6 * * 1` (Mondays 06:00 appliance time), imported **disabled**. Run
 - FAILURE: a host is unreachable under the current setting. WARNING: everything works now only because SSL verification is off. SUCCESS: all hosts OK.
 - Sends anonymous requests only (an HTTP 401 or 403 counts as reachable) and stores nothing. The binary probe transfers headers only.
 - A failed order writes the same diagnosis to its job log, so the host and CA are available without running this job; the error the orderer sees stays short.
+- To check URLs outside the Bicep engine's list, use the URL Connectivity Check job (RJB-z3cr1xra), which takes its URLs from the job.
