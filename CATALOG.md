@@ -5,18 +5,18 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Blueprints](#blueprints) | 18 |
+| [Blueprints](#blueprints) | 19 |
 | [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 3 |
 | [Webhooks](#webhooks) | 2 |
 | [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 90 |
+| [Plugins](#plugins) | 93 |
 | [Shared modules](#shared-modules) | 12 |
 | [UI extensions](#ui-extensions) | 8 |
-| [Forms](#forms) | 7 |
-| [Form functions](#form-functions) | 2 |
+| [Forms](#forms) | 8 |
+| [Form functions](#form-functions) | 3 |
 
 ## Blueprints
 
@@ -40,7 +40,8 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | OpenShift Project Landing Zone | [BP-tikkhf2y](blueprints/BP-tikkhf2y/README.md) | Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it. |
 | Postgres Database | [BP-b91c5f90](blueprints/BP-b91c5f90/README.md) | Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role. |
 | Request Certificate (Windows CA) | [BP-lt6a3yzf](blueprints/BP-lt6a3yzf/README.md) | Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource. |
-| Run an Azure PowerShell Script | [BP-jvvjm3te](blueprints/BP-jvvjm3te/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler. |
+| Run an Azure PowerShell Script | [BP-jvvjm3te](blueprints/BP-jvvjm3te/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment on a Windows host you manage (the script's Run on Server), with the sign-in handled by CloudBolt from the environment's resource handler. |
+| Run an Azure PowerShell Script (Deployment Script) | [BP-qo1stxre](blueprints/BP-qo1stxre/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment in a Microsoft-managed container started per run through an ARM deployment script, with no server to maintain and the sign-in handled by CloudBolt from the environment's resource handler. |
 | Windows File Server | [BP-psw7rclb](blueprints/BP-psw7rclb/README.md) | Deploys a Windows server and installs the File Server role. |
 
 ## Resource actions
@@ -147,6 +148,8 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Azure NSG - Attach VM to NSG | [OHK-t8fjx0kz](plugins/OHK-t8fjx0kz/) | Attaches a provisioned Azure VM's network interfaces to the network security group in its azure_nsg field. | CloudBolt Plug-in | [Azure NSG - Attach VM to NSG](orchestration_actions/HPA-vo2ghe4x/README.md) |
 | Azure NSG - Generate Options | [OHK-vswf8b1m](plugins/OHK-vswf8b1m/) | Generates azure_nsg options from the network security groups in the selected environment's subscription and region. | CloudBolt Plug-in | standalone |
 | Azure Price Sheet Refresh | [OHK-bjgpsxoq](plugins/OHK-bjgpsxoq/) | Downloads each Azure handler's negotiated Price Sheet and caches it on disk for the rate hook. | CloudBolt Plug-in | [Azure Price Sheet Refresh](recurring_jobs/RJB-reblryol/README.md) |
+| Azure PS (Deployment Script) - List Resource Groups | [OHK-kun5r55v](plugins/OHK-kun5r55v/) | Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter, run in Azure's deployment-script container. | Remote Script | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
+| Azure PS (Deployment Script) - Tag Resource Group | [OHK-pmng6q6r](plugins/OHK-pmng6q6r/) | Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags, run in Azure's deployment-script container. | Remote Script | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Azure PS - List Resource Groups | [OHK-z9p72xu7](plugins/OHK-z9p72xu7/) | Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter. | Remote Script | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Azure PS - Tag Resource Group | [OHK-a7e4s2od](plugins/OHK-a7e4s2od/) | Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags. | Remote Script | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Azure PS Script Panel | [OHK-bvn2l7q1](plugins/OHK-bvn2l7q1/) | Serves the Run an Azure PowerShell Script order form the SurveyJS fields for the chosen catalog script's declared action inputs, built from CloudBolt's own parameter metadata. | CloudBolt Plug-in | [Azure PS Script Panel](webhooks/IWH-vfkvduxm/) |
@@ -209,6 +212,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Revoke Restricted Contributor Access | [OHK-myrfeogg](plugins/OHK-myrfeogg/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | CloudBolt Plug-in | [Revoke Access](resource_actions/RSA-8zwsrcbv/) |
 | Run Ansible Job Templates on Servers | [OHK-cwqouaqn](plugins/OHK-cwqouaqn/) | Launches the Ansible Automation Platform job templates declared by the job template maps (Variable Maps with a job_template key) pinned on the blueprint's ansible_job_template_maps parameter for every server of the deployment, building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory; no pinned maps or no servers is a no-op. | CloudBolt Plug-in | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) |
 | Run Azure PowerShell Script | [OHK-pmyb1car](plugins/OHK-pmyb1car/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
+| Run Azure PowerShell Script (Deployment Script) | [OHK-oblhxhw2](plugins/OHK-oblhxhw2/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
 | Set Resource Name From Field | [OHK-yw0klpjg](plugins/OHK-yw0klpjg/) | Renames the resource from a chosen field value and the first server's hostname. | CloudBolt Plug-in | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Set URL Parameter | [OHK-1rel6s64](plugins/OHK-1rel6s64/) | Sets the website URL parameter on the web application resource. | CloudBolt Plug-in | [IIS Web Application](blueprints/BP-122nbdt5/README.md), [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
@@ -236,7 +240,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
-| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Azure PS Script Panel](plugins/OHK-bvn2l7q1/), [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Run Azure PowerShell Script](plugins/OHK-pmyb1car/) |
+| `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Azure PS Script Panel](plugins/OHK-bvn2l7q1/), [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Run Azure PowerShell Script](plugins/OHK-pmyb1car/), [Run Azure PowerShell Script (Deployment Script)](plugins/OHK-oblhxhw2/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
@@ -271,6 +275,7 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | HCP Terraform No-Code Module | [FRM-1dxfulvq](forms/FRM-1dxfulvq/) | Provisions an HCP Terraform no-code module; the job pauses for plan review before apply. | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | HCP Terraform VM | [FRM-t3v8zpb7](forms/FRM-t3v8zpb7/) | Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply. | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Run an Azure PowerShell Script | [FRM-mfveruw6](forms/FRM-mfveruw6/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
+| Run an Azure PowerShell Script (Deployment Script) | [FRM-qfupiiyj](forms/FRM-qfupiiyj/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose, in a container Azure starts for the run. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |
 
 ## Form functions
@@ -279,5 +284,6 @@ Form JavaScript helpers. A function syncs only as a dependency of a form.
 
 | Function | ID | Description | Form |
 |---|---|---|---|
+| azdsBuildScriptPanel | [FJS-qfhsd08t](form_functions/FJS-qfhsd08t/) | Async form function for the Run an Azure PowerShell Script (Deployment Script) order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script. | [Run an Azure PowerShell Script (Deployment Script)](forms/FRM-qfupiiyj/) |
 | azpsBuildScriptPanel | [FJS-ouuq5zsq](form_functions/FJS-ouuq5zsq/) | Async form function for the Run an Azure PowerShell Script order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script. | [Run an Azure PowerShell Script](forms/FRM-mfveruw6/) |
 | tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |

@@ -127,7 +127,7 @@
     "id": "BP-jvvjm3te",
     "type": "blueprints",
     "name": "Run an Azure PowerShell Script",
-    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment, with the sign-in handled by CloudBolt from the environment's resource handler.",
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment on a Windows host you manage (the script's Run on Server), with the sign-in handled by CloudBolt from the environment's resource handler.",
     "path": "blueprints/BP-jvvjm3te",
     "readme": "blueprints/BP-jvvjm3te/README.md",
     "uses": [
@@ -229,6 +229,21 @@
       "orchestration_actions/HPA-qb0w86mi",
       "plugins/OHK-2evtyysr",
       "plugins/OHK-up7829pv"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-qo1stxre",
+    "type": "blueprints",
+    "name": "Run an Azure PowerShell Script (Deployment Script)",
+    "description": "Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment in a Microsoft-managed container started per run through an ARM deployment script, with no server to maintain and the sign-in handled by CloudBolt from the environment's resource handler.",
+    "path": "blueprints/BP-qo1stxre",
+    "readme": "blueprints/BP-qo1stxre/README.md",
+    "uses": [
+      "forms/FRM-qfupiiyj",
+      "plugins/OHK-kun5r55v",
+      "plugins/OHK-oblhxhw2",
+      "plugins/OHK-pmng6q6r"
     ],
     "used_by": []
   },
@@ -389,6 +404,18 @@
     ]
   },
   {
+    "id": "FJS-qfhsd08t",
+    "type": "form_functions",
+    "name": "azdsBuildScriptPanel",
+    "description": "Async form function for the Run an Azure PowerShell Script (Deployment Script) order form: fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script.",
+    "path": "form_functions/FJS-qfhsd08t",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-qfupiiyj"
+    ]
+  },
+  {
     "id": "FJS-ylyi1tc0",
     "type": "form_functions",
     "name": "tfcBuildDay2Panel",
@@ -474,6 +501,20 @@
     ],
     "used_by": [
       "blueprints/BP-jvvjm3te"
+    ]
+  },
+  {
+    "id": "FRM-qfupiiyj",
+    "type": "forms",
+    "name": "Run an Azure PowerShell Script (Deployment Script)",
+    "description": "Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose, in a container Azure starts for the run. CloudBolt signs the session in; no credentials are entered here.",
+    "path": "forms/FRM-qfupiiyj",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-qfhsd08t"
+    ],
+    "used_by": [
+      "blueprints/BP-qo1stxre"
     ]
   },
   {
@@ -1461,6 +1502,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-kun5r55v",
+    "type": "plugins",
+    "name": "Azure PS (Deployment Script) - List Resource Groups",
+    "description": "Lists the resource groups in the selected environment's Azure subscription whose names match a wildcard filter, run in Azure's deployment-script container.",
+    "path": "plugins/OHK-kun5r55v",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-qo1stxre"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-l25x6wd8",
     "type": "plugins",
     "name": "Create Blob Container",
@@ -1533,6 +1587,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-oblhxhw2",
+    "type": "plugins",
+    "name": "Run Azure PowerShell Script (Deployment Script)",
+    "description": "Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host.",
+    "path": "plugins/OHK-oblhxhw2",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-r0oq14r7"
+    ],
+    "used_by": [
+      "blueprints/BP-qo1stxre"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ovt0z46j",
     "type": "plugins",
     "name": "List Subscription Access",
@@ -1546,6 +1615,19 @@
       "resource_actions/RSA-f7wb11ny"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-pmng6q6r",
+    "type": "plugins",
+    "name": "Azure PS (Deployment Script) - Tag Resource Group",
+    "description": "Merges one tag onto a named resource group in the selected environment's Azure subscription and prints the resulting tags, run in Azure's deployment-script container.",
+    "path": "plugins/OHK-pmng6q6r",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-qo1stxre"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-pmyb1car",
@@ -2545,7 +2627,8 @@
       "plugins/OHK-529jjzli",
       "plugins/OHK-axtt0yqq",
       "plugins/OHK-pvo05e24",
-      "plugins/OHK-pmyb1car"
+      "plugins/OHK-pmyb1car",
+      "plugins/OHK-oblhxhw2"
     ]
   },
   {
