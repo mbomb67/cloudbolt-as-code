@@ -1,18 +1,22 @@
 # Run an Azure PowerShell Script (Deployment Script)
 
-Ad-hoc Azure PowerShell against the subscription behind a CloudBolt Environment, with no credentials on the order form and **no server to run it on**. Each order runs one script from the blueprint's catalog in a container that Azure starts for that run, through an [ARM deployment script](https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/deployment-script-template). The blueprint creates no resource.
+Ad-hoc Azure PowerShell against the subscription behind a CloudBolt Environment, with no credentials on the order form and **no server to run it on**. Each order runs one script from the blueprint's catalog in a container that Azure starts for that run, through an [ARM deployment script](https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/deployment-script-template). The blueprint creates no resource and never uses a Run on Server host.
 
-This is the serverless twin of [Run an Azure PowerShell Script](../BP-jvvjm3te/README.md), which runs the same kind of catalog on a Windows host you manage. Pick one:
+## Which blueprint to use
 
-| | Run an Azure PowerShell Script (BP-jvvjm3te) | This blueprint (BP-qo1stxre) |
+This repo ships two blueprints with the same script catalog model and the same order form; they differ only in where the script executes. Sync the one that fits, or both.
+
+| | [Run an Azure PowerShell Script](../BP-jvvjm3te/README.md) (BP-jvvjm3te) | Run an Azure PowerShell Script (Deployment Script), this blueprint (BP-qo1stxre) |
 |---|---|---|
-| Where the script runs | Your Windows host (the Remote Script's Run on Server) over WinRM or Azure Run Command | A Microsoft-managed Linux container (Azure Container Instances) created per run |
+| Execution host | A Windows host you manage, set as each Remote Script's Run on Server, reached over WinRM or Azure Run Command | None. A Microsoft-managed Linux container (Azure Container Instances) that Azure creates for the run and removes afterwards |
 | What you maintain | The host and its machine-wide Az modules | Nothing but a resource group per subscription |
 | PowerShell | Whatever the host has (Windows PowerShell 5.1 under Run Command) | PowerShell 7 with the Az modules of the pinned image |
 | Time to first output | Seconds | A few minutes: Azure provisions a storage account and a container for every run |
 | Per-run Azure cost | None | Seconds of container time plus a transient storage account |
 | Permissions | Host credentials | The app registration creates and deletes deployment scripts, storage accounts and container instances in the host resource group |
-| Scripts | Same catalog model; Windows-only cmdlets work | Same catalog model; pure Az PowerShell only |
+| Scripts | Windows-only cmdlets work | Pure Az PowerShell only |
+
+## How it works
 
 The one enabled step mints a short-lived access token from the environment's Azure resource handler, renders the chosen Remote Script exactly as CloudBolt would, submits it as a `Microsoft.Resources/deploymentScripts` resource (kind AzurePowerShell) with the token in a secure environment variable, polls it, writes the container's output to the job and deletes the resource. Azure removes the temporary storage account and container itself. Everything is ARM REST from the appliance; nothing is installed on it.
 
