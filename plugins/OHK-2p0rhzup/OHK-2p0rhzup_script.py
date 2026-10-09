@@ -10,6 +10,10 @@ Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved. Output keys are camelCase so a
 synchronous run and an asynchronous fetch_job read identically.
+Boolean choices are STR inputs holding true or false, not BOOL: a BOOL input
+renders as a select in the action's edit form, and saving that form stores
+the selection as a default, which hides the parameter from the tool schema
+and makes the platform refuse it.
 """
 import html
 import os
@@ -60,13 +64,13 @@ def _read_inputs():
     raw = {
         "log_job_id": """{{ log_job_id }}""",
         "log_tail": """{{ log_tail }}""",
-        "log_include_children": """{{ log_include_children }}""",
+        "log_children": """{{ log_children }}""",
         "log_file_tail": """{{ log_file_tail }}""",
     }
     return {
         "job_id": _text(raw["log_job_id"]),
         "tail": _int(raw["log_tail"], DEFAULT_TAIL, 1, MAX_TAIL),
-        "include_children": _bool(raw["log_include_children"], True),
+        "include_children": _bool(raw["log_children"], True),
         "file_tail": _int(raw["log_file_tail"], 0, 0, MAX_FILE_TAIL),
     }
 

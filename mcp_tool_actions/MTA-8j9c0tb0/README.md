@@ -13,7 +13,7 @@ MCP Tool Action published to agents as `custom_fetch_job_log`. Returns what the 
 |---|---|---|
 | `log_job_id` | string, required | `JOB-` global id (numeric id also accepted) |
 | `log_tail` | integer | Newest progress messages to return, oldest first (default 100, max 1000) |
-| `log_include_children` | boolean | Include direct children and failed descendants (default true) |
+| `log_children` | `true`/`false` | Include direct children and failed descendants (default true) |
 | `log_file_tail` | integer | Lines from the end of the job log file, for tracebacks (default 0, max 2000) |
 
 ## Output

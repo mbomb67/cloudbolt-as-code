@@ -12,6 +12,10 @@ Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved. Output keys are camelCase so a
 synchronous run and an asynchronous fetch_job read identically.
+Boolean choices are STR inputs holding true or false, not BOOL: a BOOL input
+renders as a select in the action's edit form, and saving that form stores
+the selection as a default, which hides the parameter from the tool schema
+and makes the platform refuse it.
 """
 import html
 import re
@@ -75,15 +79,15 @@ def _read_inputs():
         "sync_branch": """{{ sync_branch }}""",
         "sync_paths": """{{ sync_paths }}""",
         "sync_repo": """{{ sync_repo }}""",
-        "sync_refresh_if_exists": """{{ sync_refresh_if_exists }}""",
-        "sync_ignore_action_enabled": """{{ sync_ignore_action_enabled }}""",
+        "sync_refresh_existing": """{{ sync_refresh_existing }}""",
+        "sync_keep_enabled_flag": """{{ sync_keep_enabled_flag }}""",
     }
     return {
         "branch": _text(raw["sync_branch"]),
         "paths": _split(raw["sync_paths"]),
         "repo": _text(raw["sync_repo"]),
-        "refresh_if_exists": _bool(raw["sync_refresh_if_exists"], True),
-        "ignore_action_enabled": _bool(raw["sync_ignore_action_enabled"], False),
+        "refresh_if_exists": _bool(raw["sync_refresh_existing"], True),
+        "ignore_action_enabled": _bool(raw["sync_keep_enabled_flag"], False),
     }
 
 

@@ -14,8 +14,8 @@ MCP Tool Action published to agents as `custom_sync_from_source_control_repo`. C
 | `sync_branch` | string, required | Branch or tag; must not contain a slash |
 | `sync_paths` | text, required | Repo-relative content paths, one per line: `blueprints/BP-...`, `resource_actions/RSA-.../RSA-..._metadata.json`, ... |
 | `sync_repo` | string | `SCR-` id or label; optional when the appliance has one repository |
-| `sync_refresh_if_exists` | boolean | Refresh existing objects (default true) |
-| `sync_ignore_action_enabled` | boolean | Keep each action's current enabled flag (default false) |
+| `sync_refresh_existing` | `true`/`false` | Refresh existing objects (default true) |
+| `sync_keep_enabled_flag` | `true`/`false` | Keep each action's current enabled flag instead of the metadata's (default false) |
 
 Forms and form functions cannot be listed; they import with the blueprint or action that references them, as do plugins and shared modules.
 

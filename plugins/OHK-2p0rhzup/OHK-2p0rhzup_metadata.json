@@ -3,6 +3,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
+            "description": "true (default) includes the direct child jobs and every failed descendant; false omits them.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-mbuj5tap",
+            "label": "Include child jobs (true/false, default true)",
+            "name": "log_children",
+            "placeholder": "true",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
             "description": "Lines from the end of the job's log file to include, for tracebacks (default 0, max 2000).",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -17,25 +36,6 @@
             "show_as_attribute": false,
             "show_on_servers": false,
             "type": "INT",
-            "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "description": "Include the direct child jobs and every failed descendant (default true).",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [],
-            "hide_if_default_value": true,
-            "id": "CF-s6d0evjb",
-            "label": "Include child jobs (default true)",
-            "name": "log_include_children",
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": false,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "BOOL",
             "value_pattern_string": null
         },
         {
@@ -80,7 +80,7 @@
     "action_inputs_sequence": [
         "log_job_id",
         "log_tail",
-        "log_include_children",
+        "log_children",
         "log_file_tail"
     ],
     "description": "Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed.",
