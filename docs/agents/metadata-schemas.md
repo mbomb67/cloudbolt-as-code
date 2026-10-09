@@ -1202,7 +1202,7 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 ## 14. `mcp_tool_actions/` — MTA-*
 
 - **Django model / serializer:** `cbhooks.models.MCPToolAction` (`cbhooks/models.py`) via `MCPToolActionSerializer` (`cbhooks/api/v3/serializers/mcp_tool_action.py`); the fields below are that serializer's `fields`, cross-checked against the export `mcp_tool_actions/MTA-lp8lgi7e`.
-- **Top-level sync target?** Yes. Synced through Source Control Repos on 2026-10-09 (`objects_to_sync` key `mcp_tool_actions`); the plugin in `dependencies.hook` imports with it. Sync does not turn on **Synchronous Action**; check it after the first import.
+- **Top-level sync target?** Yes. Synced through Source Control Repos on 2026-10-09 (`objects_to_sync` key `mcp_tool_actions`); the plugin in `dependencies.hook` imports with it. The importer leaves **Synchronous Action** off on first import (the API refuses `PATCH`, so set it on the edit form once; refreshes keep it).
 - **Standalone or linked?** Standalone. Runnable code lives on the plugin in `dependencies.hook`.
 - **Colocated files:** None.
 
@@ -1236,7 +1236,8 @@ An MCP tool action publishes a plugin as a tool on CloudBolt's MCP server. An AI
 - Plugin entry point: `run(job, *args, **kwargs)`; `kwargs["profile"]` is the calling `UserProfile` (fall back to `job.owner` when async). Inputs arrive as rendered template tokens; read every declared input once into a dict (`plugins/OHK-0wtrj2wb` shows the pattern), because the token scan on save removes inputs the script does not reference.
 - Return `{"status": "SUCCESS"|"FAILURE", "output_message": str, "error_message": str, "outputs": dict}`. `outputs` is what the agent sees. Through `fetch_job` every dict key is camelCased by the API renderer, so use camelCase keys from the start.
 - `is_synchronous` and `enabled` default off when a tool is created in the UI; roles never sync, so a write tool must guard in code (`profile.is_cbadmin`). The MCP client caches the tool list per session: reconnect after syncing a new tool.
-- Action-input names are global `CustomField` names; pick names that cannot collide with parameters that already exist on an appliance (`sync_branch`, not `branch`).
+- Action-input names are global `CustomField` names; pick names that cannot collide with parameters that already exist on an appliance (`sync_branch`, not `branch`). Labels are capped at 50 characters.
+- Do not declare BOOL inputs on a tool. The edit form renders a BOOL as a select and stores the selection as a default when saved; the parameter then disappears from the tool schema and `run_mcp_tool_action` refuses it (`Parameters not allowed`). Use a STR holding `true` or `false` (`plugins/OHK-2p0rhzup`).
 
 ### Worked example
 

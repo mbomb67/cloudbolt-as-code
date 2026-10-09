@@ -24,5 +24,6 @@ Forms and form functions cannot be listed; they import with the blueprint or act
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
+- `sync_repo` is required when the appliance has more than one repository; the error names them.
 - Every synced object's remote source URL is re-pointed at the branch; sync the same paths from `main` after the branch merges.
 - Bootstrap and the Synchronous Action flag: see the prerequisites in testing-loop.md.

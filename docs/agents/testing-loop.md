@@ -16,12 +16,12 @@ Create or change content, then prove it works on an appliance before the PR: pus
    | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` | Starts a functionaltest job for named CIT tests |
    | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` | Cancels hung jobs and their descendants |
 
-   **Bootstrap.** The sync tool cannot install itself. The first time, import the six `mcp_tool_actions/MTA-*` folders from the UI (Actions > MCP Tool Actions > Create from Repository, which pulls each tool's plugin with it) or with `POST /api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/`. Then, on each tool: confirm **Synchronous Action** and **Enabled** are on (the UI defaults both off), and reconnect the MCP client, because tool lists are cached per session. Every write tool refuses callers who are not CloudBolt admins; roles are optional on top of that.
+   **Bootstrap.** The sync tool cannot install itself. The first time, import the six `mcp_tool_actions/MTA-*` folders from the UI (Actions > MCP Tool Actions > Create from Repository, which pulls each tool's plugin with it) or with `POST /api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/`. The importer leaves **Synchronous Action** off (it restores only the tool's name, description, title and hints) and the v3 API refuses `PATCH` on MCP tool actions, so open each tool's edit form once (Actions > MCP Tool Actions > the tool > Edit), tick Synchronous Action, and save; later refreshes keep it. Then reconnect the MCP client, because tool lists are cached per session. Until the flag is set every tool still works, through the job route described below. Every write tool refuses callers who are not CloudBolt admins; roles are optional on top of that.
 3. **A local config file**, `.claude/cb-test.local.json`, gitignored because it names an instance. Copy `.claude/cb-test.example.json` and fill it in:
 
    | Key | Meaning |
    |---|---|
-   | `source_code_repo` | The repository's `SCR-` global id or label on the appliance (optional when the appliance has one repository) |
+   | `source_code_repo` | The repository's `SCR-` global id or label on the appliance; required when the appliance has more than one repository (the sync tool lists them when it is missing) |
    | `group_id` | `GRP-` id to order under; must be allowed to order the blueprints under test |
    | `resource_name_prefix` | Prefix for everything the loop creates, default `cbtest` |
    | `test_server_id` | `SVR-` id for exercising standalone server actions (optional) |
@@ -36,7 +36,7 @@ Create or change content, then prove it works on an appliance before the PR: pus
 - **Synchronous tool:** the plugin's result comes back inline; read `outputs`.
 - **Asynchronous tool:** the response is `{"success": true, "ids": ["JOB-..."]}`; call `fetch_job` on that id and read its `outputs`. If a testing tool answers this way, its Synchronous Action flag is off; tell the user to turn it on, and continue with the job route meanwhile.
 
-Everything that passes through `fetch_job` has its dict keys camelCased by the API renderer, including the path keys inside a sync job's `outputs` (`mcp_tool_actions/MTA-x/MTA-x_metadata.json` arrives as `mcpToolActions/MTA-x/MTA-xMetadata.json`). Match on the global id, or use `fetch_job_log`, whose `syncResults` rows carry the path as a value.
+Everything that passes through `fetch_job` has its dict keys camelCased by the API renderer, including the path keys inside a sync job's `outputs` (`mcp_tool_actions/MTA-x/MTA-x_metadata.json` arrives as `mcpToolActions/MTA-x/MTA-xMetadata.json`). Match on the global id, or use `fetch_job_log`, whose `syncResults` rows carry the path as a value. A synchronous tool's inline result keeps its keys exactly as the plugin wrote them.
 
 ## The loop
 
@@ -103,6 +103,7 @@ On any failure: `run_mcp_tool_action("fetch_job_log", {"log_job_id": "<JOB-id>",
 | `ImportError` from a plugin that was just changed | Stale copy | Sync the parent again; for a webhook, sync `webhooks/IWH-*` itself |
 | Order `DENIED` or no orderable environment | Group or environment entitlement | Pick another environment or group; do not change RBAC in the plugin |
 | Delete job fails | Teardown plugin | Fix it, re-sync the blueprint, run Delete again until the resource is gone |
+| `Parameters not allowed [<name>]` from `run_mcp_tool_action` | The tool's input carries a stored default, which hides it from the schema (every BOOL input does after the edit form is saved) | Clear the default on the edit form or re-sync the tool; declare booleans as `true`/`false` strings |
 
 Fix in the repo, commit, push the same branch, re-sync only the affected parents, and resume at the failed step (do not re-order a blueprint whose resource still exists). Stop after **five** fix-and-retry iterations for one content unit, run the cleanup in step 5, and report what is still failing with the job ids.
 
@@ -125,3 +126,6 @@ Delete every resource and server in the ledger, newest first, with the `Delete` 
 - Discovery is the `Sync Resources` CloudBoltHook's recurring job action run with `sync_bp_id` (`servicecatalog/views.py sync_resources_on_discovery_tab`). Run Now is `RecurringJob.spawn_new_job()` (`jobs/views.py run_recurring_job`). CIT runs are `Job(type="functionaltest")` with `FunctionalTestParameters` (`cscv/views.py _run_cit_tests`). `Delete` is a built-in `ResourceAction` backed by `cbhooks/hookmodules/delete_resource.py`, so it appears in `fetch_resource_actions`.
 - The built-in `fetch_job` returns `output`, `outputs`, and `errors` but no progress messages; those are `ProgressMessage` rows and the per-job log file, which `fetch_job_log` reads.
 - MCP tool action plugins run `run(job, **kwargs)` with `profile` as the caller; synchronous tools run inside the web request with `job=None` (`cbhooks/services/mcp_tool_action.py`).
+- `MCPToolActionSerializer.create_resource_from_metadata` restores only `mcp_tool_name`, `mcp_tool_description`, `mcp_tool_title` and the hints, so `is_synchronous` is off after the first import; a refresh of an existing tool keeps whatever the UI set. The `mcpToolActions` viewset allows `GET` and `POST` only.
+- A BOOL action input renders as a select on the tool's edit form; saving the form stores the selection as a default, after which the parameter leaves the tool schema and `validate_run` answers `Parameters not allowed`. The testing tools therefore take `true`/`false` strings.
+- Live run on 2026-10-09 against mb-dev: the six tools imported in one sync (JOB-hvsmfwtl); `fetch_job_log` (JOB-qyejb1f1), `cancel_jobs` (JOB-u7r40x2j), `run_blueprint_discovery` (JOB-hxg52zl0, three resources updated) and `run_recurring_job` (JOB-3mwy1dc5) passed; `run_cit_tests` was exercised only on its refusal path because the appliance's one CIT test provisions a server. `fetch_job_log` found the one plugin bug (a hook-based recurring job has no stored job parameters) from the traceback in one call.
