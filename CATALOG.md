@@ -11,8 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 4 |
 | [Webhooks](#webhooks) | 3 |
-| [MCP tool actions](#mcp-tool-actions) | 2 |
-| [Plugins](#plugins) | 98 |
+| [MCP tool actions](#mcp-tool-actions) | 8 |
+| [Plugins](#plugins) | 104 |
 | [Shared modules](#shared-modules) | 13 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 9 |
@@ -131,8 +131,14 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 
 | Tool | ID | Description | MCP tool name | Enabled | Plugin |
 |---|---|---|---|---|---|
+| Cancel Jobs | [MTA-js655cf3](mcp_tool_actions/MTA-js655cf3/README.md) | Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint. | `cancel_jobs` | yes | [Cancel Jobs](plugins/OHK-2lzwvo0j/) |
 | Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
+| Fetch Job Log | [MTA-8j9c0tb0](mcp_tool_actions/MTA-8j9c0tb0/README.md) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | `fetch_job_log` | yes | [Fetch Job Log](plugins/OHK-2p0rhzup/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
+| Run Blueprint Discovery | [MTA-9oihpumd](mcp_tool_actions/MTA-9oihpumd/README.md) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | `run_blueprint_discovery` | yes | [Run Blueprint Discovery](plugins/OHK-dwh5kqxq/) |
+| Run CIT Tests | [MTA-gnx1ckno](mcp_tool_actions/MTA-gnx1ckno/README.md) | Starts a functionaltest job for the named CIT tests and returns its job id. | `run_cit_tests` | yes | [Run CIT Tests](plugins/OHK-ieb4qio7/) |
+| Run Recurring Job | [MTA-thkvyt0v](mcp_tool_actions/MTA-thkvyt0v/README.md) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | `run_recurring_job` | yes | [Run Recurring Job](plugins/OHK-qduf79xu/) |
+| Sync From Source Control Repo | [MTA-543b19sa](mcp_tool_actions/MTA-543b19sa/README.md) | Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll. | `sync_from_source_control_repo` | yes | [Sync From Source Control Repo](plugins/OHK-0wtrj2wb/) |
 
 ## Plugins
 
@@ -164,6 +170,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Azure Storage Account | [OHK-qev70tpa](plugins/OHK-qev70tpa/) | Creates an Azure storage account. | CloudBolt Plug-in | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Bicep Engine Connectivity Check | [OHK-b21biimg](plugins/OHK-b21biimg/) | Probes every host the Bicep engine needs and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on. | CloudBolt Plug-in | [Bicep Engine Connectivity Check](recurring_jobs/RJB-zdmcbqb6/README.md) |
 | Build Azure Subscription | [OHK-96zebx6i](plugins/OHK-96zebx6i/) | Creates an Azure subscription with cross-tenant billing. | CloudBolt Plug-in | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
+| Cancel Jobs | [OHK-2lzwvo0j](plugins/OHK-2lzwvo0j/) | Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint. | CloudBolt Plug-in | [Cancel Jobs](mcp_tool_actions/MTA-js655cf3/README.md) |
 | Change Access Tier | [OHK-stdxttnw](plugins/OHK-stdxttnw/) | Changes the default blob access tier of the Azure storage account. | CloudBolt Plug-in | [Change Access Tier](resource_actions/RSA-0ldsokuc/) |
 | Change SKU | [OHK-fel441xh](plugins/OHK-fel441xh/) | Changes the replication SKU of the Azure storage account. | CloudBolt Plug-in | [Change SKU](resource_actions/RSA-gr2wsfzx/) |
 | Compare Azure List Prices | [OHK-r9cm4oar](plugins/OHK-r9cm4oar/) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | CloudBolt Plug-in | [Compare Azure List Prices](mcp_tool_actions/MTA-ab0krash/README.md) |
@@ -184,6 +191,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Drift Check | [OHK-9n4wfasa](plugins/OHK-9n4wfasa/) | Reports drift between a Bicep deployment stack and its template with a read-only what-if. | CloudBolt Plug-in | [Drift Check](resource_actions/RSA-5jeixn92/) |
 | Expire Servers | [OHK-59t2apzf](plugins/OHK-59t2apzf/) | Finds expired servers and runs the configured expiration orchestration action on them. | CloudBolt Plug-in | [Expire Servers](recurring_jobs/RJB-nsx4v2s1/README.md) |
 | Extend Expiration | [OHK-3w9nejn3](plugins/OHK-3w9nejn3/) | Extends a landing-zone project's expiration date on the resource and the namespace annotation. | CloudBolt Plug-in | [Extend Expiration](resource_actions/RSA-kx7mdgva/) |
+| Fetch Job Log | [OHK-2p0rhzup](plugins/OHK-2p0rhzup/) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | CloudBolt Plug-in | [Fetch Job Log](mcp_tool_actions/MTA-8j9c0tb0/README.md) |
 | Form Options | [OHK-fx500o2r](plugins/OHK-fx500o2r/) | Serves custom-form dropdown options scoped to a CloudBolt Environment or an HCP Terraform no-code module, and builds a deployed resource's Terraform Update variables panel. | CloudBolt Plug-in | [Form Options](webhooks/IWH-yj93is5z/) |
 | Generate options for 'Expiration Date' | [OHK-cfciy0fo](plugins/OHK-cfciy0fo/) | Returns an initial Expiration Date value of seven days from now. | CloudBolt Plug-in | [Generate options for 'Expiration Date'](orchestration_actions/HPA-qb0w86mi/README.md) |
 | Generate options for Ansible job template maps | [OHK-7i1fk0l5](plugins/OHK-7i1fk0l5/) | Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every Variable Map on the instance whose JSON has a job_template key, labeled with the AAP job template it launches. | CloudBolt Plug-in | [Generate options for Ansible job template maps](orchestration_actions/HPA-aualk6ei/) |
@@ -222,10 +230,14 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Run Aria Orchestrator Workflow | [OHK-3bgpjmlr](plugins/OHK-3bgpjmlr/) | Runs an Aria Orchestrator workflow with Django-rendered parameters, waits for it to finish, and writes its outputs onto the resource as custom fields; the same plugin runs again on teardown. | CloudBolt Plug-in | [Run Aria Orchestrator Workflow](blueprints/BP-f5y1fhe9/README.md) |
 | Run Azure PowerShell Script | [OHK-pmyb1car](plugins/OHK-pmyb1car/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run Azure PowerShell Script (Deployment Script) | [OHK-oblhxhw2](plugins/OHK-oblhxhw2/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
+| Run Blueprint Discovery | [OHK-dwh5kqxq](plugins/OHK-dwh5kqxq/) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | CloudBolt Plug-in | [Run Blueprint Discovery](mcp_tool_actions/MTA-9oihpumd/README.md) |
+| Run CIT Tests | [OHK-ieb4qio7](plugins/OHK-ieb4qio7/) | Starts a functionaltest job for the named CIT tests and returns its job id. | CloudBolt Plug-in | [Run CIT Tests](mcp_tool_actions/MTA-gnx1ckno/README.md) |
+| Run Recurring Job | [OHK-qduf79xu](plugins/OHK-qduf79xu/) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | CloudBolt Plug-in | [Run Recurring Job](mcp_tool_actions/MTA-thkvyt0v/README.md) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
 | Set Resource Name From Field | [OHK-yw0klpjg](plugins/OHK-yw0klpjg/) | Renames the resource from a chosen field value and the first server's hostname. | CloudBolt Plug-in | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Set URL Parameter | [OHK-1rel6s64](plugins/OHK-1rel6s64/) | Sets the website URL parameter on the web application resource. | CloudBolt Plug-in | [IIS Web Application](blueprints/BP-122nbdt5/README.md), [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
 | Set VPC Name | [OHK-50ntkska](plugins/OHK-50ntkska/) | Renames the resource to the VPC name returned by the Ansible playbook. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
+| Sync From Source Control Repo | [OHK-0wtrj2wb](plugins/OHK-0wtrj2wb/) | Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll. | CloudBolt Plug-in | [Sync From Source Control Repo](mcp_tool_actions/MTA-543b19sa/README.md) |
 | Teardown Azure Resource Group | [OHK-4xqzbdtx](plugins/OHK-4xqzbdtx/) | Deletes the Azure resource group behind the resource, refusing while a management lock is present. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Teardown Azure Storage Account | [OHK-8px9e3ws](plugins/OHK-8px9e3ws/) | Deletes the Azure storage account behind the resource. | CloudBolt Plug-in | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Teardown Azure Subscription | [OHK-597w4hvq](plugins/OHK-597w4hvq/) | Cancels the Azure subscription, which can be reactivated within 90 days. | CloudBolt Plug-in | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |

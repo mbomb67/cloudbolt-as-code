@@ -60,7 +60,7 @@ The dir names above are CloudBolt's defaults. They CAN be customized per repo vi
 
 ## Tooling
 
-Seven Claude Code skills under `.claude/skills/` automate the common workflows. They load automatically when this repo is opened in Claude Code and run as `/cb-<name>` or when the task matches; the procedures are plain Markdown, so other agents can follow them from the same files.
+Eight Claude Code skills under `.claude/skills/` automate the common workflows. They load automatically when this repo is opened in Claude Code and run as `/cb-<name>` or when the task matches; the procedures are plain Markdown, so other agents can follow them from the same files.
 
 | Skill | What it does |
 |---|---|
@@ -71,6 +71,7 @@ Seven Claude Code skills under `.claude/skills/` automate the common workflows. 
 | `cb-validate-metadata` | Lint every `<GLOBAL_ID>_metadata.json` for required fields, dangling refs, enum violations, key casing, orphans |
 | `cb-find-content-by-name` | Resolve human-readable name to ID-prefixed folder |
 | `cb-package-zip` | Build an uploadable CloudBolt import zip (nested package format, dependencies bundled) from a unit in this repo via `tools/package_zip.py` |
+| `cb-test-content` | Test content on the connected CloudBolt through MCP: sync a slash-free branch, order/discover/run/tear down, diagnose from the job log, fix and re-sync, clean up, open the PR |
 
 `tools/build_catalog.py` regenerates `CATALOG.md`, `catalog.json`, and every top-level dir's index `README.md` from the metadata. Run it after adding, renaming, or re-describing content; never hand-edit those files (CI fails if they are stale). Keep every metadata `description` to one sentence stating what the content does, because the catalog prints it verbatim.
 
@@ -83,6 +84,7 @@ Seven Claude Code skills under `.claude/skills/` automate the common workflows. 
 - **[docs/agents/common-patterns.md](docs/agents/common-patterns.md)** — Azure auth, AWS paginators, discovery hydration, generate-options patterns, error handling.
 - **[docs/agents/rbac-and-security.md](docs/agents/rbac-and-security.md)** — full RBAC pattern, parameter-quoting rules, secret handling.
 - **[docs/agents/external-apis.md](docs/agents/external-apis.md)** — full "never guess vendor APIs" rule with Azure REST and AWS boto3 worked examples.
+- **[docs/agents/testing-loop.md](docs/agents/testing-loop.md)** — test content on a live appliance through MCP: the six testing tools under `mcp_tool_actions/`, sync from a slash-free branch, exercise every function, read job logs, fix, clean up, re-sync from `main` after the merge.
 - **[docs/agents/zip-package-format.md](docs/agents/zip-package-format.md)** — CloudBolt's zip import/export package format, the repo-layout → zip mapping per type, what is lost in transit, upload routes. [zip-package-format-source-query.md](docs/agents/zip-package-format-source-query.md) is the prompt that re-derives it from the CloudBolt source.
 - **`typings/`** — CloudBolt's internal Django models as type stubs. Grep here for available methods and fields, e.g. `grep -r "def cast" typings/`. It is gitignored; copy it from `/var/opt/cloudbolt/proserv/typings` on your appliance: [docs/dev-environment-setup.md](docs/dev-environment-setup.md). If `typings/` is missing, copy it before writing code against CloudBolt APIs; do not guess them from memory.
 
