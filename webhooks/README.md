@@ -5,5 +5,6 @@ Inbound REST endpoints.
 
 | Action | ID | Description | Plugin |
 |---|---|---|---|
+| Aria Migration Form Options | [IWH-xr0508nf](IWH-xr0508nf/) | GET endpoint the Aria migration order form calls to list Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups. | [Aria Migration Form Options](../plugins/OHK-xhpq1rn3/) |
 | Azure PS Script Panel | [IWH-vfkvduxm](IWH-vfkvduxm/) | GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs. | [Azure PS Script Panel](../plugins/OHK-bvn2l7q1/) |
 | Form Options | [IWH-yj93is5z](IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](../plugins/OHK-fx500o2r/) |

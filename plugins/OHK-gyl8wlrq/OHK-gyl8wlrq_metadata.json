@@ -1,0 +1,105 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "label": "Groups Map",
+            "name": "groups_map",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a1079"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_projects_a1079"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "label": "Aria Connection",
+            "name": "vra_connection",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a1079"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_projects_a1079"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "label": "Aria Projects",
+            "name": "vra_projects",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        }
+    ],
+    "action_inputs_sequence": [
+        "vra_connection",
+        "vra_projects",
+        "groups_map"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-u2s2d40p"
+        ]
+    },
+    "description": "Creates a CloudBolt group for each selected Aria Automation project, maps the project's AD group role assignments to CloudBolt roles through LDAP mappings, and copies its unencrypted custom properties as group parameters.",
+    "id": "OHK-gyl8wlrq",
+    "max_retries": 0,
+    "name": "Migrate Aria Automation Projects",
+    "resource_technologies": [],
+    "script_filename": "OHK-gyl8wlrq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

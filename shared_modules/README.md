@@ -5,6 +5,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 
 | Module | ID | Description | Used by |
 |---|---|---|---|
+| `aria_connection` | [SHM-u2s2d40p](SHM-u2s2d40p/) | Aria Automation 8 and Aria Orchestrator REST clients built on a CloudBolt ConnectionInfo labeled vra8 or aria, with generate-options helpers for connection and project dropdowns. | [Aria Migration Form Options](../plugins/OHK-xhpq1rn3/), [Migrate Aria Automation Deployments](../plugins/OHK-7sq2hqrb/), [Migrate Aria Automation Projects](../plugins/OHK-gyl8wlrq/), [Run Aria Orchestrator Workflow](../plugins/OHK-3bgpjmlr/) |
 | `azure_disk_encryption` | [SHM-vjwmn6nq](SHM-vjwmn6nq/) | Per-VM customer-managed-key disk encryption helpers for Azure Key Vault and disk encryption sets. | [Azure CMK - Per-VM Disk Encryption Set](../plugins/OHK-vklpnqhq/), [Azure CMK - Remove Per-VM Disk Encryption Set](../plugins/OHK-2vpg4pff/) |
 | `azure_management_locks` | [SHM-i1oshqxg](SHM-i1oshqxg/) | REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler. | [Discover Azure Resource Groups](../plugins/OHK-e5a4m2bm/), [Manage Delete Lock](../plugins/OHK-sf6w5pfn/), [Teardown Azure Resource Group](../plugins/OHK-4xqzbdtx/) |
 | `azure_pricing` | [SHM-6gtujb8t](SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](../plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](../plugins/OHK-vg0rmi7i/) |
