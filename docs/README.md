@@ -11,6 +11,7 @@ Setup runbooks for content that needs configuration outside CloudBolt. Each cont
 | [hcp-terraform-setup.md](hcp-terraform-setup.md) | HCP Terraform VM (`BP-b0qm83lh`); Form Options webhook (`IWH-yj93is5z`); `env_options` shared module (`SHM-r0oq14r7`); `vm_adoption` shared module (`SHM-9h13o859`) |
 | [hcp-no-code-setup.md](hcp-no-code-setup.md) | HCP Terraform No-Code Module (`BP-00meiwwz`) |
 | [linux-ad-domain-join-runbook.md](linux-ad-domain-join-runbook.md) | Join Linux Server to AD Domain (`HPA-o6ctckmt`) |
+| [mcp-testing-setup.md](mcp-testing-setup.md) | MCP content-testing tools (`MTA-543b19sa`, `MTA-8j9c0tb0`, `MTA-9oihpumd`, `MTA-thkvyt0v`, `MTA-gnx1ckno`, `MTA-js655cf3`) and the `cb-test-content` skill |
 | [windows-ca-cert-request-setup.md](windows-ca-cert-request-setup.md) | Request Certificate (Windows CA) (`BP-lt6a3yzf`) |
 
 Other folders:

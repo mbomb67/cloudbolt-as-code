@@ -19,3 +19,4 @@ MCP Tool Action published to agents as `custom_cancel_jobs`. Sets each named job
 ## Notes
 - The caller must own each job or be a CloudBolt admin.
 - Cancellation is cooperative: a job in `TO_CANCEL` stops at its next checkpoint, so poll `fetch_job_log` before assuming it is gone.
+- Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

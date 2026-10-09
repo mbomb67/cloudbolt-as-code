@@ -19,3 +19,4 @@ MCP Tool Action published to agents as `custom_run_recurring_job`. Runs a recurr
 ## Notes
 - Admin only.
 - The job runs with the inputs saved on the recurring job. Values entered in the UI do not sync, so a job synced from the repo may need its inputs set before the first run.
+- Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

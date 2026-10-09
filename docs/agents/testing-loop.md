@@ -29,6 +29,21 @@ Create or change content, then prove it works on an appliance before the PR: pus
 
    If a key the current test needs is missing, ask the user once and write the answer to the file. Never put these ids in committed files.
 
+Operator runbook for all three, with the client setup, the one-call import, the Synchronous step, and troubleshooting: [docs/mcp-testing-setup.md](../mcp-testing-setup.md).
+
+## Preflight: check the setup before every session
+
+Run these checks in order before touching the repo or the appliance. When one fails, stop, send the user one message that names the failed checks and the matching section of [docs/mcp-testing-setup.md](../mcp-testing-setup.md) with its exact steps, and resume from the first check once they say it is done. Do not improvise around a missing piece.
+
+| # | Check | Passes when | Otherwise |
+|---|---|---|---|
+| 1 | Connection | A CloudBolt `fetch_identity` tool exists and returns a user | Runbook §2: no CloudBolt MCP server is configured or authenticated |
+| 2 | Admin | That user has `superAdmin` or `cmpAdmin` true | Runbook §1.3: the write tools and `syncFromRepo` refuse non-admins |
+| 3 | Tools | `fetch_mcp_tool_actions` lists all six names: `sync_from_source_control_repo`, `fetch_job_log`, `run_blueprint_discovery`, `run_recurring_job`, `run_cit_tests`, `cancel_jobs` | Runbook §3: name the missing ones, give the one-call import with `<appliance>` placeholders, then §4 step 3 (reconnect) |
+| 4 | Synchronous | `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers inline with a not-found failure | Runbook §4. Not blocking: continue through the job route and say so |
+| 5 | Config | `.claude/cb-test.local.json` exists and `source_code_repo` and `group_id` are not `FILL-ME` | Runbook §5: copy the example, ask for the values, write them |
+| 6 | Repository | The first `sync_from_source_control_repo` call does not answer `sync_repo is required` or `No Source Control Repository matches` | Runbook §1.2 |
+
 ## Calling the testing tools
 
 `run_mcp_tool_action(mcp_tool_name="<name>", parameters={...})`. Parameter names are the tool's action-input names (`fetch_mcp_tool_actions` lists them). Two response shapes exist, so handle both every time:

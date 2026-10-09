@@ -19,3 +19,4 @@ MCP Tool Action published to agents as `custom_run_cit_tests`. Starts the same f
 ## Notes
 - Admin only.
 - Failure emails go to the global admin address, as they do for CIT runs started in the UI.
+- Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

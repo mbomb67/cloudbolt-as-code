@@ -22,3 +22,4 @@ MCP Tool Action published to agents as `custom_fetch_job_log`. Returns what the 
 ## Notes
 - The caller must own the job or be a CloudBolt admin.
 - The log file is read from the host running the tool; on a multi-worker appliance it may be elsewhere, and `logFileTail.note` says so.
+- Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

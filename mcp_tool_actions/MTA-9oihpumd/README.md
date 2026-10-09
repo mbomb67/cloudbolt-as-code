@@ -20,3 +20,4 @@ MCP Tool Action published to agents as `custom_run_blueprint_discovery`. Launche
 - The caller must manage the blueprint or be a CloudBolt admin. Historical blueprints and blueprints without a discovery plugin are refused.
 - With auto-historical resources on, resources the plugin no longer returns are marked Historical. Check the flag in the output before running against a blueprint with live resources.
 - Needs the stock `Sync Resources` plug-in and its recurring job action on the appliance.
+- Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

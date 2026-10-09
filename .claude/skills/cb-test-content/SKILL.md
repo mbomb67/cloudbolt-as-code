@@ -12,6 +12,10 @@ Run the full test loop for content in this repo against the connected CloudBolt 
 
 Load [docs/agents/testing-loop.md](../../../docs/agents/testing-loop.md). It is the procedure; this file only says when to start it and what to collect first. For the content itself use [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md) (sync failures name its fields) and [docs/agents/plugin-templates.md](../../../docs/agents/plugin-templates.md) (entry points and return formats).
 
+## Preflight
+
+Run the preflight table in testing-loop.md first, every session: connection, admin, the six tools present, synchronous, config, repository. When a check fails, stop and give the user the matching section of [docs/mcp-testing-setup.md](../../../docs/mcp-testing-setup.md) with its steps (for missing tools, the one-call import with `<appliance>` placeholders), wait for them to confirm, then re-run the preflight. A missing tool is a setup gap to hand to the user, not something to work around with REST or the UI.
+
 ## Inputs
 
 1. **What to test.** Default: every content folder changed on the current branch versus `origin/main`. The user may name one unit instead (`BP-...`, a name, or a folder).
