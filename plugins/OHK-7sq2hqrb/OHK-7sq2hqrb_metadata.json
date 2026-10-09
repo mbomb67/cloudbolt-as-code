@@ -1,0 +1,265 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Select the CloudBolt Blueprint that you will be tying the created Resources to.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Cloudbolt Blueprint",
+            "name": "cloudbolt_blueprint",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The Deployment resources need to be mapped to CloudBolt Tiers in the destination CloudBolt Blueprint. This is a dict mapping the Aria Deployment resource names to the CloudBolt Tier names. # Example: {\"Cloud_Machine_1\": \"CloudBolt Server Tier\"}",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Deployment Map",
+            "name": "deployment_map",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Allows you to pass in a dict mapping Aria Business Group names to CloudBolt group names. This is useful if you want to use different names in CloudBolt than Aria. This would also allow several Aria Business Groups to map to the same CloudBolt group.\r\n  Example: {\"Aria Business Group Name\": \"CloudBolt Group Name\"}",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Groups Map",
+            "name": "groups_map",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Migrate OneFuse Properties",
+            "name": "migrate_onefuse_properties",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Optional Prefix to specify what custom properties migrated to CloudBolt parameters  should be prefixed with. Ex. \"vra_\" as a prefix for \"environment\" would create a new parameter in CloudBolt named vra_environment",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Migrate Prefix",
+            "name": "migrate_prefix",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "OneFuse Endpoint Map",
+            "name": "onefuse_endpoint_map",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A list of prefixes to Custom Property names that should be ignored if they start with these prefixes",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Prefixes To Ignore",
+            "name": "prefixes_to_ignore",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Select the Blueprint you would like to migrate Deployments for",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a981"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_blueprint_a981"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Aria Blueprint",
+            "name": "vra_blueprint",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Select the Aria connection to pull metadata from",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a981"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_blueprint_a981"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a981"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_projects_a981"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "label": "Aria Connection",
+            "name": "vra_connection",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Optional to filter the migrated deployments by project ID",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "vra_connection_a981"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "vra_projects_a981"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "label": "Aria Projects",
+            "name": "vra_projects",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": ""
+        }
+    ],
+    "action_inputs_sequence": [
+        "vra_connection",
+        "vra_blueprint",
+        "vra_projects",
+        "cloudbolt_blueprint",
+        "deployment_map",
+        "groups_map",
+        "migrate_prefix",
+        "prefixes_to_ignore",
+        "migrate_onefuse_properties",
+        "onefuse_endpoint_map"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-u2s2d40p"
+        ]
+    },
+    "description": "Imports the deployments of one Aria Automation cloud template as CloudBolt resources or stand-alone servers, matching VMs by instance UUID and carrying over owner, group, environment, and custom properties.",
+    "id": "OHK-7sq2hqrb",
+    "max_retries": 0,
+    "name": "Migrate Aria Automation Deployments",
+    "resource_technologies": [],
+    "script_filename": "OHK-7sq2hqrb_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
