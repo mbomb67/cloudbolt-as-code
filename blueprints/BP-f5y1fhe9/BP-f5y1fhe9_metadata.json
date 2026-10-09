@@ -1,0 +1,79 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Run Aria Orchestrator Workflow",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-3bgpjmlr"
+            },
+            "deploy_seq": 1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-4ob9op5e",
+            "name": "Run Aria Orchestrator Workflow",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin",
+            "parameter_defaults": [
+                {
+                    "label": "Flatten Params",
+                    "name": "flatten_params_a1117",
+                    "value": "False"
+                }
+            ]
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Runs an Aria Orchestrator workflow as a CloudBolt resource build, stores the workflow outputs on the resource, and runs it again with teardown parameters on delete.",
+    "favorited": false,
+    "icon": "aria_orchestrator.png",
+    "id": "BP-f5y1fhe9",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-09",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Run Aria Orchestrator Workflow",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "",
+        "id": "RT-0yro5q03",
+        "label": "Service",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "service",
+        "plural_label": null
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Run Aria Orchestrator Workflow",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-3bgpjmlr"
+            },
+            "deploy_seq": -1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-s2lzdpwf",
+            "name": "Run Aria Orchestrator Workflow",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin",
+            "parameter_defaults": [
+                {
+                    "label": "Flatten Params",
+                    "name": "flatten_params_a1117",
+                    "value": "False"
+                }
+            ]
+        }
+    ]
+}

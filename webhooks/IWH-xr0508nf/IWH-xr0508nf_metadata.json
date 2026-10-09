@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "Aria Migration Form Options",
+    "dependencies": {
+        "hook": "plugins/OHK-xhpq1rn3"
+    },
+    "description": "GET endpoint the Aria migration order form calls to list Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups.",
+    "enabled": true,
+    "id": "IWH-xr0508nf",
+    "label": "Aria Migration Form Options",
+    "last_updated": "2026-10-09",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "aria-migration-form-options"
+}

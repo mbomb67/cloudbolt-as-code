@@ -5,17 +5,17 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Blueprints](#blueprints) | 19 |
+| [Blueprints](#blueprints) | 22 |
 | [Resource actions](#resource-actions) | 24 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 4 |
-| [Webhooks](#webhooks) | 2 |
+| [Webhooks](#webhooks) | 3 |
 | [MCP tool actions](#mcp-tool-actions) | 8 |
-| [Plugins](#plugins) | 100 |
-| [Shared modules](#shared-modules) | 12 |
+| [Plugins](#plugins) | 104 |
+| [Shared modules](#shared-modules) | 13 |
 | [UI extensions](#ui-extensions) | 8 |
-| [Forms](#forms) | 8 |
+| [Forms](#forms) | 9 |
 | [Form functions](#form-functions) | 2 |
 
 ## Blueprints
@@ -36,12 +36,15 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | HCP Terraform No-Code Module | [BP-00meiwwz](blueprints/BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | HCP Terraform VM | [BP-b0qm83lh](blueprints/BP-b0qm83lh/README.md) | Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | IIS Web Application | [BP-122nbdt5](blueprints/BP-122nbdt5/README.md) | Deploys a Windows server and installs an IIS web application. |
+| Migrate Aria Automation Deployments to Resources | [BP-zq0csldu](blueprints/BP-zq0csldu/README.md) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. |
+| Migrate Aria Automation Projects to Groups | [BP-s2fsbkpo](blueprints/BP-s2fsbkpo/README.md) | Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties. |
 | NGINX Web Application | [BP-anonytrx](blueprints/BP-anonytrx/README.md) | Deploys an Oracle Linux 8 server and installs an NGINX web application. |
 | OpenShift Project Landing Zone | [BP-tikkhf2y](blueprints/BP-tikkhf2y/README.md) | Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it. |
 | Postgres Database | [BP-b91c5f90](blueprints/BP-b91c5f90/README.md) | Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role. |
 | Request Certificate (Windows CA) | [BP-lt6a3yzf](blueprints/BP-lt6a3yzf/README.md) | Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource. |
 | Run an Azure PowerShell Script | [BP-jvvjm3te](blueprints/BP-jvvjm3te/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment on a Windows host you manage (the script's Run on Server), with the sign-in handled by CloudBolt from the environment's resource handler. |
 | Run an Azure PowerShell Script (Deployment Script) | [BP-qo1stxre](blueprints/BP-qo1stxre/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment in a Microsoft-managed container started per run through an ARM deployment script, with no server to maintain and the sign-in handled by CloudBolt from the environment's resource handler. |
+| Run Aria Orchestrator Workflow | [BP-f5y1fhe9](blueprints/BP-f5y1fhe9/README.md) | Runs an Aria Orchestrator workflow as a CloudBolt resource build, stores the workflow outputs on the resource, and runs it again with teardown parameters on delete. |
 | Windows File Server | [BP-psw7rclb](blueprints/BP-psw7rclb/README.md) | Deploys a Windows server and installs the File Server role. |
 
 ## Resource actions
@@ -118,6 +121,7 @@ Inbound REST endpoints.
 
 | Action | ID | Description | Plugin |
 |---|---|---|---|
+| Aria Migration Form Options | [IWH-xr0508nf](webhooks/IWH-xr0508nf/) | GET endpoint the Aria migration order form calls to list Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups. | [Aria Migration Form Options](plugins/OHK-xhpq1rn3/) |
 | Azure PS Script Panel | [IWH-vfkvduxm](webhooks/IWH-vfkvduxm/) | GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs. | [Azure PS Script Panel](plugins/OHK-bvn2l7q1/) |
 | Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](plugins/OHK-fx500o2r/) |
 
@@ -148,6 +152,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Add Resource Group to Environment | [OHK-r1imfgdx](plugins/OHK-r1imfgdx/) | Adds the created resource group as a resource_group_arm option on the provisioning environment. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
 | Ansible Ad-Hoc | [OHK-xdjd5o9b](plugins/OHK-xdjd5o9b/) | Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
 | Apply Public-Exposure Policy | [OHK-b2az2bn6](plugins/OHK-b2az2bn6/) | Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription. | CloudBolt Plug-in | [Apply Policy](resource_actions/RSA-mgh3dn9p/) |
+| Aria Migration Form Options | [OHK-xhpq1rn3](plugins/OHK-xhpq1rn3/) | Serves the dropdown options for the Aria migration order form: Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups. | CloudBolt Plug-in | [Aria Migration Form Options](webhooks/IWH-xr0508nf/) |
 | Azure CMK - Per-VM Disk Encryption Set | [OHK-vklpnqhq](plugins/OHK-vklpnqhq/) | Creates a per-VM Key Vault key and disk encryption set and re-encrypts a provisioned Azure VM's disks with it. | CloudBolt Plug-in | [Azure CMK - Per-VM Disk Encryption Set](orchestration_actions/HPA-w1dmx20b/README.md) |
 | Azure CMK - Remove Per-VM Disk Encryption Set | [OHK-2vpg4pff](plugins/OHK-2vpg4pff/) | Deletes the per-VM disk encryption set, revokes its key grant, and soft-deletes the key recorded on a decommissioned Azure server. | CloudBolt Plug-in | [Azure CMK - Remove Per-VM Disk Encryption Set](orchestration_actions/HPA-h7g0i0dx/README.md) |
 | Azure Network Security Group Build | [OHK-7987st2p](plugins/OHK-7987st2p/) | Creates an Azure network security group. | CloudBolt Plug-in | [Azure Network Security Group](blueprints/BP-3fdhnw54/README.md) |
@@ -207,6 +212,8 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | List Subscription Access | [OHK-ovt0z46j](plugins/OHK-ovt0z46j/) | Lists role assignments at subscription scope with resolved principal names. | CloudBolt Plug-in | [List Access](resource_actions/RSA-f7wb11ny/) |
 | Manage Delete Lock | [OHK-sf6w5pfn](plugins/OHK-sf6w5pfn/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | CloudBolt Plug-in | [Manage Delete Lock](resource_actions/RSA-qwku9lip/) |
 | Manage Team Access | [OHK-9zzqqz7t](plugins/OHK-9zzqqz7t/) | Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding. | CloudBolt Plug-in | [Manage Team Access](resource_actions/RSA-yj1c4b5s/) |
+| Migrate Aria Automation Deployments | [OHK-7sq2hqrb](plugins/OHK-7sq2hqrb/) | Imports the deployments of one Aria Automation cloud template as CloudBolt resources or stand-alone servers, matching VMs by instance UUID and carrying over owner, group, environment, and custom properties. | CloudBolt Plug-in | [Migrate Aria Automation Deployments to Resources](blueprints/BP-zq0csldu/README.md) |
+| Migrate Aria Automation Projects | [OHK-gyl8wlrq](plugins/OHK-gyl8wlrq/) | Creates a CloudBolt group for each selected Aria Automation project, maps the project's AD group role assignments to CloudBolt roles through LDAP mappings, and copies its unencrypted custom properties as group parameters. | CloudBolt Plug-in | [Migrate Aria Automation Projects to Groups](blueprints/BP-s2fsbkpo/README.md) |
 | Network Security Group Teardown | [OHK-9jouejv8](plugins/OHK-9jouejv8/) | Deletes the Azure network security group behind the resource. | CloudBolt Plug-in | [Azure Network Security Group](blueprints/BP-3fdhnw54/README.md) |
 | Node Size - Generate Options by OS Build Architecture | [OHK-9csbq3zd](plugins/OHK-9csbq3zd/README.md) | Generates node_size options limited to sizes matching the selected OS build's processor architecture. | CloudBolt Plug-in | standalone |
 | Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities) | [OHK-kujhsds0](plugins/OHK-kujhsds0/README.md) | Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings. | CloudBolt Plug-in | standalone |
@@ -220,6 +227,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Retrieve Pending Certificate | [OHK-ul8wbswa](plugins/OHK-ul8wbswa/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | CloudBolt Plug-in | [Retrieve Pending Certificate](resource_actions/RSA-7cjsqrwy/) |
 | Revoke Restricted Contributor Access | [OHK-myrfeogg](plugins/OHK-myrfeogg/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | CloudBolt Plug-in | [Revoke Access](resource_actions/RSA-8zwsrcbv/) |
 | Run Ansible Job Templates on Servers | [OHK-cwqouaqn](plugins/OHK-cwqouaqn/) | Launches the Ansible Automation Platform job templates declared by the job template maps (Variable Maps with a job_template key) pinned on the blueprint's ansible_job_template_maps parameter for every server of the deployment, building each template's extra vars from CloudBolt data with Django templates and never adding the host to an inventory; no pinned maps or no servers is a no-op. | CloudBolt Plug-in | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) |
+| Run Aria Orchestrator Workflow | [OHK-3bgpjmlr](plugins/OHK-3bgpjmlr/) | Runs an Aria Orchestrator workflow with Django-rendered parameters, waits for it to finish, and writes its outputs onto the resource as custom fields; the same plugin runs again on teardown. | CloudBolt Plug-in | [Run Aria Orchestrator Workflow](blueprints/BP-f5y1fhe9/README.md) |
 | Run Azure PowerShell Script | [OHK-pmyb1car](plugins/OHK-pmyb1car/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts on its Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run Azure PowerShell Script (Deployment Script) | [OHK-oblhxhw2](plugins/OHK-oblhxhw2/) | Signs an Az PowerShell session in with the selected environment's Azure app registration via a short-lived access token and runs one of the blueprint's disabled Remote Scripts in a Microsoft-managed container through an ARM deployment script, with no Run on Server host. | CloudBolt Plug-in | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Run Blueprint Discovery | [OHK-dwh5kqxq](plugins/OHK-dwh5kqxq/) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | CloudBolt Plug-in | [Run Blueprint Discovery](mcp_tool_actions/MTA-9oihpumd/README.md) |
@@ -249,6 +257,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 
 | Module | ID | Description | Used by |
 |---|---|---|---|
+| `aria_connection` | [SHM-u2s2d40p](shared_modules/SHM-u2s2d40p/) | Aria Automation 8 and Aria Orchestrator REST clients built on a CloudBolt ConnectionInfo labeled vra8 or aria, with generate-options helpers for connection and project dropdowns. | [Aria Migration Form Options](plugins/OHK-xhpq1rn3/), [Migrate Aria Automation Deployments](plugins/OHK-7sq2hqrb/), [Migrate Aria Automation Projects](plugins/OHK-gyl8wlrq/), [Run Aria Orchestrator Workflow](plugins/OHK-3bgpjmlr/) |
 | `azure_disk_encryption` | [SHM-vjwmn6nq](shared_modules/SHM-vjwmn6nq/) | Per-VM customer-managed-key disk encryption helpers for Azure Key Vault and disk encryption sets. | [Azure CMK - Per-VM Disk Encryption Set](plugins/OHK-vklpnqhq/), [Azure CMK - Remove Per-VM Disk Encryption Set](plugins/OHK-2vpg4pff/) |
 | `azure_management_locks` | [SHM-i1oshqxg](shared_modules/SHM-i1oshqxg/) | REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler. | [Discover Azure Resource Groups](plugins/OHK-e5a4m2bm/), [Manage Delete Lock](plugins/OHK-sf6w5pfn/), [Teardown Azure Resource Group](plugins/OHK-4xqzbdtx/) |
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
@@ -288,6 +297,7 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | HCP Terraform No-Code + Ansible | [FRM-ai7lwb13](forms/FRM-ai7lwb13/) | Provisions an HCP Terraform no-code module and runs the pinned Ansible job templates on its servers; the job pauses for plan review before apply. | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) |
 | HCP Terraform No-Code Module | [FRM-1dxfulvq](forms/FRM-1dxfulvq/) | Provisions an HCP Terraform no-code module; the job pauses for plan review before apply. | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | HCP Terraform VM | [FRM-t3v8zpb7](forms/FRM-t3v8zpb7/) | Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply. | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
+| Migrate Aria Automation Deployments to Resources | [FRM-i53vgmce](forms/FRM-i53vgmce/) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. | [Migrate Aria Automation Deployments to Resources](blueprints/BP-zq0csldu/README.md) |
 | Run an Azure PowerShell Script | [FRM-mfveruw6](forms/FRM-mfveruw6/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run an Azure PowerShell Script (Deployment Script) | [FRM-qfupiiyj](forms/FRM-qfupiiyj/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose, in a container Azure starts for the run. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |

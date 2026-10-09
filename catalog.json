@@ -124,6 +124,18 @@
     "used_by": []
   },
   {
+    "id": "BP-f5y1fhe9",
+    "type": "blueprints",
+    "name": "Run Aria Orchestrator Workflow",
+    "description": "Runs an Aria Orchestrator workflow as a CloudBolt resource build, stores the workflow outputs on the resource, and runs it again with teardown parameters on delete.",
+    "path": "blueprints/BP-f5y1fhe9",
+    "readme": "blueprints/BP-f5y1fhe9/README.md",
+    "uses": [
+      "plugins/OHK-3bgpjmlr"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-jvvjm3te",
     "type": "blueprints",
     "name": "Run an Azure PowerShell Script",
@@ -248,6 +260,18 @@
     "used_by": []
   },
   {
+    "id": "BP-s2fsbkpo",
+    "type": "blueprints",
+    "name": "Migrate Aria Automation Projects to Groups",
+    "description": "Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties.",
+    "path": "blueprints/BP-s2fsbkpo",
+    "readme": "blueprints/BP-s2fsbkpo/README.md",
+    "uses": [
+      "plugins/OHK-gyl8wlrq"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-tikkhf2y",
     "type": "blueprints",
     "name": "OpenShift Project Landing Zone",
@@ -300,6 +324,19 @@
       "resource_actions/RSA-a38h23ms",
       "resource_actions/RSA-kbikieh7",
       "resource_actions/RSA-qwku9lip"
+    ],
+    "used_by": []
+  },
+  {
+    "id": "BP-zq0csldu",
+    "type": "blueprints",
+    "name": "Migrate Aria Automation Deployments to Resources",
+    "description": "Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties.",
+    "path": "blueprints/BP-zq0csldu",
+    "readme": "blueprints/BP-zq0csldu/README.md",
+    "uses": [
+      "forms/FRM-i53vgmce",
+      "plugins/OHK-7sq2hqrb"
     ],
     "used_by": []
   },
@@ -464,6 +501,18 @@
     ],
     "used_by": [
       "resource_actions/RSA-dxrh4m6j"
+    ]
+  },
+  {
+    "id": "FRM-i53vgmce",
+    "type": "forms",
+    "name": "Migrate Aria Automation Deployments to Resources",
+    "description": "Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties.",
+    "path": "forms/FRM-i53vgmce",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-zq0csldu"
     ]
   },
   {
@@ -932,6 +981,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-3bgpjmlr",
+    "type": "plugins",
+    "name": "Run Aria Orchestrator Workflow",
+    "description": "Runs an Aria Orchestrator workflow with Django-rendered parameters, waits for it to finish, and writes its outputs onto the resource as custom fields; the same plugin runs again on teardown.",
+    "path": "plugins/OHK-3bgpjmlr",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-u2s2d40p"
+    ],
+    "used_by": [
+      "blueprints/BP-f5y1fhe9"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-3kp5czyb",
     "type": "plugins",
     "name": "List Blob Containers",
@@ -1135,6 +1199,21 @@
     "uses": [],
     "used_by": [
       "orchestration_actions/HPA-aualk6ei"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-7sq2hqrb",
+    "type": "plugins",
+    "name": "Migrate Aria Automation Deployments",
+    "description": "Imports the deployments of one Aria Automation cloud template as CloudBolt resources or stand-alone servers, matching VMs by instance UUID and carrying over owner, group, environment, and custom properties.",
+    "path": "plugins/OHK-7sq2hqrb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-u2s2d40p"
+    ],
+    "used_by": [
+      "blueprints/BP-zq0csldu"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1586,6 +1665,21 @@
     "used_by": [
       "blueprints/BP-p7zmh96m",
       "blueprints/BP-nibk4erf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-gyl8wlrq",
+    "type": "plugins",
+    "name": "Migrate Aria Automation Projects",
+    "description": "Creates a CloudBolt group for each selected Aria Automation project, maps the project's AD group role assignments to CloudBolt roles through LDAP mappings, and copies its unencrypted custom properties as group parameters.",
+    "path": "plugins/OHK-gyl8wlrq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-u2s2d40p"
+    ],
+    "used_by": [
+      "blueprints/BP-s2fsbkpo"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2099,6 +2193,21 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-xhpq1rn3",
+    "type": "plugins",
+    "name": "Aria Migration Form Options",
+    "description": "Serves the dropdown options for the Aria migration order form: Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups.",
+    "path": "plugins/OHK-xhpq1rn3",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-u2s2d40p"
+    ],
+    "used_by": [
+      "webhooks/IWH-xr0508nf"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2810,6 +2919,21 @@
     ]
   },
   {
+    "id": "SHM-u2s2d40p",
+    "type": "shared_modules",
+    "name": "aria_connection",
+    "description": "Aria Automation 8 and Aria Orchestrator REST clients built on a CloudBolt ConnectionInfo labeled vra8 or aria, with generate-options helpers for connection and project dropdowns.",
+    "path": "shared_modules/SHM-u2s2d40p",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-xhpq1rn3",
+      "plugins/OHK-7sq2hqrb",
+      "plugins/OHK-gyl8wlrq",
+      "plugins/OHK-3bgpjmlr"
+    ]
+  },
+  {
     "id": "SHM-vjwmn6nq",
     "type": "shared_modules",
     "name": "azure_disk_encryption",
@@ -2831,6 +2955,19 @@
     "readme": null,
     "uses": [
       "plugins/OHK-bvn2l7q1"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "IWH-xr0508nf",
+    "type": "webhooks",
+    "name": "Aria Migration Form Options",
+    "description": "GET endpoint the Aria migration order form calls to list Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups.",
+    "path": "webhooks/IWH-xr0508nf",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-xhpq1rn3"
     ],
     "used_by": [],
     "enabled": true
