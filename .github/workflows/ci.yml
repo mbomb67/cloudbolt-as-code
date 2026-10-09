@@ -56,7 +56,10 @@ jobs:
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
       - name: Scan history and working tree
-        run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose --exit-code 1
+        # Scope the scan to the checked-out ref's history. Without --log-opts
+        # gitleaks runs git log --all, and fetch-depth 0 fetches every branch,
+        # so a leak on an unrelated, unmerged branch fails every PR.
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose --exit-code 1 --log-opts="--full-history HEAD"
 
   bandit:
     name: Bandit (advisory)
