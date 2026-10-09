@@ -5,5 +5,11 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 
 | Tool | ID | Description | MCP tool name | Enabled | Plugin |
 |---|---|---|---|---|---|
+| Cancel Jobs | [MTA-js655cf3](MTA-js655cf3/README.md) | Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint. | `cancel_jobs` | yes | [Cancel Jobs](../plugins/OHK-2lzwvo0j/) |
 | Compare Azure List Prices | [MTA-ab0krash](MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](../plugins/OHK-r9cm4oar/) |
+| Fetch Job Log | [MTA-8j9c0tb0](MTA-8j9c0tb0/README.md) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | `fetch_job_log` | yes | [Fetch Job Log](../plugins/OHK-2p0rhzup/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](../plugins/OHK-yjblxbwg/) |
+| Run Blueprint Discovery | [MTA-9oihpumd](MTA-9oihpumd/README.md) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | `run_blueprint_discovery` | yes | [Run Blueprint Discovery](../plugins/OHK-dwh5kqxq/) |
+| Run CIT Tests | [MTA-gnx1ckno](MTA-gnx1ckno/README.md) | Starts a functionaltest job for the named CIT tests and returns its job id. | `run_cit_tests` | yes | [Run CIT Tests](../plugins/OHK-ieb4qio7/) |
+| Run Recurring Job | [MTA-thkvyt0v](MTA-thkvyt0v/README.md) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | `run_recurring_job` | yes | [Run Recurring Job](../plugins/OHK-qduf79xu/) |
+| Sync From Source Control Repo | [MTA-543b19sa](MTA-543b19sa/README.md) | Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll. | `sync_from_source_control_repo` | yes | [Sync From Source Control Repo](../plugins/OHK-0wtrj2wb/) |

@@ -519,6 +519,48 @@
     ]
   },
   {
+    "id": "MTA-543b19sa",
+    "type": "mcp_tool_actions",
+    "name": "Sync From Source Control Repo",
+    "description": "Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll.",
+    "path": "mcp_tool_actions/MTA-543b19sa",
+    "readme": "mcp_tool_actions/MTA-543b19sa/README.md",
+    "uses": [
+      "plugins/OHK-0wtrj2wb"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "sync_from_source_control_repo"
+  },
+  {
+    "id": "MTA-8j9c0tb0",
+    "type": "mcp_tool_actions",
+    "name": "Fetch Job Log",
+    "description": "Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed.",
+    "path": "mcp_tool_actions/MTA-8j9c0tb0",
+    "readme": "mcp_tool_actions/MTA-8j9c0tb0/README.md",
+    "uses": [
+      "plugins/OHK-2p0rhzup"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "fetch_job_log"
+  },
+  {
+    "id": "MTA-9oihpumd",
+    "type": "mcp_tool_actions",
+    "name": "Run Blueprint Discovery",
+    "description": "Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand.",
+    "path": "mcp_tool_actions/MTA-9oihpumd",
+    "readme": "mcp_tool_actions/MTA-9oihpumd/README.md",
+    "uses": [
+      "plugins/OHK-dwh5kqxq"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "run_blueprint_discovery"
+  },
+  {
     "id": "MTA-ab0krash",
     "type": "mcp_tool_actions",
     "name": "Compare Azure List Prices",
@@ -533,6 +575,34 @@
     "mcp_tool_name": "compare_azure_list_prices"
   },
   {
+    "id": "MTA-gnx1ckno",
+    "type": "mcp_tool_actions",
+    "name": "Run CIT Tests",
+    "description": "Starts a functionaltest job for the named CIT tests and returns its job id.",
+    "path": "mcp_tool_actions/MTA-gnx1ckno",
+    "readme": "mcp_tool_actions/MTA-gnx1ckno/README.md",
+    "uses": [
+      "plugins/OHK-ieb4qio7"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "run_cit_tests"
+  },
+  {
+    "id": "MTA-js655cf3",
+    "type": "mcp_tool_actions",
+    "name": "Cancel Jobs",
+    "description": "Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint.",
+    "path": "mcp_tool_actions/MTA-js655cf3",
+    "readme": "mcp_tool_actions/MTA-js655cf3/README.md",
+    "uses": [
+      "plugins/OHK-2lzwvo0j"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "cancel_jobs"
+  },
+  {
     "id": "MTA-lp8lgi7e",
     "type": "mcp_tool_actions",
     "name": "Order Counts by Blueprint",
@@ -545,6 +615,20 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "order_counts_by_blueprint"
+  },
+  {
+    "id": "MTA-thkvyt0v",
+    "type": "mcp_tool_actions",
+    "name": "Run Recurring Job",
+    "description": "Runs a recurring job immediately, like Run Now on the Recurring Jobs page.",
+    "path": "mcp_tool_actions/MTA-thkvyt0v",
+    "readme": "mcp_tool_actions/MTA-thkvyt0v/README.md",
+    "uses": [
+      "plugins/OHK-qduf79xu"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "run_recurring_job"
   },
   {
     "id": "HPA-1lp8xqo3",
@@ -725,6 +809,19 @@
     "plugin_type": "Remote Script"
   },
   {
+    "id": "OHK-0wtrj2wb",
+    "type": "plugins",
+    "name": "Sync From Source Control Repo",
+    "description": "Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll.",
+    "path": "plugins/OHK-0wtrj2wb",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-543b19sa"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-1rel6s64",
     "type": "plugins",
     "name": "Set URL Parameter",
@@ -779,6 +876,32 @@
       "blueprints/BP-psw7rclb"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2lzwvo0j",
+    "type": "plugins",
+    "name": "Cancel Jobs",
+    "description": "Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint.",
+    "path": "plugins/OHK-2lzwvo0j",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-js655cf3"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-2p0rhzup",
+    "type": "plugins",
+    "name": "Fetch Job Log",
+    "description": "Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed.",
+    "path": "plugins/OHK-2p0rhzup",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-8j9c0tb0"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-2vdm93hu",
@@ -1365,6 +1488,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-dwh5kqxq",
+    "type": "plugins",
+    "name": "Run Blueprint Discovery",
+    "description": "Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand.",
+    "path": "plugins/OHK-dwh5kqxq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-9oihpumd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-e5a4m2bm",
     "type": "plugins",
     "name": "Discover Azure Resource Groups",
@@ -1463,6 +1599,19 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-nszj7jop"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ieb4qio7",
+    "type": "plugins",
+    "name": "Run CIT Tests",
+    "description": "Starts a functionaltest job for the named CIT tests and returns its job id.",
+    "path": "plugins/OHK-ieb4qio7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-gnx1ckno"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1690,6 +1839,19 @@
     ],
     "used_by": [
       "blueprints/BP-b0qm83lh"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-qduf79xu",
+    "type": "plugins",
+    "name": "Run Recurring Job",
+    "description": "Runs a recurring job immediately, like Run Now on the Recurring Jobs page.",
+    "path": "plugins/OHK-qduf79xu",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-thkvyt0v"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
