@@ -233,6 +233,9 @@ __marimo__/
 .claude/settings.json
 .claude/settings.local.json
 .claude/memory/
+# Appliance identifiers and the ledger used by the cb-test-content loop
+.claude/cb-test.local.json
+.claude/cb-test-ledger.local.json
 
 # Editor state
 .vscode/

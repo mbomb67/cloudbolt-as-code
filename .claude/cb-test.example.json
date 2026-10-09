@@ -1,0 +1,7 @@
+{
+    "source_code_repo": "FILL-ME (SCR-... global id or the repository label on the appliance; optional when it has one repository)",
+    "group_id": "FILL-ME (GRP-... to order under)",
+    "resource_name_prefix": "cbtest",
+    "test_server_id": "FILL-ME (SVR-... for standalone server actions; optional)",
+    "test_resource_id": "FILL-ME (RES-... for standalone resource actions; optional)"
+}
