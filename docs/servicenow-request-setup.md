@@ -8,7 +8,7 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 |---|---|---|
 | Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval |
 | Order auto-approved or approved in CloudBolt | HPA-smbwmzj0 "Open on Approval" | REQ + RITM opened with `cloudbolt_approval=approved` (skipped when a RITM already exists) |
-| Every two minutes | RJB-do33f7f3 "Approval Sync" | RITM `approval` read; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
+| Every two minutes | RJB-do33f7f3 "Approval Sync" | `approval` read on the REQ (default) or the RITM; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
 | All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as Configuration item, work note with links |
 
@@ -47,12 +47,12 @@ Multi-row variable set `cloudbolt_items` columns, all single-line text: `item_ty
 
 Attach a Flow Designer flow to the item:
 - If `cloudbolt_approval` is `approved`, skip approval and leave the RITM open; CloudBolt closes it.
-- Otherwise request approval. Route on `cloudbolt_group`, `cloudbolt_environment`, `cloudbolt_cloud` or `cloudbolt_estimated_cost`; a lookup table owned by the ServiceNow team keeps routing a data change rather than a catalog change.
+- Otherwise request approval. Route on `cloudbolt_group`, `cloudbolt_environment`, `cloudbolt_cloud` or `cloudbolt_estimated_cost`; a lookup table owned by the ServiceNow team keeps routing a data change rather than a catalog change. If the flow records its decision on the RITM rather than the REQ, pin `servicenow_approval_table` to `sc_req_item` on the sync job.
 - Do not generate catalog tasks or close the RITM in the flow. CloudBolt is the fulfiller and closes the RITM itself.
 - Optional: on rejection set the RITM state to Closed Incomplete so the RITM list stays tidy; the sync job treats any closed RITM as a denial.
 
 ### 3. Table path (no catalog item)
-Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` and `sc_req_item` directly with `approval` set to `requested` (or `approved` for orders already approved in CloudBolt). No catalog flow runs; your business rules or a flow with a "record created" trigger on `sc_req_item` drive the approval. The sync job still mirrors the `approval` field.
+Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` and `sc_req_item` directly with `approval` set to `requested` (or `approved` for orders already approved in CloudBolt). The catalog item flow does not run, but the out-of-the-box Service Catalog Request workflow does run on the `sc_request` insert and records its decision in the REQ's `approval` field (approving outright when no approval rule applies, for example a zero-cost request). That is why the sync job reads `sc_request` by default; the RITM's `approval` stays `requested` on this path. Add approval rules to that workflow, or a flow with a "record created" trigger on `sc_request`, to gate the orders you care about.
 
 ## CloudBolt side
 
@@ -81,5 +81,5 @@ Verified on a CloudBolt 2026.3 appliance with a ServiceNow ITSM integration (202
 
 - Order submitted but no RITM: open the order's history. A failure in Open on Submit is shown to the user at submission; the order stays pending with no approver email.
 - RITM shows the integration user as Requested for: the user lacks `glide.sc.req_for.roles` permission, or the owner's email or username does not match a `sys_user`. Set `servicenow_requested_for_miss` to `fail` to refuse such orders.
-- Orders stay pending after approval in ServiceNow: check the sync job's log, the `servicenow_approval_table` and `servicenow_approval_field` pins, and that the RITM carries the `approval` value your flow sets.
+- Orders stay pending after approval in ServiceNow: check the sync job's log and the `servicenow_approval_table` and `servicenow_approval_field` pins. Open the REQ and the RITM and see which one carries the `approval` value your workflow or flow sets; the RITM form does not show Approval by default, so use the list view or add the field to the form.
 - No CI attached at completion: the CMDB integration did not create the CI, or it stored the VM id in a different column; adjust `find_server_ci` in the shared module.

@@ -8,7 +8,7 @@
         {
             "label": "ServiceNow Approval Table",
             "name": "servicenow_approval_table_a1",
-            "value": "sc_req_item"
+            "value": "sc_request"
         },
         {
             "label": "ServiceNow Approval Field",

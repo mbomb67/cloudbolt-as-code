@@ -10,7 +10,9 @@ get their still-open RITM closed as incomplete.
 
 Inputs (pinned on the recurring job):
   servicenow_connection_name  ConnectionInfo name (default "ServiceNow").
-  servicenow_approval_table   "sc_req_item" (default) or "sc_request".
+  servicenow_approval_table   "sc_request" (default; the REQ, where the out-of-the-box
+                              Service Catalog Request workflow records its decision) or
+                              "sc_req_item" when the catalog item's flow approves the RITM.
   servicenow_approval_field   Field read for the decision (default "approval";
                               "stage" or "state" also work with matching values).
   servicenow_approved_values  Comma-separated values meaning approved (default "approved").
@@ -30,7 +32,7 @@ from shared_modules import servicenow_requests as snr
 logger = ThreadLogger(__name__)
 
 CONNECTION_NAME = "{{ servicenow_connection_name }}".strip() or snr.DEFAULT_CONNECTION_NAME
-APPROVAL_TABLE = "{{ servicenow_approval_table }}".strip() or snr.TABLE_RITM
+APPROVAL_TABLE = "{{ servicenow_approval_table }}".strip() or snr.TABLE_REQUEST
 APPROVAL_FIELD = "{{ servicenow_approval_field }}".strip() or "approval"
 APPROVED_VALUES = "{{ servicenow_approved_values }}".strip() or snr.APPROVAL_APPROVED
 DENIED_VALUES = "{{ servicenow_denied_values }}".strip() or f"{snr.APPROVAL_REJECTED},cancelled"
