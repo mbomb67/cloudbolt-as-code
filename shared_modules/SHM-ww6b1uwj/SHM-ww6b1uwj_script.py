@@ -20,9 +20,12 @@ description, correlation_id = CloudBolt order global id, requested_for), and
 later closed by the Post-Order Execution hook with the created CIs attached
 through the task_ci ("Affected CIs") table.
 
-The ServiceNow identifiers are stored on the order's anchor objects (blueprint
-order item, or the server / resource a day-2 or decommission order targets)
-as the custom field "servicenow_request" (JSON) and "servicenow_ritm_number".
+The order's anchor objects (blueprint order item, or the server / resource a
+day-2 or decommission order targets) carry two URL custom fields that link to
+the REQ and the RITM by number. Nothing else is stored in CloudBolt: the RITM
+is looked up by number and verified through correlation_id (the order's global
+id), and its cat_item, state and approval say which path created it and where
+it stands.
 
 ServiceNow references used at the call sites:
   * Table API (GET/POST/PATCH /api/now/table/<table>[/<sys_id>]):
@@ -40,6 +43,7 @@ TLS verification follows CloudBolt's platform setting (Admin > SSL Certificates)
 via get_ssl_verification(); never hard-code verify=True/False.
 """
 import json
+import re
 from decimal import Decimal
 
 import requests
@@ -97,9 +101,15 @@ APPROVAL_REJECTED = "rejected"
 # Shown in ServiceNow as the external system that owns the record.
 CORRELATION_DISPLAY = "CloudBolt"
 
-# Custom fields that carry the ServiceNow identifiers on CloudBolt objects.
-CF_REQUEST_JSON = "servicenow_request"
-CF_RITM_NUMBER = "servicenow_ritm_number"
+# URL custom fields that link CloudBolt objects to their ServiceNow records.
+# The link is ServiceNow's exact-match search for the record number, so the
+# text CloudBolt shows is the number itself and the click lands on the form:
+#   https://<instance>/text_search_exact_match.do?sysparm_search=RITM0010465
+# Everything else about the request (sys_ids, path, state) is read back from
+# the RITM, which carries the order's global id in correlation_id.
+CF_REQUEST_LINK = "servicenow_request_link"
+CF_RITM_LINK = "servicenow_ritm_link"
+RECORD_LINK_PATH = "/text_search_exact_match.do?sysparm_search="
 # Optional: other content may set this on a Resource so the close hook can
 # attach the resource's CI without a CMDB lookup.
 CF_RESOURCE_CI_SYS_ID = "servicenow_ci_sys_id"
@@ -412,12 +422,21 @@ class ServiceNowRequestClient:
 
     # -- lifecycle helpers --------------------------------------------------
 
+    RITM_FIELDS = (
+        "sys_id", "number", "state", "approval", "stage", "cmdb_ci", "request",
+        "cat_item", "correlation_id",
+    )
+
     def get_ritm(self, ritm_sys_id):
-        return self.get(
-            TABLE_RITM,
-            ritm_sys_id,
-            fields=("sys_id", "number", "state", "approval", "stage", "cmdb_ci", "request"),
-        )
+        return self.get(TABLE_RITM, ritm_sys_id, fields=self.RITM_FIELDS)
+
+    def find_ritm_by_number(self, number):
+        rows = self.query(TABLE_RITM, f"number={number}", fields=self.RITM_FIELDS, limit=1)
+        return rows[0] if rows else None
+
+    def record_link(self, number):
+        """URL that opens the REQ or RITM form for a record number."""
+        return f"{self.base_url}{RECORD_LINK_PATH}{number}"
 
     def add_work_note(self, ritm_sys_id, note):
         return self.update(TABLE_RITM, ritm_sys_id, {"work_notes": note})
@@ -887,27 +906,29 @@ def task_fields(summary, requested_for_sys_id=None):
 
 
 # ---------------------------------------------------------------------------
-# Identifier storage on CloudBolt objects
+# Links between CloudBolt objects and ServiceNow records
 # ---------------------------------------------------------------------------
 
 
 def ensure_custom_fields():
     CustomField.objects.get_or_create(
-        name=CF_REQUEST_JSON,
+        name=CF_REQUEST_LINK,
         defaults={
             "label": "ServiceNow Request",
-            "type": "TXT",
-            "description": "ServiceNow REQ/RITM identifiers written by the ServiceNow request hooks (JSON).",
-            "show_on_servers": False,
+            "type": "URL",
+            "description": "Link to the ServiceNow Request (REQ) opened for this order.",
+            "show_on_servers": True,
+            "show_as_attribute": True,
         },
     )
     CustomField.objects.get_or_create(
-        name=CF_RITM_NUMBER,
+        name=CF_RITM_LINK,
         defaults={
             "label": "ServiceNow RITM",
-            "type": "STR",
-            "description": "ServiceNow Requested Item number opened for the CloudBolt order.",
+            "type": "URL",
+            "description": "Link to the ServiceNow Requested Item (RITM) opened for this order.",
             "show_on_servers": True,
+            "show_as_attribute": True,
         },
     )
 
@@ -937,36 +958,59 @@ def anchor_objects(order):
     return anchors
 
 
-def store_request_ids(order, ids, targets=None):
-    """Persist the ServiceNow identifiers on the order's anchors (or explicit targets)."""
+def store_request_links(snow, order, request_number, ritm_number, targets=None):
+    """Write the REQ and RITM links onto the order's anchors (or explicit targets)."""
     ensure_custom_fields()
-    ids = dict(ids, order_id=order.id)
-    blob = json.dumps(ids)
     for obj in targets if targets is not None else anchor_objects(order):
         try:
-            obj.set_value_for_custom_field(CF_REQUEST_JSON, blob)
-            if ids.get("ritm_number"):
-                obj.set_value_for_custom_field(CF_RITM_NUMBER, ids["ritm_number"])
+            if request_number:
+                obj.set_value_for_custom_field(CF_REQUEST_LINK, snow.record_link(request_number))
+            if ritm_number:
+                obj.set_value_for_custom_field(CF_RITM_LINK, snow.record_link(ritm_number))
         except Exception as err:
-            logger.warning(f"Could not store ServiceNow ids on {obj}: {err}")
-    return ids
+            logger.warning(f"Could not store ServiceNow links on {obj}: {err}")
 
 
-def load_request_ids(order):
-    """Return the stored identifiers for this order, or None."""
+_NUMBER_RE = re.compile(r"(RITM\d+|REQ\d+)")
+
+
+def _number_from_link(value):
+    match = _NUMBER_RE.search(value or "")
+    return match.group(1) if match else None
+
+
+def load_request(snow, order):
+    """
+    Return the live ServiceNow record for this order, or None when the order
+    has no RITM link or the RITM does not belong to it (correlation_id must
+    equal the order's global id). Keys: ritm_sys_id, ritm_number,
+    request_sys_id, request_number, path ("catalog" or "table"), state,
+    approval, closed.
+    """
+    tried = set()
     for obj in anchor_objects(order):
         try:
-            raw = obj.get_value_for_custom_field(CF_REQUEST_JSON)
+            ritm_link = obj.get_value_for_custom_field(CF_RITM_LINK)
+            request_link = obj.get_value_for_custom_field(CF_REQUEST_LINK)
         except Exception:
-            raw = None
-        if not raw:
             continue
-        try:
-            ids = json.loads(raw)
-        except ValueError:
+        number = _number_from_link(ritm_link)
+        if not number or number in tried:
             continue
-        if ids.get("order_id") == order.id:
-            return ids
+        tried.add(number)
+        ritm = snow.find_ritm_by_number(number)
+        if not ritm or ritm.get("correlation_id") != order.global_id:
+            continue
+        return {
+            "ritm_sys_id": ritm["sys_id"],
+            "ritm_number": ritm.get("number") or number,
+            "request_sys_id": ritm.get("request") or "",
+            "request_number": _number_from_link(request_link) or "",
+            "path": "catalog" if ritm.get("cat_item") else "table",
+            "state": str(ritm.get("state", "")),
+            "approval": str(ritm.get("approval", "")).lower(),
+            "closed": str(ritm.get("state", "")) in RITM_CLOSED_STATES,
+        }
     return None
 
 

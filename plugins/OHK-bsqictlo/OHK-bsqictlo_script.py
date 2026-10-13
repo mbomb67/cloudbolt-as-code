@@ -1,18 +1,23 @@
 """
 Mirror ServiceNow approval decisions onto pending CloudBolt orders.
 
-For every PENDING order that has a ServiceNow request (opened by the
-ServiceNow Request: Open action) the job reads one field on the RITM (or the
-REQ) and approves or denies the CloudBolt order to match. Orders without a
-ServiceNow request are left alone, so enabling this job does not touch orders
-that predate the integration. Orders cancelled in CloudBolt in the last week
-get their still-open RITM closed as incomplete.
+For every PENDING order that has a ServiceNow RITM (opened by the ServiceNow
+Request: Open action) the job reads the approval decision and approves or
+denies the CloudBolt order to match. Orders without a RITM are left alone, so
+enabling this job does not touch orders that predate the integration. Orders
+cancelled in CloudBolt in the last week get their still-open RITM closed as
+incomplete.
+
+Where the decision is read from follows ServiceNow's conventions: a catalog
+item's flow asks for approval on the RITM, so catalog-path orders read
+sc_req_item.approval; on the Table API path no flow runs and only the
+out-of-the-box Service Catalog Request workflow on sc_request moves, so those
+orders read sc_request.approval. The pin can force either table.
 
 Inputs (pinned on the recurring job):
-  servicenow_connection_name  ConnectionInfo name (default "ServiceNow").
-  servicenow_approval_table   "sc_request" (default; the REQ, where the out-of-the-box
-                              Service Catalog Request workflow records its decision) or
-                              "sc_req_item" when the catalog item's flow approves the RITM.
+  servicenow_connection_name  ConnectionInfo or ITSM integration name (default "ServiceNow").
+  servicenow_approval_table   "auto" (default: RITM for catalog-path orders, REQ for
+                              table-path orders), "sc_req_item" or "sc_request".
   servicenow_approval_field   Field read for the decision (default "approval";
                               "stage" or "state" also work with matching values).
   servicenow_approved_values  Comma-separated values meaning approved (default "approved").
@@ -32,7 +37,7 @@ from shared_modules import servicenow_requests as snr
 logger = ThreadLogger(__name__)
 
 CONNECTION_NAME = "{{ servicenow_connection_name }}".strip() or snr.DEFAULT_CONNECTION_NAME
-APPROVAL_TABLE = "{{ servicenow_approval_table }}".strip() or snr.TABLE_REQUEST
+APPROVAL_TABLE = ("{{ servicenow_approval_table }}".strip() or "auto").lower()
 APPROVAL_FIELD = "{{ servicenow_approval_field }}".strip() or "approval"
 APPROVED_VALUES = "{{ servicenow_approved_values }}".strip() or snr.APPROVAL_APPROVED
 DENIED_VALUES = "{{ servicenow_denied_values }}".strip() or f"{snr.APPROVAL_REJECTED},cancelled"
@@ -54,10 +59,22 @@ def _approver():
     return profile
 
 
-def _record_sys_id(ids):
-    if APPROVAL_TABLE == snr.TABLE_REQUEST:
-        return ids.get("request_sys_id")
-    return ids.get("ritm_sys_id")
+def _decision_table(record):
+    if APPROVAL_TABLE in (snr.TABLE_RITM, snr.TABLE_REQUEST):
+        return APPROVAL_TABLE
+    return snr.TABLE_RITM if record["path"] == "catalog" else snr.TABLE_REQUEST
+
+
+def _decision_value(snow, record):
+    """Return (table, value) for the record the decision is read from."""
+    table = _decision_table(record)
+    if table == snr.TABLE_RITM and APPROVAL_FIELD == "approval":
+        return table, record["approval"]
+    sys_id = record["ritm_sys_id"] if table == snr.TABLE_RITM else record["request_sys_id"]
+    if not sys_id:
+        return table, ""
+    row = snow.get(table, sys_id, fields=(APPROVAL_FIELD,))
+    return table, str(row.get(APPROVAL_FIELD, "")).strip().lower()
 
 
 def _sync_pending(snow, approver, job):
@@ -66,23 +83,17 @@ def _sync_pending(snow, approver, job):
     counts = {"approved": 0, "denied": 0, "pending": 0, "skipped": 0, "errors": 0}
 
     for order in Order.objects.filter(status="PENDING").order_by("id"):
-        ids = snr.load_request_ids(order)
-        sys_id = _record_sys_id(ids) if ids else None
-        if not sys_id:
-            counts["skipped"] += 1
-            continue
         try:
-            record = snow.get(APPROVAL_TABLE, sys_id, fields=(APPROVAL_FIELD, "state", "number"))
+            record = snr.load_request(snow, order)
+            if not record:
+                counts["skipped"] += 1
+                continue
+            table, value = _decision_value(snow, record)
         except snr.ServiceNowError as err:
-            logger.warning(f"Order {order.id}: could not read {APPROVAL_TABLE} {sys_id}: {err}")
+            logger.warning(f"Order {order.id}: could not read its ServiceNow record: {err}")
             counts["errors"] += 1
             continue
-        value = str(record.get(APPROVAL_FIELD, "")).strip().lower()
-        number = record.get("number") or ids.get("ritm_number")
-        ritm_closed = (
-            APPROVAL_TABLE == snr.TABLE_RITM
-            and str(record.get("state", "")) in snr.RITM_CLOSED_STATES
-        )
+        number = record["ritm_number"] if table == snr.TABLE_RITM else record["request_number"]
 
         if value in approved:
             try:
@@ -95,12 +106,14 @@ def _sync_pending(snow, approver, job):
             snr.record_event(order, msg)
             snr.progress(msg, job)
             counts["approved"] += 1
-        elif value in denied or ritm_closed:
-            reason = f"Rejected in ServiceNow ({number}: {APPROVAL_FIELD}={value or record.get('state')})"
-            # Tell the Post-Order Denied action the decision came from ServiceNow
-            # so it does not overwrite the RITM with a CloudBolt denial.
-            ids["denied_by"] = "servicenow"
-            snr.store_request_ids(order, ids)
+        elif value in denied or record["closed"]:
+            reason = (
+                f"Rejected in ServiceNow ({number}: {APPROVAL_FIELD}={value})"
+                if value in denied
+                else f"Closed in ServiceNow ({record['ritm_number']}: state={record['state']})"
+            )
+            # The Post-Order Denied action sees the rejected or closed RITM and
+            # leaves it to ServiceNow instead of writing a CloudBolt denial on it.
             try:
                 order.deny(approver, reason=reason)
             except Exception as err:
@@ -126,24 +139,20 @@ def _close_cancelled(snow, job):
     )
     closed = 0
     for order in Order.objects.filter(id__in=list(order_ids), status="CANCELED"):
-        ids = snr.load_request_ids(order)
-        if not ids or ids.get("closed") or not ids.get("ritm_sys_id"):
-            continue
         try:
-            ritm = snow.get_ritm(ids["ritm_sys_id"])
-            if str(ritm.get("state", "")) not in snr.RITM_CLOSED_STATES:
-                snow.close_ritm(
-                    ids["ritm_sys_id"],
-                    snr.RITM_STATE_CLOSED_INCOMPLETE,
-                    f"Cancelled in CloudBolt (order {order.id}).",
-                    work_note=f"CloudBolt order {order.id} was cancelled by its owner before fulfillment.",
-                )
+            record = snr.load_request(snow, order)
+            if not record or record["closed"]:
+                continue
+            snow.close_ritm(
+                record["ritm_sys_id"],
+                snr.RITM_STATE_CLOSED_INCOMPLETE,
+                f"Cancelled in CloudBolt (order {order.id}).",
+                work_note=f"CloudBolt order {order.id} was cancelled by its owner before fulfillment.",
+            )
         except snr.ServiceNowError as err:
-            logger.warning(f"Order {order.id}: could not close RITM {ids.get('ritm_number')}: {err}")
+            logger.warning(f"Order {order.id}: could not close its RITM: {err}")
             continue
-        ids["closed"] = True
-        snr.store_request_ids(order, ids)
-        snr.record_event(order, f"ServiceNow {ids.get('ritm_number')} closed after cancellation.")
+        snr.record_event(order, f"ServiceNow {record['ritm_number']} closed after cancellation.")
         closed += 1
     return closed
 

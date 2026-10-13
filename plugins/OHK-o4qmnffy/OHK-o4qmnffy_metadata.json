@@ -82,7 +82,7 @@
             "shared_modules/SHM-ww6b1uwj"
         ]
     },
-    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, and stores the identifiers on the order.",
+    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
     "id": "OHK-o4qmnffy",
     "max_retries": 0,
     "name": "ServiceNow Request: Open",

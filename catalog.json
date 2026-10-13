@@ -1785,7 +1785,7 @@
     "id": "OHK-htrxkps2",
     "type": "plugins",
     "name": "ServiceNow Request: Close",
-    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs, and writes the request identifiers onto the created objects.",
+    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs, and links the created objects to the records.",
     "path": "plugins/OHK-htrxkps2",
     "readme": null,
     "uses": [
@@ -1948,7 +1948,7 @@
     "id": "OHK-o4qmnffy",
     "type": "plugins",
     "name": "ServiceNow Request: Open",
-    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, and stores the identifiers on the order.",
+    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
     "path": "plugins/OHK-o4qmnffy",
     "readme": null,
     "uses": [

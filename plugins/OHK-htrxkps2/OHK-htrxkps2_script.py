@@ -7,12 +7,12 @@ closed incomplete for FAILURE. Every server the order produced is looked up
 in the CMDB (the CI CloudBolt's CMDB integration created at Post-Provision)
 and added to the RITM's Affected CIs; the first one becomes the RITM's
 Configuration item. Resources are attached when they carry the custom field
-"servicenow_ci_sys_id". The ServiceNow identifiers are also written onto the
-created servers and resources so day-2 and teardown orders can refer back to
-the originating request.
+"servicenow_ci_sys_id". The ServiceNow Request and RITM links are also
+written onto the created servers and resources so day-2 and teardown orders
+can refer back to the originating request.
 
 Inputs (pinned on the orchestration action):
-  servicenow_connection_name  ConnectionInfo name (default "ServiceNow").
+  servicenow_connection_name  ConnectionInfo or ITSM integration name (default "ServiceNow").
   servicenow_ci_table         CMDB table searched for server CIs (default "cmdb_ci_server").
   cloudbolt_base_url          Base URL for links in the work note; empty = default portal.
 """
@@ -30,12 +30,6 @@ BASE_URL = "{{ cloudbolt_base_url }}".strip()
 def run(order=None, job=None, logger=logger, **kwargs):
     if order is None:
         return "SUCCESS", "No order in context; nothing to do.", ""
-
-    ids = snr.load_request_ids(order)
-    if not ids or not ids.get("ritm_sys_id"):
-        return "SUCCESS", f"Order {order.id} has no ServiceNow RITM; nothing to close.", ""
-    if ids.get("closed"):
-        return "SUCCESS", f"ServiceNow {ids.get('ritm_number')} is already closed.", ""
 
     status = order.status
     state = (
@@ -56,17 +50,23 @@ def run(order=None, job=None, logger=logger, **kwargs):
     linked = []
     try:
         with snr.ServiceNowRequestClient(CONNECTION_NAME) as snow:
+            record = snr.load_request(snow, order)
+            if not record:
+                return "SUCCESS", f"Order {order.id} has no ServiceNow RITM; nothing to close.", ""
+            if record["closed"]:
+                return "SUCCESS", f"ServiceNow {record['ritm_number']} is already closed.", ""
+
             for server in servers:
                 ci = snow.find_server_ci(server, CI_TABLE)
                 if ci:
-                    snow.link_ci(ids["ritm_sys_id"], ci)
+                    snow.link_ci(record["ritm_sys_id"], ci)
                     linked.append((server.hostname, ci))
                 else:
                     note_lines.append(f"No CI found in {CI_TABLE} for {server.hostname}.")
             for resource in resources:
                 ci = resource.get_value_for_custom_field(snr.CF_RESOURCE_CI_SYS_ID)
                 if ci:
-                    snow.link_ci(ids["ritm_sys_id"], ci)
+                    snow.link_ci(record["ritm_sys_id"], ci)
                     linked.append((resource.name, ci))
             if linked:
                 note_lines.append("Affected CIs: " + ", ".join(name for name, _ in linked))
@@ -76,17 +76,15 @@ def run(order=None, job=None, logger=logger, **kwargs):
                 if state == snr.RITM_STATE_CLOSED_COMPLETE
                 else f"CloudBolt order {order.id} failed; see the order for job logs."
             )
-            snow.close_ritm(ids["ritm_sys_id"], state, close_notes, "\n".join(note_lines), extra)
+            snow.close_ritm(record["ritm_sys_id"], state, close_notes, "\n".join(note_lines), extra)
+            snr.store_request_links(
+                snow, order, record["request_number"], record["ritm_number"], targets=servers + resources
+            )
     except snr.ServiceNowError as err:
-        return "FAILURE", "", f"Could not close ServiceNow {ids.get('ritm_number')}: {err}"
-
-    ids["closed"] = True
-    ids["order_status"] = status
-    snr.store_request_ids(order, ids)
-    snr.store_request_ids(order, ids, targets=servers + resources)
+        return "FAILURE", "", f"Could not close the order's ServiceNow RITM: {err}"
 
     msg = (
-        f"ServiceNow {ids.get('ritm_number')} closed "
+        f"ServiceNow {record['ritm_number']} closed "
         f"{'complete' if state == snr.RITM_STATE_CLOSED_COMPLETE else 'incomplete'} "
         f"with {len(linked)} CI(s) attached."
     )

@@ -1,6 +1,6 @@
 # ServiceNow Request Approval Sync
 
-Recurring job that reads one field on each pending order's REQ (default) or RITM and approves or denies the CloudBolt order to match. Orders without a ServiceNow request are ignored, so orders that predate the integration are untouched. Orders cancelled in CloudBolt during the last seven days get their still-open RITM closed as incomplete.
+Recurring job that reads the approval decision for each pending order that has a ServiceNow RITM and approves or denies the CloudBolt order to match: on the RITM for catalog-path orders (the item's flow approves there), on the REQ for Table API orders (only the out-of-the-box request workflow moves there). Orders without a ServiceNow request are ignored, so orders that predate the integration are untouched. Orders cancelled in CloudBolt during the last seven days get their still-open RITM closed as incomplete.
 
 ## Contents
 | Role | ID | Name |
@@ -11,7 +11,7 @@ Recurring job that reads one field on each pending order's REQ (default) or RITM
 | Companions | HPA-i1x67v4h, HPA-smbwmzj0, HPA-i8r5x2kc, HPA-fxo5hujp | Open on Submit, Open on Approval, Close on Denial, Close on Completion |
 
 ## Setup
-Read [../../docs/servicenow-request-setup.md](../../docs/servicenow-request-setup.md). Pins: ConnectionInfo name; `servicenow_approval_table` (`sc_request` by default, where the out-of-the-box Service Catalog Request workflow records its decision; `sc_req_item` when the catalog item's flow approves the RITM); `servicenow_approval_field` (`approval` by default; `stage` or `state` with matching values); approved and denied value lists; optional CloudBolt approver username recorded on the order.
+Read [../../docs/servicenow-request-setup.md](../../docs/servicenow-request-setup.md). Pins: ConnectionInfo name; `servicenow_approval_table` (`auto` by default; `sc_req_item` or `sc_request` to force one); `servicenow_approval_field` (`approval` by default; `stage` or `state` with matching values); approved and denied value lists; optional CloudBolt approver username recorded on the order.
 
 ## Notes
 - A RITM in any closed state (3, 4, 7) counts as a denial even if `approval` never changed.

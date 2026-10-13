@@ -8,13 +8,15 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 |---|---|---|
 | Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval |
 | Order auto-approved or approved in CloudBolt | HPA-smbwmzj0 "Open on Approval" | REQ + RITM opened with `cloudbolt_approval=approved` (skipped when a RITM already exists) |
-| Every two minutes | RJB-do33f7f3 "Approval Sync" | `approval` read on the REQ (default) or the RITM; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
+| Every two minutes | RJB-do33f7f3 "Approval Sync" | Approval read on the RITM for catalog-path orders and on the REQ for Table API orders; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
 | All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as Configuration item, work note with links |
 
 Mapping: CloudBolt order = REQ, order item = RITM, each server or resource = a row in the RITM's multi-row variable set before build and an Affected CI after. Day-2 actions, modifications and teardown open their own RITM against the same catalog item with `cloudbolt_action` set to `day2`, `modify` or `teardown`, but only when they create an order: a resource or server action runs as a plain job unless it is marked *Requires Approval*, and a plain job never reaches the order hook points. Mark the actions that must leave a ServiceNow record as requiring approval; the Delete action on a resource is one of them.
 
-The identifiers are stored on the blueprint order item (builds) or the targeted server or resource (day-2, modify, decommission) in the custom fields `servicenow_request` (JSON) and `servicenow_ritm_number`, and copied onto the created servers and resources at completion. Each step also adds a line to the order's history.
+The blueprint order item (builds) or the targeted server or resource (day-2, modify, decommission) gets two URL parameters, **ServiceNow Request** and **ServiceNow RITM**, whose text is the record number and whose link opens the record (ServiceNow's exact-match search, `/text_search_exact_match.do?sysparm_search=RITM0010465`). They are copied onto the created servers and resources at completion. Nothing else is stored in CloudBolt: each action looks the RITM up by number and accepts it only when its `correlation_id` equals the order's global id. Each step also adds a line to the order's history.
+
+Where approvals live follows ServiceNow's conventions. A catalog item's flow asks for approval on the RITM, one approval per item; the REQ is the cart and reflects the sum of its items. The out-of-the-box Service Catalog Request workflow adds a cart-level approval on the REQ only when the price crosses its threshold. The sync job therefore reads the RITM for catalog-path orders and the REQ for Table API orders, where no item flow runs; pin `servicenow_approval_table` to force one table.
 
 ## ServiceNow side
 
@@ -52,7 +54,7 @@ Attach a Flow Designer flow to the item:
 - Optional: on rejection set the RITM state to Closed Incomplete so the RITM list stays tidy; the sync job treats any closed RITM as a denial.
 
 ### 3. Table path (no catalog item)
-Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` and `sc_req_item` directly with `approval` set to `requested` (or `approved` for orders already approved in CloudBolt). The catalog item flow does not run, but the out-of-the-box Service Catalog Request workflow does run on the `sc_request` insert and records its decision in the REQ's `approval` field (approving outright when no approval rule applies, for example a zero-cost request). That is why the sync job reads `sc_request` by default; the RITM's `approval` stays `requested` on this path. Add approval rules to that workflow, or a flow with a "record created" trigger on `sc_request`, to gate the orders you care about.
+Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` and `sc_req_item` directly with `approval` set to `requested` (or `approved` for orders already approved in CloudBolt). The catalog item flow does not run, but the out-of-the-box Service Catalog Request workflow does run on the `sc_request` insert and records its decision in the REQ's `approval` field (approving outright when no approval rule applies, for example a zero-cost request). The sync job reads `sc_request` for these orders; the RITM's `approval` stays `requested` on this path. Add approval rules to that workflow, or a flow with a "record created" trigger on `sc_request`, to gate the orders you care about.
 
 ## CloudBolt side
 
@@ -82,4 +84,5 @@ Verified on a CloudBolt 2026.3 appliance with a ServiceNow ITSM integration (202
 - Order submitted but no RITM: open the order's history. A failure in Open on Submit is shown to the user at submission; the order stays pending with no approver email.
 - RITM shows the integration user as Requested for: the user lacks `glide.sc.req_for.roles` permission, or the owner's email or username does not match a `sys_user`. Set `servicenow_requested_for_miss` to `fail` to refuse such orders.
 - Orders stay pending after approval in ServiceNow: check the sync job's log and the `servicenow_approval_table` and `servicenow_approval_field` pins. Open the REQ and the RITM and see which one carries the `approval` value your workflow or flow sets; the RITM form does not show Approval by default, so use the list view or add the field to the form.
+- The ServiceNow Request and RITM links show the full URL as their text. CloudBolt's URL parameter has no separate display label; the exact-match search URL keeps the number visible at the end.
 - No CI attached at completion: the CMDB integration did not create the CI, or it stored the VM id in a different column; adjust `find_server_ci` in the shared module.

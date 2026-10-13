@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Table whose record carries the decision: sc_request (the REQ, where the out-of-the-box Service Catalog Request workflow records it) or sc_req_item (the RITM, when the catalog item's flow approves there).",
+            "description": "Record the decision is read from: auto (RITM for catalog-path orders, REQ for Table API orders), sc_req_item, or sc_request.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -30,7 +30,7 @@
             "id": "CF-72yqlb36",
             "label": "ServiceNow Approval Table",
             "name": "servicenow_approval_table",
-            "placeholder": "sc_request",
+            "placeholder": "auto",
             "relevant_osfamilies": [],
             "required": false,
             "show_as_attribute": false,
