@@ -1,0 +1,12 @@
+{
+    "description": "ServiceNow REQ/RITM client plus the order-summary, catalog-variable, and identifier-storage helpers shared by the ServiceNow request actions.",
+    "id": "SHM-ww6b1uwj",
+    "label": "ServiceNow Requests",
+    "max_retries": 0,
+    "module_name": "servicenow_requests",
+    "name": "servicenow_requests",
+    "resource_technologies": [],
+    "script_filename": "SHM-ww6b1uwj_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

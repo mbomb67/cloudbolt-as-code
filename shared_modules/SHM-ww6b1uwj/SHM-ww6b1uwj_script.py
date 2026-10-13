@@ -1,0 +1,993 @@
+"""
+ServiceNow Request (REQ / RITM) client and order-summary helpers for CloudBolt.
+
+CloudBolt stays the service catalog. For every submitted order this module
+opens one ServiceNow Request (sc_request, "REQ") holding one Requested Item
+(sc_req_item, "RITM") so ServiceNow carries the approval and the audit trail
+while CloudBolt performs the fulfillment. Two creation paths exist:
+
+  * Catalog path (preferred): order ONE generic ServiceNow catalog item through
+    the Service Catalog API (POST /api/sn_sc/servicecatalog/items/<sys_id>/order_now)
+    so the item's flow runs (approvals, SLAs, notifications). The same item is
+    used for every CloudBolt blueprint and action; what differs is the variable
+    values. Variable names are documented in docs/servicenow-request-setup.md.
+  * Table path (fallback): insert sc_request then sc_req_item through the Table
+    API when no catalog item sys_id is configured. No catalog flow runs; the
+    customer's own business rules decide what happens next.
+
+After creation the RITM is decorated through the Table API (short_description,
+description, correlation_id = CloudBolt order global id, requested_for), and
+later closed by the Post-Order Execution hook with the created CIs attached
+through the task_ci ("Affected CIs") table.
+
+The ServiceNow identifiers are stored on the order's anchor objects (blueprint
+order item, or the server / resource a day-2 or decommission order targets)
+as the custom field "servicenow_request" (JSON) and "servicenow_ritm_number".
+
+ServiceNow references used at the call sites:
+  * Table API (GET/POST/PATCH /api/now/table/<table>[/<sys_id>]):
+    REST API Explorer > Now Table API; docs: servicenow.com/docs "Table API".
+  * Service Catalog API (POST /api/sn_sc/servicecatalog/items/<sys_id>/order_now,
+    POST /api/sn_sc/servicecatalog/cart/submit_order):
+    REST API Explorer > sn_sc > Service Catalog API; docs: "Service Catalog API".
+  * Requested-for on behalf of another user: system properties
+    glide.sc.req_for.roles / glide.sc.req_for.roles.default.
+  * RITM state and approval choice values vary per instance; verify in sys_choice
+    (table sc_req_item, elements state and approval). Defaults below match the
+    out-of-the-box values.
+
+TLS verification follows CloudBolt's platform setting (Admin > SSL Certificates)
+via get_ssl_verification(); never hard-code verify=True/False.
+"""
+import json
+from decimal import Decimal
+
+import requests
+from django.utils.html import strip_tags
+
+from common.methods import get_proxies, set_progress
+from common.mixins import HasCustomFieldValuesMixin
+from infrastructure.models import CustomField
+from utilities.helpers import get_ssl_verification
+from utilities.logger import ThreadLogger
+from utilities.models import ConnectionInfo
+
+logger = ThreadLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Bound every HTTP call so a hung ServiceNow request cannot pin a web or
+# jobengine thread (the order-submit hook runs inside the web request).
+HTTP_TIMEOUT_S = 60
+
+# ConnectionInfo that holds the ServiceNow instance and the integration user.
+DEFAULT_CONNECTION_NAME = "ServiceNow"
+
+TABLE_API = "/api/now/table"
+CATALOG_API = "/api/sn_sc/servicecatalog"
+
+TABLE_REQUEST = "sc_request"
+TABLE_RITM = "sc_req_item"
+TABLE_TASK_CI = "task_ci"
+TABLE_USER = "sys_user"
+DEFAULT_CI_TABLE = "cmdb_ci_server"
+
+# sc_req_item.state choice values (out-of-the-box). Verify in sys_choice.
+RITM_STATE_PENDING = "-5"
+RITM_STATE_OPEN = "1"
+RITM_STATE_WORK_IN_PROGRESS = "2"
+RITM_STATE_CLOSED_COMPLETE = "3"
+RITM_STATE_CLOSED_INCOMPLETE = "4"
+RITM_STATE_CLOSED_SKIPPED = "7"
+RITM_CLOSED_STATES = (
+    RITM_STATE_CLOSED_COMPLETE,
+    RITM_STATE_CLOSED_INCOMPLETE,
+    RITM_STATE_CLOSED_SKIPPED,
+)
+
+# task.approval choice values (out-of-the-box).
+APPROVAL_NOT_REQUESTED = "not requested"
+APPROVAL_REQUESTED = "requested"
+APPROVAL_APPROVED = "approved"
+APPROVAL_REJECTED = "rejected"
+
+# Shown in ServiceNow as the external system that owns the record.
+CORRELATION_DISPLAY = "CloudBolt"
+
+# Custom fields that carry the ServiceNow identifiers on CloudBolt objects.
+CF_REQUEST_JSON = "servicenow_request"
+CF_RITM_NUMBER = "servicenow_ritm_number"
+# Optional: other content may set this on a Resource so the close hook can
+# attach the resource's CI without a CMDB lookup.
+CF_RESOURCE_CI_SYS_ID = "servicenow_ci_sys_id"
+
+# Catalog item variable names. The generic ServiceNow catalog item must define
+# variables with exactly these names (docs/servicenow-request-setup.md).
+VAR_ORDER_ID = "cloudbolt_order_id"
+VAR_ORDER_URL = "cloudbolt_order_url"
+VAR_ACTION = "cloudbolt_action"
+VAR_BLUEPRINT = "cloudbolt_blueprint"
+VAR_RESOURCE_TYPE = "cloudbolt_resource_type"
+VAR_GROUP = "cloudbolt_group"
+VAR_ENVIRONMENT = "cloudbolt_environment"
+VAR_CLOUD = "cloudbolt_cloud"
+VAR_COST = "cloudbolt_estimated_cost"
+VAR_REQUESTED_FOR = "cloudbolt_requested_for"
+VAR_JUSTIFICATION = "cloudbolt_justification"
+VAR_APPROVAL = "cloudbolt_approval"
+VAR_ITEMS = "cloudbolt_items"  # multi-row variable set, JSON string
+VAR_PAYLOAD = "cloudbolt_payload"  # multi-line text, JSON string
+
+# Multi-row variable set column names (one row per requested item).
+MRVS_COLUMNS = ("item_type", "name", "environment", "size", "quantity", "details")
+
+# Parameters never copied into the RITM description or payload.
+SECRET_HINTS = ("password", "secret", "token", "key", "credential", "passphrase")
+MAX_PAYLOAD_CHARS = 30000
+MAX_DETAILS_CHARS = 400
+
+# How the CloudBolt order maps onto the ServiceNow "cloudbolt_action" variable.
+ACTION_BUILD = "build"
+ACTION_DAY2 = "day2"
+ACTION_MODIFY = "modify"
+ACTION_TEARDOWN = "teardown"
+ACTION_OTHER = "other"
+
+
+class ServiceNowError(Exception):
+    """Raised when ServiceNow rejects a request or returns an unusable body."""
+
+
+# ---------------------------------------------------------------------------
+# REST client
+# ---------------------------------------------------------------------------
+
+
+class ServiceNowRequestClient:
+    """
+    Thin requests-based client bound to one ServiceNow ConnectionInfo.
+
+    Use as a context manager so the underlying session is closed:
+
+        with ServiceNowRequestClient("ServiceNow") as snow:
+            snow.query("sc_req_item", "number=RITM0010001")
+    """
+
+    def __init__(self, connection_name=DEFAULT_CONNECTION_NAME):
+        self.connection_name = connection_name or DEFAULT_CONNECTION_NAME
+        self.conn = self._resolve_connection(self.connection_name)
+        self.base_url = self._base_url(self.conn)
+        self.session = requests.Session()
+        self.session.auth = (self.conn.username, self.conn.password)
+        self.session.headers.update(
+            {"Content-Type": "application/json", "Accept": "application/json"}
+        )
+        self.session.verify = get_ssl_verification()
+        try:
+            self.session.proxies = get_proxies(self.base_url)
+        except Exception:  # proxies are optional
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.session.close()
+        return False
+
+    @staticmethod
+    def _resolve_connection(name):
+        conn = ConnectionInfo.objects.filter(name=name).first()
+        if conn:
+            return conn
+        # Fall back to the ConnectionInfo attached to CloudBolt's own ServiceNow
+        # integration object (Admin > ServiceNow) when one is configured.
+        try:
+            from utilities.models import ServiceNow
+
+            native = ServiceNow.objects.first()
+            if native and native.connection_info:
+                logger.info(
+                    f"ConnectionInfo '{name}' not found; using the ServiceNow "
+                    f"integration's connection '{native.connection_info.name}'."
+                )
+                return native.connection_info
+        except Exception:
+            pass
+        raise ServiceNowError(
+            f"ConnectionInfo '{name}' not found. Create it under Admin > "
+            f"Connection Info with the ServiceNow host and integration user."
+        )
+
+    @staticmethod
+    def _base_url(conn):
+        protocol = (conn.protocol or "https").lower()
+        host = conn.ip.strip().rstrip("/")
+        if host.startswith("http://") or host.startswith("https://"):
+            return host
+        if conn.port and int(conn.port) not in (80, 443):
+            return f"{protocol}://{host}:{conn.port}"
+        return f"{protocol}://{host}"
+
+    # -- low level --------------------------------------------------------
+
+    def _request(self, method, path, params=None, body=None, ok=(200, 201, 204)):
+        url = f"{self.base_url}{path}"
+        try:
+            response = self.session.request(
+                method,
+                url,
+                params=params,
+                data=json.dumps(body) if body is not None else None,
+                timeout=HTTP_TIMEOUT_S,
+            )
+        except requests.RequestException as err:
+            raise ServiceNowError(f"{method} {path} failed: {err}") from err
+        if response.status_code not in ok:
+            raise ServiceNowError(
+                f"{method} {path} returned HTTP {response.status_code}: "
+                f"{response.text[:1000]}"
+            )
+        if response.status_code == 204 or not response.content:
+            return {}
+        try:
+            return response.json().get("result", {})
+        except ValueError as err:
+            raise ServiceNowError(f"{method} {path} returned non-JSON body") from err
+
+    # -- Table API ----------------------------------------------------------
+    # GET  /api/now/table/<table>?sysparm_query=...&sysparm_fields=...
+    # GET  /api/now/table/<table>/<sys_id>
+    # POST /api/now/table/<table>            -> 201, result = new record
+    # PATCH /api/now/table/<table>/<sys_id>  -> 200, result = updated record
+
+    def query(self, table, encoded_query, fields=None, limit=10):
+        params = {
+            "sysparm_query": encoded_query,
+            "sysparm_limit": limit,
+            "sysparm_display_value": "false",
+            "sysparm_exclude_reference_link": "true",
+        }
+        if fields:
+            params["sysparm_fields"] = ",".join(fields)
+        result = self._request("GET", f"{TABLE_API}/{table}", params=params)
+        return result if isinstance(result, list) else []
+
+    def get(self, table, sys_id, fields=None):
+        params = {
+            "sysparm_display_value": "false",
+            "sysparm_exclude_reference_link": "true",
+        }
+        if fields:
+            params["sysparm_fields"] = ",".join(fields)
+        return self._request("GET", f"{TABLE_API}/{table}/{sys_id}", params=params)
+
+    def insert(self, table, data):
+        return self._request("POST", f"{TABLE_API}/{table}", body=data, ok=(200, 201))
+
+    def update(self, table, sys_id, data):
+        return self._request(
+            "PATCH", f"{TABLE_API}/{table}/{sys_id}", body=data, ok=(200,)
+        )
+
+    # -- users --------------------------------------------------------------
+
+    def find_user(self, email=None, username=None):
+        """
+        Return the sys_user sys_id matching the email (preferred) or user_name.
+        Returns None when nobody matches.
+        """
+        clauses = []
+        if email:
+            clauses.append(f"email={email}")
+        if username:
+            clauses.append(f"user_name={username}")
+        if not clauses:
+            return None
+        rows = self.query(
+            TABLE_USER,
+            "^OR".join(clauses) + "^active=true",
+            fields=("sys_id", "email", "user_name"),
+            limit=5,
+        )
+        if not rows:
+            return None
+        if email:
+            for row in rows:
+                if (row.get("email") or "").lower() == email.lower():
+                    return row["sys_id"]
+        if username:
+            for row in rows:
+                if (row.get("user_name") or "").lower() == username.lower():
+                    return row["sys_id"]
+        return rows[0]["sys_id"]
+
+    # -- Service Catalog API ------------------------------------------------
+
+    def order_catalog_item(self, cat_item_sys_id, variables, requested_for=None, quantity=1):
+        """
+        Order one catalog item and return {"request_sys_id", "request_number"}.
+
+        POST /api/sn_sc/servicecatalog/items/<sys_id>/order_now with body
+        sysparm_quantity, variables and (optional) sysparm_requested_for.
+        Normal instances answer with result.sys_id / result.number (the REQ).
+        Instances with two-step checkout enabled (glide.sc.checkout.twostep)
+        answer with result.cart_id instead; the cart is then submitted with
+        POST /api/sn_sc/servicecatalog/cart/submit_order, which returns
+        result.request_id / result.request_number.
+        """
+        body = {"sysparm_quantity": str(quantity), "variables": variables}
+        if requested_for:
+            body["sysparm_requested_for"] = requested_for
+        result = self._request(
+            "POST",
+            f"{CATALOG_API}/items/{cat_item_sys_id}/order_now",
+            body=body,
+            ok=(200, 201),
+        )
+        request_sys_id = result.get("request_id") or result.get("sys_id")
+        request_number = result.get("request_number") or result.get("number")
+        if not request_sys_id and result.get("cart_id"):
+            submitted = self._request(
+                "POST", f"{CATALOG_API}/cart/submit_order", body={}, ok=(200, 201)
+            )
+            request_sys_id = submitted.get("request_id") or submitted.get("sys_id")
+            request_number = submitted.get("request_number") or submitted.get("number")
+        if not request_sys_id:
+            raise ServiceNowError(
+                f"order_now did not return a request sys_id: {json.dumps(result)[:500]}"
+            )
+        return {"request_sys_id": request_sys_id, "request_number": request_number}
+
+    def ritms_for_request(self, request_sys_id):
+        return self.query(
+            TABLE_RITM,
+            f"request={request_sys_id}^ORDERBYnumber",
+            fields=("sys_id", "number", "state", "approval", "stage", "cat_item"),
+            limit=50,
+        )
+
+    # -- Table API fallback -------------------------------------------------
+
+    def create_request_via_table(self, request_fields, ritm_fields):
+        """
+        Insert sc_request then sc_req_item. Returns the same dict shape as the
+        catalog path plus the RITM identifiers.
+        """
+        req = self.insert(TABLE_REQUEST, request_fields)
+        ritm_fields = dict(ritm_fields, request=req["sys_id"])
+        ritm = self.insert(TABLE_RITM, ritm_fields)
+        return {
+            "request_sys_id": req["sys_id"],
+            "request_number": req.get("number"),
+            "ritm_sys_id": ritm["sys_id"],
+            "ritm_number": ritm.get("number"),
+        }
+
+    # -- lifecycle helpers --------------------------------------------------
+
+    def get_ritm(self, ritm_sys_id):
+        return self.get(
+            TABLE_RITM,
+            ritm_sys_id,
+            fields=("sys_id", "number", "state", "approval", "stage", "cmdb_ci", "request"),
+        )
+
+    def add_work_note(self, ritm_sys_id, note):
+        return self.update(TABLE_RITM, ritm_sys_id, {"work_notes": note})
+
+    def close_ritm(self, ritm_sys_id, state, close_notes, work_note=None, extra=None):
+        data = {"state": state, "close_notes": close_notes}
+        if work_note:
+            data["work_notes"] = work_note
+        if extra:
+            data.update(extra)
+        return self.update(TABLE_RITM, ritm_sys_id, data)
+
+    def link_ci(self, ritm_sys_id, ci_sys_id):
+        """
+        Add the CI to the RITM's Affected CIs list (task_ci: task, ci_item).
+        Idempotent: an existing row is left alone.
+        """
+        existing = self.query(
+            TABLE_TASK_CI,
+            f"task={ritm_sys_id}^ci_item={ci_sys_id}",
+            fields=("sys_id",),
+            limit=1,
+        )
+        if existing:
+            return existing[0]
+        return self.insert(TABLE_TASK_CI, {"task": ritm_sys_id, "ci_item": ci_sys_id})
+
+    def find_server_ci(self, server, ci_table=DEFAULT_CI_TABLE):
+        """
+        Locate the CI CloudBolt's CMDB integration created for a server. That
+        integration writes the resource handler's VM id to serial_number and
+        asset_tag, so those are tried first, then the hostname.
+        """
+        clauses = []
+        rh_id = getattr(server, "resource_handler_svr_id", None)
+        if rh_id:
+            clauses.append(f"serial_number={rh_id}")
+            clauses.append(f"asset_tag={rh_id}")
+        if server.hostname:
+            clauses.append(f"name={server.hostname}")
+        if not clauses:
+            return None
+        rows = self.query(
+            ci_table,
+            "^OR".join(clauses),
+            fields=("sys_id", "name", "serial_number", "asset_tag"),
+            limit=5,
+        )
+        if not rows:
+            return None
+        if rh_id:
+            for row in rows:
+                if rh_id in (row.get("serial_number"), row.get("asset_tag")):
+                    return row["sys_id"]
+        return rows[0]["sys_id"]
+
+
+# ---------------------------------------------------------------------------
+# CloudBolt order summary
+# ---------------------------------------------------------------------------
+
+
+def _is_secret(name):
+    lowered = (name or "").lower()
+    return any(hint in lowered for hint in SECRET_HINTS)
+
+
+def _clean_details(mapping, limit=MAX_DETAILS_CHARS):
+    parts = []
+    for key in sorted(mapping):
+        if _is_secret(key):
+            continue
+        value = mapping[key]
+        if value in (None, "", [], {}):
+            continue
+        parts.append(f"{key}={value}")
+    text = "; ".join(parts)
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def _cfv_dict(obj):
+    try:
+        return obj.get_cf_values_as_dict(mask_secrets=True) or {}
+    except Exception:
+        return {}
+
+
+def _env_name(env):
+    return env.name if env else ""
+
+
+def _env_cloud(env):
+    try:
+        return env.resource_handler.cast().resource_technology.name
+    except Exception:
+        return ""
+
+
+def _action_label(oi):
+    action = getattr(oi, "action_type", None)
+    for attr in ("label", "name"):
+        value = getattr(action, attr, None)
+        if value:
+            return str(value)
+    return str(oi)
+
+
+def order_action(order):
+    """Classify the order for the cloudbolt_action variable."""
+    kinds = set()
+    for oi in order.top_level_items.all():
+        oi = oi.cast()
+        name = oi.__class__.__name__
+        if name in ("BlueprintOrderItem", "ProvisionServerOrderItem", "ProvisionNetworkOrderItem"):
+            kinds.add(ACTION_BUILD)
+        elif name == "DecomServerOrderItem":
+            kinds.add(ACTION_TEARDOWN)
+        elif name == "ServerModOrderItem":
+            kinds.add(ACTION_MODIFY)
+        elif name == "ActionJobOrderItem":
+            label = _action_label(oi).lower()
+            kinds.add(ACTION_TEARDOWN if "delete" in label or "teardown" in label else ACTION_DAY2)
+        else:
+            kinds.add(ACTION_OTHER)
+    if len(kinds) == 1:
+        return kinds.pop()
+    return ACTION_OTHER if not kinds else ",".join(sorted(kinds))
+
+
+def order_rows(order):
+    """
+    One row per requested thing, normalized across servers, resources and
+    actions so the RITM's multi-row variable set reads the same for every
+    blueprint. Keys match MRVS_COLUMNS.
+    """
+    rows = []
+    for oi in order.top_level_items.all():
+        oi = oi.cast()
+        name = oi.__class__.__name__
+        if name == "BlueprintOrderItem":
+            for bia in oi.blueprintitemarguments_set.all():
+                si = bia.service_item.cast()
+                si_type = si.__class__.__name__.replace("ServiceItem", "")
+                item_type = "Server" if si_type == "ProvisionServer" else si_type
+                details = _cfv_dict(bia)
+                size = ", ".join(
+                    f"{k}={details.pop(k)}" for k in ("cpu_cnt", "mem_size", "disk_size") if k in details
+                )
+                if bia.os_build:
+                    size = f"{bia.os_build.name}; {size}" if size else bia.os_build.name
+                rows.append(
+                    {
+                        "item_type": item_type,
+                        "name": bia.hostname or si.name,
+                        "environment": _env_name(bia.environment),
+                        "size": size,
+                        "quantity": str(bia.quantity or 1),
+                        "details": _clean_details(details),
+                    }
+                )
+            if not rows:
+                rows.append(
+                    {
+                        "item_type": "Blueprint",
+                        "name": oi.blueprint.name if oi.blueprint else str(oi),
+                        "environment": ", ".join(e.name for e in oi.get_environments()),
+                        "size": "",
+                        "quantity": "1",
+                        "details": _clean_details(_cfv_dict(oi)),
+                    }
+                )
+        elif name == "ProvisionServerOrderItem":
+            details = _cfv_dict(oi)
+            size = ", ".join(
+                f"{k}={details.pop(k)}" for k in ("cpu_cnt", "mem_size", "disk_size") if k in details
+            )
+            os_build = getattr(oi, "os_build", None)
+            if os_build:
+                size = f"{os_build.name}; {size}" if size else os_build.name
+            rows.append(
+                {
+                    "item_type": "Server",
+                    "name": getattr(oi, "hostname", "") or str(oi),
+                    "environment": _env_name(oi.environment),
+                    "size": size,
+                    "quantity": str(getattr(oi, "quantity", 1) or 1),
+                    "details": _clean_details(details),
+                }
+            )
+        elif name == "DecomServerOrderItem":
+            for server in oi.servers.all():
+                rows.append(
+                    {
+                        "item_type": "Server (decommission)",
+                        "name": server.hostname,
+                        "environment": _env_name(server.environment),
+                        "size": "",
+                        "quantity": "1",
+                        "details": f"ip={server.ip or ''}; id={server.global_id}",
+                    }
+                )
+        elif name == "ServerModOrderItem":
+            server = oi.server
+            rows.append(
+                {
+                    "item_type": "Server (modify)",
+                    "name": server.hostname,
+                    "environment": _env_name(server.environment),
+                    "size": "",
+                    "quantity": "1",
+                    "details": str(oi),
+                }
+            )
+        elif name == "ActionJobOrderItem":
+            target = oi.resource or oi.server
+            target_name = getattr(target, "name", None) or getattr(target, "hostname", "") or ""
+            env = getattr(target, "environment", None)
+            try:
+                arguments = oi.arguments or {}
+            except Exception:
+                arguments = {}
+            rows.append(
+                {
+                    "item_type": f"Action: {_action_label(oi)}",
+                    "name": target_name,
+                    "environment": _env_name(env),
+                    "size": "",
+                    "quantity": "1",
+                    "details": _clean_details(arguments),
+                }
+            )
+        else:
+            rows.append(
+                {
+                    "item_type": name.replace("OrderItem", ""),
+                    "name": str(oi),
+                    "environment": "",
+                    "size": "",
+                    "quantity": "1",
+                    "details": "",
+                }
+            )
+    return rows
+
+
+def portal_base_url(explicit=""):
+    """CloudBolt URL used for links in the RITM; the default portal domain unless pinned."""
+    if explicit:
+        return explicit.rstrip("/")
+    try:
+        from portals.models import PortalConfig
+
+        portal = PortalConfig.get_current_portal()
+        if portal and portal.site_url:
+            return portal.site_url.rstrip("/")
+    except Exception:
+        pass
+    return ""
+
+
+def order_url(order, base_url=""):
+    base = portal_base_url(base_url)
+    path = order.get_absolute_url()
+    return f"{base}{path}" if base else path
+
+
+def _rate_text(order):
+    try:
+        rate = order.get_rate()
+    except Exception:
+        return ""
+    if rate in (None, ""):
+        return ""
+    try:
+        from costs.models import render_rate
+
+        return strip_tags(str(render_rate(rate))).strip()
+    except Exception:
+        return str(Decimal(rate))
+
+
+def _requested_for_profile(order):
+    return order.recipient or order.owner
+
+
+def _profile_identity(profile):
+    if not profile:
+        return {"email": "", "username": "", "display": ""}
+    user = getattr(profile, "user", None)
+    email = getattr(user, "email", "") or ""
+    username = getattr(user, "username", "") or getattr(profile, "username", "") or ""
+    display = getattr(profile, "full_name", "") or username
+    return {"email": email, "username": username, "display": f"{display} <{email}>" if email else display}
+
+
+def _justification(order):
+    for oi in order.top_level_items.all():
+        values = _cfv_dict(oi.cast())
+        for key in ("business_justification", "justification", "reason", "order_justification"):
+            if values.get(key):
+                return str(values[key])
+    return order.comment or ""
+
+
+def _payload(order, summary):
+    payload = {}
+    try:
+        payload = order.order_dict() or {}
+    except Exception as err:
+        logger.debug(f"order_dict unavailable for order {order.id}: {err}")
+    if not payload:
+        payload = {
+            "order_id": order.id,
+            "global_id": order.global_id,
+            "items": summary["rows"],
+        }
+    text = json.dumps(payload, default=str)
+    if len(text) > MAX_PAYLOAD_CHARS:
+        text = json.dumps(
+            {"truncated": True, "order_id": order.id, "items": summary["rows"]}, default=str
+        )
+    return text
+
+
+def describe_order(order, base_url="", approval="pending"):
+    """
+    Build the normalized summary every ServiceNow record is derived from.
+    Returns a dict with plain-string values plus "rows" (list of dicts),
+    "text" (human-readable description) and "requested_for" identity.
+    """
+    rows = order_rows(order)
+    environments = sorted({r["environment"] for r in rows if r["environment"]})
+    clouds = set()
+    for oi in order.top_level_items.all():
+        oi = oi.cast()
+        envs = []
+        if hasattr(oi, "get_environments"):
+            try:
+                envs = list(oi.get_environments())
+            except Exception:
+                envs = []
+        elif getattr(oi, "environment", None):
+            envs = [oi.environment]
+        for env in envs:
+            cloud = _env_cloud(env)
+            if cloud:
+                clouds.add(cloud)
+    if order.blueprint:
+        blueprint = order.blueprint.name
+        resource_type = ""
+        try:
+            resource_type = order.blueprint.resource_type.label or order.blueprint.resource_type.name
+        except Exception:
+            pass
+    else:
+        first = order.top_level_items.first()
+        blueprint = _action_label(first.cast()) if first else order.name
+        resource_type = ""
+        if first:
+            target = getattr(first.cast(), "resource", None)
+            try:
+                resource_type = target.resource_type.label if target else ""
+            except Exception:
+                resource_type = ""
+    action = order_action(order)
+    requested_for = _profile_identity(_requested_for_profile(order))
+    summary = {
+        "order_id": str(order.id),
+        "order_global_id": order.global_id,
+        "order_url": order_url(order, base_url),
+        "action": action,
+        "blueprint": blueprint,
+        "resource_type": resource_type,
+        "group": order.group.name if order.group else "",
+        "environment": ", ".join(environments),
+        "cloud": ", ".join(sorted(clouds)),
+        "cost": _rate_text(order),
+        "requested_for": requested_for,
+        "justification": _justification(order),
+        "approval": approval,
+        "rows": rows,
+    }
+    summary["short_description"] = short_description(summary)
+    summary["text"] = description_text(summary)
+    summary["payload"] = _payload(order, summary)
+    return summary
+
+
+def short_description(summary):
+    names = [r["name"] for r in summary["rows"] if r["name"]]
+    target = names[0] if len(names) == 1 else (f"{len(names)} items" if names else "")
+    base = f"{summary['blueprint']}: {target}" if target else summary["blueprint"]
+    return f"CloudBolt {summary['action']} - {base}"[:160]
+
+
+def description_text(summary):
+    lines = [
+        f"CloudBolt order #{summary['order_id']} ({summary['order_global_id']})",
+        f"Link: {summary['order_url']}",
+        f"Action: {summary['action']}",
+        f"Blueprint / action: {summary['blueprint']}",
+    ]
+    if summary["resource_type"]:
+        lines.append(f"Resource type: {summary['resource_type']}")
+    lines.append(f"Group: {summary['group']}")
+    if summary["environment"]:
+        lines.append(f"Environment: {summary['environment']}")
+    if summary["cloud"]:
+        lines.append(f"Cloud: {summary['cloud']}")
+    if summary["cost"]:
+        lines.append(f"Estimated cost: {summary['cost']}")
+    lines.append(f"Requested for: {summary['requested_for']['display']}")
+    if summary["justification"]:
+        lines.append(f"Justification: {summary['justification']}")
+    lines.append(f"Approval: {summary['approval']}")
+    lines.append("")
+    lines.append("Requested items:")
+    for row in summary["rows"]:
+        line = f"- [{row['item_type']}] {row['name']}"
+        if row["environment"]:
+            line += f" in {row['environment']}"
+        if row["quantity"] not in ("", "1"):
+            line += f" x{row['quantity']}"
+        if row["size"]:
+            line += f" ({row['size']})"
+        if row["details"]:
+            line += f" :: {row['details']}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def catalog_variables(summary):
+    """Map the summary onto the generic catalog item's variable names."""
+    return {
+        VAR_ORDER_ID: summary["order_id"],
+        VAR_ORDER_URL: summary["order_url"],
+        VAR_ACTION: summary["action"],
+        VAR_BLUEPRINT: summary["blueprint"],
+        VAR_RESOURCE_TYPE: summary["resource_type"],
+        VAR_GROUP: summary["group"],
+        VAR_ENVIRONMENT: summary["environment"],
+        VAR_CLOUD: summary["cloud"],
+        VAR_COST: summary["cost"],
+        VAR_REQUESTED_FOR: summary["requested_for"]["display"],
+        VAR_JUSTIFICATION: summary["justification"],
+        VAR_APPROVAL: summary["approval"],
+        # A multi-row variable set is passed as a JSON string of row objects
+        # whose keys are the set's column names.
+        VAR_ITEMS: json.dumps(
+            [{col: row.get(col, "") for col in MRVS_COLUMNS} for row in summary["rows"]]
+        ),
+        VAR_PAYLOAD: summary["payload"],
+    }
+
+
+def task_fields(summary, requested_for_sys_id=None):
+    """Table-API columns shared by sc_request and sc_req_item."""
+    fields = {
+        "short_description": summary["short_description"],
+        "description": summary["text"],
+        "correlation_id": summary["order_global_id"],
+        "correlation_display": CORRELATION_DISPLAY,
+    }
+    if requested_for_sys_id:
+        fields["requested_for"] = requested_for_sys_id
+    return fields
+
+
+# ---------------------------------------------------------------------------
+# Identifier storage on CloudBolt objects
+# ---------------------------------------------------------------------------
+
+
+def ensure_custom_fields():
+    CustomField.objects.get_or_create(
+        name=CF_REQUEST_JSON,
+        defaults={
+            "label": "ServiceNow Request",
+            "type": "TXT",
+            "description": "ServiceNow REQ/RITM identifiers written by the ServiceNow request hooks (JSON).",
+            "show_on_servers": False,
+        },
+    )
+    CustomField.objects.get_or_create(
+        name=CF_RITM_NUMBER,
+        defaults={
+            "label": "ServiceNow RITM",
+            "type": "STR",
+            "description": "ServiceNow Requested Item number opened for the CloudBolt order.",
+            "show_on_servers": True,
+        },
+    )
+
+
+def anchor_objects(order):
+    """
+    Objects that can hold custom field values for this order: the blueprint
+    or server order item for builds, and the targeted server(s) or resource
+    for day-2, modify and decommission orders.
+    """
+    anchors = []
+    for oi in order.top_level_items.all():
+        oi = oi.cast()
+        if isinstance(oi, HasCustomFieldValuesMixin):
+            anchors.append(oi)
+            continue
+        for attr in ("resource", "server"):
+            target = getattr(oi, attr, None)
+            if target is not None and isinstance(target, HasCustomFieldValuesMixin):
+                anchors.append(target)
+        servers = getattr(oi, "servers", None)
+        if servers is not None:
+            try:
+                anchors.extend(list(servers.all()))
+            except Exception:
+                pass
+    return anchors
+
+
+def store_request_ids(order, ids, targets=None):
+    """Persist the ServiceNow identifiers on the order's anchors (or explicit targets)."""
+    ensure_custom_fields()
+    ids = dict(ids, order_id=order.id)
+    blob = json.dumps(ids)
+    for obj in targets if targets is not None else anchor_objects(order):
+        try:
+            obj.set_value_for_custom_field(CF_REQUEST_JSON, blob)
+            if ids.get("ritm_number"):
+                obj.set_value_for_custom_field(CF_RITM_NUMBER, ids["ritm_number"])
+        except Exception as err:
+            logger.warning(f"Could not store ServiceNow ids on {obj}: {err}")
+    return ids
+
+
+def load_request_ids(order):
+    """Return the stored identifiers for this order, or None."""
+    for obj in anchor_objects(order):
+        try:
+            raw = obj.get_value_for_custom_field(CF_REQUEST_JSON)
+        except Exception:
+            raw = None
+        if not raw:
+            continue
+        try:
+            ids = json.loads(raw)
+        except ValueError:
+            continue
+        if ids.get("order_id") == order.id:
+            return ids
+    return None
+
+
+def record_event(order, message):
+    """Add a line to the order's history so users can see the ServiceNow numbers."""
+    try:
+        order.add_event("MODIFICATION", message)
+    except Exception as err:
+        logger.debug(f"Could not add order history event: {err}")
+
+
+# ---------------------------------------------------------------------------
+# Objects produced by a completed order
+# ---------------------------------------------------------------------------
+
+
+def order_servers(order):
+    seen = {}
+    for oi in order.orderitem_set.all():
+        oi = oi.cast()
+        for job in oi.job_set.all():
+            for server in job.server_set.all():
+                seen[server.id] = server
+        for attr in ("server",):
+            server = getattr(oi, attr, None)
+            if server is not None:
+                seen[server.id] = server
+        servers = getattr(oi, "servers", None)
+        if servers is not None:
+            try:
+                for server in servers.all():
+                    seen[server.id] = server
+            except Exception:
+                pass
+    return list(seen.values())
+
+
+def order_resources(order):
+    seen = {}
+    for oi in order.orderitem_set.all():
+        oi = oi.cast()
+        resource = getattr(oi, "resource", None)
+        if resource is not None:
+            seen[resource.id] = resource
+        for job in oi.job_set.all():
+            try:
+                for resource in job.resource_set.all():
+                    seen[resource.id] = resource
+            except Exception:
+                pass
+    return list(seen.values())
+
+
+def object_url(obj, base_url=""):
+    base = portal_base_url(base_url)
+    try:
+        path = obj.get_absolute_url()
+    except Exception:
+        return ""
+    return f"{base}{path}" if base else path
+
+
+def progress(message, job=None):
+    """set_progress that also works outside a job (order hooks run in the web request)."""
+    try:
+        set_progress(message, job)
+    except Exception:
+        logger.info(message)
