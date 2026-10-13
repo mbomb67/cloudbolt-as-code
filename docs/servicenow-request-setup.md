@@ -12,7 +12,7 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
 | All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as Configuration item, work note with links |
 
-Mapping: CloudBolt order = REQ, order item = RITM, each server or resource = a row in the RITM's multi-row variable set before build and an Affected CI after. Day-2 actions, modifications and teardown orders open their own RITM against the same catalog item with `cloudbolt_action` set to `day2`, `modify` or `teardown`.
+Mapping: CloudBolt order = REQ, order item = RITM, each server or resource = a row in the RITM's multi-row variable set before build and an Affected CI after. Day-2 actions, modifications and teardown open their own RITM against the same catalog item with `cloudbolt_action` set to `day2`, `modify` or `teardown`, but only when they create an order: a resource or server action runs as a plain job unless it is marked *Requires Approval*, and a plain job never reaches the order hook points. Mark the actions that must leave a ServiceNow record as requiring approval; the Delete action on a resource is one of them.
 
 The identifiers are stored on the blueprint order item (builds) or the targeted server or resource (day-2, modify, decommission) in the custom fields `servicenow_request` (JSON) and `servicenow_ritm_number`, and copied onto the created servers and resources at completion. Each step also adds a line to the order's history.
 
@@ -73,6 +73,8 @@ The ServiceNow API shapes were taken from the REST API Explorer references and S
 - A multi-row variable set is accepted in `variables` as a JSON string of row objects keyed by column name.
 - `sc_req_item.state` values: 3 Closed Complete, 4 Closed Incomplete, 7 Closed Skipped. `approval` values: `requested`, `approved`, `rejected`. Both live in `sys_choice`.
 - `task_ci` columns `task` and `ci_item`.
+
+Verified on a CloudBolt 2026.3 appliance with a ServiceNow ITSM integration (2026-10-13, Table API path): an auto-approved Azure Resource Group order opened REQ/RITM through Post-Order Approval, Close on Completion closed the RITM complete, and the identifiers landed on the order item and the resource.
 - The integration user can write `requested_for`, `correlation_id`, `short_description`, `description`, `work_notes`, `close_notes`, `state` and `cmdb_ci` on `sc_req_item`.
 
 ## Troubleshooting
