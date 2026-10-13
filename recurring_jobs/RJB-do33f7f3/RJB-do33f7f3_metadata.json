@@ -37,7 +37,7 @@
         "hook": "plugins/OHK-bsqictlo"
     },
     "description": "Every five minutes, approves or denies pending CloudBolt orders to match the decision recorded on their ServiceNow request.",
-    "enabled": true,
+    "enabled": false,
     "id": "RJB-do33f7f3",
     "last_run": null,
     "last_updated": null,
