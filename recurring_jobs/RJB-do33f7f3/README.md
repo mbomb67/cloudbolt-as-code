@@ -5,7 +5,7 @@ Recurring job that reads the approval decision for each pending order that has a
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| Recurring job | RJB-do33f7f3 | ServiceNow Request Approval Sync (schedule `*/2 * * * *`) |
+| Recurring job | RJB-do33f7f3 | ServiceNow Request Approval Sync (schedule `*/5 * * * *`) |
 | Plugin | OHK-bsqictlo | ServiceNow Request Approval Sync |
 | Shared module | SHM-ww6b1uwj | servicenow_requests |
 | Companions | HPA-i1x67v4h, HPA-smbwmzj0, HPA-i8r5x2kc, HPA-fxo5hujp | Open on Submit, Open on Approval, Close on Denial, Close on Completion |

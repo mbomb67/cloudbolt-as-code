@@ -8,14 +8,12 @@ enabling this job does not touch orders that predate the integration. Orders
 cancelled in CloudBolt in the last week get their still-open RITM closed as
 incomplete.
 
-Where the decision is read from follows ServiceNow's conventions. An approval
-is a sysapproval_approver row on the RITM that an approver acts on; the task's
-approval field is the roll-up. In auto mode:
-  * catalog-path orders read the RITM's approval field, which the item's flow
-    maintains;
-  * Table API orders read the RITM's approval rows when the open action created
-    any (a rejection denies, all approved approves), and otherwise the REQ's
-    approval field, the only thing the out-of-the-box request workflow moves.
+Where the decision is read from follows ServiceNow's conventions (see
+read_decision in the servicenow_requests shared module). An approval is a
+sysapproval_approver row on the RITM that an approver acts on; the task's
+approval field is the roll-up. In auto mode catalog-path orders read the
+RITM's approval field, Table API orders read the RITM's approval rows when the
+open action created any and otherwise the REQ's approval field.
 
 Inputs (pinned on the recurring job):
   servicenow_connection_name  ConnectionInfo or ITSM integration name (default "ServiceNow").
@@ -40,18 +38,17 @@ from shared_modules import servicenow_requests as snr
 logger = ThreadLogger(__name__)
 
 CONNECTION_NAME = "{{ servicenow_connection_name }}".strip() or snr.DEFAULT_CONNECTION_NAME
-APPROVAL_TABLE = ("{{ servicenow_approval_table }}".strip() or "auto").lower()
+APPROVAL_TABLE = ("{{ servicenow_approval_table }}".strip() or snr.DECISION_AUTO).lower()
 APPROVAL_FIELD = "{{ servicenow_approval_field }}".strip() or "approval"
-APPROVED_VALUES = "{{ servicenow_approved_values }}".strip() or snr.APPROVAL_APPROVED
-DENIED_VALUES = "{{ servicenow_denied_values }}".strip() or f"{snr.APPROVAL_REJECTED},cancelled"
+APPROVED_VALUES = "{{ servicenow_approved_values }}".strip()
+DENIED_VALUES = "{{ servicenow_denied_values }}".strip()
 APPROVER_USERNAME = "{{ cloudbolt_approver_username }}".strip()
 
-SOURCE_APPROVALS = "approvals"
 CANCELLED_LOOKBACK_DAYS = 7
 
 
-def _values(text):
-    return {v.strip().lower() for v in text.split(",") if v.strip()}
+def _values(text, default):
+    return {v.strip().lower() for v in text.split(",") if v.strip()} or set(default)
 
 
 def _approver():
@@ -63,42 +60,9 @@ def _approver():
     return profile
 
 
-def _approval_rows_value(rows):
-    """Collapse the RITM's approval rows into approved, rejected or requested."""
-    states = {str(r.get("state", "")).lower() for r in rows}
-    if snr.APPROVAL_REJECTED in states:
-        return snr.APPROVAL_REJECTED
-    pending = states - {snr.APPROVAL_APPROVED, "not_required", "not required", "cancelled", "duplicate"}
-    if not pending and snr.APPROVAL_APPROVED in states:
-        return snr.APPROVAL_APPROVED
-    return snr.APPROVAL_REQUESTED
-
-
-def _decision(snow, record):
-    """Return (source, value) for the record the decision is read from."""
-    source = APPROVAL_TABLE
-    if source == "auto":
-        if record["path"] == "catalog":
-            source = snr.TABLE_RITM
-        else:
-            rows = snow.ritm_approvals(record["ritm_sys_id"])
-            if rows:
-                return SOURCE_APPROVALS, _approval_rows_value(rows)
-            source = snr.TABLE_REQUEST
-    if source == SOURCE_APPROVALS:
-        return source, _approval_rows_value(snow.ritm_approvals(record["ritm_sys_id"]))
-    if source == snr.TABLE_RITM and APPROVAL_FIELD == "approval":
-        return source, record["approval"]
-    sys_id = record["ritm_sys_id"] if source == snr.TABLE_RITM else record["request_sys_id"]
-    if not sys_id:
-        return source, ""
-    row = snow.get(source, sys_id, fields=(APPROVAL_FIELD,))
-    return source, str(row.get(APPROVAL_FIELD, "")).strip().lower()
-
-
 def _sync_pending(snow, approver, job):
-    approved = _values(APPROVED_VALUES)
-    denied = _values(DENIED_VALUES)
+    approved = _values(APPROVED_VALUES, snr.APPROVED_VALUES)
+    denied = _values(DENIED_VALUES, snr.DENIED_VALUES)
     counts = {"approved": 0, "denied": 0, "pending": 0, "skipped": 0, "errors": 0}
 
     for order in Order.objects.filter(status="PENDING").order_by("id"):
@@ -107,13 +71,12 @@ def _sync_pending(snow, approver, job):
             if not record:
                 counts["skipped"] += 1
                 continue
-            source, value = _decision(snow, record)
+            source, value = snr.read_decision(snow, record, APPROVAL_TABLE, APPROVAL_FIELD)
         except snr.ServiceNowError as err:
             logger.warning(f"Order {order.id}: could not read its ServiceNow record: {err}")
             counts["errors"] += 1
             continue
-        number = record["request_number"] if source == snr.TABLE_REQUEST else record["ritm_number"]
-        what = "approval rows" if source == SOURCE_APPROVALS else APPROVAL_FIELD
+        number, what = snr.decision_label(record, source, APPROVAL_FIELD)
 
         if value in approved:
             try:

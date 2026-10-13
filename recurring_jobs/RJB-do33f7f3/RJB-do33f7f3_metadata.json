@@ -36,12 +36,12 @@
     "dependencies": {
         "hook": "plugins/OHK-bsqictlo"
     },
-    "description": "Every two minutes, approves or denies pending CloudBolt orders to match the decision recorded on their ServiceNow RITM.",
+    "description": "Every five minutes, approves or denies pending CloudBolt orders to match the decision recorded on their ServiceNow request.",
     "enabled": false,
     "id": "RJB-do33f7f3",
     "last_run": null,
     "last_updated": null,
     "name": "ServiceNow Request Approval Sync",
-    "schedule": "*/2 * * * *",
+    "schedule": "*/5 * * * *",
     "type": "orchestration_hook"
 }

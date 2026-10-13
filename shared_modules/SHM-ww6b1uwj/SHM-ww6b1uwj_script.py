@@ -105,6 +105,14 @@ APPROVAL_NOT_REQUESTED = "not requested"
 APPROVAL_REQUESTED = "requested"
 APPROVAL_APPROVED = "approved"
 APPROVAL_REJECTED = "rejected"
+# Values of the decision field that approve or deny a CloudBolt order.
+APPROVED_VALUES = {APPROVAL_APPROVED}
+DENIED_VALUES = {APPROVAL_REJECTED, "cancelled"}
+# Where the decision is read from (see read_decision).
+DECISION_AUTO = "auto"
+DECISION_APPROVALS = "approvals"
+# sysapproval_approver states that do not block an approval.
+APPROVAL_ROW_SETTLED = {APPROVAL_APPROVED, "not_required", "not required", "cancelled", "duplicate"}
 
 # Shown in ServiceNow as the external system that owns the record.
 CORRELATION_DISPLAY = "CloudBolt"
@@ -1142,6 +1150,60 @@ def load_request(snow, order):
             "closed": str(ritm.get("state", "")) in RITM_CLOSED_STATES,
         }
     return None
+
+
+# ---------------------------------------------------------------------------
+# Approval decision
+# ---------------------------------------------------------------------------
+
+
+def approval_rows_value(rows):
+    """Collapse a RITM's sysapproval_approver rows into approved, rejected or requested."""
+    states = {str(r.get("state", "")).lower() for r in rows}
+    if APPROVAL_REJECTED in states:
+        return APPROVAL_REJECTED
+    if states and not (states - APPROVAL_ROW_SETTLED) and APPROVAL_APPROVED in states:
+        return APPROVAL_APPROVED
+    return APPROVAL_REQUESTED
+
+
+def read_decision(snow, record, source=DECISION_AUTO, field="approval"):
+    """
+    Return (source, value) for the ServiceNow decision on an order's record
+    (as returned by load_request). Sources follow ServiceNow's conventions:
+      * "auto": catalog-path orders read the RITM's approval field, which the
+        item's flow maintains; Table API orders read the RITM's approval rows
+        when the open action created any, else the REQ's approval field, the
+        only thing the out-of-the-box request workflow moves;
+      * "approvals": the RITM's approval rows;
+      * "sc_req_item" / "sc_request": that table's `field`.
+    Values are lower-cased strings; compare with APPROVED_VALUES / DENIED_VALUES.
+    """
+    source = (source or DECISION_AUTO).lower()
+    if source == DECISION_AUTO:
+        if record["path"] == "catalog":
+            source = TABLE_RITM
+        else:
+            rows = snow.ritm_approvals(record["ritm_sys_id"])
+            if rows:
+                return DECISION_APPROVALS, approval_rows_value(rows)
+            source = TABLE_REQUEST
+    if source == DECISION_APPROVALS:
+        return source, approval_rows_value(snow.ritm_approvals(record["ritm_sys_id"]))
+    if source == TABLE_RITM and field == "approval":
+        return source, record["approval"]
+    sys_id = record["ritm_sys_id"] if source == TABLE_RITM else record["request_sys_id"]
+    if not sys_id:
+        return source, ""
+    row = snow.get(source, sys_id, fields=(field,))
+    return source, str(row.get(field, "")).strip().lower()
+
+
+def decision_label(record, source, field="approval"):
+    """Human text naming the record and field a decision came from."""
+    number = record["request_number"] if source == TABLE_REQUEST else record["ritm_number"]
+    what = "approval rows" if source == DECISION_APPROVALS else field
+    return number, what
 
 
 def record_event(order, message):

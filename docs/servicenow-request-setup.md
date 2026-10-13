@@ -6,9 +6,9 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 
 | CloudBolt event | Content | ServiceNow effect |
 |---|---|---|
-| Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval |
+| Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval. Five seconds later the decision is read once, so a request approved outright proceeds without waiting for the poll |
 | Order auto-approved or approved in CloudBolt | HPA-smbwmzj0 "Open on Approval" | REQ + RITM opened with `cloudbolt_approval=approved` (skipped when a RITM already exists) |
-| Every two minutes | RJB-do33f7f3 "Approval Sync" | Approval read on the RITM for catalog-path orders and on the REQ for Table API orders; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
+| Every five minutes | RJB-do33f7f3 "Approval Sync" | Approval read on the RITM for catalog-path orders and on the REQ for Table API orders; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
 | All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as Configuration item, work note with links |
 
