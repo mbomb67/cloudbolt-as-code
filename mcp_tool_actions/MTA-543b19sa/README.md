@@ -13,7 +13,7 @@ MCP Tool Action published to agents as `custom_sync_from_source_control_repo`. C
 |---|---|---|
 | `sync_branch` | string, required | Branch or tag; must not contain a slash |
 | `sync_paths` | text, required | Repo-relative content paths, one per line: `blueprints/BP-...`, `resource_actions/RSA-.../RSA-..._metadata.json`, ... |
-| `sync_repo` | string | `SCR-` id or label; optional when the appliance has one repository |
+| `sync_repo` | string | `SCR-` id, label, or git remote URL; optional when the appliance has one repository |
 | `sync_refresh_existing` | `true`/`false` | Refresh existing objects (default true) |
 | `sync_keep_enabled_flag` | `true`/`false` | Keep each action's current enabled flag instead of the metadata's (default false) |
 
@@ -24,6 +24,6 @@ Forms and form functions cannot be listed; they import with the blueprint or act
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
-- `sync_repo` is required when the appliance has more than one repository; the error names them.
+- With several repositories, pass the id, the label, or the checkout's git remote URL; when none or several match, the error lists every repository with its URL.
 - Every synced object's remote source URL is re-pointed at the branch; sync the same paths from `main` after the branch merges.
 - Setup (import, Synchronous Action, client reconnect): [docs/mcp-testing-setup.md](../../docs/mcp-testing-setup.md).

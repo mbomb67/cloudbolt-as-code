@@ -91,23 +91,52 @@ def _read_inputs():
     }
 
 
+def _normalize_url(value):
+    """Reduce a git remote URL to host/path so https, ssh, .git and case compare equal."""
+    text = _text(value).lower()
+    text = re.sub(r"^[a-z][a-z0-9+.-]*://", "", text)
+    text = re.sub(r"^[^@/]+@", "", text)
+    text = re.sub(r"^([^/:]+):(?!\d)", r"\1/", text)
+    text = re.sub(r"^www\.", "", text)
+    text = text.rstrip("/")
+    if text.endswith(".git"):
+        text = text[:-4]
+    return text.rstrip("/")
+
+
+def _repo_row(repo):
+    return "{} ({}, {})".format(repo.global_id, repo.label, repo.repo_url or "no URL")
+
+
 def _repo_list(repos):
-    return ", ".join("{} ({})".format(r.global_id, r.label) for r in repos) or "none"
+    return "; ".join(_repo_row(r) for r in repos) or "none"
 
 
 def _resolve_repo(ref):
-    repos = SourceCodeRepo.objects.all().order_by("id")
+    """Match sync_repo as a global id, then a label, then a git remote URL."""
+    repos = list(SourceCodeRepo.objects.all().order_by("id"))
     if ref:
-        repo = repos.filter(global_id=ref).first() or repos.filter(label__iexact=ref).first()
-        if repo is None:
-            return None, "No Source Control Repository matches '{}'. Available: {}.".format(
-                ref, _repo_list(repos)
+        for repo in repos:
+            if repo.global_id == ref or (repo.label or "").lower() == ref.lower():
+                return repo, None
+        wanted = _normalize_url(ref)
+        matches = [r for r in repos if wanted and _normalize_url(r.repo_url) == wanted]
+        if len(matches) == 1:
+            return matches[0], None
+        if len(matches) > 1:
+            return None, (
+                "Several repositories match '{}': {}. Pass the global id or the "
+                "label of the one to use.".format(ref, _repo_list(matches))
             )
-        return repo, None
-    if repos.count() == 1:
-        return repos.first(), None
-    return None, "sync_repo is required because {} repositories exist: {}.".format(
-        repos.count(), _repo_list(repos)
+        return None, (
+            "No Source Control Repository matches '{}' by id, label, or URL. "
+            "Available: {}.".format(ref, _repo_list(repos))
+        )
+    if len(repos) == 1:
+        return repos[0], None
+    return None, (
+        "sync_repo is required because {} repositories exist: {}. Pass the global "
+        "id, the label, or the checkout's git remote URL.".format(len(repos), _repo_list(repos))
     )
 
 

@@ -1,7 +1,7 @@
 # MCP Content Testing — Setup Runbook
 
 Stand up what the `cb-test-content` skill needs: an MCP client connected to
-your appliance as an admin, the six testing tools from `mcp_tool_actions/`
+your appliance as an admin, the seven testing tools from `mcp_tool_actions/`
 imported and set to synchronous, and a per-machine config file. A fresh
 operator should be able to follow this end to end with no other source. The
 procedure the agent runs afterwards is
@@ -41,7 +41,7 @@ Any other Streamable HTTP MCP client with OAuth support connects the same way.
 Check: the `fetch_identity` tool returns your user with `superAdmin` or
 `cmpAdmin` true.
 
-## 3. Import the six tools
+## 3. Import the seven tools
 
 | Tool | Folder |
 |---|---|
@@ -51,11 +51,12 @@ Check: the `fetch_identity` tool returns your user with `superAdmin` or
 | `run_recurring_job` | `mcp_tool_actions/MTA-thkvyt0v` |
 | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` |
 | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` |
+| `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` |
 
 Each tool's plugin imports with it. Pick one of:
 
 **A. One API call** (recommended). Get a token (valid for five minutes), then
-post the six paths to your repository's `syncFromRepo` endpoint. Find the `SCR-` id with
+post the seven paths to your repository's `syncFromRepo` endpoint. Find the `SCR-` id with
 `GET https://<appliance>/api/v3/cmp/sourceCodeRepos/`.
 
 ```bash
@@ -68,7 +69,8 @@ curl -sS -X POST "https://<appliance>/api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFr
   -d '{"branch": "main", "refreshIfExists": true, "objectsToSync": {"mcp_tool_actions": [
         "MTA-543b19sa/MTA-543b19sa_metadata.json", "MTA-8j9c0tb0/MTA-8j9c0tb0_metadata.json",
         "MTA-9oihpumd/MTA-9oihpumd_metadata.json", "MTA-thkvyt0v/MTA-thkvyt0v_metadata.json",
-        "MTA-gnx1ckno/MTA-gnx1ckno_metadata.json", "MTA-js655cf3/MTA-js655cf3_metadata.json"]}}'
+        "MTA-gnx1ckno/MTA-gnx1ckno_metadata.json", "MTA-js655cf3/MTA-js655cf3_metadata.json",
+        "MTA-ntmcnvv7/MTA-ntmcnvv7_metadata.json"]}}'
 ```
 
 The response is the sync job. Watch it under Jobs, or
@@ -77,11 +79,11 @@ It takes a few seconds.
 
 **B. The UI.** Actions > MCP Tool Actions > Create from Repository; choose the
 repository, the branch, and one metadata file. The dialog takes one item, so
-repeat it six times.
+repeat it seven times.
 
 **C. No repository on the appliance.** Build one zip per tool with
 `python tools/package_zip.py mcp_tool_actions/MTA-543b19sa` (and the other
-five) and upload each at Actions > MCP Tool Actions > Import.
+six) and upload each at Actions > MCP Tool Actions > Import.
 
 ## 4. Turn on Synchronous Action and reconnect
 
@@ -91,14 +93,14 @@ refuses to change it (CMPITK-1391). Until it is on, every call returns
 reading the result inline.
 
 1. Actions > MCP Tool Actions > the tool > Edit > tick **Synchronous Action**
-   > Save. Six times. Later refreshes from the repository keep it.
+   > Save. Seven times. Later refreshes from the repository keep it.
 2. Optional: on the same form, restrict the write tools (sync, run recurring
-   job, run CIT tests, cancel jobs) to a role. The code already refuses
+   job, run CIT tests, cancel jobs, manage permissions) to a role. The code already refuses
    non-admins; roles narrow it further and never sync.
 3. Reconnect the MCP client (`/mcp` > reconnect, or restart it). Tool lists
    are cached per session.
 
-Check: `fetch_mcp_tool_actions` lists the six names, and
+Check: `fetch_mcp_tool_actions` lists the seven names, and
 `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers
 inline with a not-found failure. An answer of the form
 `{"success": true, "ids": [...]}` means the flag is still off on that tool.
@@ -110,8 +112,10 @@ gitignored because it names your appliance) and fill in:
 
 | Key | Where to find it |
 |---|---|
-| `source_code_repo` | The repository label or `SCR-` id from §1 |
-| `group_id` | A `GRP-` id the admin may order under: `fetch_orderable_groups` from the client, or the group's API link on its page |
+| `mcp_server` | The name you gave the server in §2 (`cloudbolt` in the example); needed only when the client has more than one CloudBolt server |
+| `appliance_url` | Optional `https://<appliance>`; the agent checks it against the dashboard link the server returns |
+| `source_code_repo` | Optional: the repository label, `SCR-` id, or git URL from §1. Left out, the agent passes the checkout's `git remote get-url origin` and the sync tool matches it against each repository's URL |
+| `group_id` | The test group, a `GRP-` id you choose (the group's API link on its page shows it). The loop orders under it when a blueprint entitles it, and grants it, temporarily, to blueprints that entitle no group; it never picks a group or opens a blueprint to all groups. Give it the environments and quota you are willing to spend on tests |
 | `resource_name_prefix` | Keep `cbtest` unless it collides with real names |
 | `test_server_id`, `test_resource_id` | Optional targets for standalone server and resource actions |
 
@@ -119,7 +123,8 @@ gitignored because it names your appliance) and fill in:
 
 A branch sync points each synced object's remote source URL at that branch.
 Once the branch is merged and deleted, sync the same paths from `main`, now
-through the tool itself:
+through the tool itself. A synced blueprint also loses its group permissions;
+`manage_blueprint_permissions` lists them beforehand and grants them back.
 
 ```text
 run_mcp_tool_action("sync_from_source_control_repo", {
@@ -140,6 +145,7 @@ Reconnect the client when a tool's inputs or description changed.
 | `fetch_mcp_tool_actions` is missing some of the six names | Not imported, disabled, or the client's cached list | §3, then §4 step 3 |
 | `{"success": true, "ids": [...]}` instead of a result | Synchronous Action off | §4 |
 | `Parameters not allowed [<name>]` | The input carries a stored default (a value saved on the edit form) | Clear it on the edit form, or re-sync the tool |
-| `sync_repo is required because N repositories exist` | Several repositories on the appliance | Pass the label; put it in the config (§5) |
+| `sync_repo is required ...` or `Several repositories match ...` | Several repository entries, or two entries for the same URL | Set `source_code_repo` to the label (§5) |
+| The agent talks to the wrong appliance | Several CloudBolt servers in the client | Set `mcp_server` (§5) |
 | `Branch '...' contains a slash` | Branch name with `/` | Push the same commit under a slash-free name |
 | HTTP 403 from `syncFromRepo`, or `Only CloudBolt admins may ...` | Account is not an admin | §1.3 |

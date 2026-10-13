@@ -11,8 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 4 |
 | [Webhooks](#webhooks) | 3 |
-| [MCP tool actions](#mcp-tool-actions) | 8 |
-| [Plugins](#plugins) | 104 |
+| [MCP tool actions](#mcp-tool-actions) | 9 |
+| [Plugins](#plugins) | 105 |
 | [Shared modules](#shared-modules) | 13 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 9 |
@@ -134,6 +134,7 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 | Cancel Jobs | [MTA-js655cf3](mcp_tool_actions/MTA-js655cf3/README.md) | Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint. | `cancel_jobs` | yes | [Cancel Jobs](plugins/OHK-2lzwvo0j/) |
 | Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
 | Fetch Job Log | [MTA-8j9c0tb0](mcp_tool_actions/MTA-8j9c0tb0/README.md) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | `fetch_job_log` | yes | [Fetch Job Log](plugins/OHK-2p0rhzup/) |
+| Manage Blueprint Permissions | [MTA-ntmcnvv7](mcp_tool_actions/MTA-ntmcnvv7/README.md) | Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored. | `manage_blueprint_permissions` | yes | [Manage Blueprint Permissions](plugins/OHK-mgta9oez/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
 | Run Blueprint Discovery | [MTA-9oihpumd](mcp_tool_actions/MTA-9oihpumd/README.md) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | `run_blueprint_discovery` | yes | [Run Blueprint Discovery](plugins/OHK-dwh5kqxq/) |
 | Run CIT Tests | [MTA-gnx1ckno](mcp_tool_actions/MTA-gnx1ckno/README.md) | Starts a functionaltest job for the named CIT tests and returns its job id. | `run_cit_tests` | yes | [Run CIT Tests](plugins/OHK-ieb4qio7/) |
@@ -210,6 +211,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | List Blob Containers | [OHK-3kp5czyb](plugins/OHK-3kp5czyb/) | Lists the blob containers in the resource's Azure storage account. | CloudBolt Plug-in | [List Blob Containers](resource_actions/RSA-h93k53ld/) |
 | List Resources in Group | [OHK-iy92hhvh](plugins/OHK-iy92hhvh/) | Lists the Azure resources in the resource group and records the count on the resource. | CloudBolt Plug-in | [List Resources in Group](resource_actions/RSA-a38h23ms/) |
 | List Subscription Access | [OHK-ovt0z46j](plugins/OHK-ovt0z46j/) | Lists role assignments at subscription scope with resolved principal names. | CloudBolt Plug-in | [List Access](resource_actions/RSA-f7wb11ny/) |
+| Manage Blueprint Permissions | [OHK-mgta9oez](plugins/OHK-mgta9oez/) | Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored. | CloudBolt Plug-in | [Manage Blueprint Permissions](mcp_tool_actions/MTA-ntmcnvv7/README.md) |
 | Manage Delete Lock | [OHK-sf6w5pfn](plugins/OHK-sf6w5pfn/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | CloudBolt Plug-in | [Manage Delete Lock](resource_actions/RSA-qwku9lip/) |
 | Manage Team Access | [OHK-9zzqqz7t](plugins/OHK-9zzqqz7t/) | Grants or revokes team access to a landing-zone project through CloudBolt group entitlement or an OpenShift role binding. | CloudBolt Plug-in | [Manage Team Access](resource_actions/RSA-yj1c4b5s/) |
 | Migrate Aria Automation Deployments | [OHK-7sq2hqrb](plugins/OHK-7sq2hqrb/) | Imports the deployments of one Aria Automation cloud template as CloudBolt resources or stand-alone servers, matching VMs by instance UUID and carrying over owner, group, environment, and custom properties. | CloudBolt Plug-in | [Migrate Aria Automation Deployments to Resources](blueprints/BP-zq0csldu/README.md) |
