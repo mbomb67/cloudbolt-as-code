@@ -27,7 +27,7 @@ Run the preflight table in testing-loop.md first, every session: server, connect
 Follow testing-loop.md steps 0 to 6 in order. In short:
 
 1. Scope: changed folders, replaced by the parents that import them. `cb-validate-metadata`, `tools/build_catalog.py`, commit, push.
-2. `sync_from_source_control_repo`, poll with `fetch_job_log`, every `syncResults` row `success`. After syncing a blueprint with `any_group_can_deploy: false`, `grant_blueprint_permission` for the configured group, because the sync removed it.
+2. `sync_from_source_control_repo`, poll with `fetch_job_log`, every `syncResults` row `success`. Around a blueprint sync, `manage_blueprint_permissions`: list before, grant the same groups back after; a blueprint that entitled no group gets the configured group only, recorded in the ledger and revoked at cleanup.
 3. Exercise by type: blueprint = order, approve if pending, discovery, every day-2 action, Delete; standalone action = run against the configured target; recurring job = `run_recurring_job`; CIT = `run_cit_tests`.
 4. On failure read `fetch_job_log` (with `log_file_tail`), fix the repo, push, re-sync the affected parents, resume at the failed step. At most five iterations per unit.
 5. Delete everything in the ledger; a failed delete is a teardown bug to fix and retry.
@@ -36,6 +36,7 @@ Follow testing-loop.md steps 0 to 6 in order. In short:
 ## Constraints
 
 - Order into any environment the MCP user may use, but choose the smallest size offered and name everything `<prefix>-<branch>-<n>` so strays are findable.
+- Never choose a group yourself: `group_id` comes from the user. Honor the entitlements a blueprint already has, grant only the configured group and only when nothing is entitled, never any-group, and revoke what you granted when the run ends.
 - Never end with a live test resource unreported. If one survives the cap, its id and link go first in the report.
 - Confirm with the user before the first order of a session when the blueprint's schema shows a cost or quota field that looks non-trivial; otherwise proceed.
 - Every MCP call in a run goes to the one server chosen in the preflight; the final report names it next to the job ids.

@@ -51,7 +51,7 @@ Check: the `fetch_identity` tool returns your user with `superAdmin` or
 | `run_recurring_job` | `mcp_tool_actions/MTA-thkvyt0v` |
 | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` |
 | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` |
-| `grant_blueprint_permission` | `mcp_tool_actions/MTA-ntmcnvv7` |
+| `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` |
 
 Each tool's plugin imports with it. Pick one of:
 
@@ -95,7 +95,7 @@ reading the result inline.
 1. Actions > MCP Tool Actions > the tool > Edit > tick **Synchronous Action**
    > Save. Seven times. Later refreshes from the repository keep it.
 2. Optional: on the same form, restrict the write tools (sync, run recurring
-   job, run CIT tests, cancel jobs, grant permission) to a role. The code already refuses
+   job, run CIT tests, cancel jobs, manage permissions) to a role. The code already refuses
    non-admins; roles narrow it further and never sync.
 3. Reconnect the MCP client (`/mcp` > reconnect, or restart it). Tool lists
    are cached per session.
@@ -115,7 +115,7 @@ gitignored because it names your appliance) and fill in:
 | `mcp_server` | The name you gave the server in §2 (`cloudbolt` in the example); needed only when the client has more than one CloudBolt server |
 | `appliance_url` | Optional `https://<appliance>`; the agent checks it against the dashboard link the server returns |
 | `source_code_repo` | Optional: the repository label, `SCR-` id, or git URL from §1. Left out, the agent passes the checkout's `git remote get-url origin` and the sync tool matches it against each repository's URL |
-| `group_id` | A `GRP-` id the admin may order under: `fetch_orderable_groups` from the client, or the group's API link on its page |
+| `group_id` | The test group, a `GRP-` id you choose (the group's API link on its page shows it). The loop orders under it when a blueprint entitles it, and grants it, temporarily, to blueprints that entitle no group; it never picks a group or opens a blueprint to all groups. Give it the environments and quota you are willing to spend on tests |
 | `resource_name_prefix` | Keep `cbtest` unless it collides with real names |
 | `test_server_id`, `test_resource_id` | Optional targets for standalone server and resource actions |
 
@@ -124,7 +124,7 @@ gitignored because it names your appliance) and fill in:
 A branch sync points each synced object's remote source URL at that branch.
 Once the branch is merged and deleted, sync the same paths from `main`, now
 through the tool itself. A synced blueprint also loses its group permissions;
-`grant_blueprint_permission` restores them.
+`manage_blueprint_permissions` lists them beforehand and grants them back.
 
 ```text
 run_mcp_tool_action("sync_from_source_control_repo", {

@@ -668,8 +668,8 @@
   {
     "id": "MTA-ntmcnvv7",
     "type": "mcp_tool_actions",
-    "name": "Grant Blueprint Permission",
-    "description": "Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes.",
+    "name": "Manage Blueprint Permissions",
+    "description": "Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored.",
     "path": "mcp_tool_actions/MTA-ntmcnvv7",
     "readme": "mcp_tool_actions/MTA-ntmcnvv7/README.md",
     "uses": [
@@ -677,7 +677,7 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "grant_blueprint_permission"
+    "mcp_tool_name": "manage_blueprint_permissions"
   },
   {
     "id": "MTA-thkvyt0v",
@@ -1805,8 +1805,8 @@
   {
     "id": "OHK-mgta9oez",
     "type": "plugins",
-    "name": "Grant Blueprint Permission",
-    "description": "Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes.",
+    "name": "Manage Blueprint Permissions",
+    "description": "Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored.",
     "path": "plugins/OHK-mgta9oez",
     "readme": null,
     "uses": [],
