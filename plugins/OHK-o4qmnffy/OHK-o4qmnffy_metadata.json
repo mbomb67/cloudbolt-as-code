@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Name of the ConnectionInfo that holds the ServiceNow host and integration user.",
+            "description": "ConnectionInfo or Admin > ITSM integration holding the ServiceNow host and integration user; when nothing matches, the ServiceNow ITSM integration is used.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

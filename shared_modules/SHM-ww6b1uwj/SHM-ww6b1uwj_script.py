@@ -62,7 +62,8 @@ logger = ThreadLogger(__name__)
 # jobengine thread (the order-submit hook runs inside the web request).
 HTTP_TIMEOUT_S = 60
 
-# ConnectionInfo that holds the ServiceNow instance and the integration user.
+# ConnectionInfo (or Admin > ITSM integration) that holds the ServiceNow instance
+# and the integration user; see ServiceNowRequestClient._resolve_connection.
 DEFAULT_CONNECTION_NAME = "ServiceNow"
 
 TABLE_API = "/api/now/table"
@@ -140,6 +141,18 @@ class ServiceNowError(Exception):
     """Raised when ServiceNow rejects a request or returns an unusable body."""
 
 
+class _Endpoint:
+    """ConnectionInfo-shaped view of an ITSM integration's host and credentials."""
+
+    def __init__(self, name, ip, port, protocol, username, password):
+        self.name = name
+        self.ip = ip
+        self.port = port
+        self.protocol = protocol
+        self.username = username
+        self.password = password
+
+
 # ---------------------------------------------------------------------------
 # REST client
 # ---------------------------------------------------------------------------
@@ -156,7 +169,7 @@ class ServiceNowRequestClient:
     """
 
     def __init__(self, connection_name=DEFAULT_CONNECTION_NAME):
-        self.connection_name = connection_name or DEFAULT_CONNECTION_NAME
+        self.connection_name = (connection_name or "").strip()
         self.conn = self._resolve_connection(self.connection_name)
         self.base_url = self._base_url(self.conn)
         self.session = requests.Session()
@@ -179,26 +192,57 @@ class ServiceNowRequestClient:
 
     @staticmethod
     def _resolve_connection(name):
-        conn = ConnectionInfo.objects.filter(name=name).first()
-        if conn:
-            return conn
-        # Fall back to the ConnectionInfo attached to CloudBolt's own ServiceNow
-        # integration object (Admin > ServiceNow) when one is configured.
+        """
+        Find the ServiceNow endpoint and credentials, in this order:
+          1. a ConnectionInfo named `name`;
+          2. an Admin > ITSM integration named `name`;
+          3. the ServiceNow ITSM integration (any name) when there is one;
+          4. the ConnectionInfo of the legacy Admin > ServiceNow object.
+        Returns an object with ip, port, protocol, username, password and name.
+        """
+        if name:
+            conn = ConnectionInfo.objects.filter(name=name).first()
+            if conn:
+                return conn
+        try:
+            from django.db.models import Q
+
+            from itsm.models import ITSM
+
+            candidates = ITSM.objects.all()
+            itsm = candidates.filter(name=name).first() if name else None
+            if not itsm:
+                itsm = candidates.filter(
+                    Q(itsm_technology__name__icontains="servicenow")
+                    | Q(itsm_technology__modulename__icontains="servicenow")
+                ).first()
+            if itsm:
+                logger.info(f"Using ITSM integration '{itsm.name or itsm.global_id}' for ServiceNow.")
+                return _Endpoint(
+                    name=itsm.name or itsm.global_id,
+                    ip=itsm.ip,
+                    port=itsm.port,
+                    protocol=itsm.protocol,
+                    username=itsm.service_account,
+                    password=itsm.password,
+                )
+        except Exception as err:
+            logger.debug(f"ITSM lookup skipped: {err}")
         try:
             from utilities.models import ServiceNow
 
             native = ServiceNow.objects.first()
             if native and native.connection_info:
                 logger.info(
-                    f"ConnectionInfo '{name}' not found; using the ServiceNow "
-                    f"integration's connection '{native.connection_info.name}'."
+                    f"Using the legacy ServiceNow object's connection '{native.connection_info.name}'."
                 )
                 return native.connection_info
         except Exception:
             pass
         raise ServiceNowError(
-            f"ConnectionInfo '{name}' not found. Create it under Admin > "
-            f"Connection Info with the ServiceNow host and integration user."
+            f"No ServiceNow connection found: no ConnectionInfo or ITSM integration named "
+            f"'{name or DEFAULT_CONNECTION_NAME}' and no ServiceNow ITSM integration. Create one "
+            f"under Admin > ITSM or Admin > Connection Info."
         )
 
     @staticmethod

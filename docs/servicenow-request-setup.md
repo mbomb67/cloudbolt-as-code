@@ -56,7 +56,7 @@ Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` an
 
 ## CloudBolt side
 
-1. Create a ConnectionInfo named `ServiceNow` (Admin > Connection Info): protocol `https`, IP/Hostname `<instance>.service-now.com`, port 443, username and password of the integration user. Re-enter the password after every repo sync; exports redact it.
+1. Point the actions at ServiceNow. If Admin > ITSM already has a ServiceNow integration, nothing else is needed: the actions use its host and service account when no ConnectionInfo matches the pinned name. Otherwise create a ConnectionInfo named `ServiceNow` (Admin > Connection Info): protocol `https`, IP/Hostname `<instance>.service-now.com`, port 443, username and password of the integration user. Re-enter the password after every repo sync; exports redact it.
 2. Sync this repo, then restart CloudBolt once so the `servicenow_requests` shared module is loaded.
 3. On each action and the recurring job, set the pinned inputs (Admin > Orchestration Actions, Admin > Recurring Jobs): the ConnectionInfo name, the catalog item sys_id (Open actions), and optionally the CloudBolt base URL and the CMDB table (Close on Completion). On the sync job set `cloudbolt_approver_username` to a CloudBolt user with approve rights if you want the CloudBolt approval history to name someone.
 4. Enable, in this order: Close on Completion, Close on Denial, Open on Approval, Approval Sync, and finally Open on Submit. Enabling Open on Submit stops CloudBolt's approver emails for every order; from then on ServiceNow decides.
