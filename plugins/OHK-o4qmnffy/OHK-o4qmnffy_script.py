@@ -12,19 +12,25 @@ Bound twice:
     action exits without doing anything.
 
 Catalog path: when the generic catalog item sys_id is configured the item is
-ordered through the Service Catalog API so its flow runs. Table path: without
-one, sc_request and sc_req_item rows are inserted through the Table API.
-Setup for both: docs/servicenow-request-setup.md.
+ordered through the Service Catalog API so its flow runs, including its
+approvals. Table path: without one, sc_request and sc_req_item rows are
+inserted through the Table API; when approvers are pinned, an approval record
+is created on the RITM for each of them, which is what ServiceNow approvers
+act on from My Approvals. Setup for both: docs/servicenow-request-setup.md.
 
 The order's item (or the targeted server / resource) receives two URL
 parameters, ServiceNow Request and ServiceNow RITM, that open the records.
 
 Inputs (pinned on the orchestration action):
-  servicenow_connection_name     ConnectionInfo or ITSM integration name (default "ServiceNow").
-  servicenow_catalog_item_sys_id sys_id of the generic catalog item; empty = Table API path.
-  servicenow_requested_for_miss  "integration_user" (default) or "fail" when the
-                                 order owner has no ServiceNow user.
-  cloudbolt_base_url             Base URL for links in the RITM; empty = default portal.
+  servicenow_connection_name      ConnectionInfo or ITSM integration name (default "ServiceNow").
+  servicenow_catalog_item_sys_id  sys_id of the generic catalog item; empty = Table API path.
+  servicenow_requested_for_miss   "integration_user" (default) or "fail" when the
+                                  order owner has no ServiceNow user.
+  servicenow_table_path_approvers Table path only: comma-separated user names or
+                                  emails, or "manager" for the requester's manager,
+                                  asked to approve the RITM. Empty leaves approval
+                                  to the out-of-the-box request workflow on the REQ.
+  cloudbolt_base_url              Base URL for links in the RITM; empty = default portal.
 """
 from utilities.logger import ThreadLogger
 
@@ -35,6 +41,7 @@ logger = ThreadLogger(__name__)
 CONNECTION_NAME = "{{ servicenow_connection_name }}".strip() or snr.DEFAULT_CONNECTION_NAME
 CATALOG_ITEM_SYS_ID = "{{ servicenow_catalog_item_sys_id }}".strip()
 REQUESTED_FOR_MISS = ("{{ servicenow_requested_for_miss }}".strip() or "integration_user").lower()
+TABLE_PATH_APPROVERS = "{{ servicenow_table_path_approvers }}".strip()
 BASE_URL = "{{ cloudbolt_base_url }}".strip()
 
 
@@ -45,6 +52,7 @@ def run(order=None, job=None, logger=logger, **kwargs):
     # ACTIVE means CloudBolt already approved the order (auto-approval or a
     # CloudBolt approver); PENDING means ServiceNow decides.
     approval = "approved" if order.status == "ACTIVE" else "pending"
+    approvers_note = ""
 
     try:
         with snr.ServiceNowRequestClient(CONNECTION_NAME) as snow:
@@ -101,6 +109,15 @@ def run(order=None, job=None, logger=logger, **kwargs):
                 ritm_fields = dict(fields, approval=approval_value, quantity="1")
                 ids = snow.create_request_via_table(request_fields, ritm_fields)
                 path = "table"
+                if approval == "pending" and TABLE_PATH_APPROVERS:
+                    approvers = snow.find_users(TABLE_PATH_APPROVERS, requested_for)
+                    if approvers:
+                        snow.request_ritm_approval(ids["ritm_sys_id"], approvers)
+                        approvers_note = f" Approval requested from {len(approvers)} approver(s) on the RITM."
+                    else:
+                        approvers_note = (
+                            " No pinned approver resolved to a ServiceNow user; the REQ workflow decides."
+                        )
 
             snr.store_request_links(snow, order, ids.get("request_number"), ids.get("ritm_number"))
     except snr.ServiceNowError as err:
@@ -108,7 +125,7 @@ def run(order=None, job=None, logger=logger, **kwargs):
 
     msg = (
         f"ServiceNow request {ids.get('request_number')} / RITM {ids.get('ritm_number')} "
-        f"opened for order {order.id} via the {path} path (approval {approval})."
+        f"opened for order {order.id} via the {path} path (approval {approval}).{approvers_note}"
     )
     snr.record_event(order, msg)
     snr.progress(msg, job)

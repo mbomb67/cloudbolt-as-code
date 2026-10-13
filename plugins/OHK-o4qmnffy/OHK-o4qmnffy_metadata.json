@@ -75,6 +75,25 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Table API path only: comma-separated ServiceNow user names or emails asked to approve the RITM, or the word manager for the requester's manager. Empty leaves approval to the out-of-the-box request workflow on the REQ.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-v1pnxvbc",
+            "label": "Table-path RITM Approvers",
+            "name": "servicenow_table_path_approvers",
+            "placeholder": "manager",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
         }
     ],
     "dependencies": {

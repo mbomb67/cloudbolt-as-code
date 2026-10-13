@@ -8,17 +8,20 @@ enabling this job does not touch orders that predate the integration. Orders
 cancelled in CloudBolt in the last week get their still-open RITM closed as
 incomplete.
 
-Where the decision is read from follows ServiceNow's conventions: a catalog
-item's flow asks for approval on the RITM, so catalog-path orders read
-sc_req_item.approval; on the Table API path no flow runs and only the
-out-of-the-box Service Catalog Request workflow on sc_request moves, so those
-orders read sc_request.approval. The pin can force either table.
+Where the decision is read from follows ServiceNow's conventions. An approval
+is a sysapproval_approver row on the RITM that an approver acts on; the task's
+approval field is the roll-up. In auto mode:
+  * catalog-path orders read the RITM's approval field, which the item's flow
+    maintains;
+  * Table API orders read the RITM's approval rows when the open action created
+    any (a rejection denies, all approved approves), and otherwise the REQ's
+    approval field, the only thing the out-of-the-box request workflow moves.
 
 Inputs (pinned on the recurring job):
   servicenow_connection_name  ConnectionInfo or ITSM integration name (default "ServiceNow").
-  servicenow_approval_table   "auto" (default: RITM for catalog-path orders, REQ for
-                              table-path orders), "sc_req_item" or "sc_request".
-  servicenow_approval_field   Field read for the decision (default "approval";
+  servicenow_approval_table   "auto" (default), "sc_req_item", "sc_request" or
+                              "approvals" (the RITM's approval rows).
+  servicenow_approval_field   Field read on sc_req_item or sc_request (default "approval";
                               "stage" or "state" also work with matching values).
   servicenow_approved_values  Comma-separated values meaning approved (default "approved").
   servicenow_denied_values    Comma-separated values meaning denied (default "rejected,cancelled").
@@ -43,6 +46,7 @@ APPROVED_VALUES = "{{ servicenow_approved_values }}".strip() or snr.APPROVAL_APP
 DENIED_VALUES = "{{ servicenow_denied_values }}".strip() or f"{snr.APPROVAL_REJECTED},cancelled"
 APPROVER_USERNAME = "{{ cloudbolt_approver_username }}".strip()
 
+SOURCE_APPROVALS = "approvals"
 CANCELLED_LOOKBACK_DAYS = 7
 
 
@@ -59,22 +63,37 @@ def _approver():
     return profile
 
 
-def _decision_table(record):
-    if APPROVAL_TABLE in (snr.TABLE_RITM, snr.TABLE_REQUEST):
-        return APPROVAL_TABLE
-    return snr.TABLE_RITM if record["path"] == "catalog" else snr.TABLE_REQUEST
+def _approval_rows_value(rows):
+    """Collapse the RITM's approval rows into approved, rejected or requested."""
+    states = {str(r.get("state", "")).lower() for r in rows}
+    if snr.APPROVAL_REJECTED in states:
+        return snr.APPROVAL_REJECTED
+    pending = states - {snr.APPROVAL_APPROVED, "not_required", "not required", "cancelled", "duplicate"}
+    if not pending and snr.APPROVAL_APPROVED in states:
+        return snr.APPROVAL_APPROVED
+    return snr.APPROVAL_REQUESTED
 
 
-def _decision_value(snow, record):
-    """Return (table, value) for the record the decision is read from."""
-    table = _decision_table(record)
-    if table == snr.TABLE_RITM and APPROVAL_FIELD == "approval":
-        return table, record["approval"]
-    sys_id = record["ritm_sys_id"] if table == snr.TABLE_RITM else record["request_sys_id"]
+def _decision(snow, record):
+    """Return (source, value) for the record the decision is read from."""
+    source = APPROVAL_TABLE
+    if source == "auto":
+        if record["path"] == "catalog":
+            source = snr.TABLE_RITM
+        else:
+            rows = snow.ritm_approvals(record["ritm_sys_id"])
+            if rows:
+                return SOURCE_APPROVALS, _approval_rows_value(rows)
+            source = snr.TABLE_REQUEST
+    if source == SOURCE_APPROVALS:
+        return source, _approval_rows_value(snow.ritm_approvals(record["ritm_sys_id"]))
+    if source == snr.TABLE_RITM and APPROVAL_FIELD == "approval":
+        return source, record["approval"]
+    sys_id = record["ritm_sys_id"] if source == snr.TABLE_RITM else record["request_sys_id"]
     if not sys_id:
-        return table, ""
-    row = snow.get(table, sys_id, fields=(APPROVAL_FIELD,))
-    return table, str(row.get(APPROVAL_FIELD, "")).strip().lower()
+        return source, ""
+    row = snow.get(source, sys_id, fields=(APPROVAL_FIELD,))
+    return source, str(row.get(APPROVAL_FIELD, "")).strip().lower()
 
 
 def _sync_pending(snow, approver, job):
@@ -88,12 +107,13 @@ def _sync_pending(snow, approver, job):
             if not record:
                 counts["skipped"] += 1
                 continue
-            table, value = _decision_value(snow, record)
+            source, value = _decision(snow, record)
         except snr.ServiceNowError as err:
             logger.warning(f"Order {order.id}: could not read its ServiceNow record: {err}")
             counts["errors"] += 1
             continue
-        number = record["ritm_number"] if table == snr.TABLE_RITM else record["request_number"]
+        number = record["request_number"] if source == snr.TABLE_REQUEST else record["ritm_number"]
+        what = "approval rows" if source == SOURCE_APPROVALS else APPROVAL_FIELD
 
         if value in approved:
             try:
@@ -102,13 +122,13 @@ def _sync_pending(snow, approver, job):
                 logger.warning(f"Order {order.id} approved in ServiceNow but CloudBolt refused: {err}")
                 counts["errors"] += 1
                 continue
-            msg = f"Order {order.id} approved: ServiceNow {number} {APPROVAL_FIELD}={value}."
+            msg = f"Order {order.id} approved: ServiceNow {number} {what}={value}."
             snr.record_event(order, msg)
             snr.progress(msg, job)
             counts["approved"] += 1
         elif value in denied or record["closed"]:
             reason = (
-                f"Rejected in ServiceNow ({number}: {APPROVAL_FIELD}={value})"
+                f"Rejected in ServiceNow ({number}: {what}={value})"
                 if value in denied
                 else f"Closed in ServiceNow ({record['ritm_number']}: state={record['state']})"
             )

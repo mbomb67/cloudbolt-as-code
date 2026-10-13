@@ -19,6 +19,11 @@
             "label": "CloudBolt Base URL",
             "name": "cloudbolt_base_url_a1",
             "value": ""
+        },
+        {
+            "label": "Table-path RITM Approvers",
+            "name": "servicenow_table_path_approvers_a1",
+            "value": ""
         }
     ],
     "continue_on_failure": true,

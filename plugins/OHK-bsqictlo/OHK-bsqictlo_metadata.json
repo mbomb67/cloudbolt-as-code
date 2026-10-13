@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Record the decision is read from: auto (RITM for catalog-path orders, REQ for Table API orders), sc_req_item, or sc_request.",
+            "description": "Where the decision is read: auto (catalog-path orders: the RITM's approval field; Table API orders: the RITM's approval records when any exist, else the REQ's approval field), sc_req_item, sc_request, or approvals (the RITM's approval records).",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

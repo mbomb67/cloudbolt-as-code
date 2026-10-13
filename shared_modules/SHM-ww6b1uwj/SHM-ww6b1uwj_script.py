@@ -18,7 +18,10 @@ while CloudBolt performs the fulfillment. Two creation paths exist:
 After creation the RITM is decorated through the Table API (short_description,
 description, correlation_id = CloudBolt order global id, requested_for), and
 later closed by the Post-Order Execution hook with the created CIs attached
-through the task_ci ("Affected CIs") table.
+through the task_ci ("Affected CIs") table. On the table path the open action
+can also ask named users (or the requester's manager) to approve the RITM by
+inserting sysapproval_approver rows, which is how ServiceNow itself represents
+an approval; the sync job then reads those rows.
 
 The order's anchor objects (blueprint order item, or the server / resource a
 day-2 or decommission order targets) carry two URL custom fields that link to
@@ -77,6 +80,11 @@ TABLE_REQUEST = "sc_request"
 TABLE_RITM = "sc_req_item"
 TABLE_TASK_CI = "task_ci"
 TABLE_USER = "sys_user"
+# Approval records. A ServiceNow approval is a row here that points at the
+# task (sysapproval); approvers act on it from My Approvals, and the task's
+# approval field is only a roll-up of these rows.
+TABLE_APPROVAL = "sysapproval_approver"
+APPROVER_MANAGER = "manager"
 DEFAULT_CI_TABLE = "cmdb_ci_server"
 
 # sc_req_item.state choice values (out-of-the-box). Verify in sys_choice.
@@ -102,14 +110,15 @@ APPROVAL_REJECTED = "rejected"
 CORRELATION_DISPLAY = "CloudBolt"
 
 # URL custom fields that link CloudBolt objects to their ServiceNow records.
-# The link is ServiceNow's exact-match search for the record number, so the
-# text CloudBolt shows is the number itself and the click lands on the form:
-#   https://<instance>/text_search_exact_match.do?sysparm_search=RITM0010465
-# Everything else about the request (sys_ids, path, state) is read back from
-# the RITM, which carries the order's global id in correlation_id.
+# The link opens the record's form by number through the table's own form URL
+# (a form URL accepts sysparm_query and shows the first matching record):
+#   https://<instance>/sc_req_item.do?sysparm_query=number=RITM0010465
+# The number stays visible at the end of the URL, which is also the link text
+# CloudBolt shows. Everything else about the request (sys_ids, path, state)
+# is read back from the RITM, which carries the order's global id in
+# correlation_id.
 CF_REQUEST_LINK = "servicenow_request_link"
 CF_RITM_LINK = "servicenow_ritm_link"
-RECORD_LINK_PATH = "/text_search_exact_match.do?sysparm_search="
 # Optional: other content may set this on a Resource so the close hook can
 # attach the resource's CI without a CMDB lookup.
 CF_RESOURCE_CI_SYS_ID = "servicenow_ci_sys_id"
@@ -358,6 +367,63 @@ class ServiceNowRequestClient:
                     return row["sys_id"]
         return rows[0]["sys_id"]
 
+    def find_users(self, spec, requested_for_sys_id=None):
+        """
+        Resolve a comma-separated list of user_names or emails to sys_ids.
+        The word "manager" resolves to the requested-for user's manager.
+        Unknown entries are logged and skipped.
+        """
+        sys_ids = []
+        for item in [x.strip() for x in (spec or "").split(",") if x.strip()]:
+            if item.lower() == APPROVER_MANAGER:
+                if not requested_for_sys_id:
+                    logger.warning("Approver 'manager' skipped: the requester has no ServiceNow user.")
+                    continue
+                user = self.get(TABLE_USER, requested_for_sys_id, fields=("manager",))
+                manager = user.get("manager") or ""
+                if manager:
+                    sys_ids.append(manager)
+                else:
+                    logger.warning("Approver 'manager' skipped: the requester has no manager in ServiceNow.")
+                continue
+            sys_id = self.find_user(email=item if "@" in item else None, username=item)
+            if sys_id:
+                sys_ids.append(sys_id)
+            else:
+                logger.warning(f"Approver '{item}' not found in ServiceNow; skipped.")
+        return list(dict.fromkeys(sys_ids))
+
+    # -- approvals ------------------------------------------------------------
+
+    def request_ritm_approval(self, ritm_sys_id, approver_sys_ids):
+        """
+        Ask the given users to approve the RITM: one sysapproval_approver row
+        per approver (state requested) and the RITM's approval set to
+        requested. The rows appear under My Approvals for each approver.
+        """
+        for approver in approver_sys_ids:
+            self.insert(
+                TABLE_APPROVAL,
+                {
+                    "sysapproval": ritm_sys_id,
+                    "document_id": ritm_sys_id,
+                    "source_table": TABLE_RITM,
+                    "approver": approver,
+                    "state": APPROVAL_REQUESTED,
+                },
+            )
+        if approver_sys_ids:
+            self.update(TABLE_RITM, ritm_sys_id, {"approval": APPROVAL_REQUESTED})
+
+    def ritm_approvals(self, ritm_sys_id):
+        """Approval rows for the RITM: list of {sys_id, approver, state}."""
+        return self.query(
+            TABLE_APPROVAL,
+            f"sysapproval={ritm_sys_id}",
+            fields=("sys_id", "approver", "state"),
+            limit=50,
+        )
+
     # -- Service Catalog API ------------------------------------------------
 
     def order_catalog_item(self, cat_item_sys_id, variables, requested_for=None, quantity=1):
@@ -436,7 +502,8 @@ class ServiceNowRequestClient:
 
     def record_link(self, number):
         """URL that opens the REQ or RITM form for a record number."""
-        return f"{self.base_url}{RECORD_LINK_PATH}{number}"
+        table = TABLE_RITM if number.upper().startswith("RITM") else TABLE_REQUEST
+        return f"{self.base_url}/{table}.do?sysparm_query=number={number}"
 
     def add_work_note(self, ritm_sys_id, note):
         return self.update(TABLE_RITM, ritm_sys_id, {"work_notes": note})
