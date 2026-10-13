@@ -110,7 +110,9 @@ gitignored because it names your appliance) and fill in:
 
 | Key | Where to find it |
 |---|---|
-| `source_code_repo` | The repository label or `SCR-` id from §1 |
+| `mcp_server` | The name you gave the server in §2 (`cloudbolt` in the example); needed only when the client has more than one CloudBolt server |
+| `appliance_url` | Optional `https://<appliance>`; the agent checks it against the dashboard link the server returns |
+| `source_code_repo` | Optional: the repository label, `SCR-` id, or git URL from §1. Left out, the agent passes the checkout's `git remote get-url origin` and the sync tool matches it against each repository's URL |
 | `group_id` | A `GRP-` id the admin may order under: `fetch_orderable_groups` from the client, or the group's API link on its page |
 | `resource_name_prefix` | Keep `cbtest` unless it collides with real names |
 | `test_server_id`, `test_resource_id` | Optional targets for standalone server and resource actions |
@@ -140,6 +142,7 @@ Reconnect the client when a tool's inputs or description changed.
 | `fetch_mcp_tool_actions` is missing some of the six names | Not imported, disabled, or the client's cached list | §3, then §4 step 3 |
 | `{"success": true, "ids": [...]}` instead of a result | Synchronous Action off | §4 |
 | `Parameters not allowed [<name>]` | The input carries a stored default (a value saved on the edit form) | Clear it on the edit form, or re-sync the tool |
-| `sync_repo is required because N repositories exist` | Several repositories on the appliance | Pass the label; put it in the config (§5) |
+| `sync_repo is required ...` or `Several repositories match ...` | Several repository entries, or two entries for the same URL | Set `source_code_repo` to the label (§5) |
+| The agent talks to the wrong appliance | Several CloudBolt servers in the client | Set `mcp_server` (§5) |
 | `Branch '...' contains a slash` | Branch name with `/` | Push the same commit under a slash-free name |
 | HTTP 403 from `syncFromRepo`, or `Only CloudBolt admins may ...` | Account is not an admin | §1.3 |

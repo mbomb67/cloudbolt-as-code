@@ -80,15 +80,15 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "Source Control Repository global id (SCR-...) or label. Omit when the appliance has exactly one repository.",
+            "description": "Source Control Repository global id (SCR-...), label, or the git remote URL of the checkout as git remote get-url origin prints it. Omit when the appliance has exactly one repository.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
             "hide-if-default-value": true,
             "id": "CF-nup8wv3m",
-            "label": "Repository (SCR id or label)",
+            "label": "Repository (SCR id, label, or git URL)",
             "name": "sync_repo",
-            "placeholder": "SCR-abc12345",
+            "placeholder": "https://github.com/<org>/<repo>.git",
             "relevant-osfamilies": [],
             "required": false,
             "show-as-attribute": false,
@@ -109,7 +109,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Import or refresh CloudBolt content from a branch of a Source Control Repository, the same as the Create from Repository and Refresh from Remote Source actions in the UI. Give the branch name (it must not contain a slash) and the repo-relative paths of the content folders or metadata files to sync, one per line, for example blueprints/BP-abc12345 or resource_actions/RSA-abc12345/RSA-abc12345_metadata.json. Dependencies (plugins, shared modules, forms) are imported with their parent, so list only the parents. Returns syncJobId, the global id of the sourcecodereposync job: poll it with fetch_job_log and read syncResults for the per-object status. Existing objects are refreshed and their remote source URL is re-pointed at the branch, so sync the same objects from the default branch again after the branch merges. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Import or refresh CloudBolt content from a branch of a Source Control Repository, the same as the Create from Repository and Refresh from Remote Source actions in the UI. Give the branch name (it must not contain a slash) and the repo-relative paths of the content folders or metadata files to sync, one per line, for example blueprints/BP-abc12345 or resource_actions/RSA-abc12345/RSA-abc12345_metadata.json. Dependencies (plugins, shared modules, forms) are imported with their parent, so list only the parents. sync_repo takes the repository's SCR id, its label, or the git remote URL of the checkout; when none or several match, the error lists every repository with its URL. Returns syncJobId, the global id of the sourcecodereposync job: poll it with fetch_job_log and read syncResults for the per-object status. Existing objects are refreshed and their remote source URL is re-pointed at the branch, so sync the same objects from the default branch again after the branch merges. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "sync_from_source_control_repo",
     "mcp_tool_title": ""
 }

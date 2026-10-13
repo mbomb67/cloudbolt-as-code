@@ -21,7 +21,9 @@ Create or change content, then prove it works on an appliance before the PR: pus
 
    | Key | Meaning |
    |---|---|
-   | `source_code_repo` | The repository's `SCR-` global id or label on the appliance; required when the appliance has more than one repository (the sync tool lists them when it is missing) |
+   | `mcp_server` | The client's name for the appliance's MCP server (in Claude Code the key under `mcpServers`, which prefixes every tool name as `mcp__<name>__*`). Required when more than one CloudBolt server is connected |
+   | `appliance_url` | Optional `https://<appliance>`; the preflight compares it with the host in the link `fetch_dashboard_link` returns |
+   | `source_code_repo` | The repository's `SCR-` global id, label, or git URL on the appliance. Optional: when unset the loop passes the checkout's `git remote get-url origin` and the sync tool matches it against each repository's URL |
    | `group_id` | `GRP-` id to order under; must be allowed to order the blueprints under test |
    | `resource_name_prefix` | Prefix for everything the loop creates, default `cbtest` |
    | `test_server_id` | `SVR-` id for exercising standalone server actions (optional) |
@@ -37,12 +39,13 @@ Run these checks in order before touching the repo or the appliance. When one fa
 
 | # | Check | Passes when | Otherwise |
 |---|---|---|---|
-| 1 | Connection | A CloudBolt `fetch_identity` tool exists and returns a user | Runbook §2: no CloudBolt MCP server is configured or authenticated |
-| 2 | Admin | That user has `superAdmin` or `cmpAdmin` true | Runbook §1.3: the write tools and `syncFromRepo` refuse non-admins |
-| 3 | Tools | `fetch_mcp_tool_actions` lists all six names: `sync_from_source_control_repo`, `fetch_job_log`, `run_blueprint_discovery`, `run_recurring_job`, `run_cit_tests`, `cancel_jobs` | Runbook §3: name the missing ones, give the one-call import with `<appliance>` placeholders, then §4 step 3 (reconnect) |
-| 4 | Synchronous | `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers inline with a not-found failure | Runbook §4. Not blocking: continue through the job route and say so |
-| 5 | Config | `.claude/cb-test.local.json` exists and `source_code_repo` and `group_id` are not `FILL-ME` | Runbook §5: copy the example, ask for the values, write them |
-| 6 | Repository | The first `sync_from_source_control_repo` call does not answer `sync_repo is required` or `No Source Control Repository matches` | Runbook §1.2 |
+| 1 | Server | Exactly one CloudBolt MCP server is in play: the one named by `mcp_server` in the config, or the only connected server that exposes `fetch_identity` and `fetch_mcp_tool_actions` (write its name to the config). Every call in the session goes to that server's namespace | Several connected and none configured: ask which one, write it, continue. On the first run against a server show the host from `fetch_dashboard_link`; when `appliance_url` is set and differs, stop |
+| 2 | Connection | `fetch_identity` on that server returns a user | Runbook §2: not configured or not authenticated |
+| 3 | Admin | That user has `superAdmin` or `cmpAdmin` true | Runbook §1.3: the write tools and `syncFromRepo` refuse non-admins |
+| 4 | Tools | `fetch_mcp_tool_actions` lists all six names: `sync_from_source_control_repo`, `fetch_job_log`, `run_blueprint_discovery`, `run_recurring_job`, `run_cit_tests`, `cancel_jobs` | Runbook §3: name the missing ones, give the one-call import with `<appliance>` placeholders, then §4 step 3 (reconnect) |
+| 5 | Synchronous | `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers inline with a not-found failure | Runbook §4. Not blocking: continue through the job route and say so |
+| 6 | Config | `.claude/cb-test.local.json` exists and `group_id` is not `FILL-ME`; `mcp_server` and `source_code_repo` are needed only when the client or the appliance has more than one candidate | Runbook §5: copy the example, ask for the values, write them |
+| 7 | Repository | `sync_repo` resolves: `source_code_repo` from the config when set, otherwise the checkout's `git remote get-url origin`, which the sync tool matches against each repository's URL | Several matches: ask which label, write it to `source_code_repo`. None: Runbook §1.2 |
 
 ## Calling the testing tools
 
@@ -52,6 +55,8 @@ Run these checks in order before touching the repo or the appliance. When one fa
 - **Asynchronous tool:** the response is `{"success": true, "ids": ["JOB-..."]}`; call `fetch_job` on that id and read its `outputs`. If a testing tool answers this way, its Synchronous Action flag is off; tell the user to turn it on, and continue with the job route meanwhile.
 
 Everything that passes through `fetch_job` has its dict keys camelCased by the API renderer, including the path keys inside a sync job's `outputs` (`mcp_tool_actions/MTA-x/MTA-x_metadata.json` arrives as `mcpToolActions/MTA-x/MTA-xMetadata.json`). Match on the global id, or use `fetch_job_log`, whose `syncResults` rows carry the path as a value. A synchronous tool's inline result keeps its keys exactly as the plugin wrote them.
+
+Every call in a run goes to the one server chosen in the preflight. Never mix two servers' namespaces in a run, and name the server in the final report next to the job ids.
 
 ## The loop
 
@@ -78,7 +83,7 @@ Commit, then push to a branch whose name has no slash. CloudBolt reads the branc
 run_mcp_tool_action("sync_from_source_control_repo", {
   "sync_branch": "<branch>",
   "sync_paths": "blueprints/BP-...\nresource_actions/RSA-...",
-  "sync_repo": "<SCR id or label, if configured>"
+  "sync_repo": "<source_code_repo from the config, else git remote get-url origin>"
 })
 ```
 
