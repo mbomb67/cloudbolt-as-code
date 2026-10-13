@@ -41,7 +41,7 @@
         "hook": "plugins/OHK-o4qmnffy"
     },
     "description": "At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first for orders CloudBolt auto-approved; with the wait pin off, opens a record-only RITM instead.",
-    "enabled": false,
+    "enabled": true,
     "hook_point": "Post-Order Approval",
     "id": "HPA-smbwmzj0",
     "last_updated": null,

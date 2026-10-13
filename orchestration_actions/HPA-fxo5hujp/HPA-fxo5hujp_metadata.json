@@ -21,7 +21,7 @@
         "hook": "plugins/OHK-htrxkps2"
     },
     "description": "Closes the order's ServiceNow RITM when every job of the order has finished and attaches the CIs of the servers it produced.",
-    "enabled": false,
+    "enabled": true,
     "hook_point": "Post-Order Execution",
     "id": "HPA-fxo5hujp",
     "last_updated": null,

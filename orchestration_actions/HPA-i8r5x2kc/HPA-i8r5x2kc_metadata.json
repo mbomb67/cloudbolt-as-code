@@ -11,7 +11,7 @@
         "hook": "plugins/OHK-w8exctx7"
     },
     "description": "Closes the order's ServiceNow RITM as incomplete when a CloudBolt approver denies the order.",
-    "enabled": false,
+    "enabled": true,
     "hook_point": "Post-Order Denied",
     "id": "HPA-i8r5x2kc",
     "last_updated": null,
