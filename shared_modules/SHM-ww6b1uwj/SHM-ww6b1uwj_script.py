@@ -770,6 +770,40 @@ def order_url(order, base_url=""):
     return f"{base}{path}" if base else path
 
 
+# CloudBolt rate time unit (GlobalPreferences.rate_time_unit) to the ServiceNow
+# recurring_frequency choice and the multiplier that turns the rate into that
+# frequency. ServiceNow has no hourly frequency, so hourly rates are passed as
+# a monthly amount (730 hours).
+RATE_UNIT_TO_FREQUENCY = {
+    "HOUR": ("monthly", Decimal("730")),
+    "DAY": ("daily", Decimal("1")),
+    "WEEK": ("weekly", Decimal("1")),
+    "MONTH": ("monthly", Decimal("1")),
+    "YEAR": ("yearly", Decimal("1")),
+    "FLAT": ("", Decimal("1")),  # one-time cost: price only, no recurring price
+}
+
+
+def _rate_numbers(order):
+    """Return (recurring amount as a 2-dp string, ServiceNow frequency) or ("", "")."""
+    try:
+        rate = order.get_rate()
+    except Exception:
+        return "", ""
+    if rate in (None, "") or rate == Decimal("Infinity"):
+        return "", ""
+    unit = "MONTH"
+    try:
+        from utilities.models import GlobalPreferences
+
+        unit = (GlobalPreferences.get().rate_time_unit or "MONTH").upper()
+    except Exception:
+        pass
+    frequency, factor = RATE_UNIT_TO_FREQUENCY.get(unit, ("monthly", Decimal("1")))
+    amount = (Decimal(rate) * factor).quantize(Decimal("1.00"))
+    return str(amount), frequency
+
+
 def _rate_text(order):
     try:
         rate = order.get_rate()
@@ -870,7 +904,10 @@ def describe_order(order, base_url="", approval="pending"):
                 resource_type = ""
     action = order_action(order)
     requested_for = _profile_identity(_requested_for_profile(order))
+    rate_amount, rate_frequency = _rate_numbers(order)
     summary = {
+        "rate_amount": rate_amount,
+        "rate_frequency": rate_frequency,
         "order_id": str(order.id),
         "order_global_id": order.global_id,
         "order_url": order_url(order, base_url),
@@ -969,6 +1006,32 @@ def task_fields(summary, requested_for_sys_id=None):
     }
     if requested_for_sys_id:
         fields["requested_for"] = requested_for_sys_id
+    return fields
+
+
+def request_price_fields(summary):
+    """
+    sc_request price column. The REQ's price is normally rolled up from its
+    items; it is written directly as well so the request shows the estimate
+    even on instances where the roll-up only runs for catalog orders.
+    """
+    if not summary.get("rate_amount"):
+        return {}
+    return {"price": summary["rate_amount"]}
+
+
+def ritm_price_fields(summary):
+    """
+    sc_req_item price columns: the CloudBolt net rate as the recurring price
+    with its frequency, and as the price so request-level roll-ups and list
+    views that only show Price carry the same estimate.
+    """
+    if not summary.get("rate_amount"):
+        return {}
+    fields = {"price": summary["rate_amount"]}
+    if summary.get("rate_frequency"):
+        fields["recurring_price"] = summary["rate_amount"]
+        fields["recurring_frequency"] = summary["rate_frequency"]
     return fields
 
 

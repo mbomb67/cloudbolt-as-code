@@ -75,6 +75,7 @@ The ServiceNow API shapes were taken from the REST API Explorer references and S
 - A multi-row variable set is accepted in `variables` as a JSON string of row objects keyed by column name.
 - `sc_req_item.state` values: 3 Closed Complete, 4 Closed Incomplete, 7 Closed Skipped. `approval` values: `requested`, `approved`, `rejected`. Both live in `sys_choice`.
 - `task_ci` columns `task` and `ci_item`.
+- `sc_req_item.price`, `recurring_price` and `recurring_frequency` (choice values `daily`, `weekly`, `monthly`, `yearly`) and `sc_request.price` accept the CloudBolt net rate; an hourly CloudBolt rate is passed as a monthly amount (730 hours), a one-time rate as `price` only.
 - `sysapproval_approver` rows inserted with `sysapproval`, `document_id`, `source_table`, `approver` and `state=requested` appear under My Approvals and are settable from there.
 
 Verified on a CloudBolt 2026.3 appliance with a ServiceNow ITSM integration (2026-10-13, Table API path): an auto-approved Azure Resource Group order opened REQ/RITM through Post-Order Approval, Close on Completion closed the RITM complete, and the identifiers landed on the order item and the resource.

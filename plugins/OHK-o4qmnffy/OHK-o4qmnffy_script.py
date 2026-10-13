@@ -92,10 +92,16 @@ def run(order=None, job=None, logger=logger, **kwargs):
                 # see the blueprint and target instead of the generic item name,
                 # and so requested_for sticks on instances that override it with
                 # the integration user.
-                snow.update(snr.TABLE_REQUEST, ids["request_sys_id"], fields)
+                snow.update(
+                    snr.TABLE_REQUEST,
+                    ids["request_sys_id"],
+                    dict(fields, **snr.request_price_fields(summary)),
+                )
                 ritms = snow.ritms_for_request(ids["request_sys_id"])
                 for ritm in ritms:
-                    snow.update(snr.TABLE_RITM, ritm["sys_id"], fields)
+                    snow.update(
+                        snr.TABLE_RITM, ritm["sys_id"], dict(fields, **snr.ritm_price_fields(summary))
+                    )
                 ids["ritm_number"] = ritms[0].get("number") if ritms else ""
             else:
                 snr.progress(
@@ -105,8 +111,12 @@ def run(order=None, job=None, logger=logger, **kwargs):
                 approval_value = (
                     snr.APPROVAL_APPROVED if approval == "approved" else snr.APPROVAL_REQUESTED
                 )
-                request_fields = dict(fields, approval=approval_value)
-                ritm_fields = dict(fields, approval=approval_value, quantity="1")
+                request_fields = dict(
+                    fields, approval=approval_value, **snr.request_price_fields(summary)
+                )
+                ritm_fields = dict(
+                    fields, approval=approval_value, quantity="1", **snr.ritm_price_fields(summary)
+                )
                 ids = snow.create_request_via_table(request_fields, ritm_fields)
                 path = "table"
                 if approval == "pending" and TABLE_PATH_APPROVERS:
