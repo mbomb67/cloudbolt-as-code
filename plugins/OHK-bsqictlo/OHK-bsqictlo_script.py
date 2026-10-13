@@ -25,7 +25,7 @@ from orders.models import Order
 from utilities.exceptions import CloudBoltException
 from utilities.logger import ThreadLogger
 
-import servicenow_requests as snr
+from shared_modules import servicenow_requests as snr
 
 logger = ThreadLogger(__name__)
 

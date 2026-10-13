@@ -25,7 +25,7 @@ Inputs (pinned on the orchestration action):
 """
 from utilities.logger import ThreadLogger
 
-import servicenow_requests as snr
+from shared_modules import servicenow_requests as snr
 
 logger = ThreadLogger(__name__)
 
