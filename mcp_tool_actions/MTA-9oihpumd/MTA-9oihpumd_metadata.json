@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Blueprint global id (BP-...) or exact blueprint name.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-e6kxys13",
+            "label": "Blueprint (BP id or name)",
+            "name": "discovery_blueprint",
+            "placeholder": "BP-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-dwh5kqxq"
+    },
+    "enabled": true,
+    "id": "MTA-9oihpumd",
+    "is_synchronous": true,
+    "label": "Run Blueprint Discovery",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Run a blueprint's discovery plugin now: launches the same Sync Resources job that the blueprint's Discovery tab starts, creating or updating Resources for what the plugin finds. Give the blueprint's global id (BP-...) or exact name. Returns jobId to poll with fetch_job_log. The caller must manage the blueprint or be a CloudBolt admin. A blueprint with auto-historical resources enabled marks resources it no longer finds as Historical.",
+    "mcp_tool_name": "run_blueprint_discovery",
+    "mcp_tool_title": ""
+}

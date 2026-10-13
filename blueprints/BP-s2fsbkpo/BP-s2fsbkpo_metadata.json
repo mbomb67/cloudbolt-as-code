@@ -1,0 +1,38 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Migrate Aria Automation Projects",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-gyl8wlrq"
+            },
+            "deploy_seq": 1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-czwjrgli",
+            "name": "Migrate Aria Automation Projects",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties.",
+    "favorited": false,
+    "icon": "aria_to_cloudbolt.png",
+    "id": "BP-s2fsbkpo",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-09",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Migrate Aria Automation Projects to Groups",
+    "resource_name_template": null,
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

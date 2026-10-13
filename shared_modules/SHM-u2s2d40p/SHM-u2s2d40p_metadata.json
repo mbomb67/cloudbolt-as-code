@@ -1,0 +1,12 @@
+{
+    "description": "Aria Automation 8 and Aria Orchestrator REST clients built on a CloudBolt ConnectionInfo labeled vra8 or aria, with generate-options helpers for connection and project dropdowns.",
+    "id": "SHM-u2s2d40p",
+    "label": "Aria Connection",
+    "max_retries": 0,
+    "module_name": "aria_connection",
+    "name": "aria_connection",
+    "resource_technologies": [],
+    "script_filename": "SHM-u2s2d40p_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

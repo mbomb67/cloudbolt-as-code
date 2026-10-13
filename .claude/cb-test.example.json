@@ -1,0 +1,9 @@
+{
+    "mcp_server": "FILL-ME (the client's name for the appliance's MCP server, e.g. the key under mcpServers; leave out when only one CloudBolt server is connected)",
+    "appliance_url": "FILL-ME (optional; https://<appliance>, cross-checked against fetch_dashboard_link)",
+    "source_code_repo": "FILL-ME (optional; SCR-... id, label, or git URL of the repository on the appliance; left out, the checkout's git remote URL is used)",
+    "group_id": "FILL-ME (GRP-... test group; the loop orders under it and grants it, temporarily, to blueprints that entitle no group)",
+    "resource_name_prefix": "cbtest",
+    "test_server_id": "FILL-ME (SVR-... for standalone server actions; optional)",
+    "test_resource_id": "FILL-ME (RES-... for standalone resource actions; optional)"
+}

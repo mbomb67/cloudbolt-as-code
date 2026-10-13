@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Recurring job global id (RJB-...) or exact name.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-g2wlbsi8",
+            "label": "Recurring job (RJB id or name)",
+            "name": "recurring_job_ref",
+            "placeholder": "RJB-abc12345",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "recurring_job_ref"
+    ],
+    "description": "Runs a recurring job immediately, like Run Now on the Recurring Jobs page.",
+    "id": "OHK-qduf79xu",
+    "max_retries": 0,
+    "name": "Run Recurring Job",
+    "resource_technologies": [],
+    "script_filename": "OHK-qduf79xu_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

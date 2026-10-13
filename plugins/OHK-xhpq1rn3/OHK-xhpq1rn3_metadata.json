@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-u2s2d40p"
+        ]
+    },
+    "description": "Serves the dropdown options for the Aria migration order form: Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups.",
+    "id": "OHK-xhpq1rn3",
+    "max_retries": 0,
+    "name": "Aria Migration Form Options",
+    "resource_technologies": [],
+    "script_filename": "OHK-xhpq1rn3_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "CIT test global ids (CIT-...) or exact names, one per line or comma-separated.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-qf119l0y",
+            "label": "CIT tests, one per line",
+            "name": "cit_test_refs",
+            "placeholder": "CIT-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "TXT",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-ieb4qio7"
+    },
+    "enabled": true,
+    "id": "MTA-gnx1ckno",
+    "is_synchronous": true,
+    "label": "Run CIT Tests",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": false,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Run one or more CloudBolt Continuous Infrastructure Testing (CIT) tests now and return jobId, the functionaltest job to poll with fetch_job_log. Give CIT test global ids (CIT-...) or exact names, one per line or comma-separated. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "run_cit_tests",
+    "mcp_tool_title": ""
+}

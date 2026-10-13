@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Recurring job global id (RJB-...) or exact name.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-g2wlbsi8",
+            "label": "Recurring job (RJB id or name)",
+            "name": "recurring_job_ref",
+            "placeholder": "RJB-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-qduf79xu"
+    },
+    "enabled": true,
+    "id": "MTA-thkvyt0v",
+    "is_synchronous": true,
+    "label": "Run Recurring Job",
+    "last_updated": null,
+    "mcp_destructive_hint": null,
+    "mcp_idempotent_hint": false,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Run a CloudBolt recurring job immediately, outside its schedule, exactly like Run Now on the Recurring Jobs page; a disabled job still runs. Give the recurring job's global id (RJB-...) or exact name. Returns jobId to poll with fetch_job_log. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "run_recurring_job",
+    "mcp_tool_title": ""
+}

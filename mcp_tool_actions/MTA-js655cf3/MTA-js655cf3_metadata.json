@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Job global ids (JOB-...), one per line or comma-separated.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-jf7wbltw",
+            "label": "Job ids, one per line",
+            "name": "cancel_job_ids",
+            "placeholder": "JOB-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "TXT",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-2lzwvo0j"
+    },
+    "enabled": true,
+    "id": "MTA-js655cf3",
+    "is_synchronous": true,
+    "label": "Cancel Jobs",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Cancel one or more running, queued, or paused CloudBolt jobs and their unfinished descendants by setting them to TO_CANCEL. Give job global ids (JOB-...), one per line or comma-separated. Finished jobs are reported as ALREADY_FINISHED. The caller must own each job or be a CloudBolt admin. Use it to recover from a hung test job before retrying.",
+    "mcp_tool_name": "cancel_jobs",
+    "mcp_tool_title": ""
+}
