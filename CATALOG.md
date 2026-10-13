@@ -11,8 +11,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 11 |
 | [Recurring jobs](#recurring-jobs) | 4 |
 | [Webhooks](#webhooks) | 3 |
-| [MCP tool actions](#mcp-tool-actions) | 8 |
-| [Plugins](#plugins) | 104 |
+| [MCP tool actions](#mcp-tool-actions) | 9 |
+| [Plugins](#plugins) | 105 |
 | [Shared modules](#shared-modules) | 13 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 9 |
@@ -134,6 +134,7 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 | Cancel Jobs | [MTA-js655cf3](mcp_tool_actions/MTA-js655cf3/README.md) | Sets the named jobs and their unfinished descendants to TO_CANCEL, like the jobs cancel endpoint. | `cancel_jobs` | yes | [Cancel Jobs](plugins/OHK-2lzwvo0j/) |
 | Compare Azure List Prices | [MTA-ab0krash](mcp_tool_actions/MTA-ab0krash/README.md) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | `compare_azure_list_prices` | yes | [Compare Azure List Prices](plugins/OHK-r9cm4oar/) |
 | Fetch Job Log | [MTA-8j9c0tb0](mcp_tool_actions/MTA-8j9c0tb0/README.md) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | `fetch_job_log` | yes | [Fetch Job Log](plugins/OHK-2p0rhzup/) |
+| Grant Blueprint Permission | [MTA-ntmcnvv7](mcp_tool_actions/MTA-ntmcnvv7/README.md) | Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes. | `grant_blueprint_permission` | yes | [Grant Blueprint Permission](plugins/OHK-mgta9oez/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
 | Run Blueprint Discovery | [MTA-9oihpumd](mcp_tool_actions/MTA-9oihpumd/README.md) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | `run_blueprint_discovery` | yes | [Run Blueprint Discovery](plugins/OHK-dwh5kqxq/) |
 | Run CIT Tests | [MTA-gnx1ckno](mcp_tool_actions/MTA-gnx1ckno/README.md) | Starts a functionaltest job for the named CIT tests and returns its job id. | `run_cit_tests` | yes | [Run CIT Tests](plugins/OHK-ieb4qio7/) |
@@ -197,6 +198,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Generate options for Ansible job template maps | [OHK-7i1fk0l5](plugins/OHK-7i1fk0l5/) | Generates the dropdown choices an admin pins a blueprint's ansible_job_template_maps parameter from: every Variable Map on the instance whose JSON has a job_template key, labeled with the AAP job template it launches. | CloudBolt Plug-in | [Generate options for Ansible job template maps](orchestration_actions/HPA-aualk6ei/) |
 | Generate options for HCP Terraform coordinates | [OHK-529jjzli](plugins/OHK-529jjzli/) | Generates the dropdown choices an admin pins a no-code blueprint's HCP Terraform connection, organization, project and module from, each list narrowed by the pins before it. | CloudBolt Plug-in | [Generate options for HCP Terraform coordinates](orchestration_actions/HPA-swe1kifa/) |
 | Generate Tags from Resource Handler Tag Map | [OHK-xoajww7v](plugins/OHK-xoajww7v/) | Evaluates the resource handler's tag map against order and resource parameters and stores the result in cb_generated_tags. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
+| Grant Blueprint Permission | [OHK-mgta9oez](plugins/OHK-mgta9oez/) | Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes. | CloudBolt Plug-in | [Grant Blueprint Permission](mcp_tool_actions/MTA-ntmcnvv7/README.md) |
 | Grant Restricted Contributor Access | [OHK-pr8q2szp](plugins/OHK-pr8q2szp/) | Grants a user the CloudBolt Restricted Contributor role on the subscription. | CloudBolt Plug-in | [Grant Access](resource_actions/RSA-1kpl3w0d/) |
 | HCP Terraform No-Code Module | [OHK-axtt0yqq](plugins/OHK-axtt0yqq/) | Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply. | CloudBolt Plug-in | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | HCP Terraform VM | [OHK-pvo05e24](plugins/OHK-pvo05e24/) | Provisions a VM through HCP Terraform into a chosen CloudBolt environment's Azure subscription, in a dedicated workspace with a plan-approval pause before apply. | CloudBolt Plug-in | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |

@@ -14,7 +14,7 @@ Load [docs/agents/testing-loop.md](../../../docs/agents/testing-loop.md). It is 
 
 ## Preflight
 
-Run the preflight table in testing-loop.md first, every session: server, connection, admin, the six tools present, synchronous, config, repository. With several CloudBolt servers connected, the one named by `mcp_server` in the config is the only one you call; with none configured, ask once and write it. The repository comes from `source_code_repo` when set, otherwise from `git remote get-url origin`. When a check fails, stop and give the user the matching section of [docs/mcp-testing-setup.md](../../../docs/mcp-testing-setup.md) with its steps (for missing tools, the one-call import with `<appliance>` placeholders), wait for them to confirm, then re-run the preflight. A missing tool is a setup gap to hand to the user, not something to work around with REST or the UI.
+Run the preflight table in testing-loop.md first, every session: server, connection, admin, the seven tools present, synchronous, config, repository. With several CloudBolt servers connected, the one named by `mcp_server` in the config is the only one you call; with none configured, ask once and write it. The repository comes from `source_code_repo` when set, otherwise from `git remote get-url origin`. When a check fails, stop and give the user the matching section of [docs/mcp-testing-setup.md](../../../docs/mcp-testing-setup.md) with its steps (for missing tools, the one-call import with `<appliance>` placeholders), wait for them to confirm, then re-run the preflight. A missing tool is a setup gap to hand to the user, not something to work around with REST or the UI.
 
 ## Inputs
 
@@ -27,7 +27,7 @@ Run the preflight table in testing-loop.md first, every session: server, connect
 Follow testing-loop.md steps 0 to 6 in order. In short:
 
 1. Scope: changed folders, replaced by the parents that import them. `cb-validate-metadata`, `tools/build_catalog.py`, commit, push.
-2. `sync_from_source_control_repo`, poll with `fetch_job_log`, every `syncResults` row `success`.
+2. `sync_from_source_control_repo`, poll with `fetch_job_log`, every `syncResults` row `success`. After syncing a blueprint with `any_group_can_deploy: false`, `grant_blueprint_permission` for the configured group, because the sync removed it.
 3. Exercise by type: blueprint = order, approve if pending, discovery, every day-2 action, Delete; standalone action = run against the configured target; recurring job = `run_recurring_job`; CIT = `run_cit_tests`.
 4. On failure read `fetch_job_log` (with `log_file_tail`), fix the repo, push, re-sync the affected parents, resume at the failed step. At most five iterations per unit.
 5. Delete everything in the ledger; a failed delete is a teardown bug to fix and retry.

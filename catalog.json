@@ -666,6 +666,20 @@
     "mcp_tool_name": "order_counts_by_blueprint"
   },
   {
+    "id": "MTA-ntmcnvv7",
+    "type": "mcp_tool_actions",
+    "name": "Grant Blueprint Permission",
+    "description": "Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes.",
+    "path": "mcp_tool_actions/MTA-ntmcnvv7",
+    "readme": "mcp_tool_actions/MTA-ntmcnvv7/README.md",
+    "uses": [
+      "plugins/OHK-mgta9oez"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "grant_blueprint_permission"
+  },
+  {
     "id": "MTA-thkvyt0v",
     "type": "mcp_tool_actions",
     "name": "Run Recurring Job",
@@ -1785,6 +1799,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-dxrh4m6j"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-mgta9oez",
+    "type": "plugins",
+    "name": "Grant Blueprint Permission",
+    "description": "Gives a group DEPLOY or MANAGE permission on a blueprint, restoring what a repository sync removes.",
+    "path": "plugins/OHK-mgta9oez",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-ntmcnvv7"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

@@ -5,7 +5,7 @@ Create or change content, then prove it works on an appliance before the PR: pus
 ## Prerequisites
 
 1. **An MCP connection to the appliance with `read write` scope.** The built-in CloudBolt MCP tools used here: `fetch_identity`, `fetch_catalog_items`, `fetch_blueprint_schema`, `fetch_orderable_groups`, `fetch_orderable_environments`, `fetch_blueprint_item_parameters`, `order_catalog_item`, `fetch_order`, `approve_order`, `fetch_job`, `fetch_resources`, `fetch_resource_details`, `fetch_resource_actions`, `fetch_resource_action_parameter_options`, `run_resource_action`, `fetch_server_list`, `fetch_server_actions`, `run_server_action`, `fetch_mcp_tool_actions`, `run_mcp_tool_action`, and the `fetch_*_link` tools for the report.
-2. **The six testing tools from this repo, synced and enabled on the appliance.** They fill the gaps in the built-in tool set.
+2. **The seven testing tools from this repo, synced and enabled on the appliance.** They fill the gaps in the built-in tool set.
 
    | Tool (`mcp_tool_name`) | Folder | Does |
    |---|---|---|
@@ -15,8 +15,9 @@ Create or change content, then prove it works on an appliance before the PR: pus
    | `run_recurring_job` | `mcp_tool_actions/MTA-thkvyt0v` | Run Now for a recurring job |
    | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` | Starts a functionaltest job for named CIT tests |
    | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` | Cancels hung jobs and their descendants |
+   | `grant_blueprint_permission` | `mcp_tool_actions/MTA-ntmcnvv7` | Re-grants a group DEPLOY or MANAGE on a blueprint after a sync removed it |
 
-   **Bootstrap.** The sync tool cannot install itself. The first time, import the six `mcp_tool_actions/MTA-*` folders from the UI (Actions > MCP Tool Actions > Create from Repository, which pulls each tool's plugin with it) or with `POST /api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/`. The importer leaves **Synchronous Action** off (it restores only the tool's name, description, title and hints) and the v3 API refuses `PATCH` on MCP tool actions, so open each tool's edit form once (Actions > MCP Tool Actions > the tool > Edit), tick Synchronous Action, and save; later refreshes keep it. Then reconnect the MCP client, because tool lists are cached per session. Until the flag is set every tool still works, through the job route described below. Every write tool refuses callers who are not CloudBolt admins; roles are optional on top of that.
+   **Bootstrap.** The sync tool cannot install itself. The first time, import the seven `mcp_tool_actions/MTA-*` folders from the UI (Actions > MCP Tool Actions > Create from Repository, which pulls each tool's plugin with it) or with `POST /api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/`. The importer leaves **Synchronous Action** off (it restores only the tool's name, description, title and hints) and the v3 API refuses `PATCH` on MCP tool actions, so open each tool's edit form once (Actions > MCP Tool Actions > the tool > Edit), tick Synchronous Action, and save; later refreshes keep it. Then reconnect the MCP client, because tool lists are cached per session. Until the flag is set every tool still works, through the job route described below. Every write tool refuses callers who are not CloudBolt admins; roles are optional on top of that.
 3. **A local config file**, `.claude/cb-test.local.json`, gitignored because it names an instance. Copy `.claude/cb-test.example.json` and fill it in:
 
    | Key | Meaning |
@@ -42,7 +43,7 @@ Run these checks in order before touching the repo or the appliance. When one fa
 | 1 | Server | Exactly one CloudBolt MCP server is in play: the one named by `mcp_server` in the config, or the only connected server that exposes `fetch_identity` and `fetch_mcp_tool_actions` (write its name to the config). Every call in the session goes to that server's namespace | Several connected and none configured: ask which one, write it, continue. On the first run against a server show the host from `fetch_dashboard_link`; when `appliance_url` is set and differs, stop |
 | 2 | Connection | `fetch_identity` on that server returns a user | Runbook §2: not configured or not authenticated |
 | 3 | Admin | That user has `superAdmin` or `cmpAdmin` true | Runbook §1.3: the write tools and `syncFromRepo` refuse non-admins |
-| 4 | Tools | `fetch_mcp_tool_actions` lists all six names: `sync_from_source_control_repo`, `fetch_job_log`, `run_blueprint_discovery`, `run_recurring_job`, `run_cit_tests`, `cancel_jobs` | Runbook §3: name the missing ones, give the one-call import with `<appliance>` placeholders, then §4 step 3 (reconnect) |
+| 4 | Tools | `fetch_mcp_tool_actions` lists all seven names: `sync_from_source_control_repo`, `fetch_job_log`, `run_blueprint_discovery`, `run_recurring_job`, `run_cit_tests`, `cancel_jobs`, `grant_blueprint_permission` | Runbook §3: name the missing ones, give the one-call import with `<appliance>` placeholders, then §4 step 3 (reconnect) |
 | 5 | Synchronous | `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers inline with a not-found failure | Runbook §4. Not blocking: continue through the job route and say so |
 | 6 | Config | `.claude/cb-test.local.json` exists and `group_id` is not `FILL-ME`; `mcp_server` and `source_code_repo` are needed only when the client or the appliance has more than one candidate | Runbook §5: copy the example, ask for the values, write them |
 | 7 | Repository | `sync_repo` resolves: `source_code_repo` from the config when set, otherwise the checkout's `git remote get-url origin`, which the sync tool matches against each repository's URL | Several matches: ask which label, write it to `source_code_repo`. None: Runbook §1.2 |
@@ -87,7 +88,9 @@ run_mcp_tool_action("sync_from_source_control_repo", {
 })
 ```
 
-Poll `fetch_job_log` with `syncJobId` every five seconds; a sync takes 5 to 60 seconds. Every `syncResults[].status` must be `success`. Any other status carries CloudBolt's serializer message (missing field, bad enum, dangling reference, template error in a script). Fix it in the repo, commit, push the same branch, sync again. Each fix counts toward the cap in step 4.
+Poll `fetch_job_log` with `syncJobId` every five seconds; a sync takes 5 to 60 seconds. Every `syncResults[].status` must be `success`.
+
+A sync removes every group's deploy and manage permission from a blueprint whose metadata has `any_group_can_deploy: false` (the importer keeps only the groups the metadata names, and repo exports name none). After syncing such a blueprint, call `grant_blueprint_permission` with the blueprint and the configured `group_id` before ordering; otherwise `fetch_orderable_groups` is empty and the order is refused with "does not have permission to deploy". The same applies to any blueprint a customer syncs by hand. Any other status carries CloudBolt's serializer message (missing field, bad enum, dangling reference, template error in a script). Fix it in the repo, commit, push the same branch, sync again. Each fix counts toward the cap in step 4.
 
 ### 3. Exercise
 
@@ -95,7 +98,7 @@ Run every function the content has. Record ids in the ledger as they appear.
 
 **Blueprint** (`blueprints/BP-*`), in this order:
 
-1. `fetch_blueprint_schema(blueprint_id, group_id)`. For each server or Terraform item that reports `requires_environment_selection`, call `fetch_orderable_environments` and then `fetch_blueprint_item_parameters` for the chosen environment. Pick any environment the user may order into; when a parameter offers sizes, choose the smallest. Set `resource_name` to `<prefix>-<branch>-<n>`. Supply every plugin input in `deployment_items`; an MCP order bypasses the custom form, so values the form would pin are not applied.
+1. `fetch_blueprint_schema(blueprint_id, group_id)`. Put every deployment item from the schema in the order, including plugin items with no parameters (`{"plugin-bdi-xxxx": {"parameters": {}}}`), or the order is refused as missing a required deployment item. For each server or Terraform item that reports `requires_environment_selection`, call `fetch_orderable_environments` and then `fetch_blueprint_item_parameters` for the chosen environment. Pick any environment the user may order into; when a parameter offers sizes, choose the smallest. Set `resource_name` to `<prefix>-<branch>-<n>`. Supply every plugin input in `deployment_items`; an MCP order bypasses the custom form, so values the form would pin are not applied.
 2. `order_catalog_item`. Poll `fetch_order` until the order is `SUCCESS`, `FAILURE`, or `DENIED`. If it is pending approval, `approve_order` (the MCP user is an admin). Add the order and the resulting resource (`fetch_resources` filtered by the name, or the order's details) to the ledger.
 3. Discovery, when the blueprint has `discovery_plugin`: `run_blueprint_discovery` and poll. Then `fetch_resources` for the blueprint: the deployed resource must still be the same `RES-` id, not a duplicate, and the progress log must report it as found or updated. A duplicate means the plugin's `RESOURCE_IDENTIFIER` does not match the attributes the build plugin wrote.
 4. Every day-2 action: the blueprint's `management_actions[]` in the metadata name the `resource_actions/RSA-*`; `fetch_resource_actions(resource_id)` gives their ids and parameter schema (`fetch_resource_action_parameter_options` for dynamic options). `run_resource_action` each, then poll the job or order it returns. Skip the `Delete` action here.
@@ -122,6 +125,8 @@ On any failure: `run_mcp_tool_action("fetch_job_log", {"log_job_id": "<JOB-id>",
 | `ModuleNotFoundError: shared_modules.<name>` | Shared module not imported or not refreshed | Sync the parent that declares it under `dependencies.sharedModules` |
 | `ImportError` from a plugin that was just changed | Stale copy | Sync the parent again; for a webhook, sync `webhooks/IWH-*` itself |
 | Order `DENIED` or no orderable environment | Group or environment entitlement | Pick another environment or group; do not change RBAC in the plugin |
+| `does not have permission to deploy this blueprint`, or `fetch_orderable_groups` empty after a sync | The sync removed the blueprint's group permissions | `grant_blueprint_permission` for the configured group, then order again |
+| `Missing Required Deployment Items: [plugin-bdi-...]` | A deployment item was left out of the order | Include every item from the schema, with `"parameters": {}` when it has none |
 | Delete job fails | Teardown plugin | Fix it, re-sync the blueprint, run Delete again until the resource is gone |
 | `Parameters not allowed [<name>]` from `run_mcp_tool_action` | The tool's input carries a stored default, which hides it from the schema (every BOOL input does after the edit form is saved) | Clear the default on the edit form or re-sync the tool; declare booleans as `true`/`false` strings |
 
