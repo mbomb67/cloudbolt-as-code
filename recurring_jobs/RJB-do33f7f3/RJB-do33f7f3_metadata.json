@@ -1,0 +1,47 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "ServiceNow Connection Name",
+            "name": "servicenow_connection_name_a1",
+            "value": "ServiceNow"
+        },
+        {
+            "label": "ServiceNow Approval Table",
+            "name": "servicenow_approval_table_a1",
+            "value": "auto"
+        },
+        {
+            "label": "ServiceNow Approval Field",
+            "name": "servicenow_approval_field_a1",
+            "value": "approval"
+        },
+        {
+            "label": "ServiceNow Approved Values",
+            "name": "servicenow_approved_values_a1",
+            "value": "approved"
+        },
+        {
+            "label": "ServiceNow Denied Values",
+            "name": "servicenow_denied_values_a1",
+            "value": "rejected,cancelled"
+        },
+        {
+            "label": "CloudBolt Approver Username",
+            "name": "cloudbolt_approver_username_a1",
+            "value": ""
+        }
+    ],
+    "allow_parallel_jobs": false,
+    "create_date": "2026-10-13 12:00:00.000000",
+    "dependencies": {
+        "hook": "plugins/OHK-bsqictlo"
+    },
+    "description": "Every five minutes, approves or denies pending CloudBolt orders to match the decision recorded on their ServiceNow request.",
+    "enabled": false,
+    "id": "RJB-do33f7f3",
+    "last_run": null,
+    "last_updated": null,
+    "name": "ServiceNow Request Approval Sync",
+    "schedule": "*/5 * * * *",
+    "type": "orchestration_hook"
+}

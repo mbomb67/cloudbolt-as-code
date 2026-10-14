@@ -1,0 +1,31 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "ServiceNow Connection Name",
+            "name": "servicenow_connection_name_a1",
+            "value": "ServiceNow"
+        },
+        {
+            "label": "ServiceNow CI Table",
+            "name": "servicenow_ci_table_a1",
+            "value": "cmdb_ci_server"
+        },
+        {
+            "label": "CloudBolt Base URL",
+            "name": "cloudbolt_base_url_a1",
+            "value": ""
+        }
+    ],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-htrxkps2"
+    },
+    "description": "Closes the order's ServiceNow RITM when every job of the order has finished and attaches the CIs of the servers it produced.",
+    "enabled": false,
+    "hook_point": "Post-Order Execution",
+    "id": "HPA-fxo5hujp",
+    "last_updated": null,
+    "name": "ServiceNow Request: Close on Completion",
+    "run_on_statuses": "",
+    "run_seq": null
+}

@@ -1,0 +1,51 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "ServiceNow Connection Name",
+            "name": "servicenow_connection_name_a1",
+            "value": "ServiceNow"
+        },
+        {
+            "label": "ServiceNow Catalog Item sys_id",
+            "name": "servicenow_catalog_item_sys_id_a1",
+            "value": "dc46b35f3b378f50421a9bdc73e45a3b"
+        },
+        {
+            "label": "Requested-for Miss Behavior",
+            "name": "servicenow_requested_for_miss_a1",
+            "value": "integration_user"
+        },
+        {
+            "label": "CloudBolt Base URL",
+            "name": "cloudbolt_base_url_a1",
+            "value": ""
+        },
+        {
+            "label": "RITM Approvers (no-flow items)",
+            "name": "servicenow_table_path_approvers_a1",
+            "value": ""
+        },
+        {
+            "label": "Wait for ServiceNow Approval",
+            "name": "servicenow_wait_for_approval_a1",
+            "value": "true"
+        },
+        {
+            "label": "ServiceNow Unavailable Policy",
+            "name": "servicenow_unavailable_policy_a1",
+            "value": "hold"
+        }
+    ],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-o4qmnffy"
+    },
+    "description": "At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first for orders CloudBolt auto-approved; with the wait pin off, opens a record-only RITM instead.",
+    "enabled": false,
+    "hook_point": "Post-Order Approval",
+    "id": "HPA-smbwmzj0",
+    "last_updated": null,
+    "name": "ServiceNow Request: Open on Approval",
+    "run_on_statuses": "",
+    "run_seq": null
+}

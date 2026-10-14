@@ -1,0 +1,75 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "ConnectionInfo or Admin > ITSM integration holding the ServiceNow host and integration user; when nothing matches, the ServiceNow ITSM integration is used.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-9uwj4yiv",
+            "label": "ServiceNow Connection Name",
+            "name": "servicenow_connection_name",
+            "placeholder": "ServiceNow",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CMDB table searched for the CI of each server the order produced.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-5ce09i0d",
+            "label": "ServiceNow CI Table",
+            "name": "servicenow_ci_table",
+            "placeholder": "cmdb_ci_server",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Base URL for CloudBolt links written into ServiceNow. Empty uses the default portal's domain.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-wype5pe8",
+            "label": "CloudBolt Base URL",
+            "name": "cloudbolt_base_url",
+            "placeholder": "https://cloudbolt.example.com",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ww6b1uwj"
+        ]
+    },
+    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs and as the RITM's configuration item, and links the created objects to the records.",
+    "id": "OHK-htrxkps2",
+    "max_retries": 0,
+    "name": "ServiceNow Request: Close",
+    "resource_technologies": [],
+    "script_filename": "OHK-htrxkps2_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

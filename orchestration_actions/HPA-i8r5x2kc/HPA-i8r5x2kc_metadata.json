@@ -1,0 +1,21 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "ServiceNow Connection Name",
+            "name": "servicenow_connection_name_a1",
+            "value": "ServiceNow"
+        }
+    ],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-w8exctx7"
+    },
+    "description": "Closes the order's ServiceNow RITM as incomplete when a CloudBolt approver denies the order.",
+    "enabled": false,
+    "hook_point": "Post-Order Denied",
+    "id": "HPA-i8r5x2kc",
+    "last_updated": null,
+    "name": "ServiceNow Request: Close on Denial",
+    "run_on_statuses": "",
+    "run_seq": null
+}
