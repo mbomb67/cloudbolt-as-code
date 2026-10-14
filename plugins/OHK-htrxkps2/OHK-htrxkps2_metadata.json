@@ -63,7 +63,7 @@
             "shared_modules/SHM-ww6b1uwj"
         ]
     },
-    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs, and links the created objects to the records.",
+    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs and as the RITM's configuration item, and links the created objects to the records.",
     "id": "OHK-htrxkps2",
     "max_retries": 0,
     "name": "ServiceNow Request: Close",

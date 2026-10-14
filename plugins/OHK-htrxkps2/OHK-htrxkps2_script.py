@@ -5,8 +5,8 @@ Bound to "Post-Order Execution", which fires once every job of the order has
 finished. The RITM is closed complete for SUCCESS and WARNING orders and
 closed incomplete for FAILURE. Every server the order produced is looked up
 in the CMDB (the CI CloudBolt's CMDB integration created at Post-Provision)
-and added to the RITM's Affected CIs; the first one becomes the RITM's
-Configuration item. Resources are attached when they carry the custom field
+and added to the RITM's Affected CIs; the first one is written to both the
+task-level cmdb_ci field and the RITM's own configuration_item field. Resources are attached when they carry the custom field
 "servicenow_ci_sys_id". The ServiceNow Request and RITM links are also
 written onto the created servers and resources so day-2 and teardown orders
 can refer back to the originating request.
@@ -70,7 +70,10 @@ def run(order=None, job=None, logger=logger, **kwargs):
                     linked.append((resource.name, ci))
             if linked:
                 note_lines.append("Affected CIs: " + ", ".join(name for name, _ in linked))
-            extra = {"cmdb_ci": linked[0][1]} if linked else {}
+            # cmdb_ci is the task-level field the CI's own form and cross-task
+            # reports read; configuration_item is the RITM-only field the stock
+            # Requested Item form displays. Write the first CI to both.
+            extra = {"cmdb_ci": linked[0][1], "configuration_item": linked[0][1]} if linked else {}
             close_notes = (
                 f"Fulfilled by CloudBolt (order {order.id}, status {status})."
                 if state == snr.RITM_STATE_CLOSED_COMPLETE

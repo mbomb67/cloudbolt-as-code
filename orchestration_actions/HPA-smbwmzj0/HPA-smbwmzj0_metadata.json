@@ -24,13 +24,23 @@
             "label": "Table-path RITM Approvers",
             "name": "servicenow_table_path_approvers_a1",
             "value": ""
+        },
+        {
+            "label": "Wait for ServiceNow Approval",
+            "name": "servicenow_wait_for_approval_a1",
+            "value": "true"
+        },
+        {
+            "label": "ServiceNow Unavailable Policy",
+            "name": "servicenow_unavailable_policy_a1",
+            "value": "hold"
         }
     ],
     "continue_on_failure": true,
     "dependencies": {
         "hook": "plugins/OHK-o4qmnffy"
     },
-    "description": "Opens an already-approved ServiceNow REQ/RITM for orders that were auto-approved or approved inside CloudBolt, so ServiceNow still records what is being built.",
+    "description": "At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first for orders CloudBolt auto-approved; with the wait pin off, opens a record-only RITM instead.",
     "enabled": false,
     "hook_point": "Post-Order Approval",
     "id": "HPA-smbwmzj0",

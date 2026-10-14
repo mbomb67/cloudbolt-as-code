@@ -1,6 +1,6 @@
 # ServiceNow Request: Close on Completion
 
-At "Post-Order Execution" (every job of the order finished), closes the order's RITM: Closed Complete for SUCCESS and WARNING, Closed Incomplete for FAILURE. Each server the order produced is looked up in the CMDB and added to the RITM's Affected CIs (`task_ci`); the first becomes the RITM's Configuration item. A work note links back to the order, resources and servers. The ServiceNow Request and RITM links are then written onto the created servers and resources.
+At "Post-Order Execution" (every job of the order finished), closes the order's RITM: Closed Complete for SUCCESS and WARNING, Closed Incomplete for FAILURE. Each server the order produced is looked up in the CMDB and added to the RITM's Affected CIs (`task_ci`); the first is written to both the task-level `cmdb_ci` field and the RITM's own `configuration_item` field (the one on the stock Requested Item form). A work note links back to the order, resources and servers. The ServiceNow Request and RITM links are then written onto the created servers and resources.
 
 ## Contents
 | Role | ID | Name |

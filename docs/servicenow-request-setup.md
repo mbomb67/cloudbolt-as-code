@@ -7,16 +7,27 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 | CloudBolt event | Content | ServiceNow effect |
 |---|---|---|
 | Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval. Five seconds later the decision is read once, so a request approved outright proceeds without waiting for the poll |
-| Order auto-approved or approved in CloudBolt | HPA-smbwmzj0 "Open on Approval" | REQ + RITM opened with `cloudbolt_approval=approved` (skipped when a RITM already exists) |
+| Order approved in CloudBolt (auto-approval, super admin, approver click, or the sync job) | HPA-smbwmzj0 "Open on Approval" | With the wait pin on: RITM opened as pending if missing, decision read, order proceeds, is denied, or goes back to Pending. With it off: record-only RITM opened with `cloudbolt_approval=approved` |
 | Every five minutes | RJB-do33f7f3 "Approval Sync" | Approval read on the RITM for catalog-path orders and on the REQ for Table API orders; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
-| All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as Configuration item, work note with links |
+| All jobs finished | HPA-fxo5hujp "Close on Completion" | RITM closed complete (or incomplete on failure), server CIs added as Affected CIs, first CI set as `cmdb_ci` and `configuration_item`, work note with links |
 
 Mapping: CloudBolt order = REQ, order item = RITM, each server or resource = a row in the RITM's multi-row variable set before build and an Affected CI after. Day-2 actions, modifications and teardown open their own RITM against the same catalog item with `cloudbolt_action` set to `day2`, `modify` or `teardown`, but only when they create an order: a resource or server action runs as a plain job unless it is marked *Requires Approval*, and a plain job never reaches the order hook points. Mark the actions that must leave a ServiceNow record as requiring approval; the Delete action on a resource is one of them.
 
 The blueprint order item (builds) or the targeted server or resource (day-2, modify, decommission) gets two URL parameters, **ServiceNow Request** and **ServiceNow RITM**, whose text is the record number and whose link opens the record (the record's form URL by number, `/sc_req_item.do?sysparm_query=number=RITM0010465`). They are copied onto the created servers and resources at completion. Nothing else is stored in CloudBolt: each action looks the RITM up by number and accepts it only when its `correlation_id` equals the order's global id. Each step also adds a line to the order's history.
 
 Where approvals live follows ServiceNow's conventions. A catalog item's flow asks for approval on the RITM, one approval per item; the REQ is the cart and reflects the sum of its items. The out-of-the-box Service Catalog Request workflow adds a cart-level approval on the REQ only when the price crosses its threshold. The sync job therefore reads the RITM for catalog-path orders and the REQ for Table API orders, where no item flow runs; pin `servicenow_approval_table` to force one table.
+
+## ServiceNow as the approval authority
+
+Super admins, users who are approvers in their own group, and groups or environments with auto-approval never reach "Order Submitted for Approval"; CloudBolt approves their orders on the spot and only then runs "Post-Order Approval". The Open on Approval action therefore carries the policy pin `servicenow_wait_for_approval`:
+
+- `true` (default): any order subject to ServiceNow waits for ServiceNow, whoever ordered it or clicked Approve in CloudBolt. The action opens the RITM if the submit hook never ran, reads the decision, and lets the order proceed only when ServiceNow approved; a rejection denies the order; anything else sets the order back to Pending until the sync job mirrors the approval. CloudBolt's own approval becomes a first gate.
+- `false`: CloudBolt's approval stands; a missing RITM is opened flagged approved so ServiceNow records what is being built.
+
+"Subject to ServiceNow" means the order already has a RITM, or Open on Submit is enabled and its group and blueprint constraints match the order. Disable ServiceNow for a blueprint or group by constraining or disabling Open on Submit; Open on Approval follows automatically.
+
+`servicenow_unavailable_policy` (`hold` by default) decides what happens when ServiceNow cannot be reached while waiting: the order goes back to Pending with a history line and approving it again retries, or `proceed` lets it run.
 
 ## ServiceNow side
 
@@ -61,7 +72,7 @@ Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` an
 1. Point the actions at ServiceNow. If Admin > ITSM already has a ServiceNow integration, nothing else is needed: the actions use its host and service account when no ConnectionInfo matches the pinned name. Otherwise create a ConnectionInfo named `ServiceNow` (Admin > Connection Info): protocol `https`, IP/Hostname `<instance>.service-now.com`, port 443, username and password of the integration user. Re-enter the password after every repo sync; exports redact it.
 2. Sync this repo, then restart CloudBolt once so the `servicenow_requests` shared module is loaded.
 3. On each action and the recurring job, set the pinned inputs (Admin > Orchestration Actions, Admin > Recurring Jobs): the ConnectionInfo name, the catalog item sys_id (Open actions), and optionally the CloudBolt base URL and the CMDB table (Close on Completion). On the sync job set `cloudbolt_approver_username` to a CloudBolt user with approve rights if you want the CloudBolt approval history to name someone.
-4. Enable, in this order: Close on Completion, Close on Denial, Open on Approval, Approval Sync, and finally Open on Submit. Enabling Open on Submit stops CloudBolt's approver emails for every order; from then on ServiceNow decides.
+4. Enable, in this order: Close on Completion, Close on Denial, Open on Approval, Approval Sync, and finally Open on Submit. Enabling Open on Submit stops CloudBolt's approver emails for every order; from then on ServiceNow decides. Scope Open on Submit (groups, blueprints) to the orders ServiceNow should govern; Open on Approval stays unconstrained and follows that scope.
 5. If the ServiceNow integration under Admin > ServiceNow has its "order" hook enabled, disable it; otherwise each order also creates a bare `sc_request`.
 6. Keep CloudBolt's CMDB integration (Post-Provision CI creation) enabled. Close on Completion finds each server's CI by `serial_number` or `asset_tag` equal to the resource handler's VM id, falling back to the hostname.
 

@@ -845,7 +845,7 @@
     "id": "HPA-smbwmzj0",
     "type": "orchestration_actions",
     "name": "ServiceNow Request: Open on Approval",
-    "description": "Opens an already-approved ServiceNow REQ/RITM for orders that were auto-approved or approved inside CloudBolt, so ServiceNow still records what is being built.",
+    "description": "At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first for orders CloudBolt auto-approved; with the wait pin off, opens a record-only RITM instead.",
     "path": "orchestration_actions/HPA-smbwmzj0",
     "readme": "orchestration_actions/HPA-smbwmzj0/README.md",
     "uses": [
@@ -1785,7 +1785,7 @@
     "id": "OHK-htrxkps2",
     "type": "plugins",
     "name": "ServiceNow Request: Close",
-    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs, and links the created objects to the records.",
+    "description": "Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs and as the RITM's configuration item, and links the created objects to the records.",
     "path": "plugins/OHK-htrxkps2",
     "readme": null,
     "uses": [
@@ -1948,7 +1948,7 @@
     "id": "OHK-o4qmnffy",
     "type": "plugins",
     "name": "ServiceNow Request: Open",
-    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
+    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, links the order item to both records, and at Post-Order Approval holds the order until ServiceNow approves.",
     "path": "plugins/OHK-o4qmnffy",
     "readme": null,
     "uses": [
