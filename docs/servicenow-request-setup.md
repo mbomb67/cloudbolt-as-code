@@ -37,7 +37,7 @@ Super admins, users who are approvers in their own group, and groups or environm
 - If `glide.sc.checkout.twostep` is true, `order_now` only fills a cart; the action submits the cart automatically.
 
 ### 2. Generic catalog item (catalog path, recommended)
-Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables with the sys_id the Open actions carry by default (`dc46b35f3b378f50421a9bdc73e45a3b`), so nothing needs pinning; afterwards set the item's Category and continue at step 5 to build the flow. The rest of this step describes what the update set contains, for building it by hand or checking it.
+Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables with the sys_id the Open actions carry by default (`dc46b35f3b378f50421a9bdc73e45a3b`), plus a generic flow that approves every RITM, so nothing needs pinning and orders proceed immediately. Afterwards set the item's Category, then extend the flow with your approval policy as described in step 5. The rest of this step describes what the update set contains, for building it by hand or checking it.
 
 Create one catalog item, for example "CloudBolt Automation Request", and note its sys_id. Add a variable set with these variables. Names must match exactly.
 
@@ -60,7 +60,7 @@ Create one catalog item, for example "CloudBolt Automation Request", and note it
 
 Multi-row variable set `cloudbolt_items` columns, all single-line text: `item_type`, `name`, `environment`, `size`, `quantity`, `details`.
 
-Attach a Flow Designer flow to the item:
+Attach a Flow Designer flow to the item. The update set ships one that only sets the RITM's Approval to Approved (Service Catalog trigger, Update Record); insert your policy in front of that step. A full flow looks like this:
 - If `cloudbolt_approval` is `approved`, skip approval and leave the RITM open; CloudBolt closes it.
 - Otherwise request approval. Route on `cloudbolt_group`, `cloudbolt_environment`, `cloudbolt_cloud` or `cloudbolt_estimated_cost`; a lookup table owned by the ServiceNow team keeps routing a data change rather than a catalog change. If the flow records its decision on the RITM rather than the REQ, pin `servicenow_approval_table` to `sc_req_item` on the sync job.
 - Do not generate catalog tasks or close the RITM in the flow. CloudBolt is the fulfiller and closes the RITM itself.
