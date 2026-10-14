@@ -6,7 +6,7 @@ Opens a ServiceNow Request (REQ) with one Requested Item (RITM) at "Order Submit
 | Role | ID | Name |
 |---|---|---|
 | Orchestration action | HPA-i1x67v4h | ServiceNow Request: Open on Submit (Order Submitted for Approval) |
-| Plugin | OHK-o4qmnffy | ServiceNow Request: Open |
+| Plugin | OHK-ehhju9cn | ServiceNow Request: Open |
 | Shared module | SHM-ww6b1uwj | servicenow_requests |
 | Companions | HPA-smbwmzj0 (OHK-nd8zo7zp), RJB-do33f7f3, HPA-i8r5x2kc, HPA-fxo5hujp | Open on Approval, Approval Sync, Close on Denial, Close on Completion |
 

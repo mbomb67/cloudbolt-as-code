@@ -28,7 +28,7 @@
     ],
     "continue_on_failure": false,
     "dependencies": {
-        "hook": "plugins/OHK-o4qmnffy"
+        "hook": "plugins/OHK-ehhju9cn"
     },
     "description": "Opens the ServiceNow REQ/RITM when an order is submitted, making ServiceNow the approval system of record for that order.",
     "enabled": false,
