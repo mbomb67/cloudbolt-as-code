@@ -1223,9 +1223,9 @@ def record_event(order, message):
 # workflow or flow has run on the new request. The sync job covers the rest.
 IMMEDIATE_CHECK_DELAY_S = 5
 
-# Name of the Open on Submit plugin; used to ask CloudBolt whether that action
-# is enabled and in scope for an order.
-OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open on Submit"
+# Name of the Open plugin; used to ask CloudBolt whether the action bound to it
+# at Order Submitted for Approval is enabled and in scope for an order.
+OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open"
 
 
 class OpenSettings:

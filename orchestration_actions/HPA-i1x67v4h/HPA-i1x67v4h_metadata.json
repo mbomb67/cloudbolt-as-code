@@ -24,11 +24,21 @@
             "label": "Table-path RITM Approvers",
             "name": "servicenow_table_path_approvers_a1",
             "value": ""
+        },
+        {
+            "label": "Wait for ServiceNow Approval",
+            "name": "servicenow_wait_for_approval_a1",
+            "value": "true"
+        },
+        {
+            "label": "ServiceNow Unavailable Policy",
+            "name": "servicenow_unavailable_policy_a1",
+            "value": "hold"
         }
     ],
     "continue_on_failure": false,
     "dependencies": {
-        "hook": "plugins/OHK-ehhju9cn"
+        "hook": "plugins/OHK-o4qmnffy"
     },
     "description": "Opens the ServiceNow REQ/RITM when an order is submitted, making ServiceNow the approval system of record for that order.",
     "enabled": false,
