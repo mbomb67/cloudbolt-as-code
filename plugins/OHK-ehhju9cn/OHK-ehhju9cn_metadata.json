@@ -104,7 +104,7 @@
     "description": "Opens a ServiceNow REQ with one RITM when an order is submitted for approval, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
     "id": "OHK-ehhju9cn",
     "max_retries": 0,
-    "name": "ServiceNow Request: Open",
+    "name": "ServiceNow Request: Open on Submit",
     "resource_technologies": [],
     "script_filename": "OHK-ehhju9cn_script.py",
     "shared": false,

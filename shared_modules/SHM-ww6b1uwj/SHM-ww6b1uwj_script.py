@@ -1225,7 +1225,7 @@ IMMEDIATE_CHECK_DELAY_S = 5
 
 # Name of the Open on Submit plugin; used to ask CloudBolt whether that action
 # is enabled and in scope for an order.
-OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open"
+OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open on Submit"
 
 
 class OpenSettings:

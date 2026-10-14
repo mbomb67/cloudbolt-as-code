@@ -1697,7 +1697,7 @@
   {
     "id": "OHK-ehhju9cn",
     "type": "plugins",
-    "name": "ServiceNow Request: Open",
+    "name": "ServiceNow Request: Open on Submit",
     "description": "Opens a ServiceNow REQ with one RITM when an order is submitted for approval, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
     "path": "plugins/OHK-ehhju9cn",
     "readme": null,
@@ -3130,8 +3130,8 @@
       "plugins/OHK-bsqictlo",
       "plugins/OHK-htrxkps2",
       "plugins/OHK-w8exctx7",
-      "plugins/OHK-ehhju9cn",
-      "plugins/OHK-nd8zo7zp"
+      "plugins/OHK-nd8zo7zp",
+      "plugins/OHK-ehhju9cn"
     ]
   },
   {

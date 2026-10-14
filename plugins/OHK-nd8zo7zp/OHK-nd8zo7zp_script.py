@@ -19,7 +19,7 @@ Orders outside Open on Submit's scope are ignored entirely.
 
 The logic lives in the servicenow_requests shared module; this plugin only
 reads its pinned inputs. It is a separate plugin from "ServiceNow Request:
-Open" because CloudBolt's importer keys pinned defaults by hook input and
+Open on Submit" because CloudBolt's importer keys pinned defaults by hook input and
 cannot refresh one plugin bound to two actions.
 
 Inputs (pinned on the orchestration action):
