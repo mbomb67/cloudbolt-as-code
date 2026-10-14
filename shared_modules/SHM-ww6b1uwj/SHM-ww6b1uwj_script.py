@@ -47,6 +47,7 @@ via get_ssl_verification(); never hard-code verify=True/False.
 """
 import json
 import re
+import time
 from decimal import Decimal
 
 import requests
@@ -1212,6 +1213,208 @@ def record_event(order, message):
         order.add_event("MODIFICATION", message)
     except Exception as err:
         logger.debug(f"Could not add order history event: {err}")
+
+
+# ---------------------------------------------------------------------------
+# Opening requests and gating orders (shared by the two Open plugins)
+# ---------------------------------------------------------------------------
+
+# Seconds to wait before the one-time decision check, so ServiceNow's own
+# workflow or flow has run on the new request. The sync job covers the rest.
+IMMEDIATE_CHECK_DELAY_S = 5
+
+# Name of the Open on Submit plugin; used to ask CloudBolt whether that action
+# is enabled and in scope for an order.
+OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open"
+
+
+class OpenSettings:
+    """Pinned inputs of the Open plugins, passed to the functions below."""
+
+    def __init__(
+        self,
+        catalog_item_sys_id="",
+        requested_for_miss="integration_user",
+        table_path_approvers="",
+        base_url="",
+        wait_for_approval=True,
+        unavailable_policy="hold",
+    ):
+        self.catalog_item_sys_id = (catalog_item_sys_id or "").strip()
+        self.requested_for_miss = (requested_for_miss or "integration_user").strip().lower()
+        self.table_path_approvers = (table_path_approvers or "").strip()
+        self.base_url = (base_url or "").strip()
+        self.wait_for_approval = wait_for_approval
+        self.unavailable_policy = (unavailable_policy or "hold").strip().lower()
+
+
+def submit_action_in_scope(order):
+    """
+    True when Open on Submit is enabled and CloudBolt's own group and blueprint
+    constraints would run it for this order. Auto-approved orders skip that hook
+    point, so this is how Post-Order Approval tells "ServiceNow applies here"
+    from "ServiceNow was switched off for this blueprint or group".
+    """
+    from cbhooks import _get_orchestration_actions_to_run
+
+    for action in _get_orchestration_actions_to_run("order_approval", order=order):
+        hook = getattr(action, "hook", None)
+        if hook is not None and (hook.name or "") == OPEN_ON_SUBMIT_HOOK_NAME:
+            return True
+    return False
+
+
+def open_request(snow, order, approval, settings, job=None):
+    """Create the REQ and RITM for the order; returns (ids, path, message)."""
+    note = ""
+    summary = describe_order(order, settings.base_url, approval)
+    identity = summary["requested_for"]
+    requested_for = snow.find_user(identity["email"], identity["username"])
+    if not requested_for:
+        who = identity["display"] or "the order owner"
+        if settings.requested_for_miss == "fail":
+            raise ServiceNowError(f"No active ServiceNow user matches {who}.")
+        progress(
+            f"No ServiceNow user matches {who}; the request will be opened for the "
+            f"integration user and name the requester in its description.",
+            job,
+        )
+
+    fields = task_fields(summary, requested_for)
+
+    if settings.catalog_item_sys_id:
+        progress(
+            f"Ordering ServiceNow catalog item {settings.catalog_item_sys_id} for order {order.id}", job
+        )
+        ids = snow.order_catalog_item(
+            settings.catalog_item_sys_id, catalog_variables(summary), requested_for
+        )
+        path = "catalog"
+        # The catalog engine names the records; decorate them so approvers see
+        # the blueprint and target, and so requested_for sticks on instances
+        # that override it with the integration user.
+        snow.update(TABLE_REQUEST, ids["request_sys_id"], dict(fields, **request_price_fields(summary)))
+        ritms = snow.ritms_for_request(ids["request_sys_id"])
+        for ritm in ritms:
+            snow.update(TABLE_RITM, ritm["sys_id"], dict(fields, **ritm_price_fields(summary)))
+        ids["ritm_number"] = ritms[0].get("number") if ritms else ""
+    else:
+        progress(f"Inserting sc_request and sc_req_item for order {order.id} (Table API path)", job)
+        approval_value = APPROVAL_APPROVED if approval == "approved" else APPROVAL_REQUESTED
+        request_fields = dict(fields, approval=approval_value, **request_price_fields(summary))
+        ritm_fields = dict(fields, approval=approval_value, quantity="1", **ritm_price_fields(summary))
+        ids = snow.create_request_via_table(request_fields, ritm_fields)
+        path = "table"
+        if approval == "pending" and settings.table_path_approvers:
+            approvers = snow.find_users(settings.table_path_approvers, requested_for)
+            if approvers:
+                snow.request_ritm_approval(ids["ritm_sys_id"], approvers)
+                note = f" Approval requested from {len(approvers)} approver(s) on the RITM."
+            else:
+                note = " No pinned approver resolved to a ServiceNow user; the REQ workflow decides."
+
+    store_request_links(snow, order, ids.get("request_number"), ids.get("ritm_number"))
+    msg = (
+        f"ServiceNow request {ids.get('request_number')} / RITM {ids.get('ritm_number')} "
+        f"opened for order {order.id} via the {path} path (approval {approval}).{note}"
+    )
+    record_event(order, msg)
+    progress(msg, job)
+    return ids, path, msg
+
+
+def decide(snow, order, delay=0):
+    """
+    Read ServiceNow's decision once, after an optional delay.
+    Returns ("approved" | "denied" | "pending", note).
+    """
+    if delay:
+        time.sleep(delay)
+    record = load_request(snow, order)
+    if not record:
+        return "pending", " Decision not checked: the request could not be read back."
+    source, value = read_decision(snow, record)
+    number, what = decision_label(record, source)
+    if value in APPROVED_VALUES:
+        return "approved", f" ServiceNow {number} {what}={value}."
+    if value in DENIED_VALUES or record["closed"]:
+        return "denied", f" ServiceNow {number} {what}={value or record['state']}."
+    return "pending", f" Awaiting ServiceNow approval ({number} {what}={value or 'none'})."
+
+
+def hold_order(order, why, job=None):
+    """Set an approved order back to Pending so no jobs start until ServiceNow approves."""
+    order.status = "PENDING"
+    order.save()
+    msg = f"Order {order.id} held for ServiceNow approval.{why}"
+    record_event(order, msg)
+    progress(msg, job)
+    return msg
+
+
+def run_on_submit(snow, order, settings, job=None):
+    """Order Submitted for Approval: the order is PENDING and ServiceNow decides."""
+    if load_request(snow, order):
+        return "SUCCESS", f"Order {order.id} already has a ServiceNow request; nothing to do.", ""
+    _, _, msg = open_request(snow, order, "pending", settings, job)
+    try:
+        outcome, note = decide(snow, order, IMMEDIATE_CHECK_DELAY_S)
+        if outcome == "approved":
+            order.approve()
+            note = f" Order approved immediately:{note}"
+        elif outcome == "denied":
+            order.deny(reason=f"Rejected in ServiceNow:{note}")
+            note = f" Order denied immediately:{note}"
+        if outcome != "pending":
+            record_event(order, note.strip())
+        msg += note
+    except Exception as err:  # the sync job retries; never fail the submit here
+        logger.warning(f"Order {order.id}: immediate decision check failed: {err}")
+        msg += " Immediate decision check failed; the sync job will retry."
+    return "SUCCESS", msg, ""
+
+
+def run_on_approval(snow, order, settings, job=None):
+    """Post-Order Approval: CloudBolt approved; ServiceNow may still have the last word."""
+    record = load_request(snow, order)
+    if not record and not submit_action_in_scope(order):
+        return "SUCCESS", f"Order {order.id} is not subject to ServiceNow approval; nothing to do.", ""
+
+    if not settings.wait_for_approval:
+        if record:
+            return "SUCCESS", f"Order {order.id} already has ServiceNow {record['ritm_number']}.", ""
+        _, _, msg = open_request(snow, order, "approved", settings, job)
+        return "SUCCESS", msg, ""
+
+    msg = ""
+    delay = 0
+    if not record:
+        _, _, msg = open_request(snow, order, "pending", settings, job)
+        delay = IMMEDIATE_CHECK_DELAY_S
+    outcome, note = decide(snow, order, delay)
+    if outcome == "approved":
+        return "SUCCESS", f"{msg} ServiceNow approved; proceeding.{note}".strip(), ""
+    if outcome == "denied":
+        order.status = "PENDING"
+        order.save()
+        order.deny(reason=f"Rejected in ServiceNow:{note}")
+        denied = f"Order {order.id} denied:{note}"
+        record_event(order, denied)
+        return "SUCCESS", f"{msg} {denied}".strip(), ""
+    return "SUCCESS", f"{msg} {hold_order(order, note, job)}".strip(), ""
+
+
+def handle_open_failure(order, err, on_approval, settings, job=None):
+    """Turn a ServiceNowError from the Open plugins into the action's return tuple."""
+    if on_approval and settings.wait_for_approval and settings.unavailable_policy != "proceed":
+        held = hold_order(
+            order,
+            f" ServiceNow could not be reached or refused the request ({err}). "
+            f"Approve the order again to retry, or set servicenow_unavailable_policy to proceed.",
+            job,
+        )
+        return "SUCCESS", held, ""
+    return "FAILURE", "", f"ServiceNow request not created for order {order.id}: {err}"
 
 
 # ---------------------------------------------------------------------------

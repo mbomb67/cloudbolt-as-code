@@ -849,7 +849,7 @@
     "path": "orchestration_actions/HPA-smbwmzj0",
     "readme": "orchestration_actions/HPA-smbwmzj0/README.md",
     "uses": [
-      "plugins/OHK-o4qmnffy"
+      "plugins/OHK-nd8zo7zp"
     ],
     "used_by": [],
     "hook_point": "Post-Order Approval",
@@ -1932,6 +1932,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-nd8zo7zp",
+    "type": "plugins",
+    "name": "ServiceNow Request: Open on Approval",
+    "description": "At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first when CloudBolt auto-approved the order; with the wait pin off, opens a record-only RITM instead.",
+    "path": "plugins/OHK-nd8zo7zp",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ww6b1uwj"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-smbwmzj0"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-nwcyoto7",
     "type": "plugins",
     "name": "Update Tags",
@@ -1948,14 +1963,13 @@
     "id": "OHK-o4qmnffy",
     "type": "plugins",
     "name": "ServiceNow Request: Open",
-    "description": "Opens a ServiceNow REQ with one RITM for the order, through the generic catalog item when configured or the Table API otherwise, links the order item to both records, and at Post-Order Approval holds the order until ServiceNow approves.",
+    "description": "Opens a ServiceNow REQ with one RITM when an order is submitted for approval, through the generic catalog item when configured or the Table API otherwise, and links the order item to both records.",
     "path": "plugins/OHK-o4qmnffy",
     "readme": null,
     "uses": [
       "shared_modules/SHM-ww6b1uwj"
     ],
     "used_by": [
-      "orchestration_actions/HPA-smbwmzj0",
       "orchestration_actions/HPA-i1x67v4h"
     ],
     "plugin_type": "CloudBolt Plug-in"
@@ -3116,7 +3130,8 @@
       "plugins/OHK-bsqictlo",
       "plugins/OHK-htrxkps2",
       "plugins/OHK-w8exctx7",
-      "plugins/OHK-o4qmnffy"
+      "plugins/OHK-o4qmnffy",
+      "plugins/OHK-nd8zo7zp"
     ]
   },
   {
