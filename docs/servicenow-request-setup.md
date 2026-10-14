@@ -37,6 +37,8 @@ Super admins, users who are approvers in their own group, and groups or environm
 - If `glide.sc.checkout.twostep` is true, `order_now` only fills a cart; the action submits the cart automatically.
 
 ### 2. Generic catalog item (catalog path, recommended)
+Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables; afterwards set the item's Category, copy its sys_id, and continue at step 5 to build the flow. The rest of this step describes what the update set contains, for building it by hand or checking it.
+
 Create one catalog item, for example "CloudBolt Automation Request", and note its sys_id. Add a variable set with these variables. Names must match exactly.
 
 | Variable name | Type | Content |

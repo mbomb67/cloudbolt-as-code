@@ -12,12 +12,14 @@ Setup runbooks for content that needs configuration outside CloudBolt. Each cont
 | [hcp-no-code-setup.md](hcp-no-code-setup.md) | HCP Terraform No-Code Module (`BP-00meiwwz`) |
 | [linux-ad-domain-join-runbook.md](linux-ad-domain-join-runbook.md) | Join Linux Server to AD Domain (`HPA-o6ctckmt`) |
 | [mcp-testing-setup.md](mcp-testing-setup.md) | MCP content-testing tools (`MTA-543b19sa`, `MTA-8j9c0tb0`, `MTA-9oihpumd`, `MTA-thkvyt0v`, `MTA-gnx1ckno`, `MTA-js655cf3`, `MTA-ntmcnvv7`) and the `cb-test-content` skill |
+| [servicenow-request-setup.md](servicenow-request-setup.md) | ServiceNow REQ/RITM actions (`HPA-i1x67v4h`, `HPA-smbwmzj0`, `HPA-i8r5x2kc`, `HPA-fxo5hujp`); Approval Sync (`RJB-do33f7f3`); `servicenow_requests` shared module (`SHM-ww6b1uwj`) |
 | [windows-ca-cert-request-setup.md](windows-ca-cert-request-setup.md) | Request Certificate (Windows CA) (`BP-lt6a3yzf`) |
 
 Other folders:
 
 - `examples/bicep/` — the sample Bicep template the Bicep Deployment blueprint points at by default.
 - [`examples/terraform/azure-vm-nocode/`](examples/terraform/azure-vm-nocode/README.md) — the sample Azure VM module both HCP Terraform blueprints' order forms are authored for: publish it to the private registry for the No-Code blueprint, or point the VM blueprint's workspaces at its repository.
+- [`examples/servicenow/`](examples/servicenow/README.md) — the ServiceNow update set that creates the generic catalog item and variable sets the ServiceNow request actions order.
 - `fixtures/` — how to capture a byte-match fixture for the AD DNS record encoder before trusting it in production.
 - [dev-environment-setup.md](dev-environment-setup.md) — copying the CloudBolt type stubs from your appliance and setting up an editor to develop content.
 - `agents/` — authoring conventions for AI coding assistants working in this repo layout. See [../AGENTS.md](../AGENTS.md).
