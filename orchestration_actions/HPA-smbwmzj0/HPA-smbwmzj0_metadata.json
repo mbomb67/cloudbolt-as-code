@@ -8,7 +8,7 @@
         {
             "label": "ServiceNow Catalog Item sys_id",
             "name": "servicenow_catalog_item_sys_id_a1",
-            "value": ""
+            "value": "dc46b35f3b378f50421a9bdc73e45a3b"
         },
         {
             "label": "Requested-for Miss Behavior",
@@ -21,7 +21,7 @@
             "value": ""
         },
         {
-            "label": "Table-path RITM Approvers",
+            "label": "RITM Approvers (no-flow items)",
             "name": "servicenow_table_path_approvers_a1",
             "value": ""
         },

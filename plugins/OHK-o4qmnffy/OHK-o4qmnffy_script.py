@@ -25,8 +25,9 @@ Bound twice:
 Catalog path: when the generic catalog item sys_id is configured the item is
 ordered through the Service Catalog API so its flow runs, including its
 approvals. Table path: without one, sc_request and sc_req_item rows are
-inserted through the Table API; when approvers are pinned, an approval record
-is created on the RITM for each of them. Setup: docs/servicenow-request-setup.md.
+inserted through the Table API. On either path, pinned approvers get an
+approval record on the RITM, for items with no flow. Setup:
+docs/servicenow-request-setup.md.
 The logic lives in the servicenow_requests shared module.
 
 Inputs (pinned on each orchestration action):
@@ -34,8 +35,9 @@ Inputs (pinned on each orchestration action):
   servicenow_catalog_item_sys_id   sys_id of the generic catalog item; empty = Table API path.
   servicenow_requested_for_miss    "integration_user" (default) or "fail" when the
                                    order owner has no ServiceNow user.
-  servicenow_table_path_approvers  Table path only: comma-separated user names or
-                                   emails, or "manager", asked to approve the RITM.
+  servicenow_table_path_approvers  Comma-separated user names or emails, or "manager",
+                                   asked to approve the RITM when the item has no flow
+                                   (or on the Table API path); empty when a flow asks.
   servicenow_wait_for_approval     Post-Order Approval only: "true" (default) holds
                                    every in-scope order until ServiceNow approves it;
                                    "false" lets CloudBolt-approved orders proceed.

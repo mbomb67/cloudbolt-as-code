@@ -37,7 +37,7 @@ Super admins, users who are approvers in their own group, and groups or environm
 - If `glide.sc.checkout.twostep` is true, `order_now` only fills a cart; the action submits the cart automatically.
 
 ### 2. Generic catalog item (catalog path, recommended)
-Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables; afterwards set the item's Category, copy its sys_id, and continue at step 5 to build the flow. The rest of this step describes what the update set contains, for building it by hand or checking it.
+Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables with the sys_id the Open actions carry by default (`dc46b35f3b378f50421a9bdc73e45a3b`), so nothing needs pinning; afterwards set the item's Category and continue at step 5 to build the flow. The rest of this step describes what the update set contains, for building it by hand or checking it.
 
 Create one catalog item, for example "CloudBolt Automation Request", and note its sys_id. Add a variable set with these variables. Names must match exactly.
 
@@ -64,6 +64,7 @@ Attach a Flow Designer flow to the item:
 - If `cloudbolt_approval` is `approved`, skip approval and leave the RITM open; CloudBolt closes it.
 - Otherwise request approval. Route on `cloudbolt_group`, `cloudbolt_environment`, `cloudbolt_cloud` or `cloudbolt_estimated_cost`; a lookup table owned by the ServiceNow team keeps routing a data change rather than a catalog change. If the flow records its decision on the RITM rather than the REQ, pin `servicenow_approval_table` to `sc_req_item` on the sync job.
 - Do not generate catalog tasks or close the RITM in the flow. CloudBolt is the fulfiller and closes the RITM itself.
+- An item with no flow attached never asks anyone, so orders wait forever. If you cannot build a flow, pin `servicenow_table_path_approvers` on the Open actions instead (user names, emails, or `manager`); the action then creates the approval records on the RITM itself. Do not do both, or approvals are requested twice.
 - Optional: on rejection set the RITM state to Closed Incomplete so the RITM list stays tidy; the sync job treats any closed RITM as a denial.
 
 ### 3. Table path (no catalog item)
@@ -73,7 +74,7 @@ Leave `servicenow_catalog_item_sys_id` empty. The action inserts `sc_request` an
 
 1. Point the actions at ServiceNow. If Admin > ITSM already has a ServiceNow integration, nothing else is needed: the actions use its host and service account when no ConnectionInfo matches the pinned name. Otherwise create a ConnectionInfo named `ServiceNow` (Admin > Connection Info): protocol `https`, IP/Hostname `<instance>.service-now.com`, port 443, username and password of the integration user. Re-enter the password after every repo sync; exports redact it.
 2. Sync this repo, then restart CloudBolt once so the `servicenow_requests` shared module is loaded.
-3. On each action and the recurring job, set the pinned inputs (Admin > Orchestration Actions, Admin > Recurring Jobs): the ConnectionInfo name, the catalog item sys_id (Open actions), and optionally the CloudBolt base URL and the CMDB table (Close on Completion). On the sync job set `cloudbolt_approver_username` to a CloudBolt user with approve rights if you want the CloudBolt approval history to name someone.
+3. On each action and the recurring job, check the pinned inputs (Admin > Orchestration Actions, Admin > Recurring Jobs): the ConnectionInfo name, the catalog item sys_id on the Open actions (already set to the update set's item; change it for a hand-built item, clear it for the Table API path), and optionally the CloudBolt base URL and the CMDB table (Close on Completion). On the sync job set `cloudbolt_approver_username` to a CloudBolt user with approve rights if you want the CloudBolt approval history to name someone.
 4. Enable, in this order: Close on Completion, Close on Denial, Open on Approval, Approval Sync, and finally Open on Submit. Enabling Open on Submit stops CloudBolt's approver emails for every order; from then on ServiceNow decides. Scope Open on Submit (groups, blueprints) to the orders ServiceNow should govern; Open on Approval stays unconstrained and follows that scope.
 5. If the ServiceNow integration under Admin > ServiceNow has its "order" hook enabled, disable it; otherwise each order also creates a bare `sc_request`.
 6. Keep CloudBolt's CMDB integration (Post-Provision CI creation) enabled. Close on Completion finds each server's CI by `serial_number` or `asset_tag` equal to the resource handler's VM id, falling back to the hostname.
@@ -98,6 +99,7 @@ Verified on a CloudBolt 2026.3 appliance with a ServiceNow ITSM integration (202
 
 - Order submitted but no RITM: open the order's history. A failure in Open on Submit is shown to the user at submission; the order stays pending with no approver email.
 - RITM shows the integration user as Requested for: the user lacks `glide.sc.req_for.roles` permission, or the owner's email or username does not match a `sys_user`. Set `servicenow_requested_for_miss` to `fail` to refuse such orders.
+- Orders never leave Pending and the RITM's Approval reads "Not requested": the catalog item has no flow and no approvers are pinned, so nobody was asked. Attach the flow, or pin approvers, then cancel and resubmit the order; a flow does not run for a RITM that already exists.
 - Orders stay pending after approval in ServiceNow: check the sync job's log and the `servicenow_approval_table` and `servicenow_approval_field` pins. Open the REQ and the RITM and see which one carries the `approval` value your workflow or flow sets; the RITM form does not show Approval by default, so use the list view or add the field to the form.
 - The ServiceNow Request and RITM links show the full URL as their text. CloudBolt's URL parameter has no separate display label; the form URL keeps the number visible at the end.
 - No CI attached at completion: the CMDB integration did not create the CI, or it stored the VM id in a different column; adjust `find_server_ci` in the shared module.

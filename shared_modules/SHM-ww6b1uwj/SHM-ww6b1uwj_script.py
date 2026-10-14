@@ -1172,23 +1172,20 @@ def read_decision(snow, record, source=DECISION_AUTO, field="approval"):
     """
     Return (source, value) for the ServiceNow decision on an order's record
     (as returned by load_request). Sources follow ServiceNow's conventions:
-      * "auto": catalog-path orders read the RITM's approval field, which the
-        item's flow maintains; Table API orders read the RITM's approval rows
-        when the open action created any, else the REQ's approval field, the
-        only thing the out-of-the-box request workflow moves;
+      * "auto": the RITM's approval rows when any exist (a flow's Ask for
+        Approval or pinned approvers create them); otherwise catalog-path
+        orders read the RITM's approval field and Table API orders the REQ's,
+        the only thing the out-of-the-box request workflow moves;
       * "approvals": the RITM's approval rows;
       * "sc_req_item" / "sc_request": that table's `field`.
     Values are lower-cased strings; compare with APPROVED_VALUES / DENIED_VALUES.
     """
     source = (source or DECISION_AUTO).lower()
     if source == DECISION_AUTO:
-        if record["path"] == "catalog":
-            source = TABLE_RITM
-        else:
-            rows = snow.ritm_approvals(record["ritm_sys_id"])
-            if rows:
-                return DECISION_APPROVALS, approval_rows_value(rows)
-            source = TABLE_REQUEST
+        rows = snow.ritm_approvals(record["ritm_sys_id"])
+        if rows:
+            return DECISION_APPROVALS, approval_rows_value(rows)
+        source = TABLE_RITM if record["path"] == "catalog" else TABLE_REQUEST
     if source == DECISION_APPROVALS:
         return source, approval_rows_value(snow.ritm_approvals(record["ritm_sys_id"]))
     if source == TABLE_RITM and field == "approval":
@@ -1298,6 +1295,7 @@ def open_request(snow, order, approval, settings, job=None):
         for ritm in ritms:
             snow.update(TABLE_RITM, ritm["sys_id"], dict(fields, **ritm_price_fields(summary)))
         ids["ritm_number"] = ritms[0].get("number") if ritms else ""
+        ids["ritm_sys_id"] = ritms[0]["sys_id"] if ritms else ""
     else:
         progress(f"Inserting sc_request and sc_req_item for order {order.id} (Table API path)", job)
         approval_value = APPROVAL_APPROVED if approval == "approved" else APPROVAL_REQUESTED
@@ -1305,13 +1303,17 @@ def open_request(snow, order, approval, settings, job=None):
         ritm_fields = dict(fields, approval=approval_value, quantity="1", **ritm_price_fields(summary))
         ids = snow.create_request_via_table(request_fields, ritm_fields)
         path = "table"
-        if approval == "pending" and settings.table_path_approvers:
-            approvers = snow.find_users(settings.table_path_approvers, requested_for)
-            if approvers:
-                snow.request_ritm_approval(ids["ritm_sys_id"], approvers)
-                note = f" Approval requested from {len(approvers)} approver(s) on the RITM."
-            else:
-                note = " No pinned approver resolved to a ServiceNow user; the REQ workflow decides."
+
+    # Pinned approvers get an approval record on the RITM, which is what a
+    # flow's Ask for Approval would create. Meant for items with no flow; with
+    # a flow, leave the pin empty or approvals are requested twice.
+    if approval == "pending" and settings.table_path_approvers and ids.get("ritm_sys_id"):
+        approvers = snow.find_users(settings.table_path_approvers, requested_for)
+        if approvers:
+            snow.request_ritm_approval(ids["ritm_sys_id"], approvers)
+            note = f" Approval requested from {len(approvers)} approver(s) on the RITM."
+        else:
+            note = " No pinned approver resolved to a ServiceNow user."
 
     store_request_links(snow, order, ids.get("request_number"), ids.get("ritm_number"))
     msg = (
