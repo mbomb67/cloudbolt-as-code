@@ -3,17 +3,19 @@ Content Package Manager XUI
 
 An admin page (Admin > Custom Extensions > Content Packages) for defining
 content packages: named sets of blueprints, actions, plugins, shared modules
-and UI extensions that belong together. Definitions live in the JSON store in
-store.py; this module renders the list page, a details page per package, the
-Add/Edit and Delete dialogs, and the JSON API under xui/content_packages/api/.
+and UI extensions that belong together. Definitions live in store.py; export,
+sync and import run through services.py. This module renders the list page, a
+details page per package, the Add/Edit, Delete, Export, Sync and Import
+dialogs, and the JSON API under xui/content_packages/api/.
 
 Members are resolved against the appliance on every render. A member that no
 longer exists shows red; one whose Remote Source URL is not on the package's
 home repository and branch shows amber. The details page also lists every
 dependency an export would write, worked out by dependencies.py.
 
-Export, Sync and Import from repository are placeholders: no git operation
-runs from this extension yet. Everything here requires CB Admin.
+Export runs inline in the request, like CloudBolt's own "Push to repository"
+dialog; Sync creates CloudBolt sync jobs and returns at once. Everything here
+requires CB Admin.
 """
 import functools
 import json
@@ -28,12 +30,13 @@ from django.utils.dateparse import parse_datetime
 from django.utils.html import format_html
 
 from extensions.views import admin_extension
+from jobs.models import Job
 from source_code_repos.models import SourceCodeRepo
 from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
-from xui.content_packages import dependencies, store
+from xui.content_packages import dependencies, services, store
 
 logger = ThreadLogger(__name__)
 
@@ -51,8 +54,15 @@ CONTENTS_SHOWN = 5
 # branch: GitHub blob, GitLab blob/raw, and the bare form CloudBolt accepts.
 BRANCH_SEPARATORS = ("/blob/", "/-/blob/", "/-/raw/", "/raw/", "/")
 
-# Member state -> pill modifier from _assets.html.
-STATE_PILLS = {"ok": "", "drift": "warn", "missing": "bad"}
+# Job status -> (pill modifier from _assets.html, text).
+JOB_PILLS = {
+    "SUCCESS": ("ok", "Succeeded"),
+    "WARNING": ("warn", "Succeeded with warnings"),
+    "FAILURE": ("bad", "Failed"),
+    "CANCELED": ("", "Canceled"),
+    "TO_CANCEL": ("", "Canceling"),
+}
+ACTIVE_JOB_STATUSES = ("INIT", "PENDING", "QUEUED", "RUNNING", "PAUSED", "STEP", "NEXT", "RETURN")
 
 
 def _page_url():
@@ -166,7 +176,41 @@ def _when(value):
     return parse_datetime(value) if isinstance(value, str) and value else None
 
 
-def _row(item):
+def _jobs_for(items):
+    """Every last-sync job the items reference, by pk, in one query."""
+    ids = [j.get("job_id") for item in items for j in item["local"].get("last_sync_jobs") or []]
+    ids = [i for i in ids if isinstance(i, int)]
+    return Job.objects.in_bulk(ids) if ids else {}
+
+
+def _sync_jobs(local, jobs):
+    """The last sync's jobs in run order with a display status. A pending job
+    behind one that failed is shown as blocked."""
+    rows, blocked = [], False
+    for entry in local.get("last_sync_jobs") or []:
+        job = jobs.get(entry.get("job_id"))
+        # A failed job that was rerun hands its place in the chain to the rerun.
+        while job is not None and job.rerun_job_id:
+            job = job.rerun_job
+        row = {"ref": entry.get("ref"), "job_id": entry.get("job_id"), "url": None, "status": "MISSING",
+               "pill": "", "text": "Job deleted"}
+        if job is not None:
+            row.update(url=job.get_absolute_url(), status=job.status)
+            if job.status in JOB_PILLS:
+                row["pill"], row["text"] = JOB_PILLS[job.status]
+            elif job.status in ("PENDING", "QUEUED", "INIT") and blocked:
+                row["pill"], row["text"] = "bad", "Blocked by a failed job"
+            elif job.status in ("PENDING", "QUEUED", "INIT"):
+                row["pill"], row["text"] = "live", "Waiting"
+            else:
+                row["pill"], row["text"] = "live", "Running"
+            if job.status == "FAILURE":
+                blocked = True
+        rows.append(row)
+    return rows
+
+
+def _row(item, jobs=None):
     """Add what the templates need on top of the JSON shape."""
     local = item["local"]
     job_id = local.get("last_sync_job_id")
@@ -175,6 +219,19 @@ def _row(item):
     item["sync_job_url"] = reverse("job_detail", args=[str(job_id)]) if job_id else None
     item["hidden_count"] = max(len(item["members"]) - CONTENTS_SHOWN, 0)
     item["problems"] = sum(1 for m in item["members"] if m["state"] != "ok")
+    item["sync_jobs"] = _sync_jobs(local, jobs or {})
+    members = {m["ref"]: m for m in item["members"]}
+    for job in item["sync_jobs"]:
+        member = members.get(job["ref"]) or {}
+        job["name"] = member.get("name") or job["ref"]
+        job["prefix"] = member.get("prefix") or ""
+    statuses = [j["status"] for j in item["sync_jobs"]]
+    if "FAILURE" in statuses:
+        item["sync_state"] = ("bad", "Sync failed")
+    elif any(status in ACTIVE_JOB_STATUSES for status in statuses):
+        item["sync_state"] = ("live", "Syncing")
+    else:
+        item["sync_state"] = None
     return item
 
 
@@ -195,14 +252,17 @@ def packages(request):
         "contents_shown": CONTENTS_SHOWN,
     }
     if not context["denied"]:
-        context["rows"] = [_row(item) for item in _describe(store.list_packages())]
+        items = _describe(store.list_packages())
+        jobs = _jobs_for(items)
+        context["rows"] = [_row(item, jobs) for item in items]
     return render(request, TEMPLATES + "packages.html", context)
 
 
 @cbadmin_required
 def package_detail(request, pkg_id):
     """One package: its members and everything an export would write."""
-    row = _row(_describe([_get_or_404(pkg_id)])[0])
+    item = _describe([_get_or_404(pkg_id)])[0]
+    row = _row(item, _jobs_for([item]))
     return render(request, TEMPLATES + "detail.html", {
         "row": row,
         "uplink": {"url": _page_url(), "label": "Content Packages"},
@@ -365,6 +425,179 @@ def package_delete(request, pkg_id):
 
 
 # ---------------------------------------------------------------------------
+# Export, Sync and Import dialogs
+# ---------------------------------------------------------------------------
+def _repo_choices():
+    return list(SourceCodeRepo.objects.all().order_by("label"))
+
+
+def _repo_context(package, values, repos):
+    """Context for the repository and branch fields shared by the dialogs."""
+    home = _home_repo(package) if package else None
+    selected = values.get("repo") or (str(home.id) if home else (str(repos[0].id) if repos else ""))
+    return {
+        "repos": repos,
+        "selected_repo": str(selected),
+        "selected_branch": values.get("branch") or (package["local"].get("branch") if package and home else ""),
+        "branches_url": reverse("json_branches_by_repo_id", args=[999999999]),
+    }
+
+
+def _no_repos(title):
+    return {
+        "title": title,
+        "content": format_html(
+            '<p class="text-danger">Add a Source Code Repository first (Admin &gt; Source Code Repositories).</p>'
+        ),
+    }
+
+
+def _detail_url(pkg_id):
+    return reverse("content_packages_detail", args=[pkg_id])
+
+
+@dialog_view(template_name=TEMPLATES + "export_dialog.html")
+@cbadmin_required
+def package_export(request, pkg_id):
+    """Push every member and the package manifest to a repository branch."""
+    package = _get_or_404(pkg_id)
+    title = "Export {}".format(package["name"])
+    repos = _repo_choices()
+    if not repos:
+        return _no_repos(title)
+    values = {"commit_message": "Export content package {} {}".format(package["name"], package.get("version") or "")}
+    error = None
+    if request.method == "POST":
+        values = {
+            "repo": request.POST.get("repo", ""),
+            "branch": request.POST.get("branch", ""),
+            "new_branch": request.POST.get("new_branch", ""),
+            "commit_message": request.POST.get("commit_message", ""),
+        }
+        branch = values["new_branch"] if values["branch"] == "__new__" else values["branch"]
+        try:
+            outcome = services.export_package(
+                package, services.get_repo(values["repo"]), branch, values["commit_message"],
+                request.get_user_profile(),
+            )
+        except store.PackageError as exc:
+            error = str(exc)
+        else:
+            return {
+                "title": title,
+                "outcome": outcome,
+                "package": package,
+                "reload_on_close": True,
+            }
+    resolved = store.resolve_refs(package.get("contents") or [])
+    context = {
+        "title": title,
+        "action_url": reverse("content_packages_export", args=[package["id"]]),
+        "use_ajax": True,
+        "submit": "Export",
+        "package": package,
+        "values": values,
+        "error": error,
+        "allow_new_branch": True,
+        "member_count": len(resolved),
+        "missing": [ref for ref, obj in resolved.items() if obj is None],
+    }
+    context.update(_repo_context(package, values, repos))
+    return context
+
+
+@dialog_view(template_name=TEMPLATES + "sync_dialog.html")
+@cbadmin_required
+def package_sync(request, pkg_id):
+    """Create one CloudBolt sync job per member from a repository branch."""
+    package = _get_or_404(pkg_id)
+    title = "Sync {}".format(package["name"])
+    repos = _repo_choices()
+    if not repos:
+        return _no_repos(title)
+    values = {"refresh_if_exists": True, "ignore_action_enabled": False}
+    error = None
+    if request.method == "POST":
+        values = {
+            "repo": request.POST.get("repo", ""),
+            "branch": request.POST.get("branch", ""),
+            "refresh_if_exists": bool(request.POST.get("refresh_if_exists")),
+            "ignore_action_enabled": bool(request.POST.get("ignore_action_enabled")),
+        }
+        try:
+            created = services.sync_package(
+                package, services.get_repo(values["repo"]), values["branch"],
+                values["refresh_if_exists"], values["ignore_action_enabled"], request.get_user_profile(),
+            )
+        except store.PackageError as exc:
+            error = str(exc)
+        else:
+            messages.success(
+                request,
+                "Started {} sync job{} for {}, one per member; they run one after another.".format(
+                    len(created), "" if len(created) == 1 else "s", package["name"]
+                ),
+            )
+            return HttpResponseRedirect(_detail_url(package["id"]))
+    context = {
+        "title": title,
+        "action_url": reverse("content_packages_sync", args=[package["id"]]),
+        "use_ajax": True,
+        "submit": "Sync",
+        "package": package,
+        "values": values,
+        "error": error,
+        "notice": request.GET.get("imported") == "1",
+        "member_count": len(package.get("contents") or []),
+        "has_blueprints": any(ref.startswith("blueprints/") for ref in package.get("contents") or []),
+        "has_extensions": any(ref.startswith("extensions/") for ref in package.get("contents") or []),
+    }
+    context.update(_repo_context(package, values, repos))
+    return context
+
+
+@dialog_view(template_name=TEMPLATES + "import_dialog.html")
+@cbadmin_required
+def package_import(request):
+    """Register a package manifest found under packages/ on a branch, then
+    open its Sync dialog."""
+    title = "Import content package from repository"
+    repos = _repo_choices()
+    if not repos:
+        return _no_repos(title)
+    values = {}
+    error = None
+    if request.method == "POST":
+        values = {
+            "repo": request.POST.get("repo", ""),
+            "branch": request.POST.get("branch", ""),
+            "ref": request.POST.get("ref", ""),
+        }
+        try:
+            package, created = services.import_repo_package(
+                services.get_repo(values["repo"]), values["branch"], values["ref"]
+            )
+        except store.PackageError as exc:
+            error = str(exc)
+        else:
+            messages.success(request, 'Content package "{}" ({}) {}.'.format(
+                package["name"], package["id"], "registered" if created else "updated from the repository"
+            ))
+            return {"nextURL": "{}?imported=1".format(reverse("content_packages_sync", args=[package["id"]]))}
+    context = {
+        "title": title,
+        "action_url": reverse("content_packages_import"),
+        "use_ajax": True,
+        "submit": "Import",
+        "values": values,
+        "error": error,
+        "list_url": reverse("content_packages_api_repo_packages", args=[999999999]),
+    }
+    context.update(_repo_context(None, values, repos))
+    return context
+
+
+# ---------------------------------------------------------------------------
 # JSON API (session auth with CSRF, CB Admin only)
 # ---------------------------------------------------------------------------
 def _api(view):
@@ -464,3 +697,73 @@ def api_content(request):
         items.sort(key=lambda i: i["name"].lower())
         types.append({"type": member_type.dir, "prefix": member_type.prefix, "title": member_type.title, "items": items})
     return JsonResponse({"types": types})
+
+
+def _repo_from(data):
+    return services.get_repo(data.get("source_code_repo_id") or data.get("source_code_repo"))
+
+
+@_api
+@cbadmin_required
+def api_export(request, pkg_id):
+    """POST {source_code_repo_id, branch, commit_message}: push every member
+    and the manifest; returns one result per member plus the PR link."""
+    if request.method != "POST":
+        return _method_not_allowed(["POST"])
+    data = _body(request)
+    package = store.get_package(pkg_id)
+    outcome = services.export_package(
+        package, _repo_from(data), data.get("branch"), data.get("commit_message"), request.get_user_profile()
+    )
+    return JsonResponse(outcome, status=200 if not outcome["failed"] else 207)
+
+
+@_api
+@cbadmin_required
+def api_sync(request, pkg_id):
+    """POST {source_code_repo_id?, branch?, refresh_if_exists?,
+    ignore_action_enabled?}: one sync job per member, chained. Repository and
+    branch default to the package's home."""
+    if request.method != "POST":
+        return _method_not_allowed(["POST"])
+    data = _body(request)
+    package = store.get_package(pkg_id)
+    if data.get("source_code_repo_id") or data.get("source_code_repo"):
+        repo = _repo_from(data)
+    else:
+        repo = _home_repo(package)
+        if repo is None:
+            raise store.PackageError("The package has no home repository yet; pass source_code_repo_id.")
+    branch = data.get("branch") or package["local"].get("branch")
+    created = services.sync_package(
+        package, repo, branch,
+        data.get("refresh_if_exists", True), data.get("ignore_action_enabled", False),
+        request.get_user_profile(),
+    )
+    return JsonResponse({
+        "jobs": [
+            {"ref": ref, "job_id": job.id, "global_id": getattr(job, "global_id", ""), "url": job.get_absolute_url()}
+            for ref, job in created
+        ],
+    }, status=201)
+
+
+@_api
+@cbadmin_required
+def api_repo_packages(request, repo_id):
+    """GET ?branch=: package manifests under packages/ on that branch."""
+    if request.method != "GET":
+        return _method_not_allowed(["GET"])
+    repo = services.get_repo(repo_id)
+    return JsonResponse({"packages": services.list_repo_packages(repo, request.GET.get("branch"))})
+
+
+@_api
+@cbadmin_required
+def api_repo_import(request, repo_id):
+    """POST {branch, ref}: register or update (by PKG id) that manifest."""
+    if request.method != "POST":
+        return _method_not_allowed(["POST"])
+    data = _body(request)
+    package, created = services.import_repo_package(services.get_repo(repo_id), data.get("branch"), data.get("ref"))
+    return JsonResponse(dict(_describe([package])[0], created=created), status=201 if created else 200)

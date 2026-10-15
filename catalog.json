@@ -448,7 +448,7 @@
     "id": "XUI-iq65xgvr",
     "type": "extensions",
     "name": "Content Package Manager",
-    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, with a details page listing every dependency an export would write; export, sync, and import from a repository are not built yet.",
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
     "path": "extensions/XUI-iq65xgvr",
     "readme": "extensions/XUI-iq65xgvr/README.md",
     "uses": [],

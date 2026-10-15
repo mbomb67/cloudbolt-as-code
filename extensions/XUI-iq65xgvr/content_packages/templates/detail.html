@@ -19,12 +19,14 @@
         <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ edit_url }}" data-dialog-width="960px">
           <i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}
         </a>
-        <span class="cpk-off" title="{% trans 'Not available yet' %}">
-          <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}</button>
-        </span>
-        <span class="cpk-off" title="{% trans 'Not available yet' %}">
-          <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}</button>
-        </span>
+        {% if row.members %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_export' row.id %}" data-dialog-width="760px">
+          <i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}
+        </a>
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_sync' row.id %}" data-dialog-width="760px">
+          <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}
+        </a>
+        {% endif %}
         <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'content_packages_delete' row.id %}">
           <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}
         </a>
@@ -55,7 +57,7 @@
       <div class="cell">
         <div class="k">{% trans "Last synced" %}</div>
         <div class="v">
-          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_job_url %} &middot; <a href="{{ row.sync_job_url }}">{% trans "job" %}</a>{% endif %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
+          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
         </div>
       </div>
       <div class="cell">
@@ -119,6 +121,37 @@
     <div class="cpk-empty">{% trans "No members yet. Use Edit to pick the content this package holds." %}</div>
     {% endif %}
   </div>
+
+  {% if row.sync_jobs %}
+  <div class="cpk-card">
+    <div class="cpk-card-h">
+      <span class="cpk-card-t">{% trans "Last sync" %} &middot; {{ row.local.branch }}</span>
+      {% if row.synced_at %}<span class="cpk-muted">{% blocktrans with ago=row.synced_at|timesince %}started {{ ago }} ago{% endblocktrans %}</span>{% endif %}
+      <div class="cpk-card-tools">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-reload>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="cpk-table">
+        <thead><tr><th>{% trans "Member" %}</th><th>{% trans "Job" %}</th><th>{% trans "Status" %}</th></tr></thead>
+        <tbody>
+          {% for j in row.sync_jobs %}
+          <tr>
+            <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div></td>
+            <td>{% if j.url %}<a href="{{ j.url }}">{% trans "Job" %} {{ j.job_id }}</a>{% else %}<span class="cpk-muted">{{ j.job_id }}</span>{% endif %}</td>
+            <td><span class="cpk-pill{% if j.pill %} cpk-pill-{{ j.pill }}{% endif %}">{{ j.text }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if row.sync_state and row.sync_state.0 == "bad" %}
+    <div class="cpk-note pb-3">{% trans "A job failed and the ones after it are waiting. Open it, fix the content in the repository and push, then use Rerun on the job page: the waiting jobs continue once the rerun succeeds. Or cancel them." %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <div class="cpk-card" data-cpk-panel data-cpk-src="{{ dependencies_url }}" data-cpk-loading="{% trans 'Working out dependencies' %}"></div>
 </div>

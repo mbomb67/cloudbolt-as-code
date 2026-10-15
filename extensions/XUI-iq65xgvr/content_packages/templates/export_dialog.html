@@ -1,0 +1,70 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "content_packages/templates/_assets.html" %}
+{% if outcome %}
+<div id="cpkx-export-result" class="cpkx cpk-dialog">
+  <p>
+    {% blocktrans with repo=outcome.repository branch=outcome.branch %}Pushed to <b>{{ repo }}</b>, branch <span class="cpk-mono">{{ branch }}</span>.{% endblocktrans %}
+    {% if outcome.failed %}<span class="cpk-tag cpk-tag-bad">{% blocktrans count n=outcome.failed %}{{ n }} failed{% plural %}{{ n }} failed{% endblocktrans %}</span>{% endif %}
+  </p>
+  <div class="table-responsive">
+    <table class="cpk-table">
+      <thead><tr><th>{% trans "Content" %}</th><th>{% trans "Result" %}</th></tr></thead>
+      <tbody>
+        {% for r in outcome.results %}
+        <tr>
+          <td>
+            <span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}
+            <div class="cpk-hint cpk-mono">{{ r.ref }}</div>
+          </td>
+          <td>
+            {% if r.status == "success" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Pushed" %}</span>
+            {% elif r.status == "skipped" %}<span class="cpk-pill"><i class="bi bi-dash-circle" aria-hidden="true"></i> {% trans "Skipped" %}</span>
+            {% else %}<span class="cpk-pill cpk-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Failed" %}</span>{% endif %}
+            {% if r.status != "success" %}<div class="cpk-hint">{{ r.message }}</div>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if outcome.pr_url %}
+  <p class="mt-3 mb-0">
+    <a class="btn btn-sm btn-primary" href="{{ outcome.pr_url }}" target="_blank" rel="noopener">
+      <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+      {% blocktrans with term=outcome.pr_term service=outcome.service_name %}Open a {{ term }} in {{ service }}{% endblocktrans %}
+    </a>
+  </p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% if not outcome %}
+{% csrf_token %}
+<div id="cpkx-export" class="cpkx cpk-dialog">
+  {% if error %}
+  <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  {% include "content_packages/templates/_repo_branch.html" %}
+  <div class="mt-3">
+    <label class="form-label" for="cpk-commit">{% trans "Commit message" %}</label>
+    <textarea class="form-control" id="cpk-commit" name="commit_message" rows="3" required>{{ values.commit_message }}</textarea>
+  </div>
+  <div class="form-text mt-3">
+    {% blocktrans with id=package.id count n=member_count %}Pushes {{ n }} member with CloudBolt's own Push to repository, then commits the package manifest to <span class="cpk-mono">packages/{{ id }}/</span>.{% plural %}Pushes {{ n }} members one at a time with CloudBolt's own Push to repository, then commits the package manifest to <span class="cpk-mono">packages/{{ id }}/</span>.{% endblocktrans %}
+    {% trans "Each push writes the member's whole folder and its plugins, shared modules and forms, as one commit. This can take a minute; keep the dialog open." %}
+  </div>
+  {% if missing %}
+  <div class="cpk-hint mt-2"><span class="cpk-tag cpk-tag-bad">{% trans "skipped" %}</span> {% trans "Not on this appliance:" %} {{ missing|join:", " }}</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock form_content %}
+
+{% block on_ready %}
+  {% if not outcome %}cpkxRepoBranch($dialog.find("#cpkx-export"));{% endif %}
+{% endblock on_ready %}

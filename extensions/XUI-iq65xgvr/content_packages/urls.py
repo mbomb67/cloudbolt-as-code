@@ -32,6 +32,21 @@ xui_urlpatterns = [
         views.package_delete,
         name="content_packages_delete",
     ),
+    path(
+        "xui/content_packages/dialogs/<str:pkg_id>/export/",
+        views.package_export,
+        name="content_packages_export",
+    ),
+    path(
+        "xui/content_packages/dialogs/<str:pkg_id>/sync/",
+        views.package_sync,
+        name="content_packages_sync",
+    ),
+    path(
+        "xui/content_packages/dialogs/import/",
+        views.package_import,
+        name="content_packages_import",
+    ),
     # JSON API: CB Admin, session auth with CSRF
     path(
         "xui/content_packages/api/packages/",
@@ -49,8 +64,28 @@ xui_urlpatterns = [
         name="content_packages_api_dependencies",
     ),
     path(
+        "xui/content_packages/api/packages/<str:pkg_id>/export/",
+        views.api_export,
+        name="content_packages_api_export",
+    ),
+    path(
+        "xui/content_packages/api/packages/<str:pkg_id>/sync/",
+        views.api_sync,
+        name="content_packages_api_sync",
+    ),
+    path(
         "xui/content_packages/api/content/",
         views.api_content,
         name="content_packages_api_content",
+    ),
+    path(
+        "xui/content_packages/api/repos/<str:repo_id>/packages/",
+        views.api_repo_packages,
+        name="content_packages_api_repo_packages",
+    ),
+    path(
+        "xui/content_packages/api/repos/<str:repo_id>/packages/import/",
+        views.api_repo_import,
+        name="content_packages_api_repo_import",
     ),
 ]

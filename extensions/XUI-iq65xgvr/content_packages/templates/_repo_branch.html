@@ -1,0 +1,30 @@
+{% load i18n %}
+{% comment %}
+  Repository and branch fields shared by the Export, Sync and Import dialogs;
+  cpkxRepoBranch() in _assets.html fills the branch list.
+{% endcomment %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <label class="form-label" for="cpk-repo">{% trans "Repository" %}</label>
+    <select class="form-select" id="cpk-repo" name="repo" data-cpk-repo>
+      {% for repo in repos %}
+      <option value="{{ repo.id }}"{% if selected_repo == repo.id|stringformat:"s" %} selected{% endif %}>{{ repo.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-6">
+    <label class="form-label" for="cpk-branch">{% trans "Branch" %}</label>
+    <select class="form-select" id="cpk-branch" name="branch" data-cpk-branch
+      data-cpk-branches-url="{{ branches_url }}" data-cpk-selected="{{ selected_branch }}"
+      {% if allow_new_branch %}data-cpk-allow-new="1"{% endif %}>
+      <option value="">{% trans "Loading branches…" %}</option>
+    </select>
+  </div>
+  {% if allow_new_branch %}
+  <div class="col-md-6 offset-md-6 d-none" data-cpk-new-branch-wrap>
+    <input class="form-control" name="new_branch" value="{{ values.new_branch|default:'' }}" maxlength="255"
+      placeholder="{% trans 'New branch name, no slash' %}" aria-label="{% trans 'New branch name' %}">
+    <div class="form-text">{% trans "Created from the repository's default branch." %}</div>
+  </div>
+  {% endif %}
+</div>

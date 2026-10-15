@@ -17,11 +17,9 @@
       </div>
       {% if not denied %}
       <div class="cpk-tools">
-        <span class="cpk-off" title="{% trans 'Not available yet' %}">
-          <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-            <i class="bi bi-cloud-download" aria-hidden="true"></i> {% trans "Import from repository" %}
-          </button>
-        </span>
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_import' %}" data-dialog-width="760px">
+          <i class="bi bi-cloud-download" aria-hidden="true"></i> {% trans "Import from repository" %}
+        </a>
         <a class="btn btn-sm btn-primary open-dialog" href="{% url 'content_packages_add' %}" data-dialog-width="960px">
           <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add" %}
         </a>
@@ -87,7 +85,7 @@
                   {% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}Exported {{ ago }} ago{% endblocktrans %}{% else %}{% trans "Not exported yet" %}{% endif %}
                 </div>
                 <div class="cpk-hint">
-                  {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}Synced {{ ago }} ago{% endblocktrans %}{% if row.sync_job_url %} &middot; <a href="{{ row.sync_job_url }}">{% trans "job" %}</a>{% endif %}{% else %}{% trans "Never synced" %}{% endif %}
+                  {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}Synced {{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</a>{% endif %}{% else %}{% trans "Never synced" %}{% endif %}
                 </div>
               {% elif row.repository_missing %}
                 <span class="cpk-pill cpk-pill-bad">{% trans "Repository deleted" %}</span>
@@ -100,12 +98,21 @@
                 <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_edit' row.id %}" data-dialog-width="960px">
                   <i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}
                 </a>
-                <span class="cpk-off" title="{% trans 'Not available yet' %}">
+                {% if row.members %}
+                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_export' row.id %}" data-dialog-width="760px">
+                  <i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}
+                </a>
+                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_sync' row.id %}" data-dialog-width="760px">
+                  <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}
+                </a>
+                {% else %}
+                <span class="cpk-off" title="{% trans 'Add members first' %}">
                   <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}</button>
                 </span>
-                <span class="cpk-off" title="{% trans 'Not available yet' %}">
+                <span class="cpk-off" title="{% trans 'Add members first' %}">
                   <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}</button>
                 </span>
+                {% endif %}
                 <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'content_packages_delete' row.id %}">
                   <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}
                 </a>

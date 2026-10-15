@@ -30,6 +30,7 @@ from contextlib import contextmanager
 from datetime import date
 
 from django.db import transaction
+from django.utils import timezone
 
 from cbhooks.models import (
     FlowControlAction,
@@ -200,11 +201,9 @@ def resolve_refs(refs):
     return {ref: found.get(ref) for ref in refs}
 
 
-def validate_contents(contents, allow_unresolved=()):
-    """Return contents de-duplicated in order, or raise PackageError naming
-    every bad ref. Each ref must name an allowed type and resolve on this
-    appliance; refs in allow_unresolved (members a package already had) may
-    stay unresolved, so an edit does not force dropping a deleted member."""
+def _check_refs(contents):
+    """contents de-duplicated in order, plus a message for every ref that is
+    not "<dir>/<ID>" for an allowed type."""
     if contents is None:
         contents = []
     if not isinstance(contents, (list, tuple)):
@@ -219,6 +218,15 @@ def validate_contents(contents, allow_unresolved=()):
             problems.append(str(exc))
             continue
         unique.append(ref)
+    return unique, problems
+
+
+def validate_contents(contents, allow_unresolved=()):
+    """Return contents de-duplicated in order, or raise PackageError naming
+    every bad ref. Each ref must name an allowed type and resolve on this
+    appliance; refs in allow_unresolved (members a package already had) may
+    stay unresolved, so an edit does not force dropping a deleted member."""
+    unique, problems = _check_refs(contents)
     resolved = resolve_refs(unique)
     for ref in unique:
         if resolved[ref] is None and ref not in allow_unresolved:
@@ -283,6 +291,7 @@ def _empty_local():
         "last_exported": None,
         "last_synced": None,
         "last_sync_job_id": None,
+        "last_sync_jobs": [],
     }
 
 
@@ -435,3 +444,100 @@ def delete_package(pkg_id):
     with _locked() as field:
         cfv, _ = _find(_rows(field), pkg_id)
         cfv.delete()
+
+
+# ---------------------------------------------------------------------------
+# Repository round trip
+# ---------------------------------------------------------------------------
+# Manifest keys, in the order an export writes them; "local" never leaves the
+# appliance.
+MANIFEST_FIELDS = (
+    "id", "name", "description", "version", "minimum_version_required",
+    "last_updated", "metadata_version", "contents",
+)
+
+
+def manifest(package):
+    """The package as it is written to packages/<PKG-id>/ in a repository."""
+    return OrderedDict((key, package.get(key, "" if key != "contents" else [])) for key in MANIFEST_FIELDS)
+
+
+def _now():
+    return timezone.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def import_manifest(data, source_code_repo_id, branch, remote_source_url):
+    """Register a manifest read from a repository, keyed by its PKG id: a
+    package with that id is updated in place (name, description, version and
+    members are replaced by the manifest's), otherwise one is created. Members
+    need not exist yet; the sync creates them. The package's home becomes the
+    repository and branch it came from. Returns (package, created)."""
+    if not isinstance(data, dict):
+        raise PackageError("The manifest is not a JSON object.")
+    pkg_id = data.get("id")
+    if not isinstance(pkg_id, str) or not PKG_ID_RE.match(pkg_id):
+        raise PackageError("The manifest has no valid PKG- id.")
+    contents, problems = _check_refs(data.get("contents"))
+    if problems:
+        raise PackageError(" ".join(problems))
+    with _locked() as field:
+        rows = _rows(field)
+        current = next(((cfv, p) for cfv, p in rows if p["id"] == pkg_id), None)
+        others = [p for _, p in rows if p["id"] != pkg_id]
+        cleaned = _clean_fields(
+            {
+                "name": data.get("name"),
+                "description": data.get("description") or "",
+                "version": data.get("version") or DEFAULT_VERSION,
+            },
+            others=others,
+        )
+        if current:
+            cfv, package = current
+        else:
+            cfv, package = CustomFieldValue(field=field), OrderedDict([("id", pkg_id), ("local", _empty_local())])
+        package.update(cleaned)
+        package["contents"] = contents
+        package["minimum_version_required"] = data.get("minimum_version_required") or ""
+        package["last_updated"] = data.get("last_updated") or date.today().isoformat()
+        package["metadata_version"] = data.get("metadata_version") or METADATA_VERSION
+        package["local"].update(
+            source_code_repo_id=source_code_repo_id, branch=branch, remote_source_url=remote_source_url
+        )
+        ordered = manifest(package)
+        ordered["local"] = package["local"]
+        _store(cfv, ordered)
+    return ordered, current is None
+
+
+def _update_local(pkg_id, **values):
+    with _locked() as field:
+        cfv, package = _find(_rows(field), pkg_id)
+        package["local"].update(values)
+        _store(cfv, package)
+    return package
+
+
+def record_export(pkg_id, source_code_repo_id, branch, remote_source_url):
+    """The package was pushed: that repository and branch become its home."""
+    return _update_local(
+        pkg_id,
+        source_code_repo_id=source_code_repo_id,
+        branch=branch,
+        remote_source_url=remote_source_url,
+        last_exported=_now(),
+    )
+
+
+def record_sync(pkg_id, source_code_repo_id, branch, jobs):
+    """Sync jobs were created, one per member as [(ref, job_id)] in run order.
+    The members will point at that repository and branch once they finish,
+    so it becomes the package's home."""
+    return _update_local(
+        pkg_id,
+        source_code_repo_id=source_code_repo_id,
+        branch=branch,
+        last_synced=_now(),
+        last_sync_jobs=[{"ref": ref, "job_id": job_id} for ref, job_id in jobs],
+        last_sync_job_id=jobs[-1][1] if jobs else None,
+    )
