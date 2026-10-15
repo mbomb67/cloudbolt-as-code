@@ -1,6 +1,9 @@
 # Content Package Manager — design brainstorm
 
-Status: brainstorm, 2026-10-15. Nothing here is built yet.
+Status: brainstorm, 2026-10-15. Steps 1 to 3 of the first cut are built in
+`extensions/XUI-iq65xgvr`. Where the build differs from this draft (packages
+stored in a namespaced CustomField, one sync job per member, export run as a
+job, card-style pages), the extension's README and code are current.
 
 ## Problem
 
@@ -243,7 +246,7 @@ request thread, in order of preference:
 - Synchronous view with a progress spinner, acceptable for the first cut
   while the package count is small.
 
-Memory from earlier work applies here: an appliance export rewrites every
+Known behavior applies here: an appliance export rewrites every
 member folder, including hand-authored READMEs and form fields. Export always
 goes to a branch and the PR diff is the review step.
 
