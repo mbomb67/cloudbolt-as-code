@@ -43,13 +43,13 @@
     "labels": [
         {
             "color": "rgba(244,226,143,1)",
-            "icon": "aws_account.png",
+            "icon": null,
             "id": "TAG-nlvmbvxj",
             "image": "/static/uploads/tags/aws_account.png",
             "name": "AWS",
             "parent": {
                 "color": "rgba(25,171,188,1)",
-                "icon": "cloud.png",
+                "icon": null,
                 "id": "TAG-cvblowou",
                 "image": "/static/uploads/tags/cloud.png",
                 "name": "Clouds",
@@ -59,7 +59,7 @@
         },
         {
             "color": "rgba(134,219,78,1)",
-            "icon": "XaaS_Icon.png",
+            "icon": null,
             "id": "TAG-pfq0or1t",
             "image": "/static/uploads/tags/XaaS_Icon.png",
             "name": "XaaS",
