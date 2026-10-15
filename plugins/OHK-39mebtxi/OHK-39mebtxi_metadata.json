@@ -3,22 +3,8 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": null,
-            "field_dependency_controlling_set": [
-                {
-                    "controlling-field": {
-                        "name": "nodegroup_resource_status_a275"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "delete_nodegroup_a275"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "description": "The node group to delete, from the cluster's eks_nodegroup sub-resources.",
+            "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": false,
@@ -32,43 +18,9 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "description": null,
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [
-                {
-                    "controlling-field": {
-                        "name": "nodegroup_resource_status_a275"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "delete_nodegroup_a275"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
-            "global_options": [],
-            "hide_if_default_value": false,
-            "id": "CF-xdcvbr7y",
-            "label": "Nodegroup Resource Status",
-            "name": "nodegroup_resource_status",
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": true,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "STR",
-            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
-        "nodegroup_resource_status",
         "delete_nodegroup"
     ],
     "description": "Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource.",

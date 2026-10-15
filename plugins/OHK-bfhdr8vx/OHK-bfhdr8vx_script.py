@@ -149,27 +149,96 @@ def get_boto_client(env_id=None, boto_service="ec2"):
     return client, env
 
 
+# amiType, CPU architecture, label, and the SSM public parameter that holds the
+# recommended AMI for a Kubernetes version. A family is offered only when AWS
+# publishes an AMI for the cluster's version, so the list follows AWS as
+# versions and families come and go (AL2 ended with 1.32).
+# Valid amiType values: https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateNodegroup.html
+# Amazon Linux parameters: https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html
+# Bottlerocket parameters: https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id-bottlerocket.html
+AMI_FAMILIES = [
+    (
+        "AL2023_x86_64_STANDARD",
+        "x86_64",
+        "Amazon Linux 2023 (x86_64)",
+        "/aws/service/eks/optimized-ami/{version}/amazon-linux-2023/x86_64/standard/recommended/image_id",
+    ),
+    (
+        "AL2023_ARM_64_STANDARD",
+        "arm64",
+        "Amazon Linux 2023 (Arm)",
+        "/aws/service/eks/optimized-ami/{version}/amazon-linux-2023/arm64/standard/recommended/image_id",
+    ),
+    (
+        "BOTTLEROCKET_x86_64",
+        "x86_64",
+        "Bottlerocket (x86_64)",
+        "/aws/service/bottlerocket/aws-k8s-{version}/x86_64/latest/image_id",
+    ),
+    (
+        "BOTTLEROCKET_ARM_64",
+        "arm64",
+        "Bottlerocket (Arm)",
+        "/aws/service/bottlerocket/aws-k8s-{version}/arm64/latest/image_id",
+    ),
+    (
+        "AL2_x86_64",
+        "x86_64",
+        "Amazon Linux 2 (x86_64)",
+        "/aws/service/eks/optimized-ami/{version}/amazon-linux-2/recommended/image_id",
+    ),
+    (
+        "AL2_ARM_64",
+        "arm64",
+        "Amazon Linux 2 (Arm)",
+        "/aws/service/eks/optimized-ami/{version}/amazon-linux-2-arm64/recommended/image_id",
+    ),
+]
+
+
+def cluster_kubernetes_version(resource, client):
+    version = resource.get_cf_values_as_dict().get("kubernetes_version", "")
+    if version:
+        return str(version).strip()
+    return client.describe_cluster(name=resource.name)["cluster"]["version"]
+
+
 def generate_options_for_ami_type(server=None, **kwargs):
     """
-    AMI families EKS still publishes for every supported Kubernetes version.
-    EKS stopped publishing Amazon Linux 2 AMIs on 2025-11-26, so AL2 types fail
-    on 1.33 and later clusters: https://docs.aws.amazon.com/eks/latest/userguide/al2023.html
-    Valid amiType values: https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateNodegroup.html
-    The value carries the CPU architecture (for the instance-type options) and
-    the resource id (so the dependent generate-options call can find the cluster).
+    AMI families AWS publishes for the cluster's Kubernetes version, checked
+    through the SSM public parameters AWS documents for AMI lookup. The value
+    carries the architecture (for the instance-type options) and the resource
+    id (so the dependent generate-options call can find the cluster).
     """
     resource = kwargs.get("resource", None)
 
     if resource is None or resource == "":
         return []
 
-    return [
-        ("", "-------Select AMI Type-------"),
-        (f"x86_64/AL2023_x86_64_STANDARD/{resource.id}", "Amazon Linux 2023 (AL2023_x86_64_STANDARD)"),
-        (f"arm64/AL2023_ARM_64_STANDARD/{resource.id}", "Amazon Linux 2023 Arm (AL2023_ARM_64_STANDARD)"),
-        (f"x86_64/BOTTLEROCKET_x86_64/{resource.id}", "Bottlerocket (BOTTLEROCKET_x86_64)"),
-        (f"arm64/BOTTLEROCKET_ARM_64/{resource.id}", "Bottlerocket Arm (BOTTLEROCKET_ARM_64)"),
-    ]
+    eks_client, env = get_boto_client(env_id=resource.env_id, boto_service="eks")
+    version = cluster_kubernetes_version(resource, eks_client)
+
+    ssm_client = env.resource_handler.cast().get_boto3_client(env.aws_region, "ssm")
+    names = {
+        family[3].format(version=version): family for family in AMI_FAMILIES
+    }
+    try:
+        published = ssm_client.get_parameters(Names=list(names))["Parameters"]
+        available = [names[param["Name"]] for param in published]
+    except Exception as err:
+        # Without ssm:GetParameters fall back to the families AWS publishes for
+        # every supported version (AL2023 and Bottlerocket).
+        logger.warning(f"Could not check AMI availability through SSM: {err}")
+        available = [f for f in AMI_FAMILIES if not f[0].startswith("AL2_")]
+
+    options = [("", "-------Select AMI Type-------")]
+    for ami_type, architecture, label, _ in AMI_FAMILIES:
+        if any(f[0] == ami_type for f in available):
+            options.append(
+                (f"{architecture}/{ami_type}/{resource.id}", f"{label} ({ami_type})")
+            )
+
+    return options
 
 
 def generate_options_for_instance_type(server=None, control_value=None, **kwargs):

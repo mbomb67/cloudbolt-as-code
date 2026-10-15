@@ -1,147 +1,180 @@
+"""
+Teardown for the AWS EKS blueprint: node groups, cluster, the cluster IAM role
+the build created, then the CloudBolt orchestrator, its environment, and the
+node group sub-resources.
+"""
+
 import time
 
+from botocore.exceptions import ClientError
+
 from common.methods import set_progress
+from containerorchestrators.kuberneteshandler.models import Kubernetes
+from infrastructure.models import Environment
 from resourcehandlers.aws.models import AWSHandler
 from resources.models import Resource
-from containerorchestrators.kuberneteshandler.models import Kubernetes
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
+
+CLUSTER_POLICY_ARNS = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
 
 
 def get_boto_client(aws_rh, resource, service="ec2"):
     """
     get_boto_client
     """
-    # get aws client object
-    client = aws_rh.get_boto3_client(resource.aws_region, service)
-    return client
+    return aws_rh.get_boto3_client(resource.aws_region, service)
 
 
-def detach_policy(client, policies, role_name):
+def error_code(err):
+    return err.response.get("Error", {}).get("Code", "")
+
+
+def delete_node_groups(client, resource):
     """
-    detach_policy
+    Delete every managed node group and wait until EKS lists none.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DeleteNodegroup.html
     """
-    policies_removed = True
+    try:
+        node_groups = client.list_nodegroups(clusterName=resource.name)["nodegroups"]
+    except ClientError as err:
+        if error_code(err) == "ResourceNotFoundException":
+            return
+        raise
 
-    for policy in policies:
-        try:
-            client.detach_role_policy(RoleName=role_name, PolicyArn=policy)
-        except Exception as error:
-            policies_removed = False
+    for node_group in node_groups:
+        set_progress(f"Deleting node group {node_group}")
+        client.delete_nodegroup(clusterName=resource.name, nodegroupName=node_group)
+
+    while node_groups:
+        time.sleep(30)
+        node_groups = client.list_nodegroups(clusterName=resource.name)["nodegroups"]
+        if node_groups:
             set_progress(
-                f"policies could not be detached from role {role_name}...{error}"
+                f"Still deleting node groups: {', '.join(node_groups)}",
+                increment_tasks=1,
             )
 
-    return policies_removed
 
-
-def delete_roles(aws_rh, resource, cluster_role):
+def delete_cluster(client, resource):
     """
-    delete_roles
+    Delete the cluster and wait until EKS no longer knows it. The cluster IAM
+    role is deleted only afterwards: the control plane still uses it while it
+    removes its network interfaces.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DeleteCluster.html
     """
-    cluster_policy_arn = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
+    try:
+        client.describe_cluster(name=resource.name)
+    except ClientError as err:
+        if error_code(err) == "ResourceNotFoundException":
+            set_progress(f"Cluster {resource.name} is already gone from AWS")
+            return
+        raise
 
-    # iam client
+    set_progress(f"Deleting cluster {resource.name}")
+    client.delete_cluster(name=resource.name)
+
+    while True:
+        time.sleep(30)
+        try:
+            status = client.describe_cluster(name=resource.name)["cluster"]["status"]
+        except ClientError as err:
+            if error_code(err) == "ResourceNotFoundException":
+                break
+            raise
+        set_progress(f"Cluster {resource.name} is {status}", increment_tasks=1)
+
+    set_progress(f"Cluster {resource.name} deleted")
+
+
+def delete_cluster_role(aws_rh, resource):
+    """
+    Delete the per-cluster IAM role the build plugin created. A discovered
+    cluster's role belongs to whoever built that cluster (eksctl, Terraform,
+    a shared role), so only a role named <cluster>-<suffix>-Role is removed.
+    """
+    role_arn = resource.get_cf_values_as_dict().get("role_arn") or ""
+    role_name = role_arn.split("/")[-1]
+
+    if not (
+        role_name.startswith(f"{resource.name}-") and role_name.endswith("-Role")
+    ):
+        set_progress(
+            f"Leaving IAM role {role_name or '(none)'} in place: not created by this blueprint"
+        )
+        return
+
     iam_client = get_boto_client(aws_rh, resource, "iam")
 
-    all_detached = detach_policy(iam_client, cluster_policy_arn, cluster_role)
+    for policy_arn in CLUSTER_POLICY_ARNS:
+        try:
+            iam_client.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+        except ClientError as err:
+            if error_code(err) != "NoSuchEntity":
+                raise
 
-    if all_detached:
-        iam_client.delete_role(RoleName=cluster_role)
-
-
-def delete_kubernetes_object(resource):
-    """
-    delete_kubernetes_object
-    """
     try:
-        kubernetes = Kubernetes.objects.get(id=resource.container_orchestrator_id)
-        kubernetes.delete()
+        iam_client.delete_role(RoleName=role_name)
+        set_progress(f"Deleted IAM role {role_name}")
+    except ClientError as err:
+        if error_code(err) != "NoSuchEntity":
+            raise
+
+
+def delete_orchestrator(resource):
+    """
+    Remove the Kubernetes orchestrator and the Environment the build created
+    for it. Environment.container_orchestrator is SET_NULL, so without this the
+    environment would be orphaned. Only an environment with no resource
+    handler is touched: an AWS environment is never deleted here.
+    """
+    orchestrator_id = resource.get_cf_values_as_dict().get(
+        "container_orchestrator_id"
+    )
+    if not orchestrator_id:
+        return
+
+    try:
+        kubernetes = Kubernetes.objects.get(id=orchestrator_id)
     except Kubernetes.DoesNotExist:
-        pass
+        return
 
+    removed = Environment.objects.filter(
+        container_orchestrator=kubernetes,
+        resource_handler__isnull=True,
+        name__startswith="Resource-",
+    ).delete()[0]
 
-def _delete_cluster_node_group(client, resource, node_groups):
-    try:
-        for node_group in node_groups:
-            # delete node group
-            client.delete_nodegroup(clusterName=resource.name, nodegroupName=node_group)
-
-        while len(node_groups) != 0:
-            node_groups = client.list_nodegroups(clusterName=resource.name)[
-                "nodegroups"
-            ]
-
-            set_progress(f"Still deleting Node Group...")
-            time.sleep(10)
-
-    except Exception as error:
-        return "FAILURE", "", f"{error}"
-
-
-def _delete_cluster(client, resource, aws_rh):
-    try:
-        # delet cluster
-        client.delete_cluster(name=resource.name)
-
-        # delete unique roles created for cluster and respective nodegroups
-        delete_roles(aws_rh, resource, resource.role_arn.split("/")[1])
-
-    except Exception as error:
-        return "FAILURE", "", f"{error}"
+    kubernetes.delete()
+    set_progress(
+        f"Removed container orchestrator {kubernetes.name} and {removed} environment(s)"
+    )
 
 
 def run(job, resource, *args, **kwargs):
-    set_progress(f"Elastic K8S Delete plugin running for resource: {resource}")
+    set_progress(f"Deleting EKS cluster resource {resource.name}")
     logger.info(f"Elastic K8S Delete plugin running for resource: {resource.name}")
 
-    cf_value = resource.get_cf_values_as_dict()
-    aws_rh_id = cf_value.get("aws_rh_id", None)
+    aws_rh_id = resource.get_cf_values_as_dict().get("aws_rh_id")
 
-    if aws_rh_id is None or aws_rh_id == "":
-        return (
-            "SUCCESS",
-            "Kubernetes {0} deleted successfully".format(
-                "Node Group"
-                if resource.resource_type.name == "eks_nodegroup"
-                else "Cluster"
-            ),
-            "",
+    if aws_rh_id:
+        aws_rh: AWSHandler = AWSHandler.objects.get(id=aws_rh_id)
+        client = get_boto_client(aws_rh, resource, "eks")
+
+        delete_node_groups(client, resource)
+        delete_cluster(client, resource)
+        delete_cluster_role(aws_rh, resource)
+    else:
+        set_progress(
+            "No AWS handler is recorded on the resource; removing it from CloudBolt only"
         )
 
-    aws_rh: AWSHandler = AWSHandler.objects.get(id=aws_rh_id)
+    delete_orchestrator(resource)
 
-    client = get_boto_client(aws_rh, resource, "eks")
-
-    set_progress(f"Start deleting eks cluster node groups...")
-
-    try:
-        # get node group list
-        node_groups = client.list_nodegroups(clusterName=resource.name)["nodegroups"]
-    except Exception as err:
-        pass
-    else:
-        _delete_cluster_node_group(client, resource, node_groups)
-
-    set_progress(f"Start deleting eks cluster...")
-
-    try:
-        client.describe_cluster(name=resource.name)
-    except Exception:
-        pass
-    else:
-        _delete_cluster(client, resource, aws_rh)
-
-    # delete Kubernetes from container orchestrator
-    delete_kubernetes_object(resource)
-
-    for sub_resource in Resource.objects.filter(
-        blueprint=resource.blueprint,
-        parent_resource=resource,
-        resource_type__name="eks_nodegroup",
-    ):
-        sub_resource.delete()
+    Resource.objects.filter(
+        parent_resource=resource, resource_type__name="eks_nodegroup"
+    ).delete()
 
     return (
         "SUCCESS",

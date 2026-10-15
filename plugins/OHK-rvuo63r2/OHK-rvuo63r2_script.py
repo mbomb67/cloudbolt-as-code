@@ -1,9 +1,12 @@
 """
-Resource action for AWS EKS Cluster update kubernetes version Service blueprint.
+Day-2 action for the AWS EKS blueprint: upgrade the cluster's control plane to
+the next Kubernetes minor version EKS offers.
 """
 
 import time
+
 from botocore.exceptions import ClientError
+
 from common.methods import set_progress
 from resourcehandlers.aws.models import AWSHandler
 from utilities.logger import ThreadLogger
@@ -11,115 +14,144 @@ from utilities.logger import ThreadLogger
 logger = ThreadLogger(__name__)
 
 
-def get_boto_client(rh: AWSHandler, region=None, boto_service="eks"):
+def version_key(version):
+    return tuple(int(part) for part in str(version).split("."))
+
+
+def list_available_cluster_versions(client):
     """
-    get_boto_client
+    Kubernetes versions EKS offers today, newest first, without the ones AWS
+    reports as unsupported. The API pages with nextToken. Keep in step with
+    the same helper in the Deploy EKS Cluster plugin.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeClusterVersions.html
     """
+    versions = []
+    token = None
+    while True:
+        params = {"clusterType": "eks", "includeAll": True}
+        if token:
+            params["nextToken"] = token
+        page = client.describe_cluster_versions(**params)
+        versions.extend(page.get("clusterVersions", []))
+        token = page.get("nextToken")
+        if not token:
+            break
 
-    if region is None:
-        return None
+    supported = [
+        v
+        for v in versions
+        if (v.get("versionStatus") or v.get("status") or "")
+        .upper()
+        .replace("-", "_")
+        != "UNSUPPORTED"
+    ]
+    return sorted(
+        supported, key=lambda v: version_key(v["clusterVersion"]), reverse=True
+    )
 
-    # get aws client object
-    client = rh.get_boto3_client(region, boto_service)
 
-    return client
+def version_status_label(version_info):
+    status = version_info.get("versionStatus") or version_info.get("status") or ""
+    return status.replace("_", " ").replace("-", " ").lower()
 
 
-def generate_options_for_kubernetes_version(control_value=None, server=None, **kwargs):
+def get_eks_client(resource):
+    rh = AWSHandler.objects.get(id=resource.aws_rh_id)
+    return rh.get_boto3_client(resource.aws_region, "eks")
+
+
+def current_cluster_version(resource, client):
+    version = resource.get_cf_values_as_dict().get("kubernetes_version", "")
+    if version:
+        return str(version).strip()
+    return client.describe_cluster(name=resource.name)["cluster"]["version"]
+
+
+def generate_options_for_kubernetes_version(server=None, **kwargs):
     """
-    generate options for kubernetes version if required version not available then add here
+    The next minor version after the cluster's current one. EKS updates a
+    control plane one minor version at a time, so that is the only value AWS
+    accepts: https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html
     """
-    # Keep in step with generate_options_for_k8s_version in the Deploy EKS Cluster plugin.
-    k8_version = [
-        ("", "--Select Kubernetes Version--"),
-        ("1.34", "1.34"),
-        ("1.33", "1.33"),
-        ("1.32", "1.32"),
-        ("1.31", "1.31"),
+    resource = kwargs.get("resource", None)
+
+    if resource is None:
+        return []
+
+    client = get_eks_client(resource)
+    current = current_cluster_version(resource, client)
+
+    newer = [
+        v
+        for v in list_available_cluster_versions(client)
+        if version_key(v["clusterVersion"]) > version_key(current)
     ]
 
-    resource = kwargs.get("resource", None)
-    initial_value = ""
+    if not newer:
+        return [("", f"No newer version is available; the cluster is on {current}")]
 
-    if resource:
-        initial_value = resource.get_cf_values_as_dict().get("kubernetes_version", "")
+    next_version = min(newer, key=lambda v: version_key(v["clusterVersion"]))
+    label = f"{next_version['clusterVersion']} ({version_status_label(next_version)})"
 
-    return {"initial_value": initial_value.strip(), "options": k8_version}
+    return [(next_version["clusterVersion"], label)]
 
 
-def update_cluster_version(client, resource, update_version, current_version):
-    """
-    :param client: eks
-    :param resource: eks cluster
-    :param version: update version (must be updated to earlier first)
-    :return: cluster with updated version
-    """
-    try:
-        response = client.update_cluster_version(
-            name=resource.name,
-            version=update_version,
-        )
-        # wait for update version. Check status every minutes
-        update = response["update"]
-        while update["status"] in ["InProgress", "UPDATING"]:
-            set_progress(
-                'Cluster "{}" is being updated'.format(resource.name), increment_tasks=1
-            )
+def run(job, resource, **kwargs):
+    version = "{{ kubernetes_version }}".strip()
 
-            set_progress('status is  "{}"'.format(update["status"]), increment_tasks=1)
-
-            time.sleep(30)
-
-            update = client.describe_cluster(name=resource.name)["cluster"]
-
-        if update["status"] == "ACTIVE":
-            # endpoint does not exist when cluster has not created completely
-            resource.kubernetes_version = update["version"]
-            resource.save()
-
-            logger.info(f"resource {resource} updated successfully.")
-            return "SUCCESS", "Updated cluster version successfully", ""
-        else:
-            return (
-                "FAILURE",
-                f"EKS update cluster kubernetes version failed - {update['status']}",
-                "",
-            )
-    except ClientError as e:
+    if not version:
         return (
             "FAILURE",
-            f"First update to earlier version {(float(current_version)+float(0.01)):.2f} or check available version for update",
-            e,
+            "",
+            "No Kubernetes version was chosen; EKS offers nothing newer than the cluster's version.",
         )
-    except Exception as err:
-        return "FAILURE", "Amazon EKS cluster version could not be updated.", str(err)
 
+    client = get_eks_client(resource)
+    current = current_cluster_version(resource, client)
 
-def run(resource, **kwargs):
-    set_progress(
-        f"Starting Provision of {resource} resource  for cluster version update."
+    set_progress(f"Updating cluster {resource.name} from Kubernetes {current} to {version}")
+
+    try:
+        update = client.update_cluster_version(name=resource.name, version=version)[
+            "update"
+        ]
+    except ClientError as err:
+        return "FAILURE", f"EKS refused the update to {version}", str(err)
+
+    # Track the update object AWS returned; its status is InProgress, Failed,
+    # Cancelled, or Successful.
+    # https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeUpdate.html
+    while update["status"] == "InProgress":
+        set_progress(
+            f'Cluster "{resource.name}" update {update["id"]} is {update["status"]}',
+            increment_tasks=1,
+        )
+        time.sleep(30)
+        update = client.describe_update(name=resource.name, updateId=update["id"])[
+            "update"
+        ]
+
+    if update["status"] != "Successful":
+        errors = "; ".join(
+            f"{e.get('errorCode')}: {e.get('errorMessage')}"
+            for e in update.get("errors", [])
+        )
+        return (
+            "FAILURE",
+            f"Cluster update finished with status {update['status']}",
+            errors,
+        )
+
+    cluster = client.describe_cluster(name=resource.name)["cluster"]
+    resource.kubernetes_version = cluster["version"]
+    resource.platform_version = cluster["platformVersion"]
+    resource.status = cluster["status"]
+    resource.save()
+
+    logger.info(f"resource {resource} updated to {cluster['version']}")
+
+    return (
+        "SUCCESS",
+        f"Cluster {resource.name} is now on Kubernetes {cluster['version']}. Update its node groups next.",
+        "",
     )
-    logger.debug(
-        f"Starting Provision of {resource} resource  for cluster version update."
-    )
-
-    current_version = resource.get_cf_values_as_dict()["kubernetes_version"]
-
-    # aws handler
-    rh = AWSHandler.objects.get(id=resource.aws_rh_id)
-
-    # region
-    region = resource.aws_region
-
-    set_progress("Connecting to Amazon EKS")
-
-    # eks client
-    client = get_boto_client(rh, region, "eks")
-
-    # version for update
-    version = "{{ kubernetes_version }}"
-
-    # update kubernetes version for cluster
-    msg = update_cluster_version(client, resource, version, current_version)
-
-    return msg

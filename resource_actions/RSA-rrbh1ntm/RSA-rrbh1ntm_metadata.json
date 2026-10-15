@@ -4,61 +4,14 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": null,
-            "field-dependency-controlling-set": [
-                {
-                    "controlling-field": {
-                        "name": "nodegroup_resource_status_a275"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "delete_nodegroup_a275"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
+            "description": "The node group to delete, from the cluster's eks_nodegroup sub-resources.",
+            "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
             "hide-if-default-value": false,
             "id": "CF-216p8ft8",
             "label": "Delete Nodegroup",
             "name": "delete_nodegroup",
-            "placeholder": null,
-            "relevant-osfamilies": [],
-            "required": true,
-            "show-as-attribute": false,
-            "show-on-servers": false,
-            "type": "STR",
-            "value-pattern-string": null
-        },
-        {
-            "allow-multiple": false,
-            "available-all-servers": false,
-            "description": null,
-            "field-dependency-controlling-set": [],
-            "field-dependency-dependent-set": [
-                {
-                    "controlling-field": {
-                        "name": "nodegroup_resource_status_a275"
-                    },
-                    "custom-field-options": [],
-                    "dependency-type": "REGENOPTIONS",
-                    "dependent-field": {
-                        "name": "delete_nodegroup_a275"
-                    },
-                    "maximum": null,
-                    "minimum": null,
-                    "regex": ""
-                }
-            ],
-            "global-options": [],
-            "hide-if-default-value": false,
-            "id": "CF-xdcvbr7y",
-            "label": "Nodegroup Resource Status",
-            "name": "nodegroup_resource_status",
             "placeholder": null,
             "relevant-osfamilies": [],
             "required": true,

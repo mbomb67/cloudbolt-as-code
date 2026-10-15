@@ -1,5 +1,6 @@
 """
-Build service item action for AWS  EKS Cluster Service blueprint.
+Discovery plugin for the AWS EKS blueprint: adopts every EKS cluster in every
+AWS environment as a Kubernetes Cluster resource and container orchestrator.
 """
 
 from __future__ import unicode_literals
@@ -17,7 +18,7 @@ from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
-RESOURCE_IDENTIFIER = ["cluster_name", "aws_region"]
+RESOURCE_IDENTIFIER = ["eks_cluster_name", "aws_region"]
 
 
 def get_boto3_eks_client(env_obj):
@@ -227,7 +228,7 @@ def discover_resources(**kwargs):
 
                 kubernetes = Kubernetes.objects.create(
                     name=cluster["name"],
-                    ip=cluster["endpoint"].strip("https://"),
+                    ip=cluster["endpoint"].removeprefix("https://"),
                     port=443,
                     protocol="https",
                     auth_type="TOKEN",
@@ -238,14 +239,13 @@ def discover_resources(**kwargs):
                     auto_rotate_token=True,
                 )
 
-                kubernetes.environment_set.add(environment)
-
                 resource.container_orchestrator_id = kubernetes.id
 
-                # create a new Environment for the new container orchestrator
+                # Same per-cluster Environment the build plugin creates; the AWS
+                # environment is not re-pointed at the orchestrator.
                 Environment.objects.create(
-                    name="Resource-{0} Environment #{1}".format(
-                        resource.id, environment.aws_region
+                    name="Resource-{0} Environment#{1}".format(
+                        resource.name, environment.aws_region
                     ),
                     container_orchestrator=kubernetes,
                 )
@@ -262,14 +262,14 @@ def discover_resources(**kwargs):
             resource.aws_rh_id = handler.id
             resource.aws_region = environment.aws_region
             resource.lifecycle = "ACTIVE"
-            resource.eks_cluster_name = str(handler.id) + cluster["name"]
+            resource.eks_cluster_name = cluster["name"]
             resource.arn = cluster["arn"]
             resource.created_at = cluster["createdAt"]
             resource.kubernetes_version = cluster["version"]
             resource.role_arn = cluster["roleArn"]
             resource.status = cluster["status"]
             resource.platform_version = cluster["platformVersion"]
-            resource.security_groups = cluster["resourcesVpcConfig"]["securityGroupIds"]
+            resource.eks_security_groups = cluster["resourcesVpcConfig"]["securityGroupIds"]
             resource.eks_subnets = cluster["resourcesVpcConfig"]["subnetIds"]
             resource.vpc_id = cluster["resourcesVpcConfig"]["vpcId"]
             resource.env_id = environment.id

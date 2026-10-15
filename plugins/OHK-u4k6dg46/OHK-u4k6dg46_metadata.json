@@ -50,6 +50,19 @@
                     "maximum": null,
                     "minimum": null,
                     "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "env_id_a272"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "k8s_version_a272"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
                 }
             ],
             "global_options": [],
@@ -68,15 +81,24 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [
-                "1.19",
-                "1.20",
-                "1.21",
-                "1.22"
+            "description": "Versions EKS offers in the chosen environment's region; AWS's default version is preselected.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "env_id_a272"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "k8s_version_a272"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
             ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
             "hide_if_default_value": false,
             "id": "CF-0bevvp3z",
             "label": "Kubernetes Version",

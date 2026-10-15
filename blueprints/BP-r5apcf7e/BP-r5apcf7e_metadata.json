@@ -14,13 +14,7 @@
             "execute_in_parallel": false,
             "id": "BDI-leunwuwx",
             "name": "Deploy EKS Cluster",
-            "parameter_defaults": [
-                {
-                    "label": "Kubernetes Version",
-                    "name": "k8s_version_a272",
-                    "value": "1.33"
-                }
-            ],
+            "parameter_defaults": [],
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,

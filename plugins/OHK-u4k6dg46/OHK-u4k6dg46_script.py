@@ -267,11 +267,66 @@ def generate_options_for_env_id(**kwargs):
     return options
 
 
-def generate_options_for_k8s_version(**kwargs):
+def version_key(version):
+    return tuple(int(part) for part in str(version).split("."))
+
+
+def list_available_cluster_versions(client):
     """
-    generate options for kubernetes version if required version not available then add here
+    Kubernetes versions EKS offers today, newest first, without the ones AWS
+    reports as unsupported. The API pages with nextToken.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeClusterVersions.html
     """
-    return ["1.33", "1.34", "1.32", "1.31"]
+    versions = []
+    token = None
+    while True:
+        params = {"clusterType": "eks", "includeAll": True}
+        if token:
+            params["nextToken"] = token
+        page = client.describe_cluster_versions(**params)
+        versions.extend(page.get("clusterVersions", []))
+        token = page.get("nextToken")
+        if not token:
+            break
+
+    supported = [
+        v
+        for v in versions
+        if (v.get("versionStatus") or v.get("status") or "")
+        .upper()
+        .replace("-", "_")
+        != "UNSUPPORTED"
+    ]
+    return sorted(
+        supported, key=lambda v: version_key(v["clusterVersion"]), reverse=True
+    )
+
+
+def version_status_label(version_info):
+    status = version_info.get("versionStatus") or version_info.get("status") or ""
+    return status.replace("_", " ").replace("-", " ").lower()
+
+
+def generate_options_for_k8s_version(control_value=None, server=None, **kwargs):
+    """
+    Versions EKS offers in the chosen environment's region, with the version
+    AWS marks as default preselected. Depends on Environment.
+    """
+    if control_value is None or control_value == "":
+        return []
+
+    client, _ = get_boto_client(control_value, "eks")
+    versions = list_available_cluster_versions(client)
+
+    options = [
+        (v["clusterVersion"], f"{v['clusterVersion']} ({version_status_label(v)})")
+        for v in versions
+    ]
+    default = next(
+        (v["clusterVersion"] for v in versions if v.get("defaultVersion")),
+        options[0][0] if options else "",
+    )
+    return {"initial_value": default, "options": options}
 
 
 def generate_options_for_security_groups(control_value=None, server=None, **kwargs):
@@ -397,7 +452,6 @@ def run(job, resource, logger=None, **kwargs):
     rh = environment.resource_handler.cast()
 
     resource.name = cluster_name
-    resource.cluster_name = cluster_name
     resource.aws_region = environment.aws_region
 
     # Store the resource handler's ID on this resource so the teardown action
@@ -410,6 +464,13 @@ def run(job, resource, logger=None, **kwargs):
             name=cluster_name,
             version="{{ k8s_version }}",
             roleArn=role_arn,
+            # Access entries are the current EKS authentication convention; the
+            # aws-auth ConfigMap stays enabled so existing tooling keeps working.
+            # https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateAccessConfigRequest.html
+            accessConfig={
+                "authenticationMode": "API_AND_CONFIG_MAP",
+                "bootstrapClusterCreatorAdminPermissions": True,
+            },
             resourcesVpcConfig={
                 "subnetIds": subnets,
                 "endpointPublicAccess": True,
@@ -439,7 +500,7 @@ def run(job, resource, logger=None, **kwargs):
     if hasattr(Kubernetes, "resource_handler"):
         kubernetes = Kubernetes.objects.create(
             name=cluster_name,
-            ip=cluster_rsp["endpoint"].strip("https://"),
+            ip=cluster_rsp["endpoint"].removeprefix("https://"),
             port=443,
             protocol="https",
             auth_type="TOKEN",
@@ -452,7 +513,7 @@ def run(job, resource, logger=None, **kwargs):
     else:
         kubernetes = Kubernetes.objects.create(
             name=cluster_name,
-            ip=cluster_rsp["endpoint"].strip("https://"),
+            ip=cluster_rsp["endpoint"].removeprefix("https://"),
             port=443,
             protocol="https",
             auth_type="TOKEN",
@@ -460,8 +521,6 @@ def run(job, resource, logger=None, **kwargs):
             servicepasswd="",
             container_technology=tech,
         )
-
-    kubernetes.environment_set.add(environment)
 
     resource.container_orchestrator_id = kubernetes.id
 
@@ -472,7 +531,10 @@ def run(job, resource, logger=None, **kwargs):
 
     resource.save()
 
-    # create a new Environment for the new container orchestrator, and attach it to eks cluster
+    # The orchestrator gets its own Environment so containers can be ordered
+    # into the cluster. Environment.container_orchestrator is a foreign key,
+    # so the AWS environment itself is left alone: pointing it at the
+    # orchestrator (what environment_set.add did) would hijack it.
     Environment.objects.create(
         name="Resource-{} Environment#{}".format(resource.name, environment.aws_region),
         container_orchestrator=kubernetes,
