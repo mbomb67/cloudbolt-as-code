@@ -167,14 +167,20 @@ def discover_resources(**kwargs):
         resource_handler__resource_technology__name="Amazon Web Services"
     )
 
-    # get AWS  EKS BP object
-    bp = ServiceBlueprint.objects.filter(name__iexact="AWS EKS").first()
+    # CloudBolt passes the blueprint that owns this discovery plugin
+    bp = kwargs.get("blueprint") or ServiceBlueprint.objects.filter(
+        name__iexact="AWS EKS"
+    ).first()
 
     group = Group.objects.filter(name__icontains="unassigned").first()
 
-    resource_type, _ = ResourceType.objects.get_or_create(
-        name="cluster", defaults={"label": "Cluster", "icon": "far fa-file"}
-    )
+    # use the blueprint's resource type so discovered clusters list with built ones
+    resource_type = bp.resource_type if bp is not None else None
+    if resource_type is None:
+        resource_type, _ = ResourceType.objects.get_or_create(
+            name="kubernetes_cluster",
+            defaults={"label": "Kubernetes Cluster", "icon": "fas fa-dharmachakra"},
+        )
 
     discovered = []
 

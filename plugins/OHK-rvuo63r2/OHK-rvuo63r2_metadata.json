@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "",
+    "description": "Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish.",
     "id": "OHK-rvuo63r2",
     "max_retries": 0,
     "name": "Update EKS Version",

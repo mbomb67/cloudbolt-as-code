@@ -18,7 +18,7 @@
                 {
                     "label": "Kubernetes Version",
                     "name": "k8s_version_a272",
-                    "value": "1.28"
+                    "value": "1.33"
                 }
             ],
             "rate": null,
@@ -28,7 +28,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Amazon Elastic Container Service for Kubernetes\r\nProvided resource action feature to add node group with autoscaling,  update Kubernetes version etc",
+    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-e9qppbei"

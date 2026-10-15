@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources.",
     "id": "OHK-pgbigmd9",
     "max_retries": 0,
     "name": "Delete Cluster",

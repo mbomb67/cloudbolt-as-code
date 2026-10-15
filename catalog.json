@@ -260,6 +260,25 @@
     "used_by": []
   },
   {
+    "id": "BP-r5apcf7e",
+    "type": "blueprints",
+    "name": "AWS EKS",
+    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version.",
+    "path": "blueprints/BP-r5apcf7e",
+    "readme": "blueprints/BP-r5apcf7e/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-e9qppbei",
+      "plugins/OHK-pgbigmd9",
+      "plugins/OHK-u4k6dg46",
+      "resource_actions/RSA-0g4pfrde",
+      "resource_actions/RSA-dhgwoj3z",
+      "resource_actions/RSA-f9ivvn5q",
+      "resource_actions/RSA-rrbh1ntm"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-s2fsbkpo",
     "type": "blueprints",
     "name": "Migrate Aria Automation Projects to Groups",
@@ -832,6 +851,7 @@
       "plugins/OHK-cfciy0fo"
     ],
     "used_by": [
+      "blueprints/BP-r5apcf7e",
       "blueprints/BP-122nbdt5",
       "blueprints/BP-anonytrx",
       "blueprints/BP-tikkhf2y",
@@ -1047,6 +1067,19 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-h7g0i0dx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-39mebtxi",
+    "type": "plugins",
+    "name": "Delete AWS EKS Nodegroup",
+    "description": "Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource.",
+    "path": "plugins/OHK-39mebtxi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-rrbh1ntm"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1506,6 +1539,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-bfhdr8vx",
+    "type": "plugins",
+    "name": "Add AWS EKS Nodegroup",
+    "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
+    "path": "plugins/OHK-bfhdr8vx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-f9ivvn5q"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-bjgpsxoq",
     "type": "plugins",
     "name": "Azure Price Sheet Refresh",
@@ -1691,6 +1737,19 @@
     ],
     "used_by": [
       "blueprints/BP-tikkhf2y"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-e9qppbei",
+    "type": "plugins",
+    "name": "Discover EKS",
+    "description": "Discovers EKS clusters in every AWS environment and creates or updates a CloudBolt resource and Kubernetes container orchestrator for each.",
+    "path": "plugins/OHK-e9qppbei",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1991,6 +2050,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-pgbigmd9",
+    "type": "plugins",
+    "name": "Delete Cluster",
+    "description": "Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources.",
+    "path": "plugins/OHK-pgbigmd9",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-pmng6q6r",
     "type": "plugins",
     "name": "Azure PS (Deployment Script) - Tag Resource Group",
@@ -2045,6 +2117,19 @@
     ],
     "used_by": [
       "blueprints/BP-tikkhf2y"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-prji4iqt",
+    "type": "plugins",
+    "name": "List AWS EKS Nodegroup",
+    "description": "Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has.",
+    "path": "plugins/OHK-prji4iqt",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-0g4pfrde"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2116,6 +2201,19 @@
     ],
     "used_by": [
       "mcp_tool_actions/MTA-ab0krash"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-rvuo63r2",
+    "type": "plugins",
+    "name": "Update EKS Version",
+    "description": "Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish.",
+    "path": "plugins/OHK-rvuo63r2",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-dhgwoj3z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2199,6 +2297,19 @@
     "uses": [],
     "used_by": [
       "orchestration_actions/HPA-1lp8xqo3"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-u4k6dg46",
+    "type": "plugins",
+    "name": "Deploy EKS Cluster",
+    "description": "Creates an Amazon EKS cluster and its IAM cluster role in the chosen AWS environment, registers it as a CloudBolt Kubernetes container orchestrator, and stores the cluster details on the resource.",
+    "path": "plugins/OHK-u4k6dg46",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2521,6 +2632,21 @@
     "schedule": "0 6 * * 1"
   },
   {
+    "id": "RSA-0g4pfrde",
+    "type": "resource_actions",
+    "name": "List AWS EKS Nodegroup",
+    "description": "Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has.",
+    "path": "resource_actions/RSA-0g4pfrde",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-prji4iqt"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-0ldsokuc",
     "type": "resource_actions",
     "name": "Change Access Tier",
@@ -2642,6 +2768,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-dhgwoj3z",
+    "type": "resource_actions",
+    "name": "Update EKS Version",
+    "description": "Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish.",
+    "path": "resource_actions/RSA-dhgwoj3z",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-rvuo63r2"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-dxrh4m6j",
     "type": "resource_actions",
     "name": "Terraform Update",
@@ -2686,6 +2827,21 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-f9ivvn5q",
+    "type": "resource_actions",
+    "name": "Add AWS EKS Nodegroup",
+    "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
+    "path": "resource_actions/RSA-f9ivvn5q",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-bfhdr8vx"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "enabled": true
   },
@@ -2823,6 +2979,21 @@
     ],
     "used_by": [
       "blueprints/BP-zmeot1ff"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-rrbh1ntm",
+    "type": "resource_actions",
+    "name": "Delete AWS EKS Nodegroup",
+    "description": "Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource.",
+    "path": "resource_actions/RSA-rrbh1ntm",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-39mebtxi"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "enabled": true
   },

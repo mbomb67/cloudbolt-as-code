@@ -71,7 +71,7 @@
         "nodegroup_resource_status",
         "delete_nodegroup"
     ],
-    "description": "",
+    "description": "Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource.",
     "id": "OHK-39mebtxi",
     "max_retries": 0,
     "name": "Delete AWS EKS Nodegroup",

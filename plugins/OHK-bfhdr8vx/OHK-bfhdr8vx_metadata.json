@@ -179,7 +179,7 @@
         "max_nodes",
         "desired_nodes"
     ],
-    "description": "limit of 10 managed node groups per EKS cluster, each with a maximum of 100 nodes per node group. This means you can have a maximum of 1000 managed nodes running on a given EKS cluster",
+    "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
     "id": "OHK-bfhdr8vx",
     "max_retries": 0,
     "name": "Add AWS EKS Nodegroup",

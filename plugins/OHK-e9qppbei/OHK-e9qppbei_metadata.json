@@ -1,5 +1,5 @@
 {
-    "description": "",
+    "description": "Discovers EKS clusters in every AWS environment and creates or updates a CloudBolt resource and Kubernetes container orchestrator for each.",
     "id": "OHK-e9qppbei",
     "max_retries": 0,
     "name": "Discover EKS",

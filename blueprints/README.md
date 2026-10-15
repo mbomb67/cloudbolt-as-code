@@ -5,6 +5,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 
 | Blueprint | ID | Description |
 |---|---|---|
+| AWS EKS | [BP-r5apcf7e](BP-r5apcf7e/README.md) | Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version. |
 | Azure Cross-Tenant Subscription | [BP-5pei9cno](BP-5pei9cno/README.md) | Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections. |
 | Azure Network Security Group | [BP-3fdhnw54](BP-3fdhnw54/README.md) | Creates, deletes, and discovers Azure network security groups. |
 | Azure Resource Group | [BP-zmeot1ff](BP-zmeot1ff/README.md) | Creates, deletes, and discovers Azure resource groups, with day-2 actions for tags, delete locks, and contents. |

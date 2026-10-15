@@ -29,14 +29,13 @@ def generate_options_for_kubernetes_version(control_value=None, server=None, **k
     """
     generate options for kubernetes version if required version not available then add here
     """
+    # Keep in step with generate_options_for_k8s_version in the Deploy EKS Cluster plugin.
     k8_version = [
         ("", "--Select Kubernetes Version--"),
-        ("1.28", "1.28"),
-        ("1.27", "1.27"),
-        ("1.26", "1.26"),
-        ("1.25", "1.25"),
-        ("1.24", "1.24"),
-        ("1.23", "1.23"),
+        ("1.34", "1.34"),
+        ("1.33", "1.33"),
+        ("1.32", "1.32"),
+        ("1.31", "1.31"),
     ]
 
     resource = kwargs.get("resource", None)

@@ -231,15 +231,19 @@ def create_cluster_role(cluster_name, iam_client):
     return cluster_role_rsp["Role"]["Arn"]
 
 
+def _resolve_group(group):
+    """The group kwarg arrives as a Group or as its name depending on caller."""
+    if group is None or isinstance(group, Group):
+        return group
+    return Group.objects.filter(name=str(group)).first()
+
+
 def generate_options_for_env_id(**kwargs):
     """
-    Generate AWS region options
+    List the AWS environments the ordering group is entitled to.
     """
-    group_name = kwargs["group"]
-
-    try:
-        group = Group.objects.get(name=group_name)
-    except Exception as err:
+    group = _resolve_group(kwargs.get("group"))
+    if group is None:
         return []
 
     # fetch all group environment
