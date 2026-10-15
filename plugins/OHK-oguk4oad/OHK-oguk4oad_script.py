@@ -6,8 +6,9 @@ The self-service path is the AWS EKS Namespace blueprint, where a team orders
 a namespace on a cluster it is entitled to. This action is the platform-admin
 path: whoever may run actions on the cluster resource picks the team's
 CloudBolt group and the tier, and the namespace is filed as a resource of the
-AWS EKS Namespace blueprint owned by that group, so it gets the same resource
-type, day-2 actions, discovery, and teardown as an ordered one. The work
+AWS EKS Namespace blueprint owned by that group and nested under the cluster
+resource, so it gets the same resource type, day-2 actions, discovery, and
+teardown as an ordered one and shows on the cluster's page. The work
 itself is ``eks_namespace.create_landing_zone``, shared with the blueprint's
 build plugin.
 
@@ -104,10 +105,11 @@ def run(job, resource, **kwargs):
 
     # ---- File the namespace as the group's resource, then build it ------
     namespace_resource = new_namespace_resource(
-        blueprint, namespace, group, owner=getattr(job, "owner", None)
+        blueprint, namespace, group, owner=getattr(job, "owner", None), cluster=cluster
     )
     set_progress(
-        f"Created resource '{namespace}' under '{blueprint.name}' for group '{group.name}'."
+        f"Created resource '{namespace}' under '{blueprint.name}' for group '{group.name}', "
+        f"as a sub-resource of '{cluster.name}'."
     )
 
     status, output, error = create_landing_zone(

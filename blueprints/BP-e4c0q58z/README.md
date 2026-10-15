@@ -28,6 +28,7 @@ The pinned environment is named `<cluster> / <namespace>#<region>`, points at th
 - CloudBolt's native Container Object item deploys into the namespace named in its YAML, so a manifest template sets `namespace: "{{ job.job_parameters.cast.environment.kubernetes_namespace }}"` in each object's metadata; a manifest without a namespace lands in `default`.
 
 ## Notes
+- Each namespace resource is a sub-resource of its Kubernetes Cluster resource while staying owned by the ordering group, so the cluster's page and Workloads tab list it, Delete Cluster refuses while any namespace remains, and a cluster deleted regardless retires its namespaces with it. Discovery sets the same parent link and hands an imported namespace to the group recorded in its `cloudbolt.io/group-id` annotation.
 - Namespace names must be 1-63 lowercase letters, digits, or hyphens; names starting with `kube-` and the built-in namespaces are refused. An existing namespace is never adopted by an order; import it with discovery instead.
 - The ResourceQuota caps CPU and memory requests and limits, persistent volume claim storage and count, and pod count; the LimitRange gives containers that set no requests or limits 100m/128Mi requests and 500m/512Mi limits, which a quota requires. Both are enforced by the cluster's API server.
 - Leave Allow Ingress From Other Namespaces unchecked to isolate the namespace: ingress is denied except from pods in the same namespace and in `kube-system`. Load balancers in IP target mode and other namespaces need their own allow policies.

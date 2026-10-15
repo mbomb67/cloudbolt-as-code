@@ -1,5 +1,5 @@
 {
-    "description": "Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources.",
+    "description": "Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources, refusing while namespace landing zones remain on the cluster.",
     "id": "OHK-pgbigmd9",
     "max_retries": 0,
     "name": "Delete Cluster",

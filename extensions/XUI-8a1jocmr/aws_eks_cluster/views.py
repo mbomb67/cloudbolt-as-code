@@ -101,6 +101,9 @@ CUSTOM_AMI_TYPE = "CUSTOM"
 
 # Node groups are stored as sub-resources of this type by the blueprint.
 NODEGROUP_RESOURCE_TYPE = "eks_nodegroup"
+# Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources of
+# this type, owned by their teams.
+NAMESPACE_RESOURCE_TYPE = "eks_namespace"
 
 # Cluster, node group and add-on names as EKS constrains them, plus the dots
 # some marketplace add-on names carry.
@@ -849,6 +852,23 @@ def _workloads_context(resource, profile):
         namespace = (service.get("metadata") or {}).get("namespace", "")
         services_by_namespace[namespace] = services_by_namespace.get(namespace, 0) + 1
 
+    # Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources
+    # of the cluster; link each one from its row so the owning team and the
+    # CloudBolt resource are visible next to the live namespace.
+    landing_zones = {}
+    for zone in Resource.objects.filter(
+        parent_resource=resource, resource_type__name=NAMESPACE_RESOURCE_TYPE, lifecycle="ACTIVE"
+    ).select_related("group"):
+        try:
+            url = zone.get_absolute_url()
+        except Exception:
+            url = ""
+        landing_zones[_attr(zone, "eks_namespace_name") or zone.name] = {
+            "url": url,
+            "group": zone.group.name if zone.group else "",
+            "tier": _attr(zone, "eks_namespace_size_tier") or "",
+        }
+
     namespace_rows = []
     for namespace in namespaces:
         name = (namespace.get("metadata") or {}).get("name", "")
@@ -860,6 +880,7 @@ def _workloads_context(resource, profile):
         namespace_rows.append({
             "name": name,
             "status": pill,
+            "landing_zone": landing_zones.get(name),
             "pods": pods_by_namespace.get(name, 0),
             "pods_not_running": waiting_by_namespace.get(name, 0),
             "deployments": deployments_by_namespace.get(name, 0),

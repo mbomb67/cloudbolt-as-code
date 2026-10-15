@@ -59,6 +59,9 @@ LABEL_RESOURCE_ID = "cloudbolt.io/resource-id"
 ANNOTATION_EXPIRES = "cloudbolt.io/lease-expires"
 ANNOTATION_OWNER = "cloudbolt.io/owner"
 ANNOTATION_ENVIRONMENT = "cloudbolt.io/environment-id"
+# The owning CloudBolt Group's global id (labels cannot hold spaces, so the
+# LABEL_GROUP value is only human-readable); discovery maps it back to the Group.
+ANNOTATION_GROUP_ID = "cloudbolt.io/group-id"
 
 # Names of the in-namespace objects the landing zone owns.
 QUOTA_NAME = "cloudbolt-landing-zone"
@@ -660,12 +663,12 @@ def namespace_blueprint():
     )
 
 
-def new_namespace_resource(blueprint, namespace, group, owner=None):
+def new_namespace_resource(blueprint, namespace, group, owner=None, cluster=None):
     """Create the Resource record a cluster-side action files the namespace under.
 
     Mirrors what an order creates: the blueprint's resource type, lifecycle
     ACTIVE, owned by ``group`` (the team) and ``owner`` (the admin running the
-    action).
+    action), and a sub-resource of ``cluster`` so the cluster page lists it.
     """
     return Resource.objects.create(
         name=namespace,
@@ -673,8 +676,17 @@ def new_namespace_resource(blueprint, namespace, group, owner=None):
         resource_type=blueprint.resource_type,
         group=group,
         owner=owner,
+        parent_resource=cluster,
         lifecycle="ACTIVE",
     )
+
+
+def owning_group_for_namespace(annotations):
+    """The CloudBolt Group a landing-zone namespace records in its annotations, or None."""
+    global_id = (annotations or {}).get(ANNOTATION_GROUP_ID, "")
+    if not global_id:
+        return None
+    return Group.objects.filter(global_id=global_id).first()
 
 
 # ---------------------------------------------------------------------------
@@ -691,7 +703,10 @@ def create_landing_zone(resource, cluster, orchestrator, namespace, tier_key, ow
     and ``additional_group``, with the tier mirrored into its quota, and the
     namespace listed under the orchestrator. Inputs are assumed validated.
     The namespace identity is written to ``resource`` as soon as the
-    namespace exists, so teardown can clean up after a later failure.
+    namespace exists, so teardown can clean up after a later failure, and
+    ``resource`` becomes a sub-resource of ``cluster``: the cluster page lists
+    its namespaces, Delete Cluster refuses while any remain, and a cluster
+    deleted anyway takes them along instead of orphaning them.
 
     Returns a plugin-style (status, output_msg, error_msg) tuple.
     """
@@ -723,6 +738,8 @@ def create_landing_zone(resource, cluster, orchestrator, namespace, tier_key, ow
     labels[LABEL_RESOURCE_ID] = label_value(resource.global_id)
 
     annotations = {ANNOTATION_OWNER: owner or ""}
+    if ordering_group is not None:
+        annotations[ANNOTATION_GROUP_ID] = str(ordering_group.global_id)
     if expires:
         annotations[ANNOTATION_EXPIRES] = expires.isoformat()
 
@@ -734,6 +751,7 @@ def create_landing_zone(resource, cluster, orchestrator, namespace, tier_key, ow
         return "FAILURE", "", f"Failed to create namespace '{namespace}': {exc}"
 
     resource.name = namespace
+    resource.parent_resource = cluster
     resource.set_value_for_custom_field(CF_PREFIX + "name", namespace)
     resource.set_value_for_custom_field(
         CF_PREFIX + "uid", (created_ns.get("metadata") or {}).get("uid", "")

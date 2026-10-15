@@ -17,6 +17,10 @@ Discovery contract:
   - Every dict MUST include a "name" key.
   - RESOURCE_IDENTIFIER names the field carrying the cluster-native unique ID
     (the namespace UID).
+  - "parent_resource_id" nests the namespace under its cluster resource and
+    "group" hands it to the CloudBolt Group recorded in the namespace's
+    cloudbolt.io/group-id annotation; both are Resource attributes CloudBolt
+    lets a discovery dict set.
   - All other keys are the same eks_namespace_* fields the build and teardown
     plugins use.
 
@@ -38,6 +42,7 @@ from shared_modules.eks_namespace import (
     entitled_group_names,
     find_environment_for_namespace,
     load_orchestrator,
+    owning_group_for_namespace,
 )
 from utilities.logger import ThreadLogger
 
@@ -135,6 +140,8 @@ def discover_resources(**kwargs):
             record = {
                 "name": name,  # REQUIRED
                 RESOURCE_IDENTIFIER: uid,
+                "parent_resource_id": cluster.id,
+                "group": owning_group_for_namespace(annotations),
                 CF_PREFIX + "name": name,
                 CF_PREFIX + "cluster": cluster.name,
                 CF_PREFIX + "cluster_resource_id": cluster.id,
