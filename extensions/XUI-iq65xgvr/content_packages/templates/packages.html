@@ -82,10 +82,10 @@
                 <a href="{% url 'source_code_repo_detail' row.repository.id %}">{{ row.repository.label }}</a>
                 <div class="cpk-mono"><i class="bi bi-git" aria-hidden="true"></i> {{ row.repository.branch }}</div>
                 <div class="cpk-hint">
-                  {% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}Exported {{ ago }} ago{% endblocktrans %}{% else %}{% trans "Not exported yet" %}{% endif %}
+                  {% if row.exported_at %}<span title="{{ row.exported_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.exported_at|timesince %}Exported {{ ago }} ago{% endblocktrans %}</span>{% else %}{% trans "Not exported yet" %}{% endif %}
                 </div>
                 <div class="cpk-hint">
-                  {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}Synced {{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</a>{% endif %}{% else %}{% trans "Never synced" %}{% endif %}
+                  {% if row.synced_at %}<span title="{{ row.synced_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.synced_at|timesince %}Synced {{ ago }} ago{% endblocktrans %}</span>{% if row.sync_state %} <a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</a>{% endif %}{% else %}{% trans "Never synced" %}{% endif %}
                 </div>
               {% elif row.repository_missing %}
                 <span class="cpk-pill cpk-pill-bad">{% trans "Repository deleted" %}</span>

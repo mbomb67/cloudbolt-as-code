@@ -27,10 +27,9 @@ import json
 import re
 from collections import OrderedDict
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime, timezone as dt_timezone
 
 from django.db import transaction
-from django.utils import timezone
 
 from cbhooks.models import (
     FlowControlAction,
@@ -463,7 +462,9 @@ def manifest(package):
 
 
 def _now():
-    return timezone.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Real UTC whatever the appliance's TIME_ZONE: CloudBolt runs with
+    # USE_TZ = False, so django.utils.timezone.now() is naive local time.
+    return datetime.now(dt_timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def import_manifest(data, source_code_repo_id, branch, remote_source_url):

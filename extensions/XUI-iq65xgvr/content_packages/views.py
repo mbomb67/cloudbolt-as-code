@@ -19,6 +19,7 @@ requires CB Admin.
 """
 import functools
 import json
+from datetime import timezone as dt_timezone
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -173,7 +174,14 @@ def _describe(packages):
 
 
 def _when(value):
-    return parse_datetime(value) if isinstance(value, str) and value else None
+    """A stored UTC timestamp in the appliance's own time zone (the zone its
+    other timestamps use), so "ago" and the clock time both read right."""
+    moment = parse_datetime(value) if isinstance(value, str) and value else None
+    if moment is None:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=dt_timezone.utc)
+    return moment.astimezone()
 
 
 def _jobs_for(items):

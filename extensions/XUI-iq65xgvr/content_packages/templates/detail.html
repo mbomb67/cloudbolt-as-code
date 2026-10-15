@@ -52,12 +52,12 @@
       </div>
       <div class="cell">
         <div class="k">{% trans "Last exported" %}</div>
-        <div class="v">{% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}{{ ago }} ago{% endblocktrans %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}</div>
+        <div class="v">{% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}{{ ago }} ago{% endblocktrans %}<div class="cpk-hint">{{ row.exported_at|date:"Y-m-d H:i T" }}</div>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}</div>
       </div>
       <div class="cell">
         <div class="k">{% trans "Last synced" %}</div>
         <div class="v">
-          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
+          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}<div class="cpk-hint">{{ row.synced_at|date:"Y-m-d H:i T" }}</div>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
         </div>
       </div>
       <div class="cell">
@@ -126,7 +126,7 @@
   <div class="cpk-card">
     <div class="cpk-card-h">
       <span class="cpk-card-t">{% trans "Last sync" %} &middot; {{ row.local.branch }}</span>
-      {% if row.synced_at %}<span class="cpk-muted">{% blocktrans with ago=row.synced_at|timesince %}started {{ ago }} ago{% endblocktrans %}</span>{% endif %}
+      {% if row.synced_at %}<span class="cpk-muted" title="{{ row.synced_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.synced_at|timesince %}started {{ ago }} ago{% endblocktrans %}</span>{% endif %}
       <div class="cpk-card-tools">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-reload>
           <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
