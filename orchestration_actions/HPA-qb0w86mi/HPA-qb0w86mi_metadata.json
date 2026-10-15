@@ -2,9 +2,9 @@
     "action_input_default_values": [],
     "continue_on_failure": false,
     "dependencies": {
-        "hook": "plugins/OHK-cfciy0fo"
+        "hook": "plugins/OHK-uowfrcxp"
     },
-    "description": "Pre-fills the Expiration Date order-form parameter with a default of seven days from now.",
+    "description": null,
     "enabled": true,
     "hook_point": "Generated Parameter Options",
     "id": "HPA-qb0w86mi",
