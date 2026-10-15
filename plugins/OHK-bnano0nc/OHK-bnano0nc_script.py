@@ -10,9 +10,13 @@ services, PVCs. So this plugin:
      nothing can be ordered into the namespace while it goes away (and so
      a misnamed environment can never block the cluster API: CloudBolt
      mints the EKS token from the orchestrator's first environment name);
-  2. logs an inventory of what the namespace contains before deleting;
-  3. waits for the namespace to finish terminating; then
-  4. drops the orchestrator's inventory record for the namespace.
+  2. takes the namespace out of every EKS access policy association, so a
+     namespace created later with the same name does not inherit the old
+     IAM access, deletes access entries CloudBolt created that are left
+     with nothing to grant, and deletes the namespace's pipeline roles;
+  3. logs an inventory of what the namespace contains before deleting;
+  4. waits for the namespace to finish terminating; then
+  5. drops the orchestrator's inventory record for the namespace.
 
 Idempotency: returns WARNING (not FAILURE) when the namespace, metadata, or
 orchestrator is already gone, so re-runs tear down cleanly.
@@ -22,12 +26,18 @@ Returns a 3-tuple: (status, output_msg, error_msg)
 
 from common.methods import set_progress
 from shared_modules.eks_namespace import (
+    AccessEntryError,
     NamespaceClient,
     NamespaceError,
+    access_context,
+    aws_message,
     delete_environment,
+    load_pipeline_identities,
     load_cluster,
     load_environment,
+    remove_all_namespace_access,
     remove_namespace_record,
+    remove_pipeline_identity,
 )
 from utilities.logger import ThreadLogger
 
@@ -43,6 +53,49 @@ def _remove_environment(env):
         set_progress(delete_environment(env))
     else:
         set_progress("No CloudBolt environment recorded for this namespace; nothing to remove.")
+
+
+def _remove_iam_access(resource):
+    """Drop the namespace from EKS access policies. Never fails the teardown.
+
+    Returns a warning message when the access could not be cleaned up, else "".
+    """
+    try:
+        namespace, eks, cluster_info = access_context(resource)
+        messages = remove_all_namespace_access(eks, cluster_info, namespace)
+    except AccessEntryError as exc:
+        msg = f"IAM access was not cleaned up: {exc}"
+        set_progress(msg)
+        return msg
+    except Exception as exc:
+        logger.exception("IAM access cleanup failed")
+        msg = f"IAM access was not cleaned up: {aws_message(exc)}"
+        set_progress(msg)
+        return msg
+    for message in messages:
+        set_progress(message)
+    if not messages:
+        set_progress("No IAM principal had access policies scoped to this namespace.")
+    return ""
+
+
+def _remove_pipeline_identities(resource):
+    """Delete every pipeline role CloudBolt created for the namespace. Never fails the teardown.
+
+    Runs after the access cleanup, so each role's access entry is already
+    gone; the role is deleted even when the cluster no longer exists.
+    Returns a warning message when a role could not be deleted, else "".
+    """
+    warnings = []
+    for identity in load_pipeline_identities(resource):
+        try:
+            for message in remove_pipeline_identity(resource, identity):
+                set_progress(message)
+        except Exception as exc:
+            logger.exception("Pipeline role cleanup failed")
+            warnings.append(f"IAM role {identity.get('role_name')} was not deleted: {aws_message(exc)}")
+            set_progress(warnings[-1])
+    return " ".join(warnings)
 
 
 def run(job, resource, **kwargs):
@@ -66,6 +119,11 @@ def run(job, resource, **kwargs):
 
     # ---- CloudBolt environment first -------------------------------------
     _remove_environment(load_environment(resource))
+
+    # ---- IAM access (EKS access entries) ---------------------------------
+    access_warning = " ".join(
+        w for w in (_remove_iam_access(resource), _remove_pipeline_identities(resource)) if w
+    )
 
     try:
         client = NamespaceClient.from_orchestrator(orchestrator)
@@ -122,5 +180,8 @@ def run(job, resource, **kwargs):
     if remove_namespace_record(orchestrator, namespace):
         set_progress(f"Removed '{namespace}' from orchestrator '{orchestrator.name}'.")
 
+    if access_warning:
+        status = "WARNING"
+        msg = f"{msg} {access_warning}"
     logger.info(msg)
     return status, msg, ""

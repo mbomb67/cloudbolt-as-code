@@ -36,7 +36,43 @@
     "is_orderable": true,
     "labels": [],
     "last_updated": "2026-10-15",
-    "management_actions": [],
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-mwegogck"
+            },
+            "enabled": true,
+            "label": "Request Namespace Quota Change"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-mr1clc5e"
+            },
+            "enabled": true,
+            "label": "Manage Namespace Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-03qqsnft"
+            },
+            "enabled": true,
+            "label": "Extend Namespace Expiration"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-j03ua3gm"
+            },
+            "enabled": true,
+            "label": "Namespace Connection Details"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-l59xsi54"
+            },
+            "enabled": true,
+            "label": "Manage Pipeline Identity"
+        }
+    ],
     "metadata_version": "2026.1.0",
     "name": "AWS EKS Namespace",
     "parameters": [

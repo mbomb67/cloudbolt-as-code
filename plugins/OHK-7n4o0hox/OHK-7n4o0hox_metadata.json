@@ -1,0 +1,18 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-sa5yqm9j"
+        ]
+    },
+    "description": "Shows the commands that connect kubectl to an EKS namespace and which IAM roles and users have access to it.",
+    "id": "OHK-7n4o0hox",
+    "max_retries": 0,
+    "name": "AWS EKS Namespace Connection Details",
+    "resource_technologies": [],
+    "script_filename": "OHK-7n4o0hox_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

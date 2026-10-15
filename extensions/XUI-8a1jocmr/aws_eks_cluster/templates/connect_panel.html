@@ -1,0 +1,130 @@
+{% load i18n %}
+{% if error %}
+<div class="eks-card">
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Where the namespace lives ── #}
+<div class="eks-card">
+  <div class="eks-meta">
+    <div class="cell">
+      <div class="k">{% trans "Cluster" %}</div>
+      <div class="v">{% if cluster_url %}<a href="{{ cluster_url }}">{{ cluster_name }}</a>{% else %}{{ cluster_name }}{% endif %}</div>
+    </div>
+    <div class="cell">
+      <div class="k">{% trans "Region" %}</div>
+      <div class="v">{{ region }}</div>
+    </div>
+    <div class="cell">
+      <div class="k">{% trans "API endpoint" %}</div>
+      <div class="v eks-mono">{{ endpoint|default:"&mdash;" }}</div>
+    </div>
+    <div class="cell">
+      <div class="k">{% trans "Authentication" %}</div>
+      <div class="v">{{ auth_mode_text }}</div>
+    </div>
+    <div class="cell">
+      <div class="k">{% trans "CloudBolt environment" %}</div>
+      <div class="v">{{ environment_name|default:"&mdash;" }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Commands ── #}
+<div class="eks-card">
+  <div class="eks-card-h">
+    <span class="eks-card-t">{% trans "Connect with kubectl" %}</span>
+  </div>
+  <ol class="eks-steps">
+    {% for command in commands %}
+    <li>
+      <code class="eks-mono" id="eksx-cmd-{{ forloop.counter }}">{{ command }}</code>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="eks-note">
+    {% trans "Needs the AWS CLI and credentials for an IAM role or user listed under IAM access below. update-kubeconfig also needs eks:DescribeCluster; without it, use the kubeconfig below." %}
+  </div>
+</div>
+
+{# ── kubeconfig ── #}
+<div class="eks-card">
+  <div class="eks-card-h">
+    <span class="eks-card-t">{% trans "kubeconfig" %}</span>
+    <div class="eks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-kubeconfig">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-download="#eksx-kubeconfig" data-eks-filename="{{ kubeconfig_filename }}">
+        <i class="bi bi-download" aria-hidden="true"></i> {% trans "Download" %}
+      </button>
+    </div>
+  </div>
+  <pre class="eks-pre eks-mono" id="eksx-kubeconfig">{{ kubeconfig }}</pre>
+  <div class="eks-note">
+    {% trans "Contains no secret: kubectl runs aws eks get-token with your own AWS credentials. Save it, then point KUBECONFIG at the file." %}
+  </div>
+</div>
+
+{# ── Pipeline identities ── #}
+{% if pipelines %}
+<div class="eks-card">
+  <div class="eks-card-h">
+    <span class="eks-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
+  </div>
+  {% for p in pipelines %}
+  <div class="eks-note">
+    <span class="eks-mono">{{ p.repository }}</span> &middot; {{ p.trigger }} &middot; <span class="eks-pill">{{ p.level|title }}</span>
+    <div class="eks-hint eks-mono">{{ p.role_arn }}</div>
+  </div>
+  <div class="eks-card-h">
+    <span class="eks-hint">{% trans "GitHub Actions workflow" %}</span>
+    <div class="eks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-pipeline-{{ forloop.counter }}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+    </div>
+  </div>
+  <pre class="eks-pre eks-mono" id="eksx-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── IAM access ── #}
+<div class="eks-card">
+  <div class="eks-card-h">
+    <span class="eks-card-t">{% trans "IAM access" %} &middot; {{ access|length }}</span>
+  </div>
+  {% if access_error %}
+    {% include "aws_eks_cluster/templates/_alert.html" with error=access_error %}
+  {% elif access %}
+  <div class="table-responsive">
+    <table class="eks-table">
+      <thead>
+        <tr>
+          <th>{% trans "IAM principal" %}</th>
+          <th>{% trans "Access" %}</th>
+          <th>{% trans "Granted on" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in access %}
+        <tr>
+          <td class="eks-mono">{{ row.principal }}</td>
+          <td><span class="eks-pill">{{ row.label }}</span></td>
+          <td>{% if row.scope == "namespace" %}{{ row.scope_text }}{% else %}<span class="eks-tag eks-tag-warn">{{ row.scope_text }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "No IAM role or user has access to this namespace yet. Use Manage access to grant it." %}</div>
+  {% endif %}
+</div>
+
+{% endif %}

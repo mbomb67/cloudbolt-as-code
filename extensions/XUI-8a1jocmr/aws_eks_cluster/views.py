@@ -3,7 +3,8 @@ AWS EKS Cluster XUI
 
 Adds three tabs to CloudBolt resources created or discovered by the AWS EKS
 blueprint (BP-r5apcf7e) -- any resource carrying an eks_cluster_name custom
-field:
+field -- and a Connect tab to the namespaces of the AWS EKS Namespace
+blueprint (BP-e4c0q58z):
 
 - Cluster: live status, Kubernetes and platform version with support status,
   API endpoint and access mode, OIDC issuer, control-plane logging,
@@ -21,6 +22,14 @@ field:
   allocatable capacity and pod counts, plus namespaces with pod, deployment
   and service counts, and a Create namespace button (Create AWS EKS
   Namespace) in the toolbar.
+- Connect (on eks_namespace resources): the update-kubeconfig and
+  set-context commands, a ready-made kubeconfig to copy or download, and the
+  IAM roles and users whose EKS access policies cover the namespace, the
+  GitHub Actions pipeline identities with a workflow snippet each, and
+  Manage access (Manage AWS EKS Namespace Access) and Pipeline identity
+  (Manage AWS EKS Namespace Pipeline Identity) buttons. Built by the
+  eks_namespace shared module (SHM-sa5yqm9j), which lists access entries
+  with ListAccessEntries and ListAssociatedAccessPolicies.
 
 Every button starts one of the blueprint's resource actions as a CloudBolt
 job (Update EKS Version, Upgrade AWS EKS Nodegroup, Scale AWS EKS Nodegroup,
@@ -94,6 +103,8 @@ ACTION_SCALE_NODEGROUP = "Scale AWS EKS Nodegroup"
 ACTION_UPGRADE_NODEGROUP = "Upgrade AWS EKS Nodegroup"
 ACTION_UPDATE_ADDON = "Update AWS EKS Add-on"
 ACTION_CREATE_NAMESPACE = "Create AWS EKS Namespace"
+ACTION_MANAGE_NAMESPACE_ACCESS = "Manage AWS EKS Namespace Access"
+ACTION_MANAGE_PIPELINE_IDENTITY = "Manage AWS EKS Namespace Pipeline Identity"
 
 # amiType EKS reports for a node group whose launch template names its own
 # AMI; UpdateNodegroupVersion cannot move those, so no Upgrade button.
@@ -104,6 +115,14 @@ NODEGROUP_RESOURCE_TYPE = "eks_nodegroup"
 # Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources of
 # this type, owned by their teams.
 NAMESPACE_RESOURCE_TYPE = "eks_namespace"
+
+# Where an IAM principal's access to a namespace comes from (the scope
+# values of eks_namespace.namespace_access).
+ACCESS_SCOPES = {
+    "namespace": "This namespace",
+    "pattern": "Namespace pattern",
+    "cluster": "Every namespace",
+}
 
 # Cluster, node group and add-on names as EKS constrains them, plus the dots
 # some marketplace add-on names carry.
@@ -947,6 +966,42 @@ def workloads_panel(request, resource_id):
     return _panel(request, resource_id, "workloads_panel.html", _workloads_context)
 
 
+def _connect_context(resource, profile):
+    """Connection details for a namespace landing zone, from the shared module.
+
+    Imported here rather than at module load so the cluster tabs keep working
+    on an appliance where the eks_namespace module is not synced.
+    """
+    try:
+        from shared_modules.eks_namespace import AccessEntryError, connection_details
+    except ImportError:
+        raise EKSError("The eks_namespace shared module (SHM-sa5yqm9j) is not on this CloudBolt.")
+    try:
+        details = connection_details(resource)
+    except AccessEntryError as exc:
+        raise EKSError(str(exc))
+    cluster = details.pop("cluster_resource")
+    cluster_url = ""
+    if _can_view(profile, cluster):
+        try:
+            cluster_url = cluster.get_absolute_url()
+        except Exception:
+            cluster_url = ""
+    details["access"] = [
+        dict(row, scope_text=ACCESS_SCOPES.get(row["scope"], row["scope"])) for row in details["access"]
+    ]
+    details.update({
+        "auth_mode_text": AUTH_MODES.get(details["auth_mode"], details["auth_mode"] or "Unknown"),
+        "kubeconfig_filename": "kubeconfig-{}-{}.yaml".format(details["cluster_name"], details["namespace"]),
+        "cluster_url": cluster_url,
+    })
+    return details
+
+
+def namespace_connect_panel(request, resource_id):
+    return _panel(request, resource_id, "connect_panel.html", _connect_context)
+
+
 # ---------------------------------------------------------------------------
 # Dialogs that start the blueprint's resource actions as jobs
 # ---------------------------------------------------------------------------
@@ -1207,6 +1262,17 @@ class EKSTabDelegate(TabExtensionDelegate):
         return bool(_attr(self.instance, "eks_cluster_name"))
 
 
+class NamespaceTabDelegate(TabExtensionDelegate):
+    """Namespace landing zones of the AWS EKS Namespace blueprint."""
+
+    def should_display(self):
+        resource_type = getattr(self.instance, "resource_type", None)
+        return (
+            getattr(resource_type, "name", "") == NAMESPACE_RESOURCE_TYPE
+            and bool(_attr(self.instance, "eks_namespace_name"))
+        )
+
+
 def _tab_context(resource):
     region = _attr(resource, "aws_region") or ""
     handler_name = ""
@@ -1295,3 +1361,26 @@ def workloads_tab(request, obj_id):
         ),
     })
     return render(request, TEMPLATES + "workloads_tab.html", context)
+
+
+@tab_extension(
+    model=Resource,
+    title="Connect",
+    delegate=NamespaceTabDelegate,
+    description="kubectl commands, a kubeconfig, and the IAM roles and users with access to an EKS namespace",
+)
+def namespace_connect_tab(request, obj_id):
+    resource = get_object_or_404(Resource, pk=obj_id)
+    context = {
+        "resource": resource,
+        "namespace": _attr(resource, "eks_namespace_name") or resource.name,
+        "cluster_name": _attr(resource, "eks_namespace_cluster") or "",
+        "connect_url": reverse("aws_eks_namespace_connect_panel", args=[resource.id]),
+        "manage_access_url": _action_url(
+            request.get_user_profile(), resource, ACTION_MANAGE_NAMESPACE_ACCESS
+        ),
+        "pipeline_url": _action_url(
+            request.get_user_profile(), resource, ACTION_MANAGE_PIPELINE_IDENTITY
+        ),
+    }
+    return render(request, TEMPLATES + "connect_tab.html", context)
