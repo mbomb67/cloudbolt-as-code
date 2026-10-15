@@ -1,0 +1,159 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "Deploy EKS Cluster",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-u4k6dg46"
+            },
+            "deploy_seq": 1,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-leunwuwx",
+            "name": "Deploy EKS Cluster",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-e9qppbei"
+        },
+        "href": "/api/v3/cmp/actions/OHK-e9qppbei/",
+        "title": "Discover EKS"
+    },
+    "favorited": false,
+    "icon": "aws_eks_bp_logo_HB1E9Je_ElAxv98.png",
+    "id": "BP-r5apcf7e",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": "rgba(244,226,143,1)",
+            "id": "TAG-6spb5ltg",
+            "image": null,
+            "name": "AWS",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": "rgba(134,219,78,1)",
+            "id": "TAG-pfq0or1t",
+            "image": null,
+            "name": "XaaS",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-15",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-dhgwoj3z"
+            },
+            "enabled": true,
+            "label": "Update EKS Version"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-rrbh1ntm"
+            },
+            "enabled": true,
+            "label": "Delete AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-f9ivvn5q"
+            },
+            "enabled": true,
+            "label": "Add AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-0g4pfrde"
+            },
+            "enabled": true,
+            "label": "List AWS EKS Nodegroup"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "AWS EKS",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-dharmachakra",
+        "id": "RT-kjlvj97y",
+        "internal_only": false,
+        "label": "Kubernetes Cluster",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "kubernetes_cluster",
+        "plural_label": "Kubernetes Clusters"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Delete Cluster",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-pgbigmd9"
+            },
+            "deploy_seq": -1,
+            "description": "Delete AWS EKS Cluster with Associated Nodegroup and Role",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-2vxs5urb",
+            "name": "Delete Cluster",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

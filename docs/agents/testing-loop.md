@@ -136,6 +136,7 @@ On any failure: `run_mcp_tool_action("fetch_job_log", {"log_job_id": "<JOB-id>",
 | `Missing Required Deployment Items: [plugin-bdi-...]` | A deployment item was left out of the order | Include every item from the schema, with `"parameters": {}` when it has none |
 | Delete job fails | Teardown plugin | Fix it, re-sync the blueprint, run Delete again until the resource is gone |
 | `Parameters not allowed [<name>]` from `run_mcp_tool_action` | The tool's input carries a stored default, which hides it from the schema (every BOOL input does after the edit form is saved) | Clear the default on the edit form or re-sync the tool; declare booleans as `true`/`false` strings |
+| A synced plugin change has no effect, and the job log line `Caching hooks/<file> for 30 seconds` names a file that is not `<OHK-id>_script*.py` | The hook carries a Source Code URL from an earlier import; `file_content()` refetches that URL on every run and writes it over the synced file, and the importer only touches the URL when the metadata carries it | Clear the Source Code URL on the action's edit form in the UI, then sync the parent again. Hooks the sync created itself are not affected |
 
 Fix in the repo, commit, push the same branch, re-sync only the affected parents, and resume at the failed step (do not re-order a blueprint whose resource still exists). Stop after **five** fix-and-retry iterations for one content unit, run the cleanup in step 5, and report what is still failing with the job ids.
 

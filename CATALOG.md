@@ -5,14 +5,14 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Blueprints](#blueprints) | 22 |
-| [Resource actions](#resource-actions) | 24 |
+| [Blueprints](#blueprints) | 23 |
+| [Resource actions](#resource-actions) | 28 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 15 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 3 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 109 |
+| [Plugins](#plugins) | 116 |
 | [Shared modules](#shared-modules) | 14 |
 | [UI extensions](#ui-extensions) | 8 |
 | [Forms](#forms) | 9 |
@@ -24,6 +24,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 
 | Blueprint | ID | Description |
 |---|---|---|
+| AWS EKS | [BP-r5apcf7e](blueprints/BP-r5apcf7e/README.md) | Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version. |
 | Azure Cross-Tenant Subscription | [BP-5pei9cno](blueprints/BP-5pei9cno/README.md) | Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections. |
 | Azure Network Security Group | [BP-3fdhnw54](blueprints/BP-3fdhnw54/README.md) | Creates, deletes, and discovers Azure network security groups. |
 | Azure Resource Group | [BP-zmeot1ff](blueprints/BP-zmeot1ff/README.md) | Creates, deletes, and discovers Azure resource groups, with day-2 actions for tags, delete locks, and contents. |
@@ -53,10 +54,12 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 
 | Action | ID | Description | Plugin | Blueprint |
 |---|---|---|---|---|
+| Add AWS EKS Nodegroup | [RSA-f9ivvn5q](resource_actions/RSA-f9ivvn5q/) | Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource. | [Add AWS EKS Nodegroup](plugins/OHK-bfhdr8vx/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Apply Policy | [RSA-mgh3dn9p](resource_actions/RSA-mgh3dn9p/) | Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Change Access Tier | [RSA-0ldsokuc](resource_actions/RSA-0ldsokuc/) | Changes the default blob access tier of the Azure storage account. | [Change Access Tier](plugins/OHK-stdxttnw/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Change SKU | [RSA-gr2wsfzx](resource_actions/RSA-gr2wsfzx/) | Changes the replication SKU of the Azure storage account. | [Change SKU](plugins/OHK-fel441xh/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Create Blob Container | [RSA-xzs5f3a2](resource_actions/RSA-xzs5f3a2/) | Creates a blob container in the resource's Azure storage account. | [Create Blob Container](plugins/OHK-l25x6wd8/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
+| Delete AWS EKS Nodegroup | [RSA-rrbh1ntm](resource_actions/RSA-rrbh1ntm/) | Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource. | [Delete AWS EKS Nodegroup](plugins/OHK-39mebtxi/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Delete Blob Container | [RSA-zmi15uts](resource_actions/RSA-zmi15uts/) | Deletes a blob container from the resource's Azure storage account. | [Delete Blob Container](plugins/OHK-y1120h61/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Deploy Latest Version | [RSA-pngq92ss](resource_actions/RSA-pngq92ss/) | Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action. | [Deploy Latest Version](plugins/OHK-4y8f1vff/) | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | Drift Check | [RSA-5jeixn92](resource_actions/RSA-5jeixn92/) | Reports drift between a Bicep deployment stack and its template with a read-only what-if. | [Drift Check](plugins/OHK-9n4wfasa/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
@@ -64,6 +67,7 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Grant Access | [RSA-1kpl3w0d](resource_actions/RSA-1kpl3w0d/) | Grants a user the CloudBolt Restricted Contributor role on the subscription. | [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Launch Helm Chart | [RSA-tqy61754](resource_actions/RSA-tqy61754/README.md) | Runs helm install on the resource's server tagged controller. | [Launch Helm Chart (2)](plugins/OHK-tb703wqx/) | standalone |
 | List Access | [RSA-f7wb11ny](resource_actions/RSA-f7wb11ny/) | Lists role assignments at subscription scope with resolved principal names. | [List Subscription Access](plugins/OHK-ovt0z46j/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
+| List AWS EKS Nodegroup | [RSA-0g4pfrde](resource_actions/RSA-0g4pfrde/) | Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has. | [List AWS EKS Nodegroup](plugins/OHK-prji4iqt/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | List Blob Containers | [RSA-h93k53ld](resource_actions/RSA-h93k53ld/) | Lists the blob containers in the resource's Azure storage account. | [List Blob Containers](plugins/OHK-3kp5czyb/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | List Resources in Group | [RSA-a38h23ms](resource_actions/RSA-a38h23ms/) | Lists the Azure resources in the resource group and records the count on the resource. | [List Resources in Group](plugins/OHK-iy92hhvh/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Manage Delete Lock | [RSA-qwku9lip](resource_actions/RSA-qwku9lip/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | [Manage Delete Lock](plugins/OHK-sf6w5pfn/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
@@ -76,6 +80,7 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md), [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Test Postgres Connection | [RSA-9tfwebk7](resource_actions/RSA-9tfwebk7/) | Tests the connection to the PostgreSQL database. | [Test Postgres Connection](plugins/OHK-wr079u8q/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Update Bicep Deployment | [RSA-fa7r7cg7](resource_actions/RSA-fa7r7cg7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | [Update Bicep Deployment](plugins/OHK-9f45ede7/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
+| Update EKS Version | [RSA-dhgwoj3z](resource_actions/RSA-dhgwoj3z/) | Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish. | [Update EKS Version](plugins/OHK-rvuo63r2/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Update Tags | [RSA-kbikieh7](resource_actions/RSA-kbikieh7/) | Merges or replaces the tags on the Azure resource group. | [Update Tags](plugins/OHK-nwcyoto7/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 
 ## Server actions
@@ -154,6 +159,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 |---|---|---|---|---|
 | AD DNS - Create A Record | [OHK-dnsadd01](plugins/OHK-dnsadd01/) | Creates an AD-integrated DNS A record for each provisioned server over LDAPS and records its identity for teardown. | CloudBolt Plug-in | [AD DNS - Create A Record](orchestration_actions/HPA-dnscrt01/README.md) |
 | AD DNS - Delete A Record | [OHK-dnsdel01](plugins/OHK-dnsdel01/) | Tombstones the AD-integrated DNS A record recorded on each decommissioned server. | CloudBolt Plug-in | [AD DNS - Delete A Record](orchestration_actions/HPA-dnsdec01/README.md) |
+| Add AWS EKS Nodegroup | [OHK-bfhdr8vx](plugins/OHK-bfhdr8vx/) | Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource. | CloudBolt Plug-in | [Add AWS EKS Nodegroup](resource_actions/RSA-f9ivvn5q/) |
 | Add Parent Blueprints to Group | [OHK-tswevdir](plugins/OHK-tswevdir/) | Grants a newly created group explicit deploy permission on every blueprint that one of its ancestor groups is explicitly permitted to deploy. | CloudBolt Plug-in | [Add Parent Blueprints to Group](orchestration_actions/HPA-1lp8xqo3/README.md) |
 | Add Resource Group to Environment | [OHK-r1imfgdx](plugins/OHK-r1imfgdx/) | Adds the created resource group as a resource_group_arm option on the provisioning environment. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
 | Ansible Ad-Hoc | [OHK-xdjd5o9b](plugins/OHK-xdjd5o9b/) | Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
@@ -182,13 +188,17 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Compare Azure List Prices | [OHK-r9cm4oar](plugins/OHK-r9cm4oar/) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | CloudBolt Plug-in | [Compare Azure List Prices](mcp_tool_actions/MTA-ab0krash/README.md) |
 | Create Blob Container | [OHK-l25x6wd8](plugins/OHK-l25x6wd8/) | Creates a blob container in the resource's Azure storage account. | CloudBolt Plug-in | [Create Blob Container](resource_actions/RSA-xzs5f3a2/) |
 | Create Environment | [OHK-yd1af0eu](plugins/OHK-yd1af0eu/) | Creates a CloudBolt environment on an AWS handler with the region and VPC stored as custom field values. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
+| Delete AWS EKS Nodegroup | [OHK-39mebtxi](plugins/OHK-39mebtxi/) | Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource. | CloudBolt Plug-in | [Delete AWS EKS Nodegroup](resource_actions/RSA-rrbh1ntm/) |
 | Delete Blob Container | [OHK-y1120h61](plugins/OHK-y1120h61/) | Deletes a blob container from the resource's Azure storage account. | CloudBolt Plug-in | [Delete Blob Container](resource_actions/RSA-zmi15uts/) |
+| Delete Cluster | [OHK-pgbigmd9](plugins/OHK-pgbigmd9/) | Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Deploy AWS App Migration Agent | [OHK-5wpzgw68](plugins/OHK-5wpzgw68/) | Installs the AWS Application Migration Service replication agent on a Linux server. | CloudBolt Plug-in | [Deploy AWS App Migration Agent](server_actions/SVA-mwbtjfr0/README.md) |
 | Deploy Bicep Template | [OHK-gqvi9kv4](plugins/OHK-gqvi9kv4/) | Deploys an Azure deployment stack from a GitHub-hosted Bicep template after a what-if preview and approval. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
+| Deploy EKS Cluster | [OHK-u4k6dg46](plugins/OHK-u4k6dg46/) | Creates an Amazon EKS cluster and its IAM cluster role in the chosen AWS environment, registers it as a CloudBolt Kubernetes container orchestrator, and stores the cluster details on the resource. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Deploy Latest Version | [OHK-4y8f1vff](plugins/OHK-4y8f1vff/) | Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action. | CloudBolt Plug-in | [Deploy Latest Version](resource_actions/RSA-pngq92ss/) |
 | Discover Azure Resource Groups | [OHK-e5a4m2bm](plugins/OHK-e5a4m2bm/) | Discovers Azure resource groups across all Azure resource handlers, including tags and lock state. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Discover Azure Storage Accounts | [OHK-h9lmvlkb](plugins/OHK-h9lmvlkb/) | Discovers Azure storage accounts across all Azure resource handlers. | CloudBolt Plug-in | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | Discover Azure Subscriptions | [OHK-av52dzqm](plugins/OHK-av52dzqm/) | Discovers Azure subscriptions visible to each Azure resource handler's service principal. | CloudBolt Plug-in | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
+| Discover EKS | [OHK-e9qppbei](plugins/OHK-e9qppbei/) | Discovers EKS clusters in every AWS environment and creates or updates a CloudBolt resource and Kubernetes container orchestrator for each. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Discover HCP Terraform No-Code Workspaces | [OHK-b1n02ula](plugins/OHK-b1n02ula/) | Syncs the no-code blueprint's resources with the HCP Terraform workspaces created from its pinned module: refreshes module version, update flag, latest run, outputs and variables, onboards unmanaged workspaces, and retires deleted ones. | CloudBolt Plug-in | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | Discover OpenShift Project Landing Zones | [OHK-e7albpni](plugins/OHK-e7albpni/) | Discovers landing-zone projects across all OpenShift Virtualization resource handlers. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
 | DNS Record - Build | [OHK-dnsbld01](plugins/OHK-dnsbld01/) | Creates an AD-integrated DNS A record from order-form inputs over LDAPS. | CloudBolt Plug-in | [DNS A Record](blueprints/BP-dnsrec01/README.md) |
@@ -213,6 +223,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Install Windows File Server | [OHK-up7829pv](plugins/OHK-up7829pv/) | Installs the File Server role on a Windows server. | Remote Script | [Windows File Server](blueprints/BP-psw7rclb/README.md) |
 | Join Linux Server to AD Domain | [OHK-exqmrl0e](plugins/OHK-exqmrl0e/) | Joins a Linux server to Active Directory with realmd, SSSD, and adcli using its LDAP utility's credentials. | CloudBolt Plug-in | [Join Linux Server to AD Domain](orchestration_actions/HPA-o6ctckmt/README.md) |
 | Launch Helm Chart (2) | [OHK-tb703wqx](plugins/OHK-tb703wqx/) | Runs helm install on the resource's server tagged controller. | CloudBolt Plug-in | [Launch Helm Chart](resource_actions/RSA-tqy61754/README.md) |
+| List AWS EKS Nodegroup | [OHK-prji4iqt](plugins/OHK-prji4iqt/) | Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has. | CloudBolt Plug-in | [List AWS EKS Nodegroup](resource_actions/RSA-0g4pfrde/) |
 | List Blob Containers | [OHK-3kp5czyb](plugins/OHK-3kp5czyb/) | Lists the blob containers in the resource's Azure storage account. | CloudBolt Plug-in | [List Blob Containers](resource_actions/RSA-h93k53ld/) |
 | List Resources in Group | [OHK-iy92hhvh](plugins/OHK-iy92hhvh/) | Lists the Azure resources in the resource group and records the count on the resource. | CloudBolt Plug-in | [List Resources in Group](resource_actions/RSA-a38h23ms/) |
 | List Subscription Access | [OHK-ovt0z46j](plugins/OHK-ovt0z46j/) | Lists role assignments at subscription scope with resolved principal names. | CloudBolt Plug-in | [List Access](resource_actions/RSA-f7wb11ny/) |
@@ -259,6 +270,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/) |
 | Test Postgres Connection | [OHK-wr079u8q](plugins/OHK-wr079u8q/) | Tests the connection to the PostgreSQL database. | CloudBolt Plug-in | [Test Postgres Connection](resource_actions/RSA-9tfwebk7/) |
 | Update Bicep Deployment | [OHK-9f45ede7](plugins/OHK-9f45ede7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | CloudBolt Plug-in | [Update Bicep Deployment](resource_actions/RSA-fa7r7cg7/) |
+| Update EKS Version | [OHK-rvuo63r2](plugins/OHK-rvuo63r2/) | Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish. | CloudBolt Plug-in | [Update EKS Version](resource_actions/RSA-dhgwoj3z/) |
 | Update Tags | [OHK-nwcyoto7](plugins/OHK-nwcyoto7/) | Merges or replaces the tags on the Azure resource group. | CloudBolt Plug-in | [Update Tags](resource_actions/RSA-kbikieh7/) |
 | URL Connectivity Check | [OHK-7ctf42u7](plugins/OHK-7ctf42u7/) | Probes the URLs entered on the job and reports which CA each presents and whether it passes under CloudBolt's current SSL setting and with verification forced on. | CloudBolt Plug-in | [URL Connectivity Check](recurring_jobs/RJB-z3cr1xra/README.md) |
 
