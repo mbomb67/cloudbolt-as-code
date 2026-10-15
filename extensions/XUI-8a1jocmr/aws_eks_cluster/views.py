@@ -22,7 +22,7 @@ blueprint (BP-e4c0q58z):
   allocatable capacity and pod counts, plus namespaces with pod, deployment
   and service counts, and a Create namespace button (Create AWS EKS
   Namespace) in the toolbar.
-- Connect (on eks_namespace resources): the update-kubeconfig and
+- Connect (on kubernetes_namespace resources): the update-kubeconfig and
   set-context commands, a ready-made kubeconfig to copy or download, and the
   IAM roles and users whose EKS access policies cover the namespace, the
   GitHub Actions pipeline identities with a workflow snippet each, and
@@ -114,7 +114,7 @@ CUSTOM_AMI_TYPE = "CUSTOM"
 NODEGROUP_RESOURCE_TYPE = "eks_nodegroup"
 # Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources of
 # this type, owned by their teams.
-NAMESPACE_RESOURCE_TYPE = "eks_namespace"
+NAMESPACE_RESOURCE_TYPE = "kubernetes_namespace"
 
 # Where an IAM principal's access to a namespace comes from (the scope
 # values of eks_namespace.namespace_access).

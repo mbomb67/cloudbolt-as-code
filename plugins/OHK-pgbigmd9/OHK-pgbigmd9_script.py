@@ -161,7 +161,7 @@ def run(job, resource, *args, **kwargs):
     # them all down, so refuse while any remain; a FAILURE from this teardown
     # item stops the Delete before CloudBolt touches the sub-resources.
     namespaces = Resource.objects.filter(
-        parent_resource=resource, resource_type__name="eks_namespace", lifecycle="ACTIVE"
+        parent_resource=resource, resource_type__name="kubernetes_namespace", lifecycle="ACTIVE"
     ).order_by("name")
     if namespaces.exists():
         listing = ", ".join(
