@@ -1,0 +1,100 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Grant adds access; revoke removes it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-4lb84jvr",
+            "label": "Action",
+            "name": "eks_ns_access_action",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "EKS access policy the IAM principal gets in this namespace: Edit, View, or Admin. Ignored on revoke.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-43t9620v",
+            "label": "Access Level",
+            "name": "eks_ns_access_level",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt group to entitle to (or remove from) the namespace's environment, so its members can (or can no longer) order containers into it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-jkjeiesd",
+            "label": "CloudBolt Group",
+            "name": "eks_ns_cloudbolt_group_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "IAM role or user to give kubectl access through an EKS access entry, or to remove. Use the role ARN, not an assumed-role session ARN.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-vv7yf75q",
+            "label": "IAM Role or User ARN",
+            "name": "eks_ns_iam_principal_arn",
+            "placeholder": "arn:aws:iam::111122223333:role/payments-developers",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "eks_ns_access_action",
+        "eks_ns_iam_principal_arn",
+        "eks_ns_access_level",
+        "eks_ns_cloudbolt_group_id"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-sa5yqm9j"
+        ]
+    },
+    "description": "Grants or revokes kubectl access to an EKS namespace for an IAM role or user through a namespace-scoped EKS access entry, and a CloudBolt group's entitlement to its environment.",
+    "id": "OHK-3902mdky",
+    "max_retries": 0,
+    "name": "Manage AWS EKS Namespace Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-3902mdky_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

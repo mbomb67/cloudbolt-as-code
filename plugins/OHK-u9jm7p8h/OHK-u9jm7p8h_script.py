@@ -20,12 +20,19 @@ In CloudBolt:
   7. The tier mirrored into the Environment quota
   8. The namespace listed under the orchestrator's Namespaces tab
 
+On AWS, when IAM principals are given:
+  9. An EKS access entry per principal (created only when it has none) with
+     the chosen access policy scoped to this namespace, so their kubectl
+     and pipelines work without touching the aws-auth ConfigMap
+
 Expected Action Inputs (declared in OHK-u9jm7p8h_metadata.json):
   - cluster_resource_id (INT, required)        : Kubernetes Cluster resource (RBAC gate)
   - namespace_name (STR, required)             : DNS-1123 namespace name
   - size_tier (STR, required)                  : small | medium | large | xlarge
   - additional_group_id (INT, optional)        : extra CloudBolt Group to entitle
   - allow_cross_namespace_ingress (BOOL, opt.) : skip the default-deny policies
+  - eks_ns_team_principal_arns (TXT, optional) : IAM role/user ARNs, one per line
+  - eks_ns_team_access_level (STR, optional)   : edit | view | admin
 
 Expiration comes from the blueprint's standard expiration_date parameter,
 which CloudBolt stores on the Resource before this plugin runs; it is read
@@ -43,13 +50,17 @@ from common.methods import set_progress
 from resources.models import Resource
 from shared_modules.eks_namespace import (
     CLUSTER_RESOURCE_TYPE,
+    access_level_options,
     cluster_label,
     cluster_resources_for_group,
     create_landing_zone,
     ensure_custom_fields,
+    get_access_level,
     get_tier,
+    grant_team_access,
     load_orchestrator,
     orchestrator_id_for_cluster,
+    parse_principal_arns,
     resolve_group,
     resource_expiration,
     tier_options,
@@ -86,6 +97,11 @@ def generate_options_for_size_tier(field, **kwargs):
     return tier_options(initial="small")
 
 
+def generate_options_for_eks_ns_team_access_level(field, **kwargs):
+    """Access level for the team's IAM principals; Edit preselected."""
+    return access_level_options(initial="edit")
+
+
 def generate_options_for_additional_group_id(field, **kwargs):
     """Every real CloudBolt Group; the ordering group is entitled regardless."""
     groups = Group.objects.exclude(name__startswith="Unassigned").order_by("name")
@@ -116,6 +132,8 @@ def run(job, resource, **kwargs):
     tier_key = "{{ size_tier }}".strip().lower()
     additional_group_str = "{{ additional_group_id }}".strip()
     network_isolation = not truthy("{{ allow_cross_namespace_ingress }}")
+    principals_text = """{{ eks_ns_team_principal_arns }}"""
+    access_level = "{{ eks_ns_team_access_level }}".strip().lower() or "edit"
 
     # ---- Validate inputs ------------------------------------------------
     if not cluster_id_str:
@@ -133,6 +151,15 @@ def run(job, resource, **kwargs):
         get_tier(tier_key)
     except ValueError as exc:
         return "FAILURE", "", str(exc)
+
+    principals, principal_errors = parse_principal_arns(principals_text)
+    if principal_errors:
+        return "FAILURE", "", " ".join(principal_errors)
+    if principals:
+        try:
+            get_access_level(access_level)
+        except ValueError as exc:
+            return "FAILURE", "", str(exc)
 
     additional_group = None
     if additional_group_str:
@@ -166,7 +193,7 @@ def run(job, resource, **kwargs):
             "(container_orchestrator_id); run the AWS EKS blueprint's discovery.",
         )
 
-    return create_landing_zone(
+    status, output, error = create_landing_zone(
         resource,
         cluster,
         orchestrator,
@@ -177,3 +204,17 @@ def run(job, resource, **kwargs):
         network_isolation=network_isolation,
         additional_group=additional_group,
     )
+    if status != "SUCCESS" or not principals:
+        return status, output, error
+
+    # ---- 9. IAM access through EKS access entries ------------------------
+    set_progress(f"Granting {len(principals)} IAM principal(s) {access_level} access to '{namespace}'...")
+    access_status, access_output, access_error = grant_team_access(resource, principals, access_level)
+    if access_status != "SUCCESS":
+        return (
+            "FAILURE",
+            output,
+            f"The namespace is ready, but IAM access could not be granted: {access_error} "
+            "Fix the ARNs and run Manage Namespace Access, or delete the resource.",
+        )
+    return status, f"{output} {access_output}", ""

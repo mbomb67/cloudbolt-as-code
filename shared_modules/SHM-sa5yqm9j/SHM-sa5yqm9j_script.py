@@ -21,6 +21,13 @@ plugins. It has two halves:
    to the ordering Group, and mirrors the tier into its quota. Container
    blueprints ordered into that Environment read the namespace from it.
 
+3. EKS access and connection helpers -- namespace-scoped access entries
+   that give IAM roles and users kubectl access to a landing zone (build
+   input, Manage Namespace Access, teardown), and the kubeconfig and
+   commands the Namespace Connection Details action and the extension's
+   Connect tab show. These call the EKS API with the AWS handler behind the
+   cluster resource.
+
 This is the EKS twin of the OpenShift Project Landing Zone module
 (shared_modules/SHM-qmiweowv).
 
@@ -33,6 +40,8 @@ this file and syncing, restart CloudBolt for the change to take effect.
 """
 
 import datetime
+import fnmatch
+import json
 import re
 import time
 from collections import OrderedDict
@@ -123,6 +132,8 @@ CUSTOM_FIELDS = [
      "Namespace quota for the number of pods.", True),
     (CF_PREFIX + "network_isolation", "Network Isolation", "BOOL",
      "Whether the default-deny NetworkPolicy set was applied to the namespace.", True),
+    (CF_PREFIX + "iam_access", "IAM Access (kubectl)", "TXT",
+     "IAM roles and users with an EKS access policy covering this namespace, one per line.", True),
 ]
 
 
@@ -1058,3 +1069,627 @@ def remove_namespace_record(orchestrator, namespace):
     except Exception as exc:
         logger.warning("Could not remove namespace record %s on %s: %s", namespace, orchestrator, exc)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Expiration
+# ---------------------------------------------------------------------------
+
+def set_resource_expiration(resource, new_date):
+    """Write ``new_date`` (a date) to the Resource's standard expiration_date parameter."""
+    value = datetime.datetime.combine(new_date, datetime.time(hour=23, minute=59))
+    resource.set_value_for_custom_field("expiration_date", value)
+
+
+# ---------------------------------------------------------------------------
+# The cluster behind a namespace Resource, as AWS sees it
+# ---------------------------------------------------------------------------
+
+def load_cluster_resource(resource):
+    """The Kubernetes Cluster resource hosting a namespace Resource, or None.
+
+    The parent link is authoritative; the stored cluster_resource_id covers
+    namespaces recorded before the link existed.
+    """
+    parent = getattr(resource, "parent_resource", None)
+    if parent is not None and getattr(parent.resource_type, "name", "") == CLUSTER_RESOURCE_TYPE:
+        return parent
+    cluster_id = resource.get_value_for_custom_field(CF_PREFIX + "cluster_resource_id")
+    if not cluster_id:
+        return None
+    return Resource.objects.filter(id=int(cluster_id)).first()
+
+
+def eks_cluster_name(cluster):
+    """The EKS cluster name the AWS EKS blueprint stores on its resource."""
+    return cluster.get_cf_values_as_dict().get("eks_cluster_name") or cluster.name
+
+
+def cluster_aws(cluster):
+    """(AWS handler, region) for an EKS cluster resource.
+
+    Same lookup as the AWS EKS blueprint's own day-2 plugins: the environment
+    the cluster was ordered into (env_id), else the handler and region its
+    build and discovery store (aws_rh_id, aws_region). The handler stays
+    server-side; users only ever pick environments
+    (docs/agents/rbac-and-security.md).
+    """
+    from resourcehandlers.aws.models import AWSHandler
+
+    values = cluster.get_cf_values_as_dict()
+    env_id = values.get("env_id")
+    if env_id:
+        env = Environment.objects.filter(id=int(str(env_id).strip())).first()
+        if env is not None and env.resource_handler_id and env.aws_region:
+            return env.resource_handler.cast(), env.aws_region
+    rh_id, region = values.get("aws_rh_id"), values.get("aws_region")
+    if rh_id and region:
+        rh = AWSHandler.objects.filter(id=int(str(rh_id).strip())).first()
+        if rh is not None:
+            return rh, str(region).strip()
+    raise AccessEntryError(
+        f"Cluster resource '{cluster.name}' records no AWS environment or handler "
+        "(env_id, or aws_rh_id and aws_region)."
+    )
+
+
+def eks_client(cluster):
+    """boto3 EKS client for the cluster's account and region, plus the region."""
+    rh, region = cluster_aws(cluster)
+    return rh.get_boto3_client(region, "eks"), region
+
+
+# ---------------------------------------------------------------------------
+# EKS access entries: kubectl access for IAM principals, scoped to a namespace
+# ---------------------------------------------------------------------------
+# Amazon EKS authorizes an IAM principal through an access entry on the
+# cluster plus access policies associated with that entry, each with its own
+# scope (the whole cluster, or a list of namespaces).
+#   https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html
+#   https://docs.aws.amazon.com/eks/latest/userguide/creating-access-entries.html
+#   https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html
+# What this code relies on, from those pages:
+#   * an IAM principal can be in only one access entry per cluster;
+#   * each access policy can be associated to an entry once; running
+#     AssociateAccessPolicy again for the same policy replaces its scope,
+#     which is how a namespace is added to or removed from the list;
+#   * access entries need the cluster's authentication mode to be API or
+#     API_AND_CONFIG_MAP;
+#   * a role ARN may include a path (IAM Identity Center roles keep theirs);
+#     STS session (assumed-role) ARNs and service-linked roles are refused.
+# So a principal holding several landing zones on one cluster has ONE entry
+# whose Edit (or View, or Admin) association lists all of those namespaces,
+# and every grant or revoke rewrites that list. Two jobs changing the same
+# principal at the same moment can race; the later write wins.
+
+class AccessEntryError(Exception):
+    """A readable problem with EKS access entries."""
+
+
+# Access level -> EKS access policy. The policies' Kubernetes permissions:
+# https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html
+ACCESS_LEVELS = OrderedDict([
+    ("edit", dict(label="Edit", policy="AmazonEKSEditPolicy",
+                  description="create and change workloads")),
+    ("view", dict(label="View", policy="AmazonEKSViewPolicy",
+                  description="read only")),
+    ("admin", dict(label="Admin", policy="AmazonEKSAdminPolicy",
+                   description="everything in the namespace, including roles and role bindings")),
+])
+
+# Access entries CloudBolt creates carry this tag, so revoke and teardown
+# delete only entries CloudBolt made, and only once nothing else uses them.
+ACCESS_ENTRY_TAG_KEY = "cloudbolt.io/managed-by"
+ACCESS_ENTRY_TAG_VALUE = "CloudBolt"
+
+# IAM role or user ARN, any partition; a role path is allowed.
+# https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+IAM_PRINCIPAL_RE = re.compile(
+    r"^arn:(aws|aws-cn|aws-us-gov|aws-iso[a-z-]*):iam::\d{12}:(role|user)/[\w+=,.@/-]+$"
+)
+STS_ASSUMED_ROLE_RE = re.compile(r"^arn:[^:]+:sts::(\d{12}):assumed-role/([^/]+)/")
+
+
+def get_access_level(key):
+    """Return the access-level dict for ``key`` or raise ValueError."""
+    level = ACCESS_LEVELS.get(str(key or "").strip().lower())
+    if not level:
+        raise ValueError(f"Unknown access level '{key}'. Valid levels: {', '.join(ACCESS_LEVELS)}.")
+    return level
+
+
+def access_level_options(initial="edit"):
+    """Access-level dropdown for a plugin action input."""
+    options = [(key, f"{level['label']} - {level['description']}") for key, level in ACCESS_LEVELS.items()]
+    return {"options": options, "initial_value": initial, "sort": False}
+
+
+def policy_arn(level_key, partition="aws"):
+    """ARN of the EKS access policy behind an access level.
+
+    Format from ListAccessPolicies: arn:<partition>:eks::aws:cluster-access-policy/<name>
+    https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html
+    """
+    return f"arn:{partition}:eks::aws:cluster-access-policy/{get_access_level(level_key)['policy']}"
+
+
+def validate_principal_arn(arn):
+    """Return None if ``arn`` can be given an access entry, else a message."""
+    sts = STS_ASSUMED_ROLE_RE.match(arn or "")
+    if sts:
+        return (
+            f"'{arn}' is a temporary STS session, which EKS access entries cannot use. "
+            f"Give the IAM role's ARN instead: aws iam get-role --role-name {sts.group(2)} "
+            "--query Role.Arn --output text"
+        )
+    if not IAM_PRINCIPAL_RE.match(arn or ""):
+        return f"'{arn}' is not an IAM role or user ARN (arn:aws:iam::<account>:role/<name>)."
+    if ":role/aws-service-role/" in arn:
+        return f"'{arn}' is a service-linked role, which EKS access entries do not support."
+    return None
+
+
+def parse_principal_arns(text):
+    """Split free text (newlines, commas, or spaces) into unique ARNs.
+
+    Returns (arns, errors); ``errors`` holds one message per invalid ARN.
+    """
+    arns, errors = [], []
+    for token in re.split(r"[\s,]+", str(text or "").strip()):
+        if not token or token in arns:
+            continue
+        error = validate_principal_arn(token)
+        if error:
+            errors.append(error)
+        else:
+            arns.append(token)
+    return arns, errors
+
+
+def _error_code(exc):
+    response = getattr(exc, "response", None) or {}
+    return (response.get("Error") or {}).get("Code", "")
+
+
+def aws_message(exc):
+    """A botocore ClientError as 'Code: message', anything else as str()."""
+    response = getattr(exc, "response", None) or {}
+    error = response.get("Error") or {}
+    if error:
+        return f"{error.get('Code', 'Error')}: {error.get('Message', exc)}"
+    return str(exc)
+
+
+def describe_eks_cluster(eks, cluster_name):
+    """DescribeCluster's ``cluster`` object.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeCluster.html
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_Cluster.html
+    (endpoint, certificateAuthority.data, accessConfig, arn)
+    """
+    try:
+        return eks.describe_cluster(name=cluster_name)["cluster"]
+    except Exception as exc:
+        raise AccessEntryError(f"Could not read EKS cluster '{cluster_name}': {aws_message(exc)}")
+
+
+def require_access_entries(cluster_info):
+    """Raise AccessEntryError when the cluster only uses the aws-auth ConfigMap.
+
+    accessConfig.authenticationMode is API, API_AND_CONFIG_MAP, or CONFIG_MAP.
+    https://docs.aws.amazon.com/eks/latest/userguide/setting-up-access-entries.html
+    """
+    mode = (cluster_info.get("accessConfig") or {}).get("authenticationMode", "")
+    if mode == "CONFIG_MAP":
+        raise AccessEntryError(
+            f"EKS cluster '{cluster_info.get('name')}' authenticates through the aws-auth "
+            "ConfigMap only. Switch its authentication mode to API_AND_CONFIG_MAP to use access "
+            "entries: https://docs.aws.amazon.com/eks/latest/userguide/setting-up-access-entries.html"
+        )
+
+
+def partition_of(cluster_info):
+    """The AWS partition from the cluster ARN (arn:<partition>:eks:...)."""
+    parts = str(cluster_info.get("arn") or "").split(":")
+    return parts[1] if len(parts) > 1 and parts[1] else "aws"
+
+
+def _describe_entry(eks, cluster_name, principal):
+    """DescribeAccessEntry's ``accessEntry``, or None when the principal has none.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeAccessEntry.html
+    """
+    try:
+        return eks.describe_access_entry(clusterName=cluster_name, principalArn=principal)["accessEntry"]
+    except Exception as exc:
+        if _error_code(exc) == "ResourceNotFoundException":
+            return None
+        raise
+
+
+def _associations(eks, cluster_name, principal):
+    """{policyArn: accessScope} for the principal's entry, following nextToken.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_ListAssociatedAccessPolicies.html
+    """
+    result, token = {}, None
+    while True:
+        params = {"clusterName": cluster_name, "principalArn": principal}
+        if token:
+            params["nextToken"] = token
+        page = eks.list_associated_access_policies(**params)
+        for item in page.get("associatedAccessPolicies", []):
+            result[item["policyArn"]] = item.get("accessScope") or {}
+        token = page.get("nextToken")
+        if not token:
+            return result
+
+
+def _principals_with_policy(eks, cluster_name, policy):
+    """Principals whose entries have ``policy`` associated, following nextToken.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_ListAccessEntries.html
+    (associatedPolicyArn returns only the entries associated to that policy)
+    """
+    principals, token = [], None
+    while True:
+        params = {"clusterName": cluster_name, "associatedPolicyArn": policy}
+        if token:
+            params["nextToken"] = token
+        page = eks.list_access_entries(**params)
+        principals.extend(page.get("accessEntries", []))
+        token = page.get("nextToken")
+        if not token:
+            return principals
+
+
+def _associate(eks, cluster_name, principal, policy, namespaces):
+    """Associate ``policy`` scoped to ``namespaces``, replacing any earlier scope.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_AssociateAccessPolicy.html
+    Access entries are eventually consistent, so a just-created entry can
+    briefly answer ResourceNotFoundException; retry a few times.
+    https://docs.aws.amazon.com/eks/latest/userguide/creating-access-entries.html
+    """
+    for attempt in range(5):
+        try:
+            return eks.associate_access_policy(
+                clusterName=cluster_name,
+                principalArn=principal,
+                policyArn=policy,
+                accessScope={"type": "namespace", "namespaces": sorted(set(namespaces))},
+            )
+        except Exception as exc:
+            if _error_code(exc) != "ResourceNotFoundException" or attempt == 4:
+                raise
+            time.sleep(3)
+
+
+def _drop_namespace(eks, cluster_name, principal, policy, scope, namespace):
+    """Remove ``namespace`` from a namespace-scoped association. Returns True if it was there.
+
+    The association is rewritten without the namespace, or disassociated when
+    it was the last one.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DisassociateAccessPolicy.html
+    """
+    if scope.get("type") != "namespace" or namespace not in (scope.get("namespaces") or []):
+        return False
+    remaining = [ns for ns in scope.get("namespaces") or [] if ns != namespace]
+    if remaining:
+        _associate(eks, cluster_name, principal, policy, remaining)
+    else:
+        eks.disassociate_access_policy(clusterName=cluster_name, principalArn=principal, policyArn=policy)
+    return True
+
+
+def _delete_entry_if_unused(eks, cluster_name, principal):
+    """Delete the principal's entry when CloudBolt created it and nothing uses it any more.
+
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DeleteAccessEntry.html
+    Returns True when the entry was deleted.
+    """
+    entry = _describe_entry(eks, cluster_name, principal)
+    if entry is None:
+        return False
+    if (entry.get("tags") or {}).get(ACCESS_ENTRY_TAG_KEY) != ACCESS_ENTRY_TAG_VALUE:
+        return False
+    if entry.get("kubernetesGroups") or _associations(eks, cluster_name, principal):
+        return False
+    eks.delete_access_entry(clusterName=cluster_name, principalArn=principal)
+    return True
+
+
+def grant_namespace_access(eks, cluster_info, principal, namespace, level_key):
+    """Give ``principal`` the access level on ``namespace``. Returns a message.
+
+    Creates a STANDARD access entry (tagged as CloudBolt's) when the
+    principal has none, adds the namespace to the level's policy
+    association, and takes the namespace out of the other levels'
+    namespace-scoped associations so the principal holds one level per
+    namespace. A cluster-wide association of the same policy already covers
+    the namespace and is left alone; cluster-wide associations are never
+    rewritten.
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateAccessEntry.html
+    """
+    cluster_name = cluster_info["name"]
+    level = get_access_level(level_key)
+    partition = partition_of(cluster_info)
+    target = policy_arn(level_key, partition)
+
+    entry = _describe_entry(eks, cluster_name, principal)
+    if entry is None:
+        try:
+            eks.create_access_entry(
+                clusterName=cluster_name,
+                principalArn=principal,
+                type="STANDARD",
+                tags={ACCESS_ENTRY_TAG_KEY: ACCESS_ENTRY_TAG_VALUE},
+            )
+        except Exception as exc:
+            if _error_code(exc) != "ResourceInUseException":
+                raise
+    elif entry.get("type", "STANDARD") != "STANDARD":
+        raise AccessEntryError(
+            f"'{principal}' has a {entry.get('type')} access entry on '{cluster_name}'; "
+            "access policies can only be associated to STANDARD entries."
+        )
+
+    associations = _associations(eks, cluster_name, principal)
+    for other_key in ACCESS_LEVELS:
+        other = policy_arn(other_key, partition)
+        if other != target and other in associations:
+            _drop_namespace(eks, cluster_name, principal, other, associations[other], namespace)
+
+    scope = associations.get(target)
+    if scope and scope.get("type") == "cluster":
+        return f"'{principal}' already has {level['label']} access to every namespace on '{cluster_name}'."
+    current = (scope or {}).get("namespaces") or []
+    if namespace in current:
+        return f"'{principal}' already had {level['label']} access to '{namespace}'."
+    _associate(eks, cluster_name, principal, target, current + [namespace])
+    return f"Granted '{principal}' {level['label']} access to namespace '{namespace}'."
+
+
+def revoke_namespace_access(eks, cluster_info, principal, namespace):
+    """Take ``namespace`` out of every level association the principal holds. Returns a message.
+
+    Deletes the access entry when CloudBolt created it and it no longer
+    grants anything. Cluster-wide associations and wildcard namespace
+    patterns are left alone and reported, since they were not granted here.
+    """
+    cluster_name = cluster_info["name"]
+    partition = partition_of(cluster_info)
+    if _describe_entry(eks, cluster_name, principal) is None:
+        return f"'{principal}' has no access entry on '{cluster_name}'."
+
+    removed, remaining = [], []
+    associations = _associations(eks, cluster_name, principal)
+    for key, level in ACCESS_LEVELS.items():
+        policy = policy_arn(key, partition)
+        scope = associations.get(policy)
+        if not scope:
+            continue
+        if _drop_namespace(eks, cluster_name, principal, policy, scope, namespace):
+            removed.append(level["label"])
+        elif scope.get("type") == "cluster":
+            remaining.append(f"{level['label']} on every namespace")
+        elif any(fnmatch.fnmatchcase(namespace, ns) for ns in scope.get("namespaces") or []):
+            remaining.append(f"{level['label']} through a namespace pattern")
+
+    if not removed:
+        message = f"'{principal}' held no namespace-scoped access to '{namespace}'."
+    else:
+        message = f"Removed {', '.join(removed)} access to '{namespace}' from '{principal}'."
+    if remaining:
+        message += f" It still has {'; '.join(remaining)}, which was not granted here."
+    if removed and _delete_entry_if_unused(eks, cluster_name, principal):
+        message += " Its CloudBolt-created access entry had no other use and was deleted."
+    return message
+
+
+def namespace_access(eks, cluster_info, namespace):
+    """Who can use ``namespace`` through the CloudBolt access levels.
+
+    Returns [{"principal", "level", "label", "scope"}] sorted by principal,
+    where scope is "namespace" (granted on this namespace), "pattern"
+    (a wildcard namespace that matches it), or "cluster" (every namespace).
+    """
+    cluster_name = cluster_info["name"]
+    partition = partition_of(cluster_info)
+    rows = []
+    for key, level in ACCESS_LEVELS.items():
+        policy = policy_arn(key, partition)
+        for principal in _principals_with_policy(eks, cluster_name, policy):
+            scope = _associations(eks, cluster_name, principal).get(policy) or {}
+            namespaces = scope.get("namespaces") or []
+            if scope.get("type") == "cluster":
+                where = "cluster"
+            elif namespace in namespaces:
+                where = "namespace"
+            elif any(fnmatch.fnmatchcase(namespace, ns) for ns in namespaces):
+                where = "pattern"
+            else:
+                continue
+            rows.append({"principal": principal, "level": key, "label": level["label"], "scope": where})
+    return sorted(rows, key=lambda row: (row["principal"], row["level"]))
+
+
+def remove_all_namespace_access(eks, cluster_info, namespace):
+    """Teardown: drop ``namespace`` from every principal's level associations.
+
+    Without this, a namespace created later with the same name would hand
+    the old principals access again. Returns one message per principal changed.
+    """
+    principals = sorted({
+        row["principal"] for row in namespace_access(eks, cluster_info, namespace)
+        if row["scope"] == "namespace"
+    })
+    return [revoke_namespace_access(eks, cluster_info, principal, namespace) for principal in principals]
+
+
+def render_access(rows):
+    """Access rows as text for the resource's access attribute, one per line."""
+    scopes = {"namespace": "", "pattern": " (namespace pattern)", "cluster": " (every namespace)"}
+    return "\n".join(f"{row['label']}: {row['principal']}{scopes[row['scope']]}" for row in rows)
+
+
+def refresh_access_attribute(resource, eks, cluster_info, namespace):
+    """Re-read who has access and store it on the resource. Never raises."""
+    try:
+        rows = namespace_access(eks, cluster_info, namespace)
+    except Exception as exc:
+        logger.warning("Could not list access to %s: %s", namespace, exc)
+        return None
+    resource.set_value_for_custom_field(CF_PREFIX + "iam_access", render_access(rows))
+    return rows
+
+
+def access_context(resource):
+    """(namespace, eks client, cluster_info) for a namespace Resource.
+
+    Raises AccessEntryError naming what is missing, or when the cluster only
+    authenticates through the aws-auth ConfigMap.
+    """
+    namespace = resource.get_value_for_custom_field(CF_PREFIX + "name") if resource else None
+    if not namespace:
+        raise AccessEntryError(f"The resource has no '{CF_PREFIX}name' value.")
+    cluster = load_cluster_resource(resource)
+    if cluster is None:
+        raise AccessEntryError("The namespace records no cluster resource.")
+    eks, _ = eks_client(cluster)
+    cluster_info = describe_eks_cluster(eks, eks_cluster_name(cluster))
+    require_access_entries(cluster_info)
+    return namespace, eks, cluster_info
+
+
+def grant_team_access(resource, principals, level_key):
+    """Build-time grant: give each principal the level on the new namespace.
+
+    Returns a plugin-style (status, output_msg, error_msg) tuple.
+    """
+    if not principals:
+        return "SUCCESS", "", ""
+    try:
+        namespace, eks, cluster_info = access_context(resource)
+        messages = []
+        for principal in principals:
+            messages.append(grant_namespace_access(eks, cluster_info, principal, namespace, level_key))
+            set_progress(messages[-1])
+    except AccessEntryError as exc:
+        return "FAILURE", "", str(exc)
+    except Exception as exc:
+        logger.exception("Granting IAM access failed")
+        return "FAILURE", "", f"Could not grant IAM access: {aws_message(exc)}"
+    refresh_access_attribute(resource, eks, cluster_info, namespace)
+    resource.save()
+    return "SUCCESS", " ".join(messages), ""
+
+
+# ---------------------------------------------------------------------------
+# Connection details: how a team member points kubectl at the namespace
+# ---------------------------------------------------------------------------
+
+def _yaml_str(value):
+    """A YAML scalar for ``value``: JSON string syntax is valid YAML."""
+    return json.dumps(str(value))
+
+
+def render_kubeconfig(cluster_info, region, namespace):
+    """A kubeconfig for the namespace, equivalent to update-kubeconfig plus set-context.
+
+    Holds no secret: the cluster endpoint and CA, and an exec block that runs
+    ``aws eks get-token`` with the caller's own AWS credentials, which work
+    only for an IAM principal with an access entry. Useful where the caller
+    lacks eks:DescribeCluster, which update-kubeconfig needs.
+      exec plugin: https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
+      get-token (ExecCredential, client.authentication.k8s.io/v1beta1):
+        https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html
+      context namespace: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+    """
+    name = cluster_info["name"]
+    arn = cluster_info.get("arn") or name
+    context = f"{name}-{namespace}"
+    ca = (cluster_info.get("certificateAuthority") or {}).get("data", "")
+    lines = [
+        "apiVersion: v1",
+        "kind: Config",
+        "clusters:",
+        f"- name: {_yaml_str(arn)}",
+        "  cluster:",
+        f"    server: {_yaml_str(cluster_info.get('endpoint', ''))}",
+        f"    certificate-authority-data: {_yaml_str(ca)}",
+        "contexts:",
+        f"- name: {_yaml_str(context)}",
+        "  context:",
+        f"    cluster: {_yaml_str(arn)}",
+        f"    user: {_yaml_str(arn)}",
+        f"    namespace: {_yaml_str(namespace)}",
+        f"current-context: {_yaml_str(context)}",
+        "users:",
+        f"- name: {_yaml_str(arn)}",
+        "  user:",
+        "    exec:",
+        "      apiVersion: client.authentication.k8s.io/v1beta1",
+        "      command: aws",
+        "      args:",
+    ]
+    for arg in ("--region", region, "eks", "get-token", "--cluster-name", name, "--output", "json"):
+        lines.append(f"      - {_yaml_str(arg)}")
+    return "\n".join(lines) + "\n"
+
+
+def connection_commands(cluster_name, region, namespace):
+    """The shell commands that connect kubectl to the namespace.
+
+    update-kubeconfig: https://docs.aws.amazon.com/cli/latest/reference/eks/update-kubeconfig.html
+    (--alias names the context; it defaults to the cluster ARN)
+    set-context: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/kubectl_config_set-context/
+    """
+    context = f"{cluster_name}-{namespace}"
+    return [
+        f"aws eks update-kubeconfig --region {region} --name {cluster_name} --alias {context}",
+        f"kubectl config set-context {context} --namespace {namespace}",
+        f"kubectl get pods --namespace {namespace}",
+    ]
+
+
+def connection_details(resource):
+    """Everything the Connection Details action and the namespace tab show.
+
+    Returns a dict: namespace, cluster_name, cluster_resource, region,
+    endpoint, auth_mode, commands, kubeconfig, environment_name, access (rows
+    from namespace_access), and access_error (a message when the access list
+    could not be read; the rest is still filled in). Raises AccessEntryError
+    when the cluster itself cannot be read.
+    """
+    namespace = resource.get_value_for_custom_field(CF_PREFIX + "name")
+    if not namespace:
+        raise AccessEntryError(f"The resource has no '{CF_PREFIX}name' value.")
+    cluster = load_cluster_resource(resource)
+    if cluster is None:
+        raise AccessEntryError("The namespace records no cluster resource.")
+    eks, region = eks_client(cluster)
+    cluster_info = describe_eks_cluster(eks, eks_cluster_name(cluster))
+    name = cluster_info["name"]
+    details = {
+        "namespace": namespace,
+        "cluster_name": name,
+        "cluster_resource": cluster,
+        "region": region,
+        "endpoint": cluster_info.get("endpoint", ""),
+        "auth_mode": (cluster_info.get("accessConfig") or {}).get("authenticationMode", ""),
+        "commands": connection_commands(name, region, namespace),
+        "kubeconfig": render_kubeconfig(cluster_info, region, namespace),
+        "environment_name": resource.get_value_for_custom_field(CF_PREFIX + "environment_name") or "",
+        "access": [],
+        "access_error": "",
+    }
+    try:
+        require_access_entries(cluster_info)
+        details["access"] = namespace_access(eks, cluster_info, namespace)
+    except AccessEntryError as exc:
+        details["access_error"] = str(exc)
+    except Exception as exc:
+        logger.warning("Could not list access to %s: %s", namespace, exc)
+        details["access_error"] = f"Could not list IAM access: {aws_message(exc)}"
+    return details
