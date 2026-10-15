@@ -3,10 +3,11 @@ CloudBolt day-2 resource action: Namespace Connection Details (AWS EKS Namespace
 
 Read-only. Tells a team member how to point kubectl at the namespace: the
 update-kubeconfig and set-context commands for the namespace's cluster and
-region, and which IAM roles and users currently hold an EKS access policy
-covering the namespace. Nothing here is secret: an EKS kubeconfig carries
-the cluster endpoint and CA and runs ``aws eks get-token`` with the caller's
-own AWS credentials, which only work for a principal that has access.
+region, which IAM roles and users currently hold an EKS access policy
+covering the namespace, and the GitHub Actions pipeline identities. Nothing
+here is secret: an EKS kubeconfig carries the cluster endpoint and CA and
+runs ``aws eks get-token`` with the caller's own AWS credentials, which only
+work for a principal that has access.
 
 Synchronous, so the answer appears in the action's result message and an
 MCP client gets it back directly. The AWS EKS Cluster extension's Connect
@@ -66,5 +67,10 @@ def run(job=None, resource=None, **kwargs):
         parts.append(f"IAM access: {holders}.")
     else:
         parts.append("No IAM role or user has access yet; grant one with Manage Namespace Access.")
+    for item in details["pipelines"]:
+        parts.append(
+            f"Pipeline identity: {item['repository']} ({item['trigger']}) assumes {item['role_arn']} "
+            "with aws-actions/configure-aws-credentials."
+        )
     parts.append("The Connect tab on this namespace has a ready-made kubeconfig.")
     return "SUCCESS", "\n".join(parts), ""

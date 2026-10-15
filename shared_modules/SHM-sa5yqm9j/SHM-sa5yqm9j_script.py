@@ -23,10 +23,12 @@ plugins. It has two halves:
 
 3. EKS access and connection helpers -- namespace-scoped access entries
    that give IAM roles and users kubectl access to a landing zone (build
-   input, Manage Namespace Access, teardown), and the kubeconfig and
+   input, Manage Namespace Access, teardown), pipeline identities (an IAM
+   role a GitHub Actions workflow assumes through OIDC, created and deleted
+   by Manage Pipeline Identity and teardown), and the kubeconfig and
    commands the Namespace Connection Details action and the extension's
-   Connect tab show. These call the EKS API with the AWS handler behind the
-   cluster resource.
+   Connect tab show. These call the EKS and IAM APIs with the AWS handler
+   behind the cluster resource.
 
 This is the EKS twin of the OpenShift Project Landing Zone module
 (shared_modules/SHM-qmiweowv).
@@ -134,6 +136,8 @@ CUSTOM_FIELDS = [
      "Whether the default-deny NetworkPolicy set was applied to the namespace.", True),
     (CF_PREFIX + "iam_access", "IAM Access (kubectl)", "TXT",
      "IAM roles and users with an EKS access policy covering this namespace, one per line.", True),
+    (CF_PREFIX + "pipeline_identities", "Pipeline Identities", "TXT",
+     "IAM roles CloudBolt created for CI pipelines deploying to this namespace (JSON).", False),
 ]
 
 
@@ -1666,7 +1670,8 @@ def connection_details(resource):
     """Everything the Connection Details action and the namespace tab show.
 
     Returns a dict: namespace, cluster_name, cluster_resource, region,
-    endpoint, auth_mode, commands, kubeconfig, environment_name, access (rows
+    endpoint, auth_mode, commands, kubeconfig, environment_name, pipelines
+    (recorded pipeline identities, each with a workflow snippet), access (rows
     from namespace_access), and access_error (a message when the access list
     could not be read; the rest is still filled in). Raises AccessEntryError
     when the cluster itself cannot be read.
@@ -1692,6 +1697,12 @@ def connection_details(resource):
         "environment_name": resource.get_value_for_custom_field(CF_PREFIX + "environment_name") or "",
         "access": [],
         "access_error": "",
+        "pipelines": [
+            dict(item, snippet=workflow_snippet(
+                item["role_arn"], region, name, namespace, item.get("environment", "")
+            ))
+            for item in load_pipeline_identities(resource)
+        ],
     }
     try:
         require_access_entries(cluster_info)
@@ -1702,3 +1713,437 @@ def connection_details(resource):
         logger.warning("Could not list access to %s: %s", namespace, exc)
         details["access_error"] = f"Could not list IAM access: {aws_message(exc)}"
     return details
+
+
+# ---------------------------------------------------------------------------
+# Pipeline identities: an IAM role a GitHub Actions workflow assumes through
+# OIDC, with kubectl access to the namespace
+# ---------------------------------------------------------------------------
+# A team's people bring their own IAM roles; a CI pipeline usually has none
+# yet, so CloudBolt creates one per repository (and optional branch or
+# environment), owns it, and deletes it on remove and teardown.
+#   GitHub side: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+#   Subject claims: https://docs.github.com/en/actions/reference/security/oidc
+#   AWS side: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html#idp_oidc_Create_GitHub
+# What this code relies on, from those pages:
+#   * the IAM OIDC provider URL is https://token.actions.githubusercontent.com
+#     and the audience sts.amazonaws.com (what configure-aws-credentials asks for);
+#   * IAM refuses a trust policy for that provider without a
+#     token.actions.githubusercontent.com:sub condition, or with one that is
+#     only a wildcard;
+#   * sub is repo:OWNER/REPO:ref:refs/heads/BRANCH,
+#     repo:OWNER/REPO:environment:ENVIRONMENT, and so on; colons inside a
+#     name become %3A;
+#   * repositories created, renamed, or transferred after July 15, 2026 (or
+#     opted in) send the immutable form repo:OWNER@OWNER-ID/REPO@REPO-ID:...
+#     instead. GitHub documents the immutable prefix with a branch example;
+#     this code assumes environments take the same prefix.
+# The trust policy therefore lists both forms, the immutable one pinned to the
+# numeric ids, so it keeps working whichever form the repository sends.
+
+GITHUB_OIDC_HOST = "token.actions.githubusercontent.com"
+GITHUB_OIDC_URL = "https://" + GITHUB_OIDC_HOST
+GITHUB_OIDC_AUDIENCE = "sts.amazonaws.com"
+GITHUB_API = "https://api.github.com"
+# https://docs.github.com/en/rest/about-the-rest-api/api-versions
+GITHUB_API_VERSION = "2026-03-10"
+
+PIPELINE_ROLE_PATH = "/cloudbolt/eks-namespace/"
+PIPELINE_TAG_RESOURCE = "cloudbolt.io/resource-id"
+PIPELINE_TAG_REPOSITORY = "cloudbolt.io/repository"
+PIPELINE_TAG_TRIGGER = "cloudbolt.io/trigger"
+PIPELINE_POLICY_NAME = "eks-describe-cluster"
+
+# GitHub owner names: alphanumerics and hyphens; repository names add . and _.
+# Either part may carry its numeric id after @ (the immutable subject form).
+REPOSITORY_RE = re.compile(r"^([A-Za-z0-9-]{1,39})(?:@(\d+))?/([A-Za-z0-9._-]{1,100})(?:@(\d+))?$")
+# Branch and environment names as they appear after refs/heads/ or
+# environment: in the subject; IAM condition values must not contain the
+# policy wildcards * and ?.
+TRIGGER_VALUE_RE = re.compile(r"^[^\s*?]{1,255}$")
+
+
+def parse_repository(text):
+    """``owner/repo`` or ``owner@ID/repo@ID`` -> (owner, repo, owner_id, repo_id).
+
+    Raises ValueError with a readable message. The ids are None when not given.
+    """
+    match = REPOSITORY_RE.match(str(text or "").strip())
+    if not match:
+        raise ValueError(
+            f"'{text}' is not a GitHub repository. Give it as owner/repo, or as "
+            "owner@OWNER-ID/repo@REPO-ID."
+        )
+    owner, owner_id, repo, repo_id = match.groups()
+    if bool(owner_id) != bool(repo_id):
+        raise ValueError("Give both numeric ids (owner@OWNER-ID/repo@REPO-ID) or neither.")
+    return owner, repo, owner_id, repo_id
+
+
+def github_repository(owner, repo):
+    """(owner, repo, owner_id, repo_id) as GitHub reports them, or None.
+
+    GET /repos/{owner}/{repo}; id and owner.id are the numeric ids the
+    immutable subject uses, full_name the canonical names. A private
+    repository, or an appliance without access to api.github.com, returns
+    None and the caller falls back to the name-based subject.
+    https://docs.github.com/en/rest/repos/repos#get-a-repository
+    """
+    import requests
+    from utilities.helpers import get_ssl_verification
+
+    try:
+        response = requests.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}",
+            headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": GITHUB_API_VERSION},
+            timeout=15,
+            verify=get_ssl_verification(),
+        )
+    except Exception as exc:
+        logger.warning("Could not reach the GitHub API for %s/%s: %s", owner, repo, exc)
+        return None
+    if response.status_code != 200:
+        logger.info("GitHub API returned %s for %s/%s", response.status_code, owner, repo)
+        return None
+    data = response.json()
+    full_owner, _, full_repo = str(data.get("full_name") or f"{owner}/{repo}").partition("/")
+    return full_owner, full_repo, str((data.get("owner") or {}).get("id") or ""), str(data.get("id") or "")
+
+
+def _subject_value(name):
+    """A branch or environment name as GitHub writes it into the subject."""
+    return str(name).replace(":", "%3A")
+
+
+def pipeline_trigger(branch, environment):
+    """(subject suffix, human text, tag text) for the optional branch or environment."""
+    if environment:
+        return f"environment:{_subject_value(environment)}", f"environment {environment}", f"environment {environment}"
+    if branch:
+        return f"ref:refs/heads/{_subject_value(branch)}", f"branch {branch}", f"branch {branch}"
+    return "*", "any branch, tag, or environment", "any"
+
+
+def pipeline_subjects(owner, repo, owner_id, repo_id, suffix):
+    """The sub values to trust: name-based, plus the immutable form when the ids are known."""
+    prefixes = [f"repo:{owner}/{repo}"]
+    if owner_id and repo_id:
+        prefixes.append(f"repo:{owner}@{owner_id}/{repo}@{repo_id}")
+    return [f"{prefix}:{suffix}" for prefix in prefixes]
+
+
+def pipeline_trust_policy(provider_arn, subjects):
+    """Role trust policy for GitHub Actions OIDC, per the AWS GitHub example.
+
+    Exact subjects use StringEquals; the any-ref form (suffix *) uses
+    StringLike, which IAM accepts because the value is not only a wildcard.
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html#idp_oidc_Create_GitHub
+    """
+    condition = {"StringEquals": {f"{GITHUB_OIDC_HOST}:aud": GITHUB_OIDC_AUDIENCE}}
+    if any(subject.endswith(":*") for subject in subjects):
+        condition["StringLike"] = {f"{GITHUB_OIDC_HOST}:sub": subjects}
+    else:
+        condition["StringEquals"][f"{GITHUB_OIDC_HOST}:sub"] = subjects
+    return {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Federated": provider_arn},
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": condition,
+        }],
+    }
+
+
+def pipeline_role_name(cluster_name, namespace, owner, repo, suffix):
+    """A stable role name per namespace, repository, and trigger (64 characters at most).
+
+    Role names allow [\\w+=,.@-]; the hash keeps them unique per cluster too.
+    https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateRole.html
+    """
+    import hashlib
+
+    digest = hashlib.sha1(
+        f"{cluster_name}|{namespace}|{owner.lower()}/{repo.lower()}|{suffix}".encode("utf-8")
+    ).hexdigest()[:10]
+    return f"cb-eks-{namespace[:40]}-{digest}"
+
+
+def _tag_value(value):
+    """An IAM tag value: letters, digits, spaces and _.:/=+-@ only, 256 characters at most.
+
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html
+    """
+    return re.sub(r"[^\w .:/=+\-@]", "-", str(value))[:256]
+
+
+def ensure_github_oidc_provider(iam):
+    """ARN of the account's GitHub Actions OIDC provider, creating it when missing.
+
+    Returns (arn, created). An existing provider is used as it is; one that
+    lacks the sts.amazonaws.com audience is refused rather than changed,
+    since other roles trust it too. The thumbprint is optional and IAM
+    fetches it when omitted. Providers are never deleted here.
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListOpenIDConnectProviders.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetOpenIDConnectProvider.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateOpenIDConnectProvider.html
+    """
+    for item in iam.list_open_id_connect_providers().get("OpenIDConnectProviderList", []):
+        arn = item.get("Arn", "")
+        if not arn.endswith(f"oidc-provider/{GITHUB_OIDC_HOST}"):
+            continue
+        provider = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=arn)
+        if GITHUB_OIDC_AUDIENCE not in provider.get("ClientIDList", []):
+            raise AccessEntryError(
+                f"The account's GitHub OIDC provider ({arn}) does not list the audience "
+                f"{GITHUB_OIDC_AUDIENCE}. Add it to the provider, then run this again."
+            )
+        return arn, False
+    response = iam.create_open_id_connect_provider(
+        Url=GITHUB_OIDC_URL,
+        ClientIDList=[GITHUB_OIDC_AUDIENCE],
+        Tags=[{"Key": ACCESS_ENTRY_TAG_KEY, "Value": ACCESS_ENTRY_TAG_VALUE}],
+    )
+    return response["OpenIDConnectProviderArn"], True
+
+
+def load_pipeline_identities(resource):
+    """The pipeline identities recorded on the namespace Resource, as a list of dicts."""
+    raw = resource.get_value_for_custom_field(CF_PREFIX + "pipeline_identities") or ""
+    try:
+        identities = json.loads(raw) if raw else []
+    except ValueError:
+        logger.warning("Unreadable pipeline identities on %s: %r", resource, raw)
+        identities = []
+    return [item for item in identities if isinstance(item, dict) and item.get("role_name")]
+
+
+def store_pipeline_identities(resource, identities):
+    resource.set_value_for_custom_field(
+        CF_PREFIX + "pipeline_identities", json.dumps(identities, sort_keys=True) if identities else ""
+    )
+
+
+def workflow_snippet(role_arn, region, cluster_name, namespace, environment=""):
+    """A GitHub Actions job that assumes the role and deploys into the namespace.
+
+    configure-aws-credentials usage (v6): https://github.com/aws-actions/configure-aws-credentials
+    checkout usage (v7): https://github.com/actions/checkout
+    id-token: write is required to request the OIDC token:
+    https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+    """
+    lines = [
+        "permissions:",
+        "  id-token: write",
+        "  contents: read",
+        "jobs:",
+        "  deploy:",
+        "    runs-on: ubuntu-latest",
+    ]
+    if environment:
+        lines.append(f"    environment: {environment}")
+    lines += [
+        "    steps:",
+        "      - uses: actions/checkout@v7",
+        "      - uses: aws-actions/configure-aws-credentials@v6",
+        "        with:",
+        f"          role-to-assume: {role_arn}",
+        f"          aws-region: {region}",
+        f"      - run: aws eks update-kubeconfig --region {region} --name {cluster_name}",
+        f"      - run: kubectl apply --namespace {namespace} -f k8s/",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _grant_with_retry(eks, cluster_info, principal, namespace, level_key, attempts=8, delay=5):
+    """grant_namespace_access, retried while a just-created role propagates.
+
+    IAM is eventually consistent, so EKS can briefly reject a brand-new role
+    as an invalid principal.
+    https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_eventual-consistency
+    """
+    for attempt in range(attempts):
+        try:
+            return grant_namespace_access(eks, cluster_info, principal, namespace, level_key)
+        except Exception as exc:
+            if _error_code(exc) != "InvalidParameterException" or attempt == attempts - 1:
+                raise
+            logger.info("EKS does not see %s yet (%s); retrying", principal, aws_message(exc))
+            time.sleep(delay)
+
+
+def add_pipeline_identity(resource, repository, branch="", environment="", level_key="edit"):
+    """Create (or update) the pipeline role for a repository and grant it the namespace.
+
+    Returns (identity dict, list of progress messages). Raises AccessEntryError
+    or ValueError with a readable message; AWS errors propagate.
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateRole.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_UpdateAssumeRolePolicy.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_PutRolePolicy.html
+    """
+    if branch and environment:
+        raise ValueError("Give a branch or an environment, not both.")
+    for value in (branch, environment):
+        if value and not TRIGGER_VALUE_RE.match(value):
+            raise ValueError(f"'{value}' cannot be used: no spaces, * or ? in branch and environment names.")
+    level = get_access_level(level_key)
+    owner, repo, owner_id, repo_id = parse_repository(repository)
+
+    namespace, eks, cluster_info = access_context(resource)
+    cluster = load_cluster_resource(resource)
+    rh, region = cluster_aws(cluster)
+    iam = rh.get_boto3_client(region, "iam")
+    messages = []
+
+    if not owner_id:
+        found = github_repository(owner, repo)
+        if found:
+            owner, repo, owner_id, repo_id = found
+        else:
+            messages.append(
+                f"GitHub did not return {owner}/{repo} (private, or api.github.com unreachable), so only "
+                "the name-based subject is trusted. For a repository created after July 15, 2026, run this "
+                "again with owner@OWNER-ID/repo@REPO-ID."
+            )
+    suffix, trigger_text, trigger_tag = pipeline_trigger(branch, environment)
+    subjects = pipeline_subjects(owner, repo, owner_id, repo_id, suffix)
+
+    provider_arn, created_provider = ensure_github_oidc_provider(iam)
+    if created_provider:
+        messages.append(f"Created the account's GitHub Actions OIDC provider {provider_arn}.")
+
+    role_name = pipeline_role_name(cluster_info["name"], namespace, owner, repo, suffix)
+    trust = json.dumps(pipeline_trust_policy(provider_arn, subjects))
+    try:
+        existing = iam.get_role(RoleName=role_name)["Role"]
+    except Exception as exc:
+        if _error_code(exc) != "NoSuchEntity":
+            raise
+        existing = None
+    if existing is not None:
+        tags = {t["Key"]: t["Value"] for t in iam.list_role_tags(RoleName=role_name).get("Tags", [])}
+        if tags.get(PIPELINE_TAG_RESOURCE) != str(resource.global_id):
+            raise AccessEntryError(f"IAM role {role_name} exists and was not created for this namespace.")
+        iam.update_assume_role_policy(RoleName=role_name, PolicyDocument=trust)
+        role_arn = existing["Arn"]
+        messages.append(f"Updated the trust policy of {role_arn}.")
+    else:
+        role_arn = iam.create_role(
+            Path=PIPELINE_ROLE_PATH,
+            RoleName=role_name,
+            AssumeRolePolicyDocument=trust,
+            Description=_tag_value(
+                f"GitHub Actions for {owner}/{repo} ({trigger_text}) deploying to EKS namespace "
+                f"{namespace} on {cluster_info['name']}. Managed by CloudBolt."
+            )[:1000],
+            Tags=[
+                {"Key": ACCESS_ENTRY_TAG_KEY, "Value": ACCESS_ENTRY_TAG_VALUE},
+                {"Key": PIPELINE_TAG_RESOURCE, "Value": str(resource.global_id)},
+                {"Key": PIPELINE_TAG_REPOSITORY, "Value": _tag_value(f"{owner}/{repo}")},
+                {"Key": PIPELINE_TAG_TRIGGER, "Value": _tag_value(trigger_tag)},
+            ],
+        )["Role"]["Arn"]
+        messages.append(f"Created IAM role {role_arn} trusting {', '.join(subjects)}.")
+
+    # update-kubeconfig in the workflow needs eks:DescribeCluster on this cluster;
+    # get-token needs no IAM permission. The role gets nothing else in AWS.
+    # https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html
+    iam.put_role_policy(
+        RoleName=role_name,
+        PolicyName=PIPELINE_POLICY_NAME,
+        PolicyDocument=json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [{"Effect": "Allow", "Action": "eks:DescribeCluster", "Resource": cluster_info["arn"]}],
+        }),
+    )
+
+    messages.append(_grant_with_retry(eks, cluster_info, role_arn, namespace, level_key))
+
+    identity = {
+        "repository": f"{owner}/{repo}",
+        "repository_ids": f"{owner_id}/{repo_id}" if owner_id else "",
+        "trigger": trigger_text,
+        "environment": environment or "",
+        "role_name": role_name,
+        "role_arn": role_arn,
+        "level": level_key,
+        "subjects": subjects,
+    }
+    identities = [item for item in load_pipeline_identities(resource) if item["role_name"] != role_name]
+    store_pipeline_identities(resource, identities + [identity])
+    refresh_access_attribute(resource, eks, cluster_info, namespace)
+    resource.save()
+    messages.append(f"{level['label']} access for {owner}/{repo} ({trigger_text}) is ready.")
+    return identity, messages
+
+
+def delete_pipeline_role(iam, role_name, resource_global_id):
+    """Delete a CloudBolt pipeline role: inline policies, attached policies, then the role.
+
+    Only a role tagged with this namespace's resource id is deleted. Returns a message.
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteRole.html (what must go first)
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteRolePolicy.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_DetachRolePolicy.html
+      https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html
+    """
+    try:
+        tags = {t["Key"]: t["Value"] for t in iam.list_role_tags(RoleName=role_name).get("Tags", [])}
+    except Exception as exc:
+        if _error_code(exc) == "NoSuchEntity":
+            return f"IAM role {role_name} was already gone."
+        raise
+    if tags.get(PIPELINE_TAG_RESOURCE) != str(resource_global_id):
+        return f"IAM role {role_name} is not tagged for this namespace and was left in place."
+    for name in iam.list_role_policies(RoleName=role_name).get("PolicyNames", []):
+        iam.delete_role_policy(RoleName=role_name, PolicyName=name)
+    for policy in iam.list_attached_role_policies(RoleName=role_name).get("AttachedPolicies", []):
+        iam.detach_role_policy(RoleName=role_name, PolicyArn=policy["PolicyArn"])
+    for profile in iam.list_instance_profiles_for_role(RoleName=role_name).get("InstanceProfiles", []):
+        iam.remove_role_from_instance_profile(
+            InstanceProfileName=profile["InstanceProfileName"], RoleName=role_name
+        )
+    iam.delete_role(RoleName=role_name)
+    return f"Deleted IAM role {role_name}."
+
+
+def remove_pipeline_identity(resource, identity):
+    """Revoke a pipeline role's namespace access, then delete the role. Returns messages.
+
+    The access is revoked first because EKS keeps an access entry after its
+    IAM principal is deleted:
+    https://docs.aws.amazon.com/eks/latest/userguide/creating-access-entries.html
+    When the cluster cannot be read (already deleted), the role is deleted anyway.
+    """
+    messages = []
+    namespace = resource.get_value_for_custom_field(CF_PREFIX + "name")
+    try:
+        _, eks, cluster_info = access_context(resource)
+        messages.append(revoke_namespace_access(eks, cluster_info, identity["role_arn"], namespace))
+    except AccessEntryError as exc:
+        eks = cluster_info = None
+        messages.append(f"Namespace access was not revoked: {exc}")
+    cluster = load_cluster_resource(resource)
+    if cluster is None:
+        raise AccessEntryError("The namespace records no cluster resource, so its AWS account is unknown.")
+    rh, region = cluster_aws(cluster)
+    iam = rh.get_boto3_client(region, "iam")
+    messages.append(delete_pipeline_role(iam, identity["role_name"], resource.global_id))
+    store_pipeline_identities(
+        resource, [item for item in load_pipeline_identities(resource) if item["role_name"] != identity["role_name"]]
+    )
+    if eks is not None:
+        refresh_access_attribute(resource, eks, cluster_info, namespace)
+    resource.save()
+    return messages
+
+
+def find_pipeline_identity(resource, repository, branch="", environment=""):
+    """The recorded identity for a repository and trigger, or None."""
+    owner, repo, _, _ = parse_repository(repository)
+    suffix, _, _ = pipeline_trigger(branch, environment)
+    wanted = f"{owner}/{repo}".lower()
+    for item in load_pipeline_identities(resource):
+        same_repo = item.get("repository", "").lower() == wanted
+        if same_repo and any(subject.endswith(":" + suffix) for subject in item.get("subjects", [])):
+            return item
+    return None

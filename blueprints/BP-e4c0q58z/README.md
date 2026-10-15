@@ -14,6 +14,7 @@ Creates a governed namespace for a team on an existing EKS cluster: a namespace 
 | Day-2 | RSA-mr1clc5e / OHK-3902mdky | Manage Namespace Access |
 | Day-2 | RSA-03qqsnft / OHK-paad1c56 | Extend Namespace Expiration |
 | Day-2 | RSA-j03ua3gm / OHK-7n4o0hox | Namespace Connection Details |
+| Day-2 | RSA-l59xsi54 / OHK-h9moajbi | Manage Pipeline Identity |
 
 Order form: EKS Cluster, Namespace Name, Size Tier (required), Additional CloudBolt Group, Allow Ingress From Other Namespaces, Team IAM Principals, Team Access Level, and an optional Expiration Date.
 
@@ -31,6 +32,7 @@ Order form: EKS Cluster, Namespace Name, Size Tier (required), Additional CloudB
 - **Request Namespace Quota Change** moves the namespace to another size tier once the group's approvers accept it, then updates the ResourceQuota, the tier label, and the environment quota. The job log shows usage at the time of the change; a quota below current usage blocks new pods but stops nothing that runs.
 - **Manage Namespace Access** grants or revokes an IAM role or user's kubectl access (Edit, View, or Admin), a CloudBolt group's entitlement to the namespace environment, or both. The owning group cannot be revoked.
 - **Extend Namespace Expiration** adds days to the expiration date and the `cloudbolt.io/lease-expires` annotation.
+- **Manage Pipeline Identity** gives a GitHub Actions workflow kubectl access to the namespace without stored credentials, or removes it; see Pipeline identities below.
 - **Namespace Connection Details** returns the commands that connect kubectl to the namespace and who has IAM access. The AWS EKS Cluster extension ([XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/)) shows the same on a Connect tab, with a kubeconfig to copy or download.
 
 ## IAM access
@@ -39,6 +41,14 @@ Team IAM Principals takes role or user ARNs, one per line, and Team Access Level
 - Entries CloudBolt creates carry the tag `cloudbolt.io/managed-by=CloudBolt`. Revoke and teardown delete such an entry once it grants nothing else, and never delete an entry created outside CloudBolt.
 - A grant that fails during the order fails the build with the namespace already created; fix the ARN and run Manage Namespace Access, or delete the resource.
 - The kubeconfig carries no secret: kubectl runs `aws eks get-token` with the developer's own credentials, which work only for a principal with access.
+
+## Pipeline identities
+Manage Pipeline Identity creates an IAM role in the cluster's AWS account that only GitHub Actions workflows from one repository can assume, optionally limited to a branch or a GitHub environment, and grants it the chosen access level on the namespace. The job log and the Connect tab show a workflow that uses it through `aws-actions/configure-aws-credentials`.
+- The role trusts the account's `token.actions.githubusercontent.com` OIDC provider, which the action creates when the account has none; an existing provider is used as it is and never deleted. The role's only AWS permission is `eks:DescribeCluster` on this cluster, for `update-kubeconfig`.
+- GitHub sends a name-based subject (`repo:owner/repo:ref:refs/heads/main`) for older repositories and an ID-based one (`repo:owner@ID/repo@ID:...`) for repositories created, renamed, or transferred after July 15, 2026. The role trusts both: the action reads the ids from the GitHub API. For a private repository, which the API does not return, give the repository as `owner@OWNER-ID/repo@REPO-ID`.
+- Leave Branch and GitHub Environment empty to trust every workflow in the repository, pull requests included. Prefer an environment with protection rules.
+- Remove takes the same repository and branch or environment. It revokes the access, deletes the access entry, and deletes the role; teardown does the same for every pipeline identity on the namespace. Roles are named `cb-eks-<namespace>-<hash>` under the `/cloudbolt/eks-namespace/` path and tagged with the namespace resource id; only roles with that tag are deleted.
+- The handler credentials need `iam:ListOpenIDConnectProviders`, `iam:GetOpenIDConnectProvider`, `iam:CreateOpenIDConnectProvider`, `iam:TagOpenIDConnectProvider`, `iam:CreateRole`, `iam:TagRole`, `iam:GetRole`, `iam:ListRoleTags`, `iam:UpdateAssumeRolePolicy`, `iam:PutRolePolicy`, `iam:ListRolePolicies`, `iam:DeleteRolePolicy`, `iam:ListAttachedRolePolicies`, `iam:DetachRolePolicy`, `iam:ListInstanceProfilesForRole`, `iam:RemoveRoleFromInstanceProfile`, and `iam:DeleteRole`, and the appliance needs HTTPS to `api.github.com` for the id lookup.
 
 ## Deploying into the namespace
 The pinned environment is named `<cluster> / <namespace>#<region>`, points at the cluster's orchestrator, and carries the namespace as its `kubernetes_namespace` value. Only the entitled groups see it on order forms. Keep the `#<region>` suffix if you rename it: CloudBolt mints the cluster's EKS token with the region parsed from the orchestrator's first environment name after `#`, so an environment without it breaks every call to the cluster through CloudBolt.
@@ -52,7 +62,7 @@ The pinned environment is named `<cluster> / <namespace>#<region>`, points at th
 - Leave Allow Ingress From Other Namespaces unchecked to isolate the namespace: ingress is denied except from pods in the same namespace and in `kube-system`. Load balancers in IP target mode and other namespaces need their own allow policies.
 - The environment quota mirror is informational for container orders, which CloudBolt does not count against server quotas.
 - Expiration Date defaults to 7 days out and is mirrored to the namespace as the `cloudbolt.io/lease-expires` annotation; Extend Namespace Expiration moves both. Nothing in this blueprint acts on it.
-- Teardown removes the CloudBolt environment first, then takes the namespace out of every principal's access policies (so a later namespace with the same name does not inherit that access), deletes the namespace and everything in it, waits for it to terminate, and drops the orchestrator's namespace record. An already-deleted namespace returns WARNING, as does access cleanup that AWS refuses.
+- Teardown removes the CloudBolt environment first, then takes the namespace out of every principal's access policies (so a later namespace with the same name does not inherit that access), deletes the pipeline roles, deletes the namespace and everything in it, waits for it to terminate, and drops the orchestrator's namespace record. An already-deleted namespace returns WARNING, as does access cleanup that AWS refuses.
 - Discovery imports only namespaces labeled `cloudbolt.io/landing-zone=true` across every EKS cluster's orchestrator; plain namespaces are ignored. It links an imported namespace to its environment when one exists but does not create environments.
 - `any_group_can_deploy` is true, so every group can order this blueprint; the EKS Cluster dropdown is what limits where a group can order a namespace. Namespace environments do not count toward that gate: holding one namespace on a cluster does not let a group order more there.
 - Platform admins can also create a namespace from the cluster resource with the AWS EKS blueprint's Create AWS EKS Namespace action, choosing the owning group; the result is a resource of this blueprint, identical to an ordered one except that it has no expiration date.

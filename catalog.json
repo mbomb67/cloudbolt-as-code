@@ -137,6 +137,7 @@
       "plugins/OHK-u9jm7p8h",
       "resource_actions/RSA-03qqsnft",
       "resource_actions/RSA-j03ua3gm",
+      "resource_actions/RSA-l59xsi54",
       "resource_actions/RSA-mr1clc5e",
       "resource_actions/RSA-mwegogck"
     ],
@@ -1962,6 +1963,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-h9moajbi",
+    "type": "plugins",
+    "name": "Manage AWS EKS Namespace Pipeline Identity",
+    "description": "Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry.",
+    "path": "plugins/OHK-h9moajbi",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "resource_actions/RSA-l59xsi54"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-htrxkps2",
     "type": "plugins",
     "name": "ServiceNow Request: Close",
@@ -3191,6 +3207,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-l59xsi54",
+    "type": "resource_actions",
+    "name": "Manage Pipeline Identity",
+    "description": "Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry.",
+    "path": "resource_actions/RSA-l59xsi54",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-h9moajbi"
+    ],
+    "used_by": [
+      "blueprints/BP-e4c0q58z"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-mgh3dn9p",
     "type": "resource_actions",
     "name": "Apply Policy",
@@ -3576,6 +3607,7 @@
       "plugins/OHK-ow9x0amc",
       "plugins/OHK-paad1c56",
       "plugins/OHK-3902mdky",
+      "plugins/OHK-h9moajbi",
       "plugins/OHK-arour20h",
       "plugins/OHK-bnano0nc"
     ]
