@@ -6,15 +6,15 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | Type | Count |
 |---|---|
 | [Blueprints](#blueprints) | 23 |
-| [Resource actions](#resource-actions) | 28 |
+| [Resource actions](#resource-actions) | 30 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 15 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 3 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 116 |
+| [Plugins](#plugins) | 118 |
 | [Shared modules](#shared-modules) | 14 |
-| [UI extensions](#ui-extensions) | 8 |
+| [UI extensions](#ui-extensions) | 9 |
 | [Forms](#forms) | 9 |
 | [Form functions](#form-functions) | 2 |
 
@@ -77,8 +77,10 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Retrieve Pending Certificate | [RSA-7cjsqrwy](resource_actions/RSA-7cjsqrwy/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | [Retrieve Pending Certificate](plugins/OHK-ul8wbswa/) | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Revoke Access | [RSA-8zwsrcbv](resource_actions/RSA-8zwsrcbv/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) | [Azure Cross-Tenant Subscription](blueprints/BP-5pei9cno/README.md) |
 | Run SQL Command | [RSA-jaitfhwp](resource_actions/RSA-jaitfhwp/) | Runs a SQL command against the PostgreSQL server. | [Run SQL Command](plugins/OHK-4w05hdd3/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
+| Scale AWS EKS Nodegroup | [RSA-inhs50gi](resource_actions/RSA-inhs50gi/) | Changes a managed node group's minimum, maximum, and desired node counts, waits for AWS to apply them, and refreshes the node group sub-resource. | [Scale AWS EKS Nodegroup](plugins/OHK-x1984ik1/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Terraform Update | [RSA-dxrh4m6j](resource_actions/RSA-dxrh4m6j/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | [Terraform Update](plugins/OHK-lvy5tj0y/) | [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md), [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Test Postgres Connection | [RSA-9tfwebk7](resource_actions/RSA-9tfwebk7/) | Tests the connection to the PostgreSQL database. | [Test Postgres Connection](plugins/OHK-wr079u8q/) | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
+| Update AWS EKS Add-on | [RSA-xdlxetyc](resource_actions/RSA-xdlxetyc/) | Updates one EKS add-on to a newer version published for the cluster's Kubernetes version and waits for AWS to finish. | [Update AWS EKS Add-on](plugins/OHK-f0775rga/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Update Bicep Deployment | [RSA-fa7r7cg7](resource_actions/RSA-fa7r7cg7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | [Update Bicep Deployment](plugins/OHK-9f45ede7/) | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | Update EKS Version | [RSA-dhgwoj3z](resource_actions/RSA-dhgwoj3z/) | Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish. | [Update EKS Version](plugins/OHK-rvuo63r2/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Update Tags | [RSA-kbikieh7](resource_actions/RSA-kbikieh7/) | Merges or replaces the tags on the Azure resource group. | [Update Tags](plugins/OHK-nwcyoto7/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
@@ -252,6 +254,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Run CIT Tests | [OHK-ieb4qio7](plugins/OHK-ieb4qio7/) | Starts a functionaltest job for the named CIT tests and returns its job id. | CloudBolt Plug-in | [Run CIT Tests](mcp_tool_actions/MTA-gnx1ckno/README.md) |
 | Run Recurring Job | [OHK-qduf79xu](plugins/OHK-qduf79xu/) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | CloudBolt Plug-in | [Run Recurring Job](mcp_tool_actions/MTA-thkvyt0v/README.md) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
+| Scale AWS EKS Nodegroup | [OHK-x1984ik1](plugins/OHK-x1984ik1/) | Changes a managed node group's minimum, maximum, and desired node counts, waits for AWS to apply them, and refreshes the node group sub-resource. | CloudBolt Plug-in | [Scale AWS EKS Nodegroup](resource_actions/RSA-inhs50gi/) |
 | ServiceNow Request Approval Sync | [OHK-bsqictlo](plugins/OHK-bsqictlo/) | Approves or denies pending CloudBolt orders to match the approval recorded on their ServiceNow RITM, and closes the RITM of orders cancelled in CloudBolt. | CloudBolt Plug-in | [ServiceNow Request Approval Sync](recurring_jobs/RJB-do33f7f3/README.md) |
 | ServiceNow Request: Close | [OHK-htrxkps2](plugins/OHK-htrxkps2/) | Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs and as the RITM's configuration item, and links the created objects to the records. | CloudBolt Plug-in | [ServiceNow Request: Close on Completion](orchestration_actions/HPA-fxo5hujp/README.md) |
 | ServiceNow Request: Close on Denial | [OHK-w8exctx7](plugins/OHK-w8exctx7/) | Closes the order's ServiceNow RITM as incomplete when a CloudBolt approver denies the order. | CloudBolt Plug-in | [ServiceNow Request: Close on Denial](orchestration_actions/HPA-i8r5x2kc/README.md) |
@@ -269,6 +272,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Teardown OpenShift Project Landing Zone | [OHK-mpe8fl3d](plugins/OHK-mpe8fl3d/) | Deletes the OpenShift project behind a landing zone and its CloudBolt environment once no managed servers remain. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
 | Terraform Update | [OHK-lvy5tj0y](plugins/OHK-lvy5tj0y/) | Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause. | CloudBolt Plug-in | [Terraform Update](resource_actions/RSA-dxrh4m6j/) |
 | Test Postgres Connection | [OHK-wr079u8q](plugins/OHK-wr079u8q/) | Tests the connection to the PostgreSQL database. | CloudBolt Plug-in | [Test Postgres Connection](resource_actions/RSA-9tfwebk7/) |
+| Update AWS EKS Add-on | [OHK-f0775rga](plugins/OHK-f0775rga/) | Updates one EKS add-on to a newer version published for the cluster's Kubernetes version and waits for AWS to finish. | CloudBolt Plug-in | [Update AWS EKS Add-on](resource_actions/RSA-xdlxetyc/) |
 | Update Bicep Deployment | [OHK-9f45ede7](plugins/OHK-9f45ede7/) | Updates a Bicep deployment stack with changed parameters after a what-if preview and approval. | CloudBolt Plug-in | [Update Bicep Deployment](resource_actions/RSA-fa7r7cg7/) |
 | Update EKS Version | [OHK-rvuo63r2](plugins/OHK-rvuo63r2/) | Upgrades the EKS cluster's Kubernetes control plane to the chosen version and waits for the update to finish. | CloudBolt Plug-in | [Update EKS Version](resource_actions/RSA-dhgwoj3z/) |
 | Update Tags | [OHK-nwcyoto7](plugins/OHK-nwcyoto7/) | Merges or replaces the tags on the Azure resource group. | CloudBolt Plug-in | [Update Tags](resource_actions/RSA-kbikieh7/) |
@@ -301,6 +305,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
+| AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures read through the cluster's orchestrator token. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |

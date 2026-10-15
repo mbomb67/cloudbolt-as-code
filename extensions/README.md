@@ -5,6 +5,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
+| AWS EKS Cluster | [XUI-8a1jocmr](XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures read through the cluster's orchestrator token. |
 | Azure NSG Management | [XUI-0jdk7t6h](XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | HCP Terraform Workspace | [XUI-ax1sluwi](XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |

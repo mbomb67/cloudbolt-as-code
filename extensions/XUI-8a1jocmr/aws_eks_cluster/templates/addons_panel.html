@@ -1,0 +1,79 @@
+{% load i18n %}
+<div class="eks-card-h">
+  <span class="eks-card-t">{% trans "Add-ons" %}{% if not error %} &middot; {{ rows|length }}{% endif %}</span>
+  <div class="eks-card-tools">
+    {% if updates_available %}
+      <span class="eks-pill eks-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
+        {% blocktrans count n=updates_available %}{{ n }} update available{% plural %}{{ n }} updates available{% endblocktrans %}
+      </span>
+    {% endif %}
+    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter add-ons' %}" data-eks-filter="#eksx-addons-table">
+  </div>
+</div>
+{% if error %}
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+{% else %}
+<div class="table-responsive">
+  <table id="eksx-addons-table" class="eks-table">
+    <thead>
+      <tr>
+        <th>{% trans "Add-on" %}</th>
+        <th>{% trans "Installed" %}</th>
+        <th>{% trans "Latest for" %} {{ kubernetes_version }}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Health" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-eks-row>
+        <td>
+          {{ r.name }}
+          <div class="eks-hint">{{ r.publisher|default:r.owner }}{% if r.modified %} &middot; {% trans "changed" %} {{ r.modified }}{% endif %}</div>
+        </td>
+        <td class="eks-mono eks-nowrap">{{ r.version|default:"&mdash;" }}</td>
+        <td class="eks-nowrap">
+          {% if r.latest %}
+            <span class="eks-mono">{{ r.latest }}</span>
+            {% if r.latest_is_default %}<span class="eks-tag">{% trans "EKS default" %}</span>{% endif %}
+          {% else %}
+            <span class="eks-muted">&mdash;</span>
+          {% endif %}
+        </td>
+        <td><span class="eks-pill eks-pill-{{ r.status.style }}"><i class="bi {{ r.status.icon }}" aria-hidden="true"></i> {{ r.status.text }}</span></td>
+        <td>
+          {% if r.issues %}
+            <ul class="eks-issues">
+              {% for issue in r.issues %}
+              <li><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><span>{{ issue.message }}</span><span class="eks-mono">{{ issue.code }}</span></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <span class="eks-pill eks-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "Healthy" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="eks-row-tools">
+            {% if r.upgrade_url %}
+              <a class="btn btn-sm btn-primary open-dialog" href="{{ r.upgrade_url }}"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade" %}</a>
+            {% elif r.upgrade_available %}
+              <span class="eks-tag eks-tag-warn">{% trans "Update available" %}</span>
+            {% elif r.latest %}
+              <span class="eks-tag eks-tag-ok">{% trans "Up to date" %}</span>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="eks-empty">{% trans "No EKS add-ons are installed on this cluster." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if warnings %}
+<div class="eks-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+{% endif %}

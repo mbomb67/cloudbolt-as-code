@@ -1,0 +1,35 @@
+{% load i18n %}
+{% include "aws_eks_cluster/templates/_assets.html" %}
+
+<div id="eksx-nodegroups" class="eksx">
+  <div class="eks-card">
+    <div class="eks-hero-top">
+      <div>
+        <div class="eks-eyebrow">{% trans "Managed node groups" %}</div>
+        <div class="eks-title"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="eks-sub">{{ region|default:"" }}{% if handler_name %} &middot; {{ handler_name }}{% endif %}</div>
+      </div>
+      <div class="eks-tools">
+        {% if add_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ add_url }}">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Add node group" %}
+        </a>
+        {% endif %}
+        {% if sync_url %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ sync_url }}" title="{% trans 'Run List AWS EKS Nodegroup to refresh the node group sub-resources' %}">
+          <i class="bi bi-cloud-download" aria-hidden="true"></i> {% trans "Sync from AWS" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="eks-card" data-eks-panel="nodegroups" data-eks-src="{{ nodegroups_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.eksxInit("eksx-nodegroups"); });
+</script>

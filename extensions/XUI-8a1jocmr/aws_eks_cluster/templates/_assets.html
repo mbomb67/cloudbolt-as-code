@@ -1,0 +1,119 @@
+{% comment %}
+  Shared styles and panel loader for the AWS EKS Cluster tabs.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tabs without an asset build.
+{% endcomment %}
+<style>
+  .eksx {
+    --eks-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --eks-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --eks-line: var(--neutral-250, #E2E8ED);
+    --eks-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --eks-primary: var(--bs-primary, #0d6efd);
+    --eks-ok: var(--bs-success, #198754);
+    --eks-warn: var(--bs-warning, #ffc107);
+    --eks-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --eks-bad: var(--bs-danger, #dc3545);
+  }
+  .eksx .eks-card { background: var(--surface, #fff); border: 1px solid var(--eks-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .eksx .eks-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .eksx .eks-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--eks-muted); }
+  .eksx .eks-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .eksx .eks-title .bi { color: var(--eks-primary); }
+  .eksx .eks-sub { font-size: 12.5px; font-weight: 600; color: var(--eks-muted); margin-top: 2px; }
+  .eksx .eks-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .eksx .eks-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--eks-line); border-top: 1px solid var(--eks-line); }
+  .eksx .eks-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .eksx .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--eks-muted); margin-bottom: 3px; }
+  .eksx .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .eksx .eks-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--eks-line); flex-wrap: wrap; }
+  .eksx .eks-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--eks-muted); }
+  .eksx .eks-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .eksx .eks-card-tools .form-control { width: 220px; max-width: 100%; }
+  .eksx .eks-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .eksx .eks-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--eks-muted); padding: 10px 18px; border-bottom: 1px solid var(--eks-line); text-align: left; white-space: nowrap; }
+  .eksx .eks-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .eksx .eks-table tbody tr:last-child td { border-bottom: 0; }
+  .eksx .eks-table tbody tr:hover td { background: var(--eks-surface-2); }
+  .eksx .eks-table tfoot td { padding: 10px 18px; border-top: 1px solid var(--eks-line); font-weight: 700; color: var(--eks-soft); }
+  .eksx .eks-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--eks-soft); }
+  .eksx .eks-pill-ok { background: color-mix(in srgb, var(--eks-ok) 14%, transparent); color: var(--eks-ok); }
+  .eksx .eks-pill-warn { background: color-mix(in srgb, var(--eks-warn) 22%, transparent); color: var(--eks-warn-text); }
+  .eksx .eks-pill-bad { background: color-mix(in srgb, var(--eks-bad) 12%, transparent); color: var(--eks-bad); }
+  .eksx .eks-pill-live { background: color-mix(in srgb, var(--eks-primary) 13%, transparent); color: var(--eks-primary); }
+  .eksx .eks-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--eks-soft); vertical-align: middle; white-space: nowrap; }
+  .eksx .eks-tag-warn { background: color-mix(in srgb, var(--eks-warn) 22%, transparent); color: var(--eks-warn-text); }
+  .eksx .eks-tag-bad { background: color-mix(in srgb, var(--eks-bad) 12%, transparent); color: var(--eks-bad); }
+  .eksx .eks-tag-ok { background: color-mix(in srgb, var(--eks-ok) 14%, transparent); color: var(--eks-ok); }
+  .eksx .eks-muted { color: var(--eks-muted); font-weight: 600; }
+  .eksx .eks-hint { font-size: 11.5px; color: var(--eks-muted); font-weight: 600; margin-top: 3px; }
+  .eksx .eks-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .eksx .eks-nowrap { white-space: nowrap; }
+  .eksx .eks-empty { color: var(--eks-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .eksx .eks-banner { display: flex; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--eks-line); background: color-mix(in srgb, var(--eks-warn) 12%, var(--surface, #fff)); }
+  .eksx .eks-banner > .bi { font-size: 18px; color: var(--eks-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .eksx .eks-banner-info { background: color-mix(in srgb, var(--eks-primary) 9%, var(--surface, #fff)); }
+  .eksx .eks-banner-info > .bi { color: var(--eks-primary); }
+  .eksx .eks-banner-bad { background: color-mix(in srgb, var(--eks-bad) 9%, var(--surface, #fff)); }
+  .eksx .eks-banner-bad > .bi { color: var(--eks-bad); }
+  .eksx .eks-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
+  .eksx .eks-banner-body { flex: 1; min-width: 0; }
+  .eksx .eks-banner-t { font-size: 13.5px; font-weight: 700; }
+  .eksx .eks-banner-s { font-size: 12.5px; color: var(--eks-muted); font-weight: 600; }
+  .eksx .eks-issues { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .eksx .eks-issues li { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; }
+  .eksx .eks-issues li .bi { color: var(--eks-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .eksx .eks-issues li .eks-mono { font-size: 11.5px; color: var(--eks-muted); }
+  .eksx .eks-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--eks-bad); overflow-wrap: anywhere; }
+  .eksx .eks-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .eksx .eks-note { padding: 8px 22px 12px; font-size: 12px; color: var(--eks-muted); font-weight: 600; }
+  .eksx .eks-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--eks-muted); display: flex; align-items: center; gap: 8px; }
+  .eksx .eks-spin { display: inline-block; animation: eks-spin 1s linear infinite; }
+  .eksx .eks-meter { height: 6px; max-width: 150px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 9%, transparent); overflow: hidden; margin-top: 5px; }
+  .eksx .eks-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--eks-ok); }
+  .eksx .eks-meter-warn > span { background: var(--eks-warn); }
+  .eksx .eks-meter-bad > span { background: var(--eks-bad); }
+  .eksx .eks-cond { display: inline-flex; align-items: center; gap: 4px; color: var(--eks-warn-text); font-size: 12px; font-weight: 700; margin-right: 8px; white-space: nowrap; }
+  .eksx .eks-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .eksx .eks-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--eks-line); }
+  .eksx .eks-stat .k { margin-bottom: 1px; }
+  .eksx .eks-stat .v { font-size: 16px; }
+  @keyframes eks-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-eks-panel] inside a tab root from its data-eks-src URL
+  // and wires client-side filters (data-eks-filter) and the Refresh button
+  // (data-eks-refresh). A panel may name its source in data-eks-loading.
+  window.eksxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("eksx-ready")) { return; }
+    $root.data("eksx-ready", true);
+
+    function load($panel, url) {
+      var source = $panel.data("eks-loading") || "AWS";
+      $panel.html('<div class="eks-loading"><i class="bi bi-arrow-repeat eks-spin" aria-hidden="true"></i> Loading from ' + source + '…</div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="eks-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-eks-panel]").each(function () { load($(this), $(this).data("eks-src")); });
+    }
+    $root.on("input", "input[data-eks-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("eks-filter")).find("tbody tr[data-eks-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-eks-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    loadAll();
+  };
+})();
+</script>

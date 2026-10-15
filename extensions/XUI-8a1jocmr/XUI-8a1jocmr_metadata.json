@@ -1,0 +1,27 @@
+{
+    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures read through the cluster's orchestrator token.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-8a1jocmr",
+    "label": "AWS EKS Cluster",
+    "last_updated": "2026-10-15",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "aws_eks_cluster",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "forms.py",
+        "templates/_assets.html",
+        "templates/_alert.html",
+        "templates/overview_tab.html",
+        "templates/cluster_panel.html",
+        "templates/addons_panel.html",
+        "templates/nodegroups_tab.html",
+        "templates/nodegroups_panel.html",
+        "templates/workloads_tab.html",
+        "templates/workloads_panel.html"
+    ],
+    "version": ""
+}

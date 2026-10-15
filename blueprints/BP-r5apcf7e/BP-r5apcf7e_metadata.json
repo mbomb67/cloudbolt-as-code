@@ -86,6 +86,20 @@
             },
             "enabled": true,
             "label": "List AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-inhs50gi"
+            },
+            "enabled": true,
+            "label": "Scale AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-xdlxetyc"
+            },
+            "enabled": true,
+            "label": "Update AWS EKS Add-on"
         }
     ],
     "metadata_version": "2026.1.0",
