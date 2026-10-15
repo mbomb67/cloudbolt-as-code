@@ -79,14 +79,21 @@
   .eksx .eks-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--eks-line); }
   .eksx .eks-stat .k { margin-bottom: 1px; }
   .eksx .eks-stat .v { font-size: 16px; }
+  .eksx .eks-steps { margin: 0; padding: 12px 22px 4px 40px; }
+  .eksx .eks-steps li { margin-bottom: 8px; }
+  .eksx .eks-steps code { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--eks-surface-2); color: var(--bs-body-color, #212529); overflow-wrap: anywhere; margin-right: 6px; }
+  .eksx .eks-pre { margin: 0; padding: 14px 22px; max-height: 420px; overflow: auto; background: var(--eks-surface-2); white-space: pre; }
   @keyframes eks-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
 (function () {
   "use strict";
   // Loads every [data-eks-panel] inside a tab root from its data-eks-src URL
-  // and wires client-side filters (data-eks-filter) and the Refresh button
-  // (data-eks-refresh). A panel may name its source in data-eks-loading.
+  // and wires client-side filters (data-eks-filter), the Refresh button
+  // (data-eks-refresh), and copy and download buttons (data-eks-copy and
+  // data-eks-download name the element whose text they take; the download
+  // file name comes from data-eks-filename). A panel may name its source in
+  // data-eks-loading.
   window.eksxInit = function (rootId) {
     var $root = $("#" + rootId);
     if (!$root.length || $root.data("eksx-ready")) { return; }
@@ -113,6 +120,27 @@
       });
     });
     $root.on("click", "[data-eks-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    $root.on("click", "[data-eks-copy]", function (e) {
+      e.preventDefault();
+      var $button = $(this);
+      var text = $($button.data("eks-copy")).text();
+      if (!navigator.clipboard) { return; }
+      navigator.clipboard.writeText(text).then(function () {
+        var $icon = $button.find("i.bi");
+        $icon.removeClass("bi-clipboard").addClass("bi-check2");
+        setTimeout(function () { $icon.removeClass("bi-check2").addClass("bi-clipboard"); }, 1500);
+      });
+    });
+    $root.on("click", "[data-eks-download]", function (e) {
+      e.preventDefault();
+      var text = $($(this).data("eks-download")).text();
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      link.download = $(this).data("eks-filename") || "kubeconfig.yaml";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 0);
+    });
     loadAll();
   };
 })();

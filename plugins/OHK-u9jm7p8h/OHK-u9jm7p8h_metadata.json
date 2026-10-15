@@ -60,6 +60,44 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
+            "description": "Kubernetes access the IAM principals get in the namespace through an EKS access policy: Edit, View, or Admin.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-b26n8hi5",
+            "label": "Team Access Level",
+            "name": "eks_ns_team_access_level",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "IAM role or user ARNs, one per line, to give kubectl access to this namespace through EKS access entries. Leave empty to grant access later with Manage Namespace Access.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-bo84qk73",
+            "label": "Team IAM Principals",
+            "name": "eks_ns_team_principal_arns",
+            "placeholder": "arn:aws:iam::111122223333:role/payments-developers",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
             "description": "Namespace name: 1-63 lowercase letters, digits, or hyphens. Names starting with kube- and the built-in namespaces are reserved.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -101,7 +139,9 @@
         "namespace_name",
         "size_tier",
         "additional_group_id",
-        "allow_cross_namespace_ingress"
+        "allow_cross_namespace_ingress",
+        "eks_ns_team_principal_arns",
+        "eks_ns_team_access_level"
     ],
     "dependencies": {
         "sharedModules": [
