@@ -48,7 +48,23 @@ Manage Pipeline Identity creates an IAM role in the cluster's AWS account that o
 - GitHub sends a name-based subject (`repo:owner/repo:ref:refs/heads/main`) for older repositories and an ID-based one (`repo:owner@ID/repo@ID:...`) for repositories created, renamed, or transferred after July 15, 2026. The role trusts both: the action reads the ids from the GitHub API. For a private repository, which the API does not return, give the repository as `owner@OWNER-ID/repo@REPO-ID`.
 - Leave Branch and GitHub Environment empty to trust every workflow in the repository, pull requests included. Prefer an environment with protection rules.
 - Remove takes the same repository and branch or environment. It revokes the access, deletes the access entry, and deletes the role; teardown does the same for every pipeline identity on the namespace. Roles are named `cb-eks-<namespace>-<hash>` under the `/cloudbolt/eks-namespace/` path and tagged with the namespace resource id; only roles with that tag are deleted.
-- The handler credentials need `iam:ListOpenIDConnectProviders`, `iam:GetOpenIDConnectProvider`, `iam:CreateOpenIDConnectProvider`, `iam:TagOpenIDConnectProvider`, `iam:CreateRole`, `iam:TagRole`, `iam:GetRole`, `iam:ListRoleTags`, `iam:UpdateAssumeRolePolicy`, `iam:PutRolePolicy`, `iam:ListRolePolicies`, `iam:DeleteRolePolicy`, `iam:ListAttachedRolePolicies`, `iam:DetachRolePolicy`, `iam:ListInstanceProfilesForRole`, `iam:RemoveRoleFromInstanceProfile`, and `iam:DeleteRole`, and the appliance needs HTTPS to `api.github.com` for the id lookup.
+- The handler credentials need this IAM policy (scoped to the GitHub provider and to roles under the `/cloudbolt/eks-namespace/` path), and the appliance needs HTTPS to `api.github.com` for the id lookup:
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {"Effect": "Allow", "Action": "iam:ListOpenIDConnectProviders", "Resource": "*"},
+      {"Effect": "Allow",
+       "Action": ["iam:GetOpenIDConnectProvider", "iam:CreateOpenIDConnectProvider", "iam:TagOpenIDConnectProvider"],
+       "Resource": "arn:aws:iam::*:oidc-provider/token.actions.githubusercontent.com"},
+      {"Effect": "Allow",
+       "Action": ["iam:CreateRole", "iam:TagRole", "iam:GetRole", "iam:ListRoleTags", "iam:UpdateAssumeRolePolicy",
+                  "iam:PutRolePolicy", "iam:ListRolePolicies", "iam:DeleteRolePolicy", "iam:ListAttachedRolePolicies",
+                  "iam:DetachRolePolicy", "iam:ListInstanceProfilesForRole", "iam:RemoveRoleFromInstanceProfile", "iam:DeleteRole"],
+       "Resource": "arn:aws:iam::*:role/cloudbolt/eks-namespace/*"}
+    ]
+  }
+  ```
 
 ## Deploying into the namespace
 The pinned environment is named `<cluster> / <namespace>#<region>`, points at the cluster's orchestrator, and carries the namespace as its `kubernetes_namespace` value. Only the entitled groups see it on order forms. Keep the `#<region>` suffix if you rename it: CloudBolt mints the cluster's EKS token with the region parsed from the orchestrator's first environment name after `#`, so an environment without it breaks every call to the cluster through CloudBolt.

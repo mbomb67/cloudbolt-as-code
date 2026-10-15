@@ -64,6 +64,17 @@ def generate_options_for_eks_ns_pipeline_access_level(field, **kwargs):
     return access_level_options(initial="edit")
 
 
+def _refused(exc):
+    """AWS's refusal, plus where to find the permissions when it is an access denial."""
+    message = f"AWS refused the change: {aws_message(exc)}"
+    if "AccessDenied" in message:
+        message += (
+            " The AWS handler's credentials need the IAM policy in the AWS EKS Namespace "
+            "blueprint README (Pipeline identities)."
+        )
+    return message
+
+
 def _resolve_resource(job, resource, kwargs):
     """Accept the resource from any of the slots CloudBolt may use."""
     if resource is not None:
@@ -109,7 +120,7 @@ def run(job, resource=None, **kwargs):
             return "FAILURE", "", str(exc)
         except Exception as exc:
             logger.exception("Removing the pipeline identity failed")
-            return "FAILURE", "", f"AWS refused the change: {aws_message(exc)}"
+            return "FAILURE", "", _refused(exc)
         for message in messages:
             set_progress(message)
         return "SUCCESS", " ".join(messages), ""
@@ -121,7 +132,7 @@ def run(job, resource=None, **kwargs):
         return "FAILURE", "", str(exc)
     except Exception as exc:
         logger.exception("Adding the pipeline identity failed")
-        return "FAILURE", "", f"AWS refused the change: {aws_message(exc)}"
+        return "FAILURE", "", _refused(exc)
     for message in messages:
         set_progress(message)
 
