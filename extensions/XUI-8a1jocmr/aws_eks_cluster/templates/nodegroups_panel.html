@@ -67,6 +67,9 @@
         </td>
         <td>
           <div class="eks-row-tools">
+            {% if r.upgrade_url %}
+            <a class="btn btn-sm {% if r.behind %}btn-primary{% else %}btn-outline-secondary{% endif %} open-dialog" href="{{ r.upgrade_url }}" title="{% trans 'Move to the cluster version or the latest AMI release' %}"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade" %}</a>
+            {% endif %}
             {% if r.scale_url %}
             <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ r.scale_url }}"><i class="bi bi-arrows-expand" aria-hidden="true"></i> {% trans "Scale" %}</a>
             {% endif %}

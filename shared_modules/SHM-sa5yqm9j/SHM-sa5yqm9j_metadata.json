@@ -1,0 +1,12 @@
+{
+    "description": "Kubernetes API client on the EKS cluster's orchestrator, size-tier catalog, and cluster lookups for the AWS EKS Namespace blueprint.",
+    "id": "SHM-sa5yqm9j",
+    "label": "EKS Namespace",
+    "max_retries": 0,
+    "module_name": "eks_namespace",
+    "name": "eks_namespace",
+    "resource_technologies": [],
+    "script_filename": "SHM-sa5yqm9j_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -156,6 +156,26 @@ def run(job, resource, *args, **kwargs):
     set_progress(f"Deleting EKS cluster resource {resource.name}")
     logger.info(f"Elastic K8S Delete plugin running for resource: {resource.name}")
 
+    # Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources
+    # of the cluster owned by their teams. Deleting the cluster would take
+    # them all down, so refuse while any remain; a FAILURE from this teardown
+    # item stops the Delete before CloudBolt touches the sub-resources.
+    namespaces = Resource.objects.filter(
+        parent_resource=resource, resource_type__name="eks_namespace", lifecycle="ACTIVE"
+    ).order_by("name")
+    if namespaces.exists():
+        listing = ", ".join(
+            f"{ns.name} ({ns.group.name if ns.group else 'no group'})" for ns in namespaces[:10]
+        )
+        more = f" and {namespaces.count() - 10} more" if namespaces.count() > 10 else ""
+        return (
+            "FAILURE",
+            "",
+            f"Cluster {resource.name} still hosts {namespaces.count()} namespace landing "
+            f"zone(s): {listing}{more}. Delete those namespace resources first, then "
+            "delete the cluster.",
+        )
+
     aws_rh_id = resource.get_cf_values_as_dict().get("aws_rh_id")
 
     if aws_rh_id:

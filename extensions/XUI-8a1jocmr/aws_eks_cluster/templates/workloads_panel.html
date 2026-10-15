@@ -94,7 +94,14 @@
       <tbody>
         {% for ns in namespaces %}
         <tr data-eks-row>
-          <td class="eks-mono">{{ ns.name }}</td>
+          <td>
+            <span class="eks-mono">{{ ns.name }}</span>
+            {% if ns.landing_zone %}
+            <div class="eks-hint">
+              {% if ns.landing_zone.url %}<a href="{{ ns.landing_zone.url }}" title="{% trans 'Open the CloudBolt namespace resource' %}">{% else %}<span>{% endif %}<i class="bi bi-layers" aria-hidden="true"></i> {% trans "landing zone" %}{% if ns.landing_zone.group %} &middot; {{ ns.landing_zone.group }}{% endif %}{% if ns.landing_zone.tier %} &middot; {{ ns.landing_zone.tier }}{% endif %}{% if ns.landing_zone.url %}</a>{% else %}</span>{% endif %}
+            </div>
+            {% endif %}
+          </td>
           <td><span class="eks-pill eks-pill-{{ ns.status.style }}"><i class="bi {{ ns.status.icon }}" aria-hidden="true"></i> {{ ns.status.text }}</span></td>
           <td>{{ ns.pods }}{% if ns.pods_not_running %} <span class="eks-tag eks-tag-warn" title="{% trans 'Pods that are not Running or Succeeded' %}">{{ ns.pods_not_running }} {% trans "waiting" %}</span>{% endif %}</td>
           <td>{{ ns.deployments }}{% if ns.deployments_unavailable %} <span class="eks-tag eks-tag-warn" title="{% trans 'Deployments with unavailable replicas' %}">{{ ns.deployments_unavailable }} {% trans "degraded" %}</span>{% endif %}</td>

@@ -1,0 +1,18 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-sa5yqm9j"
+        ]
+    },
+    "description": "Deletes the EKS namespace and everything in it, waits for it to terminate, then removes the pinned CloudBolt environment.",
+    "id": "OHK-bnano0nc",
+    "max_retries": 0,
+    "name": "Teardown AWS EKS Namespace",
+    "resource_technologies": [],
+    "script_filename": "OHK-bnano0nc_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

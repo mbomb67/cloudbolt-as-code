@@ -14,15 +14,18 @@ field:
 - Node groups: every managed node group with status, AMI type and release,
   Kubernetes version (flagged when behind the control plane), instance
   types, scaling configuration, in-service node count from the Auto Scaling
-  group, and the health issues AWS reports, with Scale and Delete buttons.
+  group, and the health issues AWS reports, with Upgrade, Scale and Delete
+  buttons.
 - Workloads: read through the cluster's container orchestrator token: nodes
   with readiness, pressure conditions, CPU and memory requests against
   allocatable capacity and pod counts, plus namespaces with pod, deployment
-  and service counts.
+  and service counts, and a Create namespace button (Create AWS EKS
+  Namespace) in the toolbar.
 
 Every button starts one of the blueprint's resource actions as a CloudBolt
-job (Update EKS Version, Scale AWS EKS Nodegroup, Delete AWS EKS Nodegroup,
-Update AWS EKS Add-on; Add and List AWS EKS Nodegroup from the toolbar), so
+job (Update EKS Version, Upgrade AWS EKS Nodegroup, Scale AWS EKS Nodegroup,
+Delete AWS EKS Nodegroup, Update AWS EKS Add-on; Add and List AWS EKS
+Nodegroup from the toolbar), so
 approvals, permissions and job history apply. Buttons appear only when the
 action is synced, applies to the resource's blueprint and the viewer may run
 it (resource_action_permitted), and the job runs as the viewer.
@@ -44,6 +47,7 @@ Vendor API references (each call site cites its own page):
     https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeAddonVersions.html
     https://docs.aws.amazon.com/eks/latest/APIReference/API_ListNodegroups.html
     https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeNodegroup.html
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_Nodegroup.html
     https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_DescribeAutoScalingGroups.html
     https://kubernetes.io/docs/reference/kubernetes-api/
 """
@@ -87,10 +91,19 @@ ACTION_ADD_NODEGROUP = "Add AWS EKS Nodegroup"
 ACTION_LIST_NODEGROUPS = "List AWS EKS Nodegroup"
 ACTION_DELETE_NODEGROUP = "Delete AWS EKS Nodegroup"
 ACTION_SCALE_NODEGROUP = "Scale AWS EKS Nodegroup"
+ACTION_UPGRADE_NODEGROUP = "Upgrade AWS EKS Nodegroup"
 ACTION_UPDATE_ADDON = "Update AWS EKS Add-on"
+ACTION_CREATE_NAMESPACE = "Create AWS EKS Namespace"
+
+# amiType EKS reports for a node group whose launch template names its own
+# AMI; UpdateNodegroupVersion cannot move those, so no Upgrade button.
+CUSTOM_AMI_TYPE = "CUSTOM"
 
 # Node groups are stored as sub-resources of this type by the blueprint.
 NODEGROUP_RESOURCE_TYPE = "eks_nodegroup"
+# Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources of
+# this type, owned by their teams.
+NAMESPACE_RESOURCE_TYPE = "eks_namespace"
 
 # Cluster, node group and add-on names as EKS constrains them, plus the dots
 # some marketplace add-on names carry.
@@ -613,6 +626,9 @@ def _nodegroups_context(resource, profile):
     counts = _asg_counts(resource, [n for g in groups for n in asg_names(g)], warnings)
     can_scale = _action_for(profile, resource, ACTION_SCALE_NODEGROUP) is not None
     can_delete = _action_for(profile, resource, ACTION_DELETE_NODEGROUP) is not None
+    # CloudBolt's own dialog: the action's dropdown lists every node group
+    # and target, so one URL serves every row.
+    upgrade_url = _action_url(profile, resource, ACTION_UPGRADE_NODEGROUP)
 
     rows = []
     for group in groups:
@@ -645,6 +661,7 @@ def _nodegroups_context(resource, profile):
             "nodes": nodes,
             "issues": _issues(group.get("health")),
             "tracked": nodegroup_name in tracked,
+            "upgrade_url": upgrade_url if group.get("amiType") != CUSTOM_AMI_TYPE else "",
             "scale_url": (
                 reverse("aws_eks_scale_nodegroup", args=[resource.id, nodegroup_name])
                 if can_scale and valid_name else ""
@@ -835,6 +852,23 @@ def _workloads_context(resource, profile):
         namespace = (service.get("metadata") or {}).get("namespace", "")
         services_by_namespace[namespace] = services_by_namespace.get(namespace, 0) + 1
 
+    # Namespace landing zones (AWS EKS Namespace blueprint) are sub-resources
+    # of the cluster; link each one from its row so the owning team and the
+    # CloudBolt resource are visible next to the live namespace.
+    landing_zones = {}
+    for zone in Resource.objects.filter(
+        parent_resource=resource, resource_type__name=NAMESPACE_RESOURCE_TYPE, lifecycle="ACTIVE"
+    ).select_related("group"):
+        try:
+            url = zone.get_absolute_url()
+        except Exception:
+            url = ""
+        landing_zones[_attr(zone, "eks_namespace_name") or zone.name] = {
+            "url": url,
+            "group": zone.group.name if zone.group else "",
+            "tier": _attr(zone, "eks_namespace_size_tier") or "",
+        }
+
     namespace_rows = []
     for namespace in namespaces:
         name = (namespace.get("metadata") or {}).get("name", "")
@@ -846,6 +880,7 @@ def _workloads_context(resource, profile):
         namespace_rows.append({
             "name": name,
             "status": pill,
+            "landing_zone": landing_zones.get(name),
             "pods": pods_by_namespace.get(name, 0),
             "pods_not_running": waiting_by_namespace.get(name, 0),
             "deployments": deployments_by_namespace.get(name, 0),
@@ -1255,5 +1290,8 @@ def workloads_tab(request, obj_id):
         "workloads_url": reverse("aws_eks_workloads_panel", args=[resource.id]),
         "orchestrator_name": orchestrator.name if orchestrator is not None else "",
         "orchestrator_url": orchestrator_url,
+        "create_namespace_url": _action_url(
+            request.get_user_profile(), resource, ACTION_CREATE_NAMESPACE
+        ),
     })
     return render(request, TEMPLATES + "workloads_tab.html", context)
