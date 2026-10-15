@@ -42,7 +42,7 @@
     ],
     "allow_scheduling": false,
     "always_allow_to_run": false,
-    "auto_submit_order": false,
+    "auto_submit_order": true,
     "dangerous": false,
     "dependencies": {
         "hook": "plugins/OHK-arour20h"

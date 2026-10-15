@@ -1177,6 +1177,14 @@ ACCESS_LEVELS = OrderedDict([
                    description="everything in the namespace, including roles and role bindings")),
 ])
 
+# Listed with the access levels so the access list shows everyone who can
+# use the namespace, but never granted or revoked here: EKS cluster creators
+# get it cluster-wide, and it can only be scoped to the whole cluster.
+LISTED_ONLY_LEVELS = OrderedDict([
+    ("cluster-admin", dict(label="Cluster admin", policy="AmazonEKSClusterAdminPolicy",
+                           description="everything on the cluster")),
+])
+
 # Access entries CloudBolt creates carry this tag, so revoke and teardown
 # delete only entries CloudBolt made, and only once nothing else uses them.
 ACCESS_ENTRY_TAG_KEY = "cloudbolt.io/managed-by"
@@ -1205,12 +1213,13 @@ def access_level_options(initial="edit"):
 
 
 def policy_arn(level_key, partition="aws"):
-    """ARN of the EKS access policy behind an access level.
+    """ARN of the EKS access policy behind an access level (or a listed-only one).
 
     Format from ListAccessPolicies: arn:<partition>:eks::aws:cluster-access-policy/<name>
     https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html
     """
-    return f"arn:{partition}:eks::aws:cluster-access-policy/{get_access_level(level_key)['policy']}"
+    level = LISTED_ONLY_LEVELS.get(level_key) or get_access_level(level_key)
+    return f"arn:{partition}:eks::aws:cluster-access-policy/{level['policy']}"
 
 
 def validate_principal_arn(arn):
@@ -1488,7 +1497,7 @@ def revoke_namespace_access(eks, cluster_info, principal, namespace):
 
 
 def namespace_access(eks, cluster_info, namespace):
-    """Who can use ``namespace`` through the CloudBolt access levels.
+    """Who can use ``namespace`` through the CloudBolt access levels or as cluster admin.
 
     Returns [{"principal", "level", "label", "scope"}] sorted by principal,
     where scope is "namespace" (granted on this namespace), "pattern"
@@ -1497,7 +1506,7 @@ def namespace_access(eks, cluster_info, namespace):
     cluster_name = cluster_info["name"]
     partition = partition_of(cluster_info)
     rows = []
-    for key, level in ACCESS_LEVELS.items():
+    for key, level in list(ACCESS_LEVELS.items()) + list(LISTED_ONLY_LEVELS.items()):
         policy = policy_arn(key, partition)
         for principal in _principals_with_policy(eks, cluster_name, policy):
             scope = _associations(eks, cluster_name, principal).get(policy) or {}
@@ -1522,7 +1531,7 @@ def remove_all_namespace_access(eks, cluster_info, namespace):
     """
     principals = sorted({
         row["principal"] for row in namespace_access(eks, cluster_info, namespace)
-        if row["scope"] == "namespace"
+        if row["scope"] == "namespace" and row["level"] in ACCESS_LEVELS
     })
     return [revoke_namespace_access(eks, cluster_info, principal, namespace) for principal in principals]
 
