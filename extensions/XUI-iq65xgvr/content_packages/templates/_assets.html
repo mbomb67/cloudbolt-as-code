@@ -82,6 +82,13 @@
   .cpkx .cpk-pick .form-check-input { margin: 0; flex: 0 0 auto; }
   .cpkx .cpk-pick .cpk-mono { font-size: 11.5px; color: var(--cpk-muted); }
   .cpkx .cpk-pick-repo { margin-left: auto; font-size: 11.5px; color: var(--cpk-muted); white-space: nowrap; }
+  /* Collapsible cards and table pager */
+  .cpkx .cpk-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+  .cpkx .cpk-fold .cpk-chev { color: var(--cpk-muted); transition: transform .15s ease; }
+  .cpkx .cpk-fold:not(.collapsed) .cpk-chev { transform: rotate(90deg); }
+  .cpkx .cpk-card-fold > .cpk-card-h { border-bottom: 0; }
+  .cpkx .cpk-card-b { border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--cpk-line); font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); }
   @keyframes cpk-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
@@ -95,26 +102,90 @@
     if (!$root.length || $root.data("cpkx-ready")) { return; }
     $root.data("cpkx-ready", true);
 
+    // Client-side pages for a table with data-cpk-page-size; rows hidden by
+    // a filter (data "cpk-match" false) are left out of the count.
+    function paginate($table) {
+      var size = parseInt($table.attr("data-cpk-page-size"), 10) || 20;
+      var page = 0;
+      var $pager = $('<div class="cpk-pager"></div>');
+      var $after = $table.closest(".table-responsive");
+      ($after.length ? $after : $table).after($pager);
+      function render(reset) {
+        if (reset) { page = 0; }
+        var $rows = $table.find("tbody tr[data-cpk-row]");
+        var $match = $rows.filter(function () { return $(this).data("cpk-match") !== false; });
+        var pages = Math.max(1, Math.ceil($match.length / size));
+        page = Math.max(0, Math.min(page, pages - 1));
+        $rows.hide();
+        $match.slice(page * size, page * size + size).show();
+        $pager.empty().toggle($match.length > size);
+        if ($match.length > size) {
+          var first = page * size + 1;
+          var last = Math.min($match.length, first + size - 1);
+          $pager.append($("<span>").text(first + "–" + last + " of " + $match.length));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-step="-1" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>').prop("disabled", page === 0));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-step="1" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>').prop("disabled", page >= pages - 1));
+        }
+      }
+      $pager.on("click", "[data-cpk-step]", function () {
+        page += parseInt($(this).attr("data-cpk-step"), 10);
+        render(false);
+      });
+      $table.data("cpk-pager", render);
+      render(true);
+    }
+    function showCollapse($collapse) {
+      if (!$collapse.length || $collapse.hasClass("show")) { return; }
+      if (window.bootstrap && bootstrap.Collapse) {
+        bootstrap.Collapse.getOrCreateInstance($collapse[0], {toggle: false}).show();
+      } else {
+        $collapse.addClass("show");
+      }
+    }
     function load($panel) {
+      $panel.data("cpk-loaded", true);
       var label = $panel.data("cpk-loading") || "Loading";
       $panel.html('<div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i> ' + label + '…</div>');
       $panel.load($panel.data("cpk-src"), function (response, status, xhr) {
         if (status === "error") {
           $panel.html('<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
-        } else if (window.c2 && c2.tooltips) {
-          c2.tooltips.init($panel);
+        } else {
+          var total = $panel.find("[data-cpk-total]").attr("data-cpk-total");
+          var id = $panel.attr("id");
+          if (id) {
+            $root.find('[data-cpk-count="' + id + '"]').text(total ? "\u00b7 " + total : "");
+            $root.find('[data-cpk-count-hint="' + id + '"]').remove();
+          }
+          $panel.find("table[data-cpk-page-size]").each(function () { paginate($(this)); });
+          // Keep a filter typed before a Refresh.
+          $panel.find("table[id]").each(function () {
+            $root.find('input[data-cpk-filter="#' + this.id + '"]').filter(function () { return this.value; }).trigger("input");
+          });
+          if (window.c2 && c2.tooltips) { c2.tooltips.init($panel); }
         }
       });
     }
     $root.on("input", "input[data-cpk-filter]", function () {
       var needle = this.value.toLowerCase();
-      $($(this).data("cpk-filter")).find("tbody tr[data-cpk-row]").each(function () {
-        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      var $table = $($(this).data("cpk-filter"));
+      $table.find("tbody tr[data-cpk-row]").each(function () {
+        $(this).data("cpk-match", this.textContent.toLowerCase().indexOf(needle) > -1);
       });
+      var pager = $table.data("cpk-pager");
+      if (pager) {
+        pager(true);
+      } else {
+        $table.find("tbody tr[data-cpk-row]").each(function () { $(this).toggle($(this).data("cpk-match")); });
+      }
     });
+    // Refresh reloads its panel (data-cpk-refresh="#panel", else the
+    // enclosing one) and opens the panel's section when it is closed.
     $root.on("click", "[data-cpk-refresh]", function (e) {
       e.preventDefault();
-      load($(this).closest("[data-cpk-panel]"));
+      var target = $(this).attr("data-cpk-refresh");
+      var $panel = target ? $(target) : $(this).closest("[data-cpk-panel]");
+      load($panel);
+      showCollapse($panel.closest(".collapse"));
     });
     $root.on("click", "[data-cpk-more]", function () {
       var $btn = $(this);
@@ -126,7 +197,19 @@
       e.preventDefault();
       window.location.reload();
     });
-    $root.find("[data-cpk-panel]").each(function () { load($(this)); });
+    $root.find("table[data-cpk-page-size]").each(function () { paginate($(this)); });
+    // A panel inside a closed section loads the first time the section opens.
+    $root.find("[data-cpk-panel]").each(function () {
+      var $panel = $(this);
+      var $collapse = $panel.closest(".collapse");
+      if ($collapse.length && !$collapse.hasClass("show")) {
+        $collapse.one("show.bs.collapse", function () {
+          if (!$panel.data("cpk-loaded")) { load($panel); }
+        });
+      } else {
+        load($panel);
+      }
+    });
   };
 
   // Repository and branch fields in the Export, Sync and Import dialogs:

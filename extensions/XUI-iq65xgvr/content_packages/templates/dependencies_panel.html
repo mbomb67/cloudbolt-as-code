@@ -1,15 +1,5 @@
 {% load i18n %}
-<div class="cpk-card-h">
-  <span class="cpk-card-t">{% trans "Exported with the members" %}{% if not error %} &middot; {{ dependencies|length }}{% endif %}</span>
-  <div class="cpk-card-tools">
-    {% if dependencies %}
-    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter dependencies' %}" data-cpk-filter="#cpkx-deps-table">
-    {% endif %}
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-refresh>
-      <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
-    </button>
-  </div>
-</div>
+<div data-cpk-total="{% if not error %}{{ dependencies|length }}{% endif %}">
 <div class="cpk-note">{% trans "Not stored in the package: each member is run through CloudBolt's own repository export into a scratch folder, and this lists every other folder that export writes." %}</div>
 {% if error %}
 <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
@@ -19,7 +9,7 @@
 {% endfor %}
 {% if dependencies %}
 <div class="table-responsive">
-  <table id="cpkx-deps-table" class="cpk-table">
+  <table id="cpkx-deps-table" class="cpk-table" data-cpk-page-size="20">
     <thead>
       <tr>
         <th>{% trans "Type" %}</th>
@@ -48,3 +38,4 @@
   {% if member_count %}{% trans "The members bring nothing else with them." %}{% else %}{% trans "No members yet." %}{% endif %}
 </div>
 {% endif %}
+</div>
