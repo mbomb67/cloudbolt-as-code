@@ -1,0 +1,62 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "content_packages/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div id="cpkx-import" class="cpkx cpk-dialog" data-cpk-list-url="{{ list_url }}" data-cpk-chosen="{{ values.ref|default:'' }}">
+  {% if error %}
+  <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  {% include "content_packages/templates/_repo_branch.html" %}
+  <div class="cpk-picker-h">
+    <span class="k">{% trans "Packages on this branch" %}</span>
+  </div>
+  <div class="cpk-list" data-cpk-found>
+    <div class="cpk-muted">{% trans "Choose a repository and branch." %}</div>
+  </div>
+  <div class="form-text mt-2">
+    {% trans "Lists the packages/PKG-*/ manifests on the branch. Importing a package that is already registered here (same PKG id) replaces its name, description, version and members with the repository's. The Sync dialog opens next." %}
+  </div>
+</div>
+{% endblock form_content %}
+
+{% block on_ready %}
+  var $import = $dialog.find("#cpkx-import");
+  var $found = $import.find("[data-cpk-found]");
+  function note(text, css) {
+    $found.empty().append($("<div>").addClass(css || "cpk-muted").text(text));
+  }
+  $import.on("cpk:branch", function (e, repoId, branch) {
+    if (!repoId || !branch) { note("Choose a repository and branch."); return; }
+    note("Reading packages/ on " + branch + "…");
+    var url = $import.data("cpk-list-url").replace("999999999", repoId) + "?branch=" + encodeURIComponent(branch);
+    $.getJSON(url).done(function (data) {
+      var packages = (data && data.packages) || [];
+      if (!packages.length) { note("No packages/PKG-*/ manifests on " + branch + "."); return; }
+      $found.empty();
+      var chosen = $import.data("cpk-chosen");
+      $.each(packages, function (i, p) {
+        var $label = $("<label>").addClass("cpk-pick");
+        $label.append($("<input>").attr({type: "radio", name: "ref", value: p.ref}).addClass("form-check-input")
+          .prop("checked", p.ref === chosen || (!chosen && packages.length === 1)));
+        $label.append($("<span>").text(p.name));
+        $label.append($("<span>").addClass("cpk-mono").text(p.id));
+        $label.append($("<span>").addClass("cpk-tag").text(p.member_count + (p.member_count === 1 ? " member" : " members")));
+        if (p.registered) {
+          $label.append($("<span>").addClass("cpk-tag cpk-tag-live").attr("title", "Registered here as " + p.registered_name).text("registered"));
+        }
+        if (p.version) { $label.append($("<span>").addClass("cpk-pick-repo").text("v" + p.version)); }
+        $found.append($label);
+        if (p.description) { $found.append($("<div>").addClass("cpk-hint ps-4 mb-2").text(p.description)); }
+      });
+    }).fail(function (xhr) {
+      var message = (xhr.responseJSON && xhr.responseJSON.error) || ("HTTP " + xhr.status);
+      note("Could not read the branch: " + message, "cpk-alert px-0");
+    });
+  });
+  cpkxRepoBranch($import);
+{% endblock on_ready %}

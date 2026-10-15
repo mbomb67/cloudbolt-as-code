@@ -1,0 +1,97 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "content_packages/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div id="cpkx-edit" class="cpkx cpk-dialog">
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  {% if error %}
+  <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-md-8">
+      <label class="form-label" for="cpk-name">{% trans "Name" %}</label>
+      <input class="form-control" id="cpk-name" name="name" value="{{ values.name }}" maxlength="255" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="cpk-version">{% trans "Version" %}</label>
+      <input class="form-control" id="cpk-version" name="version" value="{{ values.version }}" maxlength="32">
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="cpk-description">{% trans "Description" %}</label>
+      <textarea class="form-control" id="cpk-description" name="description" rows="2" maxlength="1000">{{ values.description }}</textarea>
+      <div class="form-text">{% trans "One sentence saying what the package delivers." %}</div>
+    </div>
+  </div>
+
+  <div class="cpk-picker-h">
+    <span class="k">{% trans "Contents" %}</span>
+    <span class="cpk-tag cpk-tag-live" data-cpk-total>{{ selected_count }} {% trans "selected" %}</span>
+  </div>
+  <div class="form-text">
+    {% trans "Pick top-level content only. A blueprint brings its plugins, forms, shared modules and management actions; an action brings its plugin. Forms and form functions are not listed because they only sync with their parent." %}
+  </div>
+
+  {% for section in sections %}
+  <div class="cpk-section" data-cpk-section>
+    <button type="button" class="cpk-section-h{% if not section.selected %} collapsed{% endif %}"
+      data-bs-toggle="collapse" data-bs-target="#cpk-sec-{{ section.key }}"
+      aria-expanded="{% if section.selected %}true{% else %}false{% endif %}" aria-controls="cpk-sec-{{ section.key }}">
+      <i class="bi bi-chevron-right cpk-chev" aria-hidden="true"></i>
+      {{ section.title }}
+      <span class="cpk-tag{% if section.selected %} cpk-tag-live{% endif %}" data-cpk-count>{{ section.selected }} / {{ section.items|length }}</span>
+    </button>
+    <div id="cpk-sec-{{ section.key }}" class="collapse{% if section.selected %} show{% endif %}">
+      <div class="cpk-section-b">
+        {% if section.items %}
+        <input type="search" class="form-control form-control-sm" placeholder="{% trans 'Filter' %} {{ section.title|lower }}" aria-label="{% trans 'Filter' %} {{ section.title|lower }}" data-cpk-pick-filter>
+        <div class="cpk-list">
+          {% for item in section.items %}
+          <label class="cpk-pick" data-cpk-item>
+            <input type="checkbox" class="form-check-input" name="contents" value="{{ item.ref }}"{% if item.checked %} checked{% endif %}>
+            <span>{{ item.name }}</span>
+            <span class="cpk-mono">{{ item.global_id }}</span>
+            {% if item.missing %}<span class="cpk-tag cpk-tag-bad">{% trans "missing" %}</span>{% endif %}
+            {% if item.repo_label %}<span class="cpk-pick-repo">{{ item.repo_label }}</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="cpk-muted">{% trans "None on this appliance." %}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock form_content %}
+
+{% block on_ready %}
+  var $edit = $dialog.find("#cpkx-edit");
+  function recount() {
+    $edit.find("[data-cpk-section]").each(function () {
+      var $section = $(this);
+      var checked = $section.find("input[name=contents]:checked").length;
+      $section.find("[data-cpk-count]")
+        .text(checked + " / " + $section.find("input[name=contents]").length)
+        .toggleClass("cpk-tag-live", checked > 0);
+    });
+    $edit.find("[data-cpk-total]").text($edit.find("input[name=contents]:checked").length + " selected");
+  }
+  $edit.on("change", "input[name=contents]", recount);
+  $edit.on("input", "[data-cpk-pick-filter]", function () {
+    var needle = this.value.toLowerCase();
+    $(this).closest("[data-cpk-section]").find("[data-cpk-item]").each(function () {
+      $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+    });
+  });
+  // Enter in a filter box would otherwise submit the dialog.
+  $edit.on("keydown", "[data-cpk-pick-filter]", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); }
+  });
+{% endblock on_ready %}

@@ -1,0 +1,42 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "content_packages/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div id="cpkx-sync" class="cpkx cpk-dialog">
+  {% if error %}
+  <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  {% if notice %}
+  <p>{% trans "Members that are not on this appliance yet are created by the sync." %}</p>
+  {% endif %}
+  {% include "content_packages/templates/_repo_branch.html" %}
+  <div class="mt-3">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="cpk-refresh" name="refresh_if_exists" value="1"{% if values.refresh_if_exists %} checked{% endif %}>
+      <label class="form-check-label" for="cpk-refresh">{% trans "Refresh content that already exists" %}</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="cpk-enabled" name="ignore_action_enabled" value="1"{% if values.ignore_action_enabled %} checked{% endif %}>
+      <label class="form-check-label" for="cpk-enabled">{% trans "Keep each action's current enabled state" %}</label>
+    </div>
+  </div>
+  <div class="form-text mt-3">
+    {% blocktrans count n=member_count %}Starts {{ n }} CloudBolt sync job for the member, which brings its plugins, shared modules and forms with it.{% plural %}Starts {{ n }} CloudBolt sync jobs, one per member, run one after another (shared modules and plugins first, blueprints last). Each member brings its plugins, shared modules and forms with it. If a job fails, the ones after it wait: fix the content, push it, then Rerun the failed job from its page and the rest continue, or cancel them.{% endblocktrans %}
+  </div>
+  {% if has_blueprints %}
+  <div class="form-text">{% trans "A blueprint sync sets the blueprint's group permissions to what its metadata lists; restore them afterwards if they were set on this appliance." %}</div>
+  {% endif %}
+  {% if has_extensions %}
+  <div class="form-text">{% trans "A UI extension that adds URL paths needs a web server restart after it syncs." %}</div>
+  {% endif %}
+</div>
+{% endblock form_content %}
+
+{% block on_ready %}
+  cpkxRepoBranch($dialog.find("#cpkx-sync"));
+{% endblock on_ready %}

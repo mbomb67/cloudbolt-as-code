@@ -14,7 +14,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [MCP tool actions](#mcp-tool-actions) | 9 |
 | [Plugins](#plugins) | 128 |
 | [Shared modules](#shared-modules) | 15 |
-| [UI extensions](#ui-extensions) | 9 |
+| [UI extensions](#ui-extensions) | 10 |
 | [Forms](#forms) | 9 |
 | [Form functions](#form-functions) | 2 |
 
@@ -327,6 +327,7 @@ Django UI extensions (XUI). Each folder has a README.
 | AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
+| Content Package Manager | [XUI-iq65xgvr](extensions/XUI-iq65xgvr/README.md) | Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync. |
 | HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |

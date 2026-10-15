@@ -1,0 +1,31 @@
+{
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-iq65xgvr",
+    "label": "Content Package Manager",
+    "last_updated": "2026-10-15",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "content_packages",
+    "package_contents": [
+        "__init__.py",
+        "store.py",
+        "services.py",
+        "jobs.py",
+        "export_job.py",
+        "dependencies.py",
+        "views.py",
+        "urls.py",
+        "templates/_assets.html",
+        "templates/_repo_branch.html",
+        "templates/packages.html",
+        "templates/detail.html",
+        "templates/dependencies_panel.html",
+        "templates/edit_dialog.html",
+        "templates/export_dialog.html",
+        "templates/sync_dialog.html",
+        "templates/import_dialog.html"
+    ],
+    "version": ""
+}
