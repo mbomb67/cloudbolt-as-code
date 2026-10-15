@@ -1,5 +1,5 @@
 {
-    "any_group_can_deploy": false,
+    "any_group_can_deploy": true,
     "auto_historical_resources": false,
     "deployment_items": [
         {
@@ -14,7 +14,13 @@
             "execute_in_parallel": false,
             "id": "BDI-leunwuwx",
             "name": "Deploy EKS Cluster",
-            "parameter_defaults": [],
+            "parameter_defaults": [
+                {
+                    "label": "Kubernetes Version",
+                    "name": "k8s_version_a204",
+                    "value": "1.33"
+                }
+            ],
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,
@@ -31,21 +37,19 @@
         "title": "Discover EKS"
     },
     "favorited": false,
-    "icon": "aws_eks_bp_logo_HB1E9Je.png",
+    "icon": "aws_eks_bp_logo_HB1E9Je_ElAxv98.png",
     "id": "BP-r5apcf7e",
     "is_orderable": true,
     "labels": [
         {
             "color": "rgba(244,226,143,1)",
-            "icon": null,
-            "id": "TAG-nlvmbvxj",
-            "image": "/static/uploads/tags/aws_account.png",
+            "id": "TAG-6spb5ltg",
+            "image": null,
             "name": "AWS",
             "parent": {
                 "color": "rgba(25,171,188,1)",
-                "icon": null,
                 "id": "TAG-cvblowou",
-                "image": "/static/uploads/tags/cloud.png",
+                "image": null,
                 "name": "Clouds",
                 "sequence": 0
             },
@@ -53,9 +57,8 @@
         },
         {
             "color": "rgba(134,219,78,1)",
-            "icon": null,
             "id": "TAG-pfq0or1t",
-            "image": "/static/uploads/tags/XaaS_Icon.png",
+            "image": null,
             "name": "XaaS",
             "sequence": 0
         }
@@ -78,17 +81,17 @@
         },
         {
             "dependencies": {
-                "resource_action": "resource_actions/RSA-0g4pfrde"
-            },
-            "enabled": true,
-            "label": "List AWS EKS Nodegroup"
-        },
-        {
-            "dependencies": {
                 "resource_action": "resource_actions/RSA-f9ivvn5q"
             },
             "enabled": true,
             "label": "Add AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-0g4pfrde"
+            },
+            "enabled": true,
+            "label": "List AWS EKS Nodegroup"
         }
     ],
     "metadata_version": "2026.1.0",
@@ -112,7 +115,7 @@
                 }
             ],
             "global_options": [],
-            "id": "CF-c5jwn8kl",
+            "id": "CF-kikjrmqr",
             "label": "Expiration Date",
             "name": "expiration_date",
             "options": [],

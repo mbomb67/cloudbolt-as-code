@@ -8,12 +8,12 @@
             "field_dependency_dependent_set": [
                 {
                     "controlling-field": {
-                        "name": "ami_type_a277"
+                        "name": "ami_type_a209"
                     },
                     "custom-field-options": [],
                     "dependency-type": "REGENOPTIONS",
                     "dependent-field": {
-                        "name": "instance_type_a277"
+                        "name": "instance_type_a209"
                     },
                     "maximum": null,
                     "minimum": null,
@@ -82,12 +82,12 @@
             "field_dependency_controlling_set": [
                 {
                     "controlling-field": {
-                        "name": "ami_type_a277"
+                        "name": "ami_type_a209"
                     },
                     "custom-field-options": [],
                     "dependency-type": "REGENOPTIONS",
                     "dependent-field": {
-                        "name": "instance_type_a277"
+                        "name": "instance_type_a209"
                     },
                     "maximum": null,
                     "minimum": null,

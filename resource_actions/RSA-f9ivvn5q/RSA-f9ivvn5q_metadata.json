@@ -2,22 +2,22 @@
     "action_input_default_values": [
         {
             "label": "Desired Nodes",
-            "name": "desired_nodes_a277",
+            "name": "desired_nodes_a209",
             "value": "2"
         },
         {
             "label": "Disk Size",
-            "name": "disk_size_a277",
+            "name": "disk_size_a209",
             "value": "20"
         },
         {
             "label": "Max Nodes",
-            "name": "max_nodes_a277",
+            "name": "max_nodes_a209",
             "value": "2"
         },
         {
             "label": "Min Nodes",
-            "name": "min_nodes_a277",
+            "name": "min_nodes_a209",
             "value": "2"
         }
     ],
@@ -30,12 +30,12 @@
             "field-dependency-dependent-set": [
                 {
                     "controlling-field": {
-                        "name": "ami_type_a277"
+                        "name": "ami_type_a209"
                     },
                     "custom-field-options": [],
                     "dependency-type": "REGENOPTIONS",
                     "dependent-field": {
-                        "name": "instance_type_a277"
+                        "name": "instance_type_a209"
                     },
                     "maximum": null,
                     "minimum": null,
@@ -104,12 +104,12 @@
             "field-dependency-controlling-set": [
                 {
                     "controlling-field": {
-                        "name": "ami_type_a277"
+                        "name": "ami_type_a209"
                     },
                     "custom-field-options": [],
                     "dependency-type": "REGENOPTIONS",
                     "dependent-field": {
-                        "name": "instance_type_a277"
+                        "name": "instance_type_a209"
                     },
                     "maximum": null,
                     "minimum": null,
