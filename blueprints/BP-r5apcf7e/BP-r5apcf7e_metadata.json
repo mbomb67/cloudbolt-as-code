@@ -22,7 +22,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version.",
+    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-e9qppbei"
@@ -100,6 +100,20 @@
             },
             "enabled": true,
             "label": "Update AWS EKS Add-on"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-p2fnjwj3"
+            },
+            "enabled": true,
+            "label": "Upgrade AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-5c06txyi"
+            },
+            "enabled": true,
+            "label": "Create AWS EKS Namespace"
         }
     ],
     "metadata_version": "2026.1.0",

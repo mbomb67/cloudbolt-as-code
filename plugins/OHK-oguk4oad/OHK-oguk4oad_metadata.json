@@ -1,0 +1,100 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Leave unchecked to isolate the namespace: ingress is denied except from pods in the same namespace and in kube-system. Check it to apply no NetworkPolicies.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-t8tbq1sy",
+            "label": "Allow Ingress From Other Namespaces",
+            "name": "allow_cross_namespace_ingress",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Namespace name: 1-63 lowercase letters, digits, or hyphens. Names starting with kube- and the built-in namespaces are reserved.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-1gb9j2gf",
+            "label": "Namespace Name",
+            "name": "namespace_name",
+            "placeholder": "payments-dev",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt group that owns the namespace resource and is entitled to deploy into it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-8finoulz",
+            "label": "Owning CloudBolt Group",
+            "name": "owner_group_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Sets the namespace's ResourceQuota, enforced by the cluster, and the matching CloudBolt environment quota.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-3xsu8gs9",
+            "label": "Size Tier",
+            "name": "size_tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "namespace_name",
+        "owner_group_id",
+        "size_tier",
+        "allow_cross_namespace_ingress"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-sa5yqm9j"
+        ]
+    },
+    "description": "Creates a namespace landing zone on this cluster for a chosen CloudBolt group, filed as an AWS EKS Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "id": "OHK-oguk4oad",
+    "max_retries": 0,
+    "name": "Create AWS EKS Namespace",
+    "resource_technologies": [],
+    "script_filename": "OHK-oguk4oad_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

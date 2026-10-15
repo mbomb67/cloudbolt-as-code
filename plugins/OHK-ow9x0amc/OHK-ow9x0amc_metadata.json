@@ -1,0 +1,18 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-sa5yqm9j"
+        ]
+    },
+    "description": "Imports namespaces labeled cloudbolt.io/landing-zone=true from every EKS cluster's orchestrator as AWS EKS Namespace resources.",
+    "id": "OHK-ow9x0amc",
+    "max_retries": 0,
+    "name": "Discover AWS EKS Namespaces",
+    "resource_technologies": [],
+    "script_filename": "OHK-ow9x0amc_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

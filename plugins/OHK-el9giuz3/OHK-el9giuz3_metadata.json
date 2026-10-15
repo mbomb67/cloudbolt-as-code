@@ -1,0 +1,51 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The managed node group and what to move it to: the cluster's Kubernetes version when it is behind, or the latest AMI release for the version it runs.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-oo0xvrrv",
+            "label": "Node Group and Target",
+            "name": "nodegroup_upgrade",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Replace nodes even when a Pod disruption budget stops their pods from being drained. Leave off for a rolling update that honours the budgets.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-ntbko3xn",
+            "label": "Force Update",
+            "name": "force_update",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Updates a managed node group to the cluster's Kubernetes version or the latest AMI release for its current version, waits for EKS to replace the nodes, and refreshes the sub-resource.",
+    "id": "OHK-el9giuz3",
+    "max_retries": 0,
+    "name": "Upgrade AWS EKS Nodegroup",
+    "resource_technologies": [],
+    "script_filename": "OHK-el9giuz3_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

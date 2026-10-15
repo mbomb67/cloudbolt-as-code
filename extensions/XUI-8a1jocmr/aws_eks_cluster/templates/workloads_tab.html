@@ -12,6 +12,11 @@
         </div>
       </div>
       <div class="eks-tools">
+        {% if create_namespace_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ create_namespace_url }}" title="{% trans 'Create a namespace landing zone for a CloudBolt group' %}">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Create namespace" %}
+        </a>
+        {% endif %}
         {% if orchestrator_url %}
         <a class="btn btn-sm btn-outline-secondary" href="{{ orchestrator_url }}">
           <i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Open orchestrator" %}

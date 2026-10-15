@@ -1,0 +1,108 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "AWS EKS Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-u9jm7p8h"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the namespace with quota, limits, and network isolation on the chosen EKS cluster, then pins a CloudBolt environment to it and entitles your group.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-6e9u0qj0",
+            "name": "AWS EKS Namespace",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-ow9x0amc"
+        },
+        "href": "/api/v3/cmp/actions/OHK-ow9x0amc/",
+        "title": "Discover AWS EKS Namespaces"
+    },
+    "favorited": false,
+    "icon": "aws_eks_bp_logo_HB1E9Je.png",
+    "id": "BP-e4c0q58z",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-15",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "AWS EKS Namespace",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-layer-group",
+        "id": "RT-mu7y723b",
+        "internal_only": false,
+        "label": "EKS Namespace",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "eks_namespace",
+        "plural_label": "EKS Namespaces"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown AWS EKS Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-bnano0nc"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the namespace and everything in it, then removes the CloudBolt environment.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-npf6f7l9",
+            "name": "Teardown AWS EKS Namespace",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

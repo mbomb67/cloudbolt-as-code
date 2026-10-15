@@ -124,6 +124,21 @@
     "used_by": []
   },
   {
+    "id": "BP-e4c0q58z",
+    "type": "blueprints",
+    "name": "AWS EKS Namespace",
+    "description": "Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it.",
+    "path": "blueprints/BP-e4c0q58z",
+    "readme": "blueprints/BP-e4c0q58z/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-bnano0nc",
+      "plugins/OHK-ow9x0amc",
+      "plugins/OHK-u9jm7p8h"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-f5y1fhe9",
     "type": "blueprints",
     "name": "Run Aria Orchestrator Workflow",
@@ -263,7 +278,7 @@
     "id": "BP-r5apcf7e",
     "type": "blueprints",
     "name": "AWS EKS",
-    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, and delete managed node groups and to upgrade the Kubernetes version.",
+    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
     "path": "blueprints/BP-r5apcf7e",
     "readme": "blueprints/BP-r5apcf7e/README.md",
     "uses": [
@@ -272,9 +287,11 @@
       "plugins/OHK-pgbigmd9",
       "plugins/OHK-u4k6dg46",
       "resource_actions/RSA-0g4pfrde",
+      "resource_actions/RSA-5c06txyi",
       "resource_actions/RSA-dhgwoj3z",
       "resource_actions/RSA-f9ivvn5q",
       "resource_actions/RSA-inhs50gi",
+      "resource_actions/RSA-p2fnjwj3",
       "resource_actions/RSA-rrbh1ntm",
       "resource_actions/RSA-xdlxetyc"
     ],
@@ -865,6 +882,7 @@
     ],
     "used_by": [
       "blueprints/BP-r5apcf7e",
+      "blueprints/BP-e4c0q58z",
       "blueprints/BP-122nbdt5",
       "blueprints/BP-anonytrx",
       "blueprints/BP-tikkhf2y",
@@ -1580,6 +1598,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-bnano0nc",
+    "type": "plugins",
+    "name": "Teardown AWS EKS Namespace",
+    "description": "Deletes the EKS namespace and everything in it, waits for it to terminate, then removes the pinned CloudBolt environment.",
+    "path": "plugins/OHK-bnano0nc",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "blueprints/BP-e4c0q58z"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-bsqictlo",
     "type": "plugins",
     "name": "ServiceNow Request Approval Sync",
@@ -1763,6 +1796,19 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-r5apcf7e"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-el9giuz3",
+    "type": "plugins",
+    "name": "Upgrade AWS EKS Nodegroup",
+    "description": "Updates a managed node group to the cluster's Kubernetes version or the latest AMI release for its current version, waits for EKS to replace the nodes, and refreshes the sub-resource.",
+    "path": "plugins/OHK-el9giuz3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-p2fnjwj3"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2061,6 +2107,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-oguk4oad",
+    "type": "plugins",
+    "name": "Create AWS EKS Namespace",
+    "description": "Creates a namespace landing zone on this cluster for a chosen CloudBolt group, filed as an AWS EKS Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "plugins/OHK-oguk4oad",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "resource_actions/RSA-5c06txyi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ovt0z46j",
     "type": "plugins",
     "name": "List Subscription Access",
@@ -2072,6 +2133,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-f7wb11ny"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ow9x0amc",
+    "type": "plugins",
+    "name": "Discover AWS EKS Namespaces",
+    "description": "Imports namespaces labeled cloudbolt.io/landing-zone=true from every EKS cluster's orchestrator as AWS EKS Namespace resources.",
+    "path": "plugins/OHK-ow9x0amc",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "blueprints/BP-e4c0q58z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2336,6 +2412,21 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-r5apcf7e"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-u9jm7p8h",
+    "type": "plugins",
+    "name": "AWS EKS Namespace",
+    "description": "Creates a namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, then pins a CloudBolt environment to it and entitles the ordering group.",
+    "path": "plugins/OHK-u9jm7p8h",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "blueprints/BP-e4c0q58z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2731,6 +2822,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-5c06txyi",
+    "type": "resource_actions",
+    "name": "Create AWS EKS Namespace",
+    "description": "Creates a namespace landing zone on this cluster for a chosen CloudBolt group, filed as an AWS EKS Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "resource_actions/RSA-5c06txyi",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-oguk4oad"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-5jeixn92",
     "type": "resource_actions",
     "name": "Drift Check",
@@ -3002,6 +3108,21 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-p2fnjwj3",
+    "type": "resource_actions",
+    "name": "Upgrade AWS EKS Nodegroup",
+    "description": "Updates a managed node group to the cluster's Kubernetes version or the latest AMI release for its current version, waits for EKS to replace the nodes, and refreshes the sub-resource.",
+    "path": "resource_actions/RSA-p2fnjwj3",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-el9giuz3"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "enabled": true
   },
@@ -3314,6 +3435,21 @@
       "plugins/OHK-pvo05e24",
       "plugins/OHK-pmyb1car",
       "plugins/OHK-oblhxhw2"
+    ]
+  },
+  {
+    "id": "SHM-sa5yqm9j",
+    "type": "shared_modules",
+    "name": "eks_namespace",
+    "description": "Kubernetes API client on the EKS cluster's orchestrator, size-tier catalog, and cluster lookups for the AWS EKS Namespace blueprint.",
+    "path": "shared_modules/SHM-sa5yqm9j",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-u9jm7p8h",
+      "plugins/OHK-oguk4oad",
+      "plugins/OHK-ow9x0amc",
+      "plugins/OHK-bnano0nc"
     ]
   },
   {
