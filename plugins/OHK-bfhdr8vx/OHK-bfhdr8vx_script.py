@@ -150,6 +150,14 @@ def get_boto_client(env_id=None, boto_service="ec2"):
 
 
 def generate_options_for_ami_type(server=None, **kwargs):
+    """
+    AMI families EKS still publishes for every supported Kubernetes version.
+    EKS stopped publishing Amazon Linux 2 AMIs on 2025-11-26, so AL2 types fail
+    on 1.33 and later clusters: https://docs.aws.amazon.com/eks/latest/userguide/al2023.html
+    Valid amiType values: https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateNodegroup.html
+    The value carries the CPU architecture (for the instance-type options) and
+    the resource id (so the dependent generate-options call can find the cluster).
+    """
     resource = kwargs.get("resource", None)
 
     if resource is None or resource == "":
@@ -157,80 +165,76 @@ def generate_options_for_ami_type(server=None, **kwargs):
 
     return [
         ("", "-------Select AMI Type-------"),
-        (f"x86_64/AL2_x86_64/{resource.id}", "Amazon Linux 2 (AL2_x86_64)"),
-        (f"arm64/AL2_ARM_64/{resource.id}", "Amazon Linux 2 Arm (AL2_ARM_64)"),
+        (f"x86_64/AL2023_x86_64_STANDARD/{resource.id}", "Amazon Linux 2023 (AL2023_x86_64_STANDARD)"),
+        (f"arm64/AL2023_ARM_64_STANDARD/{resource.id}", "Amazon Linux 2023 Arm (AL2023_ARM_64_STANDARD)"),
+        (f"x86_64/BOTTLEROCKET_x86_64/{resource.id}", "Bottlerocket (BOTTLEROCKET_x86_64)"),
+        (f"arm64/BOTTLEROCKET_ARM_64/{resource.id}", "Bottlerocket Arm (BOTTLEROCKET_ARM_64)"),
     ]
 
 
 def generate_options_for_instance_type(server=None, control_value=None, **kwargs):
-    resource = kwargs.get("resource")
+    """
+    Instance types of the chosen architecture offered in every availability
+    zone the cluster's subnets span. Both EC2 calls page their results, so
+    they go through paginators; a single call returns only the first page
+    (describe_instance_types caps at 100), which hid most sizes, t3 included.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/paginator/DescribeInstanceTypes.html
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/paginator/DescribeInstanceTypeOfferings.html
+    """
     options = []
 
     if control_value is None or control_value == "":
         return options
 
-    control_value = control_value.split("/")
-    resource = Resource.objects.get(id=control_value[2])
+    architecture, _, resource_id = control_value.split("/")
+    resource = Resource.objects.get(id=resource_id)
 
     client, env = get_boto_client(env_id=resource.env_id, boto_service="ec2")
 
     eks_subnets = [sub.strip(" '[]") for sub in resource.eks_subnets.split(",")]
     rh = env.resource_handler.cast()
 
-    availability_zone = [
-        vpc_subnet["availability_zone"]
-        for vpc_subnet in rh.get_all_vpc_subnets(env.aws_region, env.vpc_id)
-        if vpc_subnet["network"] in eks_subnets
-    ]
+    availability_zones = sorted(
+        {
+            vpc_subnet["availability_zone"]
+            for vpc_subnet in rh.get_all_vpc_subnets(env.aws_region, env.vpc_id)
+            if vpc_subnet["network"] in eks_subnets
+        }
+    )
 
-    ins_off_rsp = client.describe_instance_type_offerings(
+    if not availability_zones:
+        return options
+
+    # instance types offered per zone; a type must be offered in every zone
+    offered_in_zone = {zone: set() for zone in availability_zones}
+    offerings_paginator = client.get_paginator("describe_instance_type_offerings")
+    for page in offerings_paginator.paginate(
         LocationType="availability-zone",
-        Filters=[{"Name": "location", "Values": availability_zone}],
-    )["InstanceTypeOfferings"]
+        Filters=[{"Name": "location", "Values": availability_zones}],
+    ):
+        for offering in page["InstanceTypeOfferings"]:
+            offered_in_zone[offering["Location"]].add(offering["InstanceType"])
 
-    instance_type_offerings = {}
+    offered_everywhere = set.intersection(*offered_in_zone.values())
 
-    for instance_type_obj in ins_off_rsp:
-        instance_type_offerings.setdefault(instance_type_obj["Location"], []).append(
-            instance_type_obj["InstanceType"]
-        )
+    if not offered_everywhere:
+        return options
 
-    if not instance_type_offerings:
-        return []
-
-    for instance_type in client.describe_instance_types()["InstanceTypes"]:
-
-        if (
-            instance_type["ProcessorInfo"]["SupportedArchitectures"][0]
-            == control_value[0]
-        ):
-
+    types_paginator = client.get_paginator("describe_instance_types")
+    for page in types_paginator.paginate(
+        Filters=[
+            {"Name": "processor-info.supported-architecture", "Values": [architecture]}
+        ]
+    ):
+        for instance_type in page["InstanceTypes"]:
             ins_type = instance_type["InstanceType"]
-
-            if (
-                ins_type not in instance_type_offerings[availability_zone[0]]
-                or ins_type not in instance_type_offerings[availability_zone[1]]
-            ):
+            if ins_type not in offered_everywhere:
                 continue
-
             vcpu = instance_type["VCpuInfo"]["DefaultVCpus"]
-            memory = instance_type["MemoryInfo"]["SizeInMiB"]
+            memory = instance_type["MemoryInfo"]["SizeInMiB"] / 1024
 
             options.append(
-                (
-                    ins_type,
-                    ins_type
-                    + "("
-                    + "vCPU: Up to   "
-                    + str(vcpu)
-                    + " "
-                    + "vCPUs"
-                    + "   "
-                    + "memory: "
-                    + str(memory / 1024)
-                    + " GiB"
-                    + ")",
-                )
+                (ins_type, f"{ins_type} ({vcpu} vCPU, {memory:g} GiB)")
             )
 
     return sorted(options, key=lambda tup: tup[1].lower())
