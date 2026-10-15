@@ -1026,18 +1026,20 @@ def namespace_connect_panel(request, resource_id):
 #   PVC            https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/
 #   Event          https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/
 
-# ResourceQuota keys in display order, with how to read their quantities.
+# ResourceQuota keys in display order: label, how to read the quantity, and
+# the unit shown after a count in the meter's hover text.
 QUOTA_KEYS = [
-    ("requests.cpu", "CPU requests", "cpu"),
-    ("limits.cpu", "CPU limits", "cpu"),
-    ("requests.memory", "Memory requests", "memory"),
-    ("limits.memory", "Memory limits", "memory"),
-    ("requests.storage", "Storage requests", "memory"),
-    ("persistentvolumeclaims", "Volume claims", "count"),
-    ("pods", "Pods", "count"),
+    ("requests.cpu", "CPU requests", "cpu", ""),
+    ("limits.cpu", "CPU limits", "cpu", ""),
+    ("requests.memory", "Memory requests", "memory", ""),
+    ("limits.memory", "Memory limits", "memory", ""),
+    ("requests.storage", "Storage", "memory", ""),
+    ("persistentvolumeclaims", "Volume claims", "count", "claims"),
+    ("pods", "Pods", "count", "pods"),
 ]
-# Container states that mean a pod is stuck, shown instead of the phase.
-# https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-states
+# Warning events shown, newest first. The API server keeps events for an hour
+# by default (kube-apiserver --event-ttl):
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 MAX_EVENTS = 25
 
 
@@ -1077,20 +1079,33 @@ def _quantity_text(kind, amount):
     return "{:.0f}".format(amount)
 
 
+def _usage_text(kind, used, total, unit):
+    """Hover text for a quota meter: '0.3 / 4 cores', '384 MiB / 16.0 GiB', '3 / 20 pods'."""
+    if kind == "cpu":
+        return "{} / {} cores".format(_cores_text(used), _cores_text(total))
+    if kind == "memory":
+        return "{} / {}".format(_memory_text(used), _memory_text(total))
+    return "{:.0f} / {:.0f}{}".format(used, total, " " + unit if unit else "")
+
+
 def _quota_rows(quotas):
     """One meter per hard limit across the namespace's ResourceQuotas."""
     rows = []
     for quota in quotas:
         status = quota.get("status") or {}
         hard, used = status.get("hard") or {}, status.get("used") or {}
-        known = [key for key, _, _ in QUOTA_KEYS]
-        ordered = [(k, l, t) for k, l, t in QUOTA_KEYS if k in hard]
-        ordered += [(k, k, "count") for k in sorted(hard) if k not in known]
-        for key, label, kind in ordered:
+        known = [key for key, _, _, _ in QUOTA_KEYS]
+        ordered = [entry for entry in QUOTA_KEYS if entry[0] in hard]
+        ordered += [(k, k, "count", "") for k in sorted(hard) if k not in known]
+        for key, label, kind, unit in ordered:
             total = _quantity(kind, hard.get(key))
             current = _quantity(kind, used.get(key, "0"))
             meter = _meter(current, total, _quantity_text(kind, current), _quantity_text(kind, total))
-            meter.update({"label": label, "quota": (quota.get("metadata") or {}).get("name", "")})
+            meter.update({
+                "label": label,
+                "usage": _usage_text(kind, current, total, unit),
+                "quota": (quota.get("metadata") or {}).get("name", ""),
+            })
             rows.append(meter)
     return rows
 

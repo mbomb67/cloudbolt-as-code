@@ -28,23 +28,18 @@
     <span class="eks-card-t">{% trans "Quota usage" %}</span>
   </summary>
   {% if quota %}
-  <div class="table-responsive">
-    <table class="eks-table">
-      <thead><tr><th>{% trans "Resource" %}</th><th>{% trans "Used" %}</th><th>{% trans "Limit" %}</th><th>{% trans "Usage" %}</th></tr></thead>
-      <tbody>
-        {% for q in quota %}
-        <tr>
-          <td>{{ q.label }}</td>
-          <td class="eks-nowrap">{{ q.requests }}</td>
-          <td class="eks-nowrap">{{ q.allocatable }}</td>
-          <td class="eks-nowrap">
-            <div class="eks-meter eks-meter-{{ q.style }}"><span style="width: {{ q.percent }}%"></span></div>
-            <div class="eks-hint">{{ q.percent }}%</div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% comment %}One meter per limit on a single row, wrapping on narrow pages; the exact figures are in the hover tooltip and the accessible label.{% endcomment %}
+  <div class="eks-quota">
+    {% for q in quota %}
+    <div class="eks-quota-item" tabindex="0" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ q.percent }}"
+         aria-label="{{ q.label }}: {{ q.usage }}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ q.usage }}">
+      <div class="eks-quota-top">
+        <span class="k">{{ q.label }}</span>
+        <span class="eks-hint">{{ q.percent }}%</span>
+      </div>
+      <div class="eks-meter eks-meter-{{ q.style }}"><span style="width: {{ q.percent }}%"></span></div>
+    </div>
+    {% endfor %}
   </div>
   {% else %}
   <div class="eks-empty">{% trans "No ResourceQuota is set on this namespace." %}</div>
