@@ -5,7 +5,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
-| AWS EKS Cluster | [XUI-8a1jocmr](XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access. |
+| AWS EKS Cluster | [XUI-8a1jocmr](XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
 | Azure NSG Management | [XUI-0jdk7t6h](XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | Content Package Manager | [XUI-iq65xgvr](XUI-iq65xgvr/README.md) | Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync. |

@@ -29,6 +29,11 @@ xui_urlpatterns = [
         views.namespace_connect_panel,
         name="aws_eks_namespace_connect_panel",
     ),
+    path(
+        "aws-eks/namespaces/<int:resource_id>/workloads/",
+        views.namespace_workloads_panel,
+        name="aws_eks_namespace_workloads_panel",
+    ),
     # Dialogs that start the blueprint's resource actions as jobs
     path(
         "aws-eks/<int:resource_id>/addons/<str:addon_name>/upgrade/",

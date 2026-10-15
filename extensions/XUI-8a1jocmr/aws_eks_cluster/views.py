@@ -3,8 +3,8 @@ AWS EKS Cluster XUI
 
 Adds three tabs to CloudBolt resources created or discovered by the AWS EKS
 blueprint (BP-r5apcf7e) -- any resource carrying an eks_cluster_name custom
-field -- and a Connect tab to the namespaces of the AWS EKS Namespace
-blueprint (BP-e4c0q58z):
+field -- and Connect and Workloads tabs to the namespaces of the AWS EKS
+Namespace blueprint (BP-e4c0q58z):
 
 - Cluster: live status, Kubernetes and platform version with support status,
   API endpoint and access mode, OIDC issuer, control-plane logging,
@@ -30,6 +30,12 @@ blueprint (BP-e4c0q58z):
   (Manage AWS EKS Namespace Pipeline Identity) buttons. Built by the
   eks_namespace shared module (SHM-sa5yqm9j), which lists access entries
   with ListAccessEntries and ListAssociatedAccessPolicies.
+- Workloads (on kubernetes_namespace resources): a read-only inventory of
+  one namespace read through the cluster's orchestrator token: quota usage
+  against the namespace ResourceQuota, Deployments, StatefulSets and
+  DaemonSets, pods with their state and restarts, services and ingresses,
+  persistent volume claims, and recent warning events. No logs, Secrets or
+  ConfigMaps, and no buttons that change the cluster.
 
 Every button starts one of the blueprint's resource actions as a CloudBolt
 job (Update EKS Version, Upgrade AWS EKS Nodegroup, Scale AWS EKS Nodegroup,
@@ -105,6 +111,7 @@ ACTION_UPDATE_ADDON = "Update AWS EKS Add-on"
 ACTION_CREATE_NAMESPACE = "Create AWS EKS Namespace"
 ACTION_MANAGE_NAMESPACE_ACCESS = "Manage AWS EKS Namespace Access"
 ACTION_MANAGE_PIPELINE_IDENTITY = "Manage AWS EKS Namespace Pipeline Identity"
+ACTION_REQUEST_QUOTA_CHANGE = "Request AWS EKS Namespace Quota Change"
 
 # amiType EKS reports for a node group whose launch template names its own
 # AMI; UpdateNodegroupVersion cannot move those, so no Upgrade button.
@@ -1003,6 +1010,301 @@ def namespace_connect_panel(request, resource_id):
 
 
 # ---------------------------------------------------------------------------
+# Namespace Workloads tab: what runs in one namespace landing zone
+# ---------------------------------------------------------------------------
+# Read-only, through the cluster's orchestrator token like the cluster's
+# Workloads tab. Deliberately no pod logs, Secrets or ConfigMaps (anyone who
+# may view the namespace resource would see them), and no scale or restart
+# buttons (they would run as the orchestrator, not as the viewer).
+#   ResourceQuota  https://kubernetes.io/docs/reference/kubernetes-api/policy-resources/resource-quota-v1/
+#   Deployment     https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/
+#   StatefulSet    https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/stateful-set-v1/
+#   DaemonSet      https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/daemon-set-v1/
+#   Pod            https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/
+#   Service        https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1/
+#   Ingress        https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/
+#   PVC            https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/
+#   Event          https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/event-v1/
+
+# ResourceQuota keys in display order, with how to read their quantities.
+QUOTA_KEYS = [
+    ("requests.cpu", "CPU requests", "cpu"),
+    ("limits.cpu", "CPU limits", "cpu"),
+    ("requests.memory", "Memory requests", "memory"),
+    ("limits.memory", "Memory limits", "memory"),
+    ("requests.storage", "Storage requests", "memory"),
+    ("persistentvolumeclaims", "Volume claims", "count"),
+    ("pods", "Pods", "count"),
+]
+# Container states that mean a pod is stuck, shown instead of the phase.
+# https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-states
+MAX_EVENTS = 25
+
+
+def _namespace_api(wrapper):
+    """GET helper for the cluster API root, from the orchestrator's wrapper.
+
+    get_clusterrole_url("v1", skip version) is "<scheme>://<host>[/prefix]/api";
+    the root both API groups hang off is that without "/api". requests_get
+    adds the bearer token and CloudBolt's SSL trust settings.
+    """
+    base = wrapper.get_clusterrole_url("v1", skip_base_url_version=True)
+    root = base[: -len("/api")] if base.endswith("/api") else base
+
+    def get(path, params=None):
+        kwargs = {"params": params} if params else {}
+        return wrapper.requests_get(root + path, **kwargs).json()
+
+    return get
+
+
+def _quantity(kind, value):
+    if kind == "cpu":
+        return _cpu_cores(value)
+    if kind == "memory":
+        return _memory_bytes(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _quantity_text(kind, amount):
+    if kind == "cpu":
+        return "{} cores".format(_cores_text(amount))
+    if kind == "memory":
+        return _memory_text(amount)
+    return "{:.0f}".format(amount)
+
+
+def _quota_rows(quotas):
+    """One meter per hard limit across the namespace's ResourceQuotas."""
+    rows = []
+    for quota in quotas:
+        status = quota.get("status") or {}
+        hard, used = status.get("hard") or {}, status.get("used") or {}
+        known = [key for key, _, _ in QUOTA_KEYS]
+        ordered = [(k, l, t) for k, l, t in QUOTA_KEYS if k in hard]
+        ordered += [(k, k, "count") for k in sorted(hard) if k not in known]
+        for key, label, kind in ordered:
+            total = _quantity(kind, hard.get(key))
+            current = _quantity(kind, used.get(key, "0"))
+            meter = _meter(current, total, _quantity_text(kind, current), _quantity_text(kind, total))
+            meter.update({"label": label, "quota": (quota.get("metadata") or {}).get("name", "")})
+            rows.append(meter)
+    return rows
+
+
+def _images(pod_spec):
+    return sorted({c.get("image", "") for c in (pod_spec or {}).get("containers", []) or [] if c.get("image")})
+
+
+def _workload_row(kind, item):
+    metadata, spec, status = item.get("metadata") or {}, item.get("spec") or {}, item.get("status") or {}
+    if kind == "DaemonSet":
+        wanted, ready = status.get("desiredNumberScheduled") or 0, status.get("numberReady") or 0
+    else:
+        wanted = spec.get("replicas") if spec.get("replicas") is not None else 1
+        ready = status.get("readyReplicas") or 0
+    if wanted == 0:
+        pill = {"text": "Scaled to 0", "style": "muted", "icon": "bi-pause-circle"}
+    elif ready >= wanted:
+        pill = {"text": "Ready", "style": "ok", "icon": "bi-check-circle-fill"}
+    elif ready:
+        pill = {"text": "Degraded", "style": "warn", "icon": "bi-exclamation-triangle-fill"}
+    else:
+        pill = {"text": "Unavailable", "style": "bad", "icon": "bi-x-circle-fill"}
+    return {
+        "kind": kind,
+        "name": metadata.get("name", ""),
+        "ready": "{}/{}".format(ready, wanted),
+        "status": pill,
+        "images": _images((spec.get("template") or {}).get("spec")),
+        "age": _age(metadata.get("creationTimestamp")),
+    }
+
+
+def _pod_row(pod):
+    metadata, spec, status = pod.get("metadata") or {}, pod.get("spec") or {}, pod.get("status") or {}
+    containers = status.get("containerStatuses") or []
+    reason = status.get("reason") or ""
+    for container in containers:
+        state = container.get("state") or {}
+        waiting = (state.get("waiting") or {}).get("reason")
+        terminated = (state.get("terminated") or {}).get("reason")
+        if waiting or (terminated and terminated != "Completed"):
+            reason = waiting or terminated
+            break
+    phase = status.get("phase", "Unknown")
+    if not reason and phase == "Pending":
+        for condition in status.get("conditions") or []:
+            if condition.get("type") == "PodScheduled" and condition.get("status") == "False":
+                reason = condition.get("reason") or ""
+    text = reason or phase
+    if phase == "Running" and not reason:
+        style, icon = "ok", "bi-check-circle-fill"
+    elif phase == "Succeeded":
+        style, icon = "muted", "bi-check-circle"
+    elif phase == "Pending" and not reason:
+        style, icon = "live", "bi-hourglass-split"
+    else:
+        style, icon = "bad", "bi-x-circle-fill"
+    owners = metadata.get("ownerReferences") or []
+    return {
+        "name": metadata.get("name", ""),
+        "status": {"text": text, "style": style, "icon": icon},
+        "running": phase == "Running" and not reason,
+        "ready": "{}/{}".format(sum(1 for c in containers if c.get("ready")), len(spec.get("containers") or [])),
+        "restarts": sum(c.get("restartCount") or 0 for c in containers),
+        "node": spec.get("nodeName", ""),
+        "owner": "{} {}".format(owners[0].get("kind", ""), owners[0].get("name", "")) if owners else "",
+        "age": _age(metadata.get("creationTimestamp")),
+    }
+
+
+def _service_row(service):
+    metadata, spec = service.get("metadata") or {}, service.get("spec") or {}
+    ports = []
+    for port in spec.get("ports") or []:
+        text = "{}/{}".format(port.get("port"), port.get("protocol", "TCP"))
+        if port.get("targetPort") not in (None, port.get("port")):
+            text += " → {}".format(port.get("targetPort"))
+        ports.append(text)
+    external = [
+        entry.get("hostname") or entry.get("ip")
+        for entry in ((service.get("status") or {}).get("loadBalancer") or {}).get("ingress") or []
+    ]
+    return {
+        "kind": "Service",
+        "name": metadata.get("name", ""),
+        "type": spec.get("type", ""),
+        "address": spec.get("clusterIP", ""),
+        "ports": ", ".join(ports),
+        "external": ", ".join(e for e in external if e),
+        "age": _age(metadata.get("creationTimestamp")),
+    }
+
+
+def _ingress_row(ingress):
+    metadata, spec = ingress.get("metadata") or {}, ingress.get("spec") or {}
+    hosts = [rule.get("host") for rule in spec.get("rules") or [] if rule.get("host")]
+    external = [
+        entry.get("hostname") or entry.get("ip")
+        for entry in ((ingress.get("status") or {}).get("loadBalancer") or {}).get("ingress") or []
+    ]
+    return {
+        "kind": "Ingress",
+        "name": metadata.get("name", ""),
+        "type": spec.get("ingressClassName", ""),
+        "address": "",
+        "ports": ", ".join(hosts) or "*",
+        "external": ", ".join(e for e in external if e),
+        "age": _age(metadata.get("creationTimestamp")),
+    }
+
+
+def _claim_row(claim):
+    metadata, spec, status = claim.get("metadata") or {}, claim.get("spec") or {}, claim.get("status") or {}
+    phase = status.get("phase", "")
+    return {
+        "name": metadata.get("name", ""),
+        "status": {"text": phase or "Unknown", "style": "ok" if phase == "Bound" else "warn",
+                   "icon": "bi-check-circle-fill" if phase == "Bound" else "bi-hourglass-split"},
+        "size": (status.get("capacity") or {}).get("storage") or ((spec.get("resources") or {}).get("requests") or {}).get("storage", ""),
+        "storage_class": spec.get("storageClassName", ""),
+        "age": _age(metadata.get("creationTimestamp")),
+    }
+
+
+def _event_time(event):
+    return (event.get("lastTimestamp") or event.get("eventTime") or
+            (event.get("metadata") or {}).get("creationTimestamp") or "")
+
+
+def _event_rows(events):
+    """The newest Warning events; filtered here rather than with a field selector."""
+    warnings = [e for e in events if e.get("type") == "Warning"]
+    warnings.sort(key=_event_time, reverse=True)
+    rows = []
+    for event in warnings[:MAX_EVENTS]:
+        involved = event.get("involvedObject") or {}
+        when = _event_time(event)
+        rows.append({
+            "age": _age(when[:19] + "Z" if len(when) >= 19 else when),
+            "object": "{} {}".format(involved.get("kind", ""), involved.get("name", "")).strip(),
+            "reason": event.get("reason", ""),
+            "message": event.get("message", ""),
+            "count": event.get("count") or 1,
+        })
+    return rows, len(warnings)
+
+
+def _namespace_workloads_context(resource, profile):
+    namespace = _attr(resource, "eks_namespace_name")
+    if not namespace:
+        raise EKSError("This resource records no namespace (eks_namespace_name).")
+    orchestrator_id = _attr(resource, "eks_namespace_orchestrator_id")
+    try:
+        orchestrator = Kubernetes.objects.filter(id=int(str(orchestrator_id).strip())).first()
+    except (TypeError, ValueError):
+        orchestrator = None
+    if orchestrator is None:
+        raise EKSError("No container orchestrator is recorded for this namespace (eks_namespace_orchestrator_id).")
+    try:
+        get = _namespace_api(orchestrator.get_api_wrapper())
+    except Exception as exc:
+        raise EKSError("The cluster API could not be reached through orchestrator {}: {}".format(orchestrator.name, exc))
+
+    warnings = []
+
+    def items(label, path):
+        try:
+            return get(path).get("items", []) or []
+        except Exception as exc:
+            logger.warning("Reading %s in %s failed: %s", label, namespace, exc)
+            warnings.append("{} could not be read: {}".format(label, exc))
+            return []
+
+    ns = "/namespaces/{}".format(namespace)
+    quotas = items("Resource quotas", "/api/v1" + ns + "/resourcequotas")
+    workloads = (
+        [_workload_row("Deployment", d) for d in items("Deployments", "/apis/apps/v1" + ns + "/deployments")]
+        + [_workload_row("StatefulSet", s) for s in items("StatefulSets", "/apis/apps/v1" + ns + "/statefulsets")]
+        + [_workload_row("DaemonSet", s) for s in items("DaemonSets", "/apis/apps/v1" + ns + "/daemonsets")]
+    )
+    workloads.sort(key=lambda r: (r["kind"], r["name"]))
+    pods = sorted((_pod_row(p) for p in items("Pods", "/api/v1" + ns + "/pods")), key=lambda r: r["name"])
+    endpoints = (
+        [_service_row(s) for s in items("Services", "/api/v1" + ns + "/services")]
+        + [_ingress_row(i) for i in items("Ingresses", "/apis/networking.k8s.io/v1" + ns + "/ingresses")]
+    )
+    claims = sorted(
+        (_claim_row(c) for c in items("Volume claims", "/api/v1" + ns + "/persistentvolumeclaims")),
+        key=lambda r: r["name"],
+    )
+    events, warning_count = _event_rows(items("Events", "/api/v1" + ns + "/events"))
+
+    return {
+        "namespace": namespace,
+        "quota": _quota_rows(quotas),
+        "workloads": workloads,
+        "workloads_ready": sum(1 for w in workloads if w["status"]["style"] in ("ok", "muted")),
+        "pods": pods,
+        "pods_running": sum(1 for p in pods if p["running"]),
+        "pods_failing": sum(1 for p in pods if p["status"]["style"] == "bad"),
+        "endpoints": endpoints,
+        "claims": claims,
+        "events": events,
+        "warning_count": warning_count,
+        "warnings": warnings,
+    }
+
+
+def namespace_workloads_panel(request, resource_id):
+    return _panel(request, resource_id, "namespace_workloads_panel.html", _namespace_workloads_context)
+
+
+# ---------------------------------------------------------------------------
 # Dialogs that start the blueprint's resource actions as jobs
 # ---------------------------------------------------------------------------
 def _dialog_message(title, text, css="text-danger"):
@@ -1384,3 +1686,23 @@ def namespace_connect_tab(request, obj_id):
         ),
     }
     return render(request, TEMPLATES + "connect_tab.html", context)
+
+
+@tab_extension(
+    model=Resource,
+    title="Workloads",
+    delegate=NamespaceTabDelegate,
+    description="Read-only inventory of one namespace: quota usage, workloads, pods, services, storage, and warning events",
+)
+def namespace_workloads_tab(request, obj_id):
+    resource = get_object_or_404(Resource, pk=obj_id)
+    context = {
+        "resource": resource,
+        "namespace": _attr(resource, "eks_namespace_name") or resource.name,
+        "cluster_name": _attr(resource, "eks_namespace_cluster") or "",
+        "workloads_url": reverse("aws_eks_namespace_workloads_panel", args=[resource.id]),
+        "quota_change_url": _action_url(
+            request.get_user_profile(), resource, ACTION_REQUEST_QUOTA_CHANGE
+        ),
+    }
+    return render(request, TEMPLATES + "namespace_workloads_tab.html", context)
