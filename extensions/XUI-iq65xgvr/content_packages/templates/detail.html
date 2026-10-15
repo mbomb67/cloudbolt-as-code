@@ -52,7 +52,7 @@
       </div>
       <div class="cell">
         <div class="k">{% trans "Last exported" %}</div>
-        <div class="v">{% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}{{ ago }} ago{% endblocktrans %}<div class="cpk-hint">{{ row.exported_at|date:"Y-m-d H:i T" }}</div>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}</div>
+        <div class="v">{% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.export_state %} <span class="cpk-tag cpk-tag-{{ row.export_state.0 }}">{{ row.export_state.1 }}</span>{% endif %}<div class="cpk-hint">{{ row.exported_at|date:"Y-m-d H:i T" }}</div>{% elif row.export_state %}<span class="cpk-tag cpk-tag-{{ row.export_state.0 }}">{{ row.export_state.1 }}</span>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}</div>
       </div>
       <div class="cell">
         <div class="k">{% trans "Last synced" %}</div>
@@ -128,6 +128,62 @@
       </div>
     </div>
   </div>
+
+  {% if row.export_job %}
+  {% with e=row.export_job %}
+  <div class="cpk-card cpk-card-fold">
+    <div class="cpk-card-h">
+      <button type="button" class="cpk-fold collapsed" data-bs-toggle="collapse" data-bs-target="#cpkx-export-body" aria-expanded="false" aria-controls="cpkx-export-body">
+        <i class="bi bi-chevron-right cpk-chev" aria-hidden="true"></i>
+        <span class="cpk-card-t">{% trans "Last export" %}{% if e.branch %} &middot; {{ e.branch }}{% endif %}</span>
+      </button>
+      <span class="cpk-tag{% if e.pill %} cpk-tag-{{ e.pill }}{% endif %}">{{ e.text }}</span>
+      <a class="cpk-muted" href="{{ e.url }}">{% trans "Job" %} {{ e.job_id }}</a>
+      <div class="cpk-card-tools">
+        {% if e.pr_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ e.pr_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+          {% blocktrans with term=e.pr_term service=e.service_name %}Open a {{ term }} in {{ service }}{% endblocktrans %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-reload>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+    <div id="cpkx-export-body" class="collapse">
+      <div class="cpk-card-b">
+        {% if e.results %}
+        <div class="table-responsive">
+          <table class="cpk-table">
+            <thead><tr><th>{% trans "Content" %}</th><th>{% trans "Result" %}</th></tr></thead>
+            <tbody>
+              {% for r in e.results %}
+              <tr>
+                <td><span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}<div class="cpk-hint cpk-mono">{{ r.ref }}</div></td>
+                <td>
+                  {% if r.status == "success" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Pushed" %}</span>
+                  {% elif r.status == "skipped" %}<span class="cpk-pill"><i class="bi bi-dash-circle" aria-hidden="true"></i> {% trans "Skipped" %}</span>
+                  {% else %}<span class="cpk-pill cpk-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Failed" %}</span>{% endif %}
+                  {% if r.status != "success" %}<div class="cpk-hint">{{ r.message }}</div>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% elif e.active %}
+        <div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i> {% trans "The export job is running; the job page shows each member as it is pushed. Refresh for the results." %}</div>
+        {% elif e.errors %}
+        <div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ e.errors }}</div></div>
+        {% else %}
+        <div class="cpk-empty">{% trans "The job returned no results; open it for the log." %}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  {% endif %}
 
   {% if row.sync_jobs %}
   <div class="cpk-card cpk-card-fold">

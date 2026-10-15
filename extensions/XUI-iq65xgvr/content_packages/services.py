@@ -200,10 +200,13 @@ def _push_member(service, obj, branch, message):
     return service.push_action_to_remote_source(obj, branch, message)
 
 
-def export_package(package, repo, branch, commit_message, profile):
+def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
     manifest (and a README the first time) to packages/<PKG-id>/. A member
-    that fails does not stop the others. Returns the outcome for display."""
+    that fails does not stop the others. progress, when given, is called with
+    one line per step (the export job passes job.set_progress). Returns the
+    outcome: one result per member plus the manifest, and the PR link."""
+    report = progress or (lambda message: None)
     branch = check_branch(branch)
     commit_message = (commit_message or "").strip()
     if not commit_message:
@@ -221,11 +224,13 @@ def export_package(package, repo, branch, commit_message, profile):
         if obj is None:
             row.update(status="skipped", message="Not on this appliance, so there is nothing to push.")
             results.append(row)
+            report("Skipped {}: not on this appliance".format(ref))
             continue
         row["name"] = member_type.name_of(obj)
         detail = "{}\n\nContent package {} ({}): {} {} ({})".format(
             commit_message, package["name"], package["id"], member_type.singular, row["name"], global_id
         )
+        report("Pushing {} {} ({})".format(member_type.singular, row["name"], global_id))
         try:
             status, message = _push_member(service, obj, branch, detail)
         except Exception as exc:
@@ -233,11 +238,13 @@ def export_package(package, repo, branch, commit_message, profile):
             status, message = "failure", str(exc) or type(exc).__name__
         row.update(status="success" if status == "success" else "failure", message=strip_tags(message or ""))
         results.append(row)
+        report("  {}{}".format("pushed" if row["status"] == "success" else "failed: ", "" if row["status"] == "success" else row["message"]))
 
     folder = "{}/{}".format(PACKAGES_DIR, package["id"])
     manifest_path = "{}/{}_metadata.json".format(folder, package["id"])
     manifest_row = {"ref": folder, "type_title": "Package manifest", "prefix": "PKG", "name": package["name"]}
     remote_url = repo.get_repo_url_for_file(branch, manifest_path)
+    report("Committing the package manifest to {}".format(manifest_path))
     try:
         with TemporaryDirectory(dir=settings.REPO_DIR) as repo_dir:
             clone = repo.prepare_repo_from_url_and_branch(branch, profile, repo_dir=repo_dir)
@@ -258,6 +265,7 @@ def export_package(package, repo, branch, commit_message, profile):
     except Exception as exc:
         logger.exception("Export of the %s manifest failed", package["id"])
         manifest_row.update(status="failure", message=strip_tags(str(exc)) or type(exc).__name__)
+        report("  failed: {}".format(manifest_row["message"]))
     else:
         manifest_row.update(status="success", message="Committed {}.".format(manifest_path))
         store.record_export(package["id"], repo.id, branch, remote_url)

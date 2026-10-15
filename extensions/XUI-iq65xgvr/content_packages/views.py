@@ -13,9 +13,9 @@ longer exists shows red; one whose Remote Source URL is not on the package's
 home repository and branch shows amber. The details page also lists every
 dependency an export would write, worked out by dependencies.py.
 
-Export runs inline in the request, like CloudBolt's own "Push to repository"
-dialog; Sync creates CloudBolt sync jobs and returns at once. Everything here
-requires CB Admin.
+Export and Sync both run as CloudBolt jobs and return at once: Export through
+the self-registering plugin in jobs.py, Sync as one sourcecodereposync job per
+member. Everything here requires CB Admin.
 """
 import functools
 import json
@@ -38,6 +38,7 @@ from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
 from xui.content_packages import dependencies, services, store
+from xui.content_packages import jobs as export_jobs
 
 logger = ThreadLogger(__name__)
 
@@ -185,8 +186,10 @@ def _when(value):
 
 
 def _jobs_for(items):
-    """Every last-sync job the items reference, by pk, in one query."""
+    """Every last-sync and last-export job the items reference, by pk, in one
+    query."""
     ids = [j.get("job_id") for item in items for j in item["local"].get("last_sync_jobs") or []]
+    ids += [item["local"].get("last_export_job_id") for item in items]
     ids = [i for i in ids if isinstance(i, int)]
     return Job.objects.in_bulk(ids) if ids else {}
 
@@ -218,6 +221,34 @@ def _sync_jobs(local, jobs):
     return rows
 
 
+def _export_job(local, jobs):
+    """The last export job with a display status and, once it has finished,
+    the per-member results it returned as outputs."""
+    job = jobs.get(local.get("last_export_job_id"))
+    while job is not None and job.rerun_job_id:
+        job = job.rerun_job
+    if job is None:
+        return None
+    pill, text = JOB_PILLS.get(job.status, ("live", "Running" if job.status == "RUNNING" else "Waiting"))
+    if job.status == "WARNING":
+        text = "Some members failed"
+    outputs = job.outputs if isinstance(job.outputs, dict) else {}
+    return {
+        "job_id": job.id,
+        "url": job.get_absolute_url(),
+        "status": job.status,
+        "pill": pill,
+        "text": text,
+        "active": job.status in ACTIVE_JOB_STATUSES,
+        "branch": outputs.get("branch") or local.get("last_export_branch") or "",
+        "results": outputs.get("results") or [],
+        "pr_url": outputs.get("pr_url") or "",
+        "pr_term": outputs.get("pr_term") or "Pull Request",
+        "service_name": outputs.get("service_name") or "",
+        "errors": job.errors or "",
+    }
+
+
 def _row(item, jobs=None):
     """Add what the templates need on top of the JSON shape."""
     local = item["local"]
@@ -240,6 +271,16 @@ def _row(item, jobs=None):
         item["sync_state"] = ("live", "Syncing")
     else:
         item["sync_state"] = None
+    item["export_job"] = _export_job(local, jobs or {})
+    export = item["export_job"]
+    if export and export["active"]:
+        item["export_state"] = ("live", "Exporting")
+    elif export and export["status"] == "FAILURE":
+        item["export_state"] = ("bad", "Export failed")
+    elif export and export["status"] == "WARNING":
+        item["export_state"] = ("warn", "Exported with errors")
+    else:
+        item["export_state"] = None
     return item
 
 
@@ -484,19 +525,17 @@ def package_export(request, pkg_id):
         }
         branch = values["new_branch"] if values["branch"] == "__new__" else values["branch"]
         try:
-            outcome = services.export_package(
+            job = export_jobs.start_export(
                 package, services.get_repo(values["repo"]), branch, values["commit_message"],
                 request.get_user_profile(),
             )
         except store.PackageError as exc:
             error = str(exc)
         else:
-            return {
-                "title": title,
-                "outcome": outcome,
-                "package": package,
-                "reload_on_close": True,
-            }
+            messages.success(request, format_html(
+                'Exporting {} to {}: <a href="{}">Job {}</a>.', package["name"], branch, job.get_absolute_url(), job.id
+            ))
+            return HttpResponseRedirect(_detail_url(package["id"]))
     resolved = store.resolve_refs(package.get("contents") or [])
     context = {
         "title": title,
@@ -509,6 +548,7 @@ def package_export(request, pkg_id):
         "allow_new_branch": True,
         "member_count": len(resolved),
         "missing": [ref for ref, obj in resolved.items() if obj is None],
+        "running": export_jobs.running_export(package),
     }
     context.update(_repo_context(package, values, repos))
     return context
@@ -714,16 +754,18 @@ def _repo_from(data):
 @_api
 @cbadmin_required
 def api_export(request, pkg_id):
-    """POST {source_code_repo_id, branch, commit_message}: push every member
-    and the manifest; returns one result per member plus the PR link."""
+    """POST {source_code_repo_id, branch, commit_message}: start the export
+    job. The job's outputs carry one result per member plus the PR link."""
     if request.method != "POST":
         return _method_not_allowed(["POST"])
     data = _body(request)
     package = store.get_package(pkg_id)
-    outcome = services.export_package(
+    job = export_jobs.start_export(
         package, _repo_from(data), data.get("branch"), data.get("commit_message"), request.get_user_profile()
     )
-    return JsonResponse(outcome, status=200 if not outcome["failed"] else 207)
+    return JsonResponse(
+        {"job_id": job.id, "global_id": getattr(job, "global_id", ""), "url": job.get_absolute_url()}, status=202
+    )
 
 
 @_api

@@ -12,6 +12,8 @@
         "__init__.py",
         "store.py",
         "services.py",
+        "jobs.py",
+        "export_job.py",
         "dependencies.py",
         "views.py",
         "urls.py",

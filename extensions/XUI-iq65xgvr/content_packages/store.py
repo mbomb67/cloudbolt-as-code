@@ -291,6 +291,9 @@ def _empty_local():
         "last_synced": None,
         "last_sync_job_id": None,
         "last_sync_jobs": [],
+        "last_export_job_id": None,
+        "last_export_repo_id": None,
+        "last_export_branch": "",
     }
 
 
@@ -541,4 +544,15 @@ def record_sync(pkg_id, source_code_repo_id, branch, jobs):
         last_synced=_now(),
         last_sync_jobs=[{"ref": ref, "job_id": job_id} for ref, job_id in jobs],
         last_sync_job_id=jobs[-1][1] if jobs else None,
+    )
+
+
+def record_export_job(pkg_id, job_id, source_code_repo_id, branch):
+    """An export job was started. The home repository and branch change only
+    when the job commits the manifest (record_export)."""
+    return _update_local(
+        pkg_id,
+        last_export_job_id=job_id,
+        last_export_repo_id=source_code_repo_id,
+        last_export_branch=branch,
     )
