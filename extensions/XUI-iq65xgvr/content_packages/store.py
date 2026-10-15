@@ -81,7 +81,13 @@ TRANSITIVE_DIRS = ("forms", "form_functions")
 
 
 class PackageError(Exception):
-    """Invalid input or a missing package; the message is safe to show."""
+    """Invalid input or a missing package. public_message is written for the
+    person using the page or API and holds no internal detail, so it is what
+    responses show."""
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.public_message = message
 
 
 class PackageNotFound(PackageError):

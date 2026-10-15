@@ -103,11 +103,12 @@ def _member(ref, obj, repo, branch):
     "ok", "missing" (red) or "drift" (amber)."""
     try:
         member_type, global_id = store.parse_ref(ref)
-    except store.PackageError as exc:
+    except store.PackageError:
         return {
             "ref": ref, "type": "", "type_title": "Unknown", "prefix": "?", "global_id": "",
             "name": str(ref), "exists": False, "drift": False, "state": "missing", "pill": "bad",
-            "note": str(exc), "url": None, "remote_source_url": "",
+            "note": 'Not a content reference of the form "<top_level_dir>/<GLOBAL_ID>".',
+            "url": None, "remote_source_url": "",
         }
     info = {
         "ref": ref,
@@ -655,12 +656,12 @@ def _api(view):
     def wrapper(request, *args, **kwargs):
         try:
             return view(request, *args, **kwargs)
-        except PermissionDenied as exc:
-            return JsonResponse({"error": str(exc) or "CB Admin required."}, status=403)
-        except store.PackageNotFound as exc:
-            return JsonResponse({"error": str(exc)}, status=404)
+        except PermissionDenied:
+            return JsonResponse({"error": "This requires CB Admin or Super Admin."}, status=403)
+        except store.PackageNotFound:
+            return JsonResponse({"error": "No content package with that ID."}, status=404)
         except store.PackageError as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
+            return JsonResponse({"error": exc.public_message}, status=400)
         except Exception:
             logger.exception("Content package API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)

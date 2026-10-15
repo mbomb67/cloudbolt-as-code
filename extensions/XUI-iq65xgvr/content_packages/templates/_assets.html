@@ -145,10 +145,12 @@
     function load($panel) {
       $panel.data("cpk-loaded", true);
       var label = $panel.data("cpk-loading") || "Loading";
-      $panel.html('<div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i> ' + label + '…</div>');
+      $panel.empty().append(
+        $('<div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i></div>').append(document.createTextNode(" " + label + "…"))
+      );
       $panel.load($panel.data("cpk-src"), function (response, status, xhr) {
         if (status === "error") {
-          $panel.html('<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
+          $panel.html('<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + Number(xhr.status) + ').</div></div>');
         } else {
           var total = $panel.find("[data-cpk-total]").attr("data-cpk-total");
           var id = $panel.attr("id");
@@ -167,7 +169,8 @@
     }
     $root.on("input", "input[data-cpk-filter]", function () {
       var needle = this.value.toLowerCase();
-      var $table = $($(this).data("cpk-filter"));
+      // find() treats the attribute as a selector only, never as HTML.
+      var $table = $root.find($(this).attr("data-cpk-filter"));
       $table.find("tbody tr[data-cpk-row]").each(function () {
         $(this).data("cpk-match", this.textContent.toLowerCase().indexOf(needle) > -1);
       });
@@ -183,7 +186,7 @@
     $root.on("click", "[data-cpk-refresh]", function (e) {
       e.preventDefault();
       var target = $(this).attr("data-cpk-refresh");
-      var $panel = target ? $(target) : $(this).closest("[data-cpk-panel]");
+      var $panel = target ? $root.find(target) : $(this).closest("[data-cpk-panel]");
       load($panel);
       showCollapse($panel.closest(".collapse"));
     });
