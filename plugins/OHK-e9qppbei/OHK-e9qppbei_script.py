@@ -201,8 +201,9 @@ def discover_resources(**kwargs):
         for cluster_name in response_dict["clusters"]:
             cluster = client.describe_cluster(name=cluster_name)["cluster"]
 
-            # identifier for aws region
-            idtf_resource_name = f"{cluster_name}:{environment.aws_region}"
+            # one resource per cluster per account and region, however many
+            # environments share that account and region
+            idtf_resource_name = f"{handler.id}:{environment.aws_region}:{cluster_name}"
 
             if idtf_resource_name in discovered:
                 continue
@@ -272,7 +273,22 @@ def discover_resources(**kwargs):
             resource.eks_security_groups = cluster["resourcesVpcConfig"]["securityGroupIds"]
             resource.eks_subnets = cluster["resourcesVpcConfig"]["subnetIds"]
             resource.vpc_id = cluster["resourcesVpcConfig"]["vpcId"]
-            resource.env_id = environment.id
+
+            # Keep the environment the cluster was built or first discovered
+            # in when it still matches this account and region: several
+            # environments can share both, and the day-2 actions read the
+            # cluster's subnets and security groups through env_id's VPC.
+            current_env_id = resource.get_cf_values_as_dict().get("env_id")
+            keep_env = (
+                current_env_id
+                and Environment.objects.filter(
+                    id=current_env_id,
+                    resource_handler=environment.resource_handler,
+                    aws_region=environment.aws_region,
+                ).exists()
+            )
+            if not keep_env:
+                resource.env_id = environment.id
             resource.save()
 
     set_progress(
