@@ -31,74 +31,14 @@
   </div>
 </div>
 
-{# ── Commands ── #}
-<div class="eks-card">
-  <div class="eks-card-h">
-    <span class="eks-card-t">{% trans "Connect with kubectl" %}</span>
-  </div>
-  <ol class="eks-steps">
-    {% for command in commands %}
-    <li>
-      <code class="eks-mono" id="eksx-cmd-{{ forloop.counter }}">{{ command }}</code>
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
-        <i class="bi bi-clipboard" aria-hidden="true"></i>
-      </button>
-    </li>
-    {% endfor %}
-  </ol>
-  <div class="eks-note">
-    {% trans "Needs the AWS CLI and credentials for an IAM role or user listed under IAM access below. update-kubeconfig also needs eks:DescribeCluster; without it, use the kubeconfig below." %}
-  </div>
-</div>
-
-{# ── kubeconfig ── #}
-<div class="eks-card">
-  <div class="eks-card-h">
-    <span class="eks-card-t">{% trans "kubeconfig" %}</span>
-    <div class="eks-card-tools">
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-kubeconfig">
-        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
-      </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-download="#eksx-kubeconfig" data-eks-filename="{{ kubeconfig_filename }}">
-        <i class="bi bi-download" aria-hidden="true"></i> {% trans "Download" %}
-      </button>
-    </div>
-  </div>
-  <pre class="eks-pre eks-mono" id="eksx-kubeconfig">{{ kubeconfig }}</pre>
-  <div class="eks-note">
-    {% trans "Contains no secret: kubectl runs aws eks get-token with your own AWS credentials. Save it, then point KUBECONFIG at the file." %}
-  </div>
-</div>
-
-{# ── Pipeline identities ── #}
-{% if pipelines %}
-<div class="eks-card">
-  <div class="eks-card-h">
-    <span class="eks-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
-  </div>
-  {% for p in pipelines %}
-  <div class="eks-note">
-    <span class="eks-mono">{{ p.repository }}</span> &middot; {{ p.trigger }} &middot; <span class="eks-pill">{{ p.level|title }}</span>
-    <div class="eks-hint eks-mono">{{ p.role_arn }}</div>
-  </div>
-  <div class="eks-card-h">
-    <span class="eks-hint">{% trans "GitHub Actions workflow" %}</span>
-    <div class="eks-card-tools">
-      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-pipeline-{{ forloop.counter }}">
-        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
-      </button>
-    </div>
-  </div>
-  <pre class="eks-pre eks-mono" id="eksx-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
-  {% endfor %}
-</div>
-{% endif %}
+{# Collapsible sections are <details>: open ones start expanded. #}
 
 {# ── IAM access ── #}
-<div class="eks-card">
-  <div class="eks-card-h">
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
     <span class="eks-card-t">{% trans "IAM access" %} &middot; {{ access|length }}</span>
-  </div>
+  </summary>
   {% if access_error %}
     {% include "aws_eks_cluster/templates/_alert.html" with error=access_error %}
   {% elif access %}
@@ -125,6 +65,72 @@
   {% else %}
   <div class="eks-empty">{% trans "No IAM role or user has access to this namespace yet. Use Manage access to grant it." %}</div>
   {% endif %}
-</div>
+</details>
+
+{# ── Pipeline identities ── #}
+{% if pipelines %}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
+  </summary>
+  {% for p in pipelines %}
+  <div class="eks-note">
+    <span class="eks-mono">{{ p.repository }}</span> &middot; {{ p.trigger }} &middot; <span class="eks-pill">{{ p.level|title }}</span>
+    <div class="eks-hint eks-mono">{{ p.role_arn }}</div>
+  </div>
+  <div class="eks-card-h">
+    <span class="eks-hint">{% trans "GitHub Actions workflow" %}</span>
+    <div class="eks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-pipeline-{{ forloop.counter }}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+    </div>
+  </div>
+  <pre class="eks-pre eks-mono" id="eksx-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
+  {% endfor %}
+</details>
+{% endif %}
+
+{# ── Commands ── #}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Connect with kubectl" %}</span>
+  </summary>
+  <ol class="eks-steps">
+    {% for command in commands %}
+    <li>
+      <code class="eks-mono" id="eksx-cmd-{{ forloop.counter }}">{{ command }}</code>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="eks-note">
+    {% trans "Needs the AWS CLI and credentials for an IAM role or user listed under IAM access above. update-kubeconfig also needs eks:DescribeCluster; without it, use the kubeconfig below." %}
+  </div>
+</details>
+
+{# ── kubeconfig: starts collapsed ── #}
+<details class="eks-card eks-fold">
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "kubeconfig" %}</span>
+    <div class="eks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-kubeconfig">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-download="#eksx-kubeconfig" data-eks-filename="{{ kubeconfig_filename }}">
+        <i class="bi bi-download" aria-hidden="true"></i> {% trans "Download" %}
+      </button>
+    </div>
+  </summary>
+  <pre class="eks-pre eks-mono" id="eksx-kubeconfig">{{ kubeconfig }}</pre>
+  <div class="eks-note">
+    {% trans "Contains no secret: kubectl runs aws eks get-token with your own AWS credentials. Save it, then point KUBECONFIG at the file." %}
+  </div>
+</details>
 
 {% endif %}
