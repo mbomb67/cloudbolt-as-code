@@ -1,0 +1,34 @@
+{% load i18n %}
+{% include "aws_eks_cluster/templates/_assets.html" %}
+
+<div id="eksx-overview" class="eksx">
+  {# ── Cluster hero: identity from the resource's custom fields, live state loaded below ── #}
+  <div class="eks-card">
+    <div class="eks-hero-top">
+      <div>
+        <div class="eks-eyebrow">{% trans "Amazon EKS cluster" %}</div>
+        <div class="eks-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="eks-sub">{{ region|default:"" }}{% if handler_name %} &middot; {{ handler_name }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
+      </div>
+      <div class="eks-tools">
+        {% if console_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ console_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in AWS console" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+
+    <div data-eks-panel="cluster" data-eks-src="{{ cluster_url }}"></div>
+  </div>
+
+  {# ── Add-ons: the panel renders its own card header ── #}
+  <div class="eks-card" data-eks-panel="addons" data-eks-src="{{ addons_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.eksxInit("eksx-overview"); });
+</script>

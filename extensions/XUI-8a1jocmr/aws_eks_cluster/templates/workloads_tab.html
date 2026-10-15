@@ -1,0 +1,32 @@
+{% load i18n %}
+{% include "aws_eks_cluster/templates/_assets.html" %}
+
+<div id="eksx-workloads" class="eksx">
+  <div class="eks-card">
+    <div class="eks-hero-top">
+      <div>
+        <div class="eks-eyebrow">{% trans "Workloads" %}</div>
+        <div class="eks-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="eks-sub">
+          {% if orchestrator_name %}{% trans "Read through container orchestrator" %} {{ orchestrator_name }}{% else %}{% trans "No container orchestrator is linked to this resource" %}{% endif %}
+        </div>
+      </div>
+      <div class="eks-tools">
+        {% if orchestrator_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ orchestrator_url }}">
+          <i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Open orchestrator" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-eks-panel="workloads" data-eks-src="{{ workloads_url }}" data-eks-loading="the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.eksxInit("eksx-workloads"); });
+</script>

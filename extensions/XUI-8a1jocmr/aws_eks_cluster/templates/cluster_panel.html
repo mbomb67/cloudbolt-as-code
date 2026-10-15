@@ -1,0 +1,146 @@
+{% load i18n %}
+{% if error %}
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+{% else %}
+
+{% if jobs %}
+<div class="eks-banner eks-banner-info">
+  <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+  <div class="eks-banner-body">
+    <div class="eks-banner-t">
+      {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
+    </div>
+    <ul class="eks-issues">
+      {% for job in jobs %}
+      <li>
+        <span class="eks-pill eks-pill-live"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {{ job.status }}</span>
+        <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
+        {% if job.label %}<span class="eks-muted">&middot; {{ job.label }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if upgrade %}
+<div class="eks-banner eks-banner-info">
+  <i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>
+  <div class="eks-banner-body">
+    <div class="eks-banner-t">{% blocktrans with latest=upgrade.latest %}Kubernetes {{ latest }} is available{% endblocktrans %}</div>
+    <div class="eks-banner-s">
+      {% blocktrans with current=cluster.version next=upgrade.next %}This cluster runs {{ current }}. EKS updates a control plane one minor version at a time, so Update EKS Version moves it to {{ next }}.{% endblocktrans %}
+      {% trans "Node groups and add-ons are updated separately afterwards." %}
+    </div>
+  </div>
+  {% if upgrade.url %}
+  <a class="btn btn-sm btn-primary open-dialog eks-banner-btn" href="{{ upgrade.url }}">
+    <i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Update EKS Version" %}
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if cluster.issues %}
+<div class="eks-banner">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div class="eks-banner-body">
+    <div class="eks-banner-t">{% blocktrans count n=cluster.issues|length %}AWS reports a cluster health issue{% plural %}AWS reports {{ n }} cluster health issues{% endblocktrans %}</div>
+    <ul class="eks-issues">
+      {% for issue in cluster.issues %}
+      <li><i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ issue.message }}</span><span class="eks-mono">{{ issue.code }}{% if issue.resources %} &middot; {{ issue.resources }}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="eks-meta">
+  <div class="cell">
+    <div class="k">{% trans "Status" %}</div>
+    <div class="v">
+      <span class="eks-pill eks-pill-{{ cluster.status.style }}"><i class="bi {{ cluster.status.icon }}" aria-hidden="true"></i> {{ cluster.status.text }}</span>
+      <div class="eks-hint">{% if cluster.created %}{% trans "Created" %} {{ cluster.created }}{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Kubernetes" %}</div>
+    <div class="v">
+      {{ cluster.version|default:"&mdash;" }}
+      {% if upgrade %}
+        <span class="eks-pill eks-pill-warn"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Update available" %}</span>
+      {% elif cluster.version %}
+        <span class="eks-pill eks-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "Latest" %}</span>
+      {% endif %}
+      <div class="eks-hint">
+        {% if cluster.platform_version %}{% trans "Platform version" %} {{ cluster.platform_version }}{% endif %}
+        {% if cluster.support %} &middot; {{ cluster.support }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "API endpoint" %}</div>
+    <div class="v">
+      {% if cluster.endpoint %}<a class="eks-mono" href="{{ cluster.endpoint }}" target="_blank" rel="noopener">{{ cluster.endpoint }}</a>{% else %}<span class="eks-muted">&mdash;</span>{% endif %}
+      <div class="eks-hint">
+        {{ cluster.access_mode }}{% if cluster.public_cidrs %} &middot; {{ cluster.public_cidrs }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "OIDC issuer" %}</div>
+    <div class="v">
+      {% if cluster.oidc_issuer %}<span class="eks-mono">{{ cluster.oidc_issuer }}</span>{% else %}<span class="eks-muted">&mdash;</span>{% endif %}
+      <div class="eks-hint">{% trans "Identity provider for IAM roles for service accounts" %}</div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Control plane logging" %}</div>
+    <div class="v">
+      {% if cluster.logging %}
+        <span class="eks-pill eks-pill-ok"><i class="bi bi-journal-check" aria-hidden="true"></i> {% trans "On" %}</span>
+        <div class="eks-hint">{{ cluster.logging|join:", " }}</div>
+      {% else %}
+        <span class="eks-pill"><i class="bi bi-journal-x" aria-hidden="true"></i> {% trans "Off" %}</span>
+        <div class="eks-hint">{% trans "No log types are sent to CloudWatch" %}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Authentication" %}</div>
+    <div class="v">
+      {{ cluster.auth_mode|default:"&mdash;" }}
+      <div class="eks-hint">{% if cluster.support_type %}{{ cluster.support_type }}{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "Networking" %}</div>
+    <div class="v">
+      {% if cluster.vpc_id %}<span class="eks-mono">{{ cluster.vpc_id }}</span>{% else %}<span class="eks-muted">&mdash;</span>{% endif %}
+      <div class="eks-hint">
+        {% blocktrans count n=cluster.subnet_count %}{{ n }} subnet{% plural %}{{ n }} subnets{% endblocktrans %}
+        {% if cluster.service_cidr %} &middot; {% trans "services" %} {{ cluster.service_cidr }}{% endif %}
+        {% if cluster.cluster_sg %} &middot; {{ cluster.cluster_sg }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <div class="k">{% trans "ARN" %}</div>
+    <div class="v eks-mono">{{ cluster.arn|default:"&mdash;" }}</div>
+  </div>
+</div>
+
+{% if warnings %}
+<div class="eks-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% endif %}

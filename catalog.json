@@ -274,7 +274,9 @@
       "resource_actions/RSA-0g4pfrde",
       "resource_actions/RSA-dhgwoj3z",
       "resource_actions/RSA-f9ivvn5q",
-      "resource_actions/RSA-rrbh1ntm"
+      "resource_actions/RSA-inhs50gi",
+      "resource_actions/RSA-rrbh1ntm",
+      "resource_actions/RSA-xdlxetyc"
     ],
     "used_by": []
   },
@@ -388,6 +390,17 @@
     "description": "Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs.",
     "path": "extensions/XUI-6nzs882l",
     "readme": "extensions/XUI-6nzs882l/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "XUI-8a1jocmr",
+    "type": "extensions",
+    "name": "AWS EKS Cluster",
+    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures read through the cluster's orchestrator token.",
+    "path": "extensions/XUI-8a1jocmr",
+    "readme": "extensions/XUI-8a1jocmr/README.md",
     "uses": [],
     "used_by": [],
     "enabled": true
@@ -1767,6 +1780,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-f0775rga",
+    "type": "plugins",
+    "name": "Update AWS EKS Add-on",
+    "description": "Updates one EKS add-on to a newer version published for the cluster's Kubernetes version and waits for AWS to finish.",
+    "path": "plugins/OHK-f0775rga",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-xdlxetyc"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-fel441xh",
     "type": "plugins",
     "name": "Change SKU",
@@ -2439,6 +2465,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-x1984ik1",
+    "type": "plugins",
+    "name": "Scale AWS EKS Nodegroup",
+    "description": "Changes a managed node group's minimum, maximum, and desired node counts, waits for AWS to apply them, and refreshes the node group sub-resource.",
+    "path": "plugins/OHK-x1984ik1",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-inhs50gi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-xdjd5o9b",
     "type": "plugins",
     "name": "Ansible Ad-Hoc",
@@ -2892,6 +2931,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-inhs50gi",
+    "type": "resource_actions",
+    "name": "Scale AWS EKS Nodegroup",
+    "description": "Changes a managed node group's minimum, maximum, and desired node counts, waits for AWS to apply them, and refreshes the node group sub-resource.",
+    "path": "resource_actions/RSA-inhs50gi",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-x1984ik1"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-jaitfhwp",
     "type": "resource_actions",
     "name": "Run SQL Command",
@@ -3008,6 +3062,21 @@
       "plugins/OHK-tb703wqx"
     ],
     "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "RSA-xdlxetyc",
+    "type": "resource_actions",
+    "name": "Update AWS EKS Add-on",
+    "description": "Updates one EKS add-on to a newer version published for the cluster's Kubernetes version and waits for AWS to finish.",
+    "path": "resource_actions/RSA-xdlxetyc",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-f0775rga"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
+    ],
     "enabled": true
   },
   {
