@@ -1,0 +1,262 @@
+{% comment %}
+  Shared styles and page helpers for the Content Packages pages and dialogs.
+  Same visual language as the AWS EKS Cluster and HCP Terraform Workspace
+  extensions: tokens derive from --bs-primary / --bs-body-color / --surface /
+  --neutral-* so Branded Themes re-theme the pages without an asset build.
+{% endcomment %}
+<style>
+  .cpkx {
+    --cpk-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --cpk-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --cpk-line: var(--neutral-250, #E2E8ED);
+    --cpk-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --cpk-primary: var(--bs-primary, #0d6efd);
+    --cpk-ok: var(--bs-success, #198754);
+    --cpk-warn: var(--bs-warning, #ffc107);
+    --cpk-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --cpk-bad: var(--bs-danger, #dc3545);
+  }
+  .cpkx .cpk-card { background: var(--surface, #fff); border: 1px solid var(--cpk-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .cpkx .cpk-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .cpkx .cpk-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--cpk-muted); }
+  .cpkx .cpk-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .cpkx .cpk-title .bi { color: var(--cpk-primary); }
+  .cpkx .cpk-sub { font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); margin-top: 2px; }
+  .cpkx .cpk-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .cpkx .cpk-desc { padding: 0 22px 16px; font-size: 13.5px; font-weight: 600; color: var(--cpk-soft); }
+  .cpkx .cpk-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--cpk-line); border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .cpkx .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--cpk-muted); margin-bottom: 3px; }
+  .cpkx .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .cpkx .cpk-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--cpk-line); flex-wrap: wrap; }
+  .cpkx .cpk-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--cpk-muted); }
+  .cpkx .cpk-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cpkx .cpk-card-tools .form-control { width: 220px; max-width: 100%; }
+  .cpkx .cpk-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .cpkx .cpk-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--cpk-muted); padding: 10px 18px; border-bottom: 1px solid var(--cpk-line); text-align: left; white-space: nowrap; }
+  .cpkx .cpk-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .cpkx .cpk-table tbody tr:last-child td { border-bottom: 0; }
+  .cpkx .cpk-table tbody tr:hover td { background: var(--cpk-surface-2); }
+  .cpkx .cpk-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--cpk-soft); }
+  .cpkx .cpk-pill a { color: inherit; text-decoration: none; }
+  .cpkx .cpk-pill a:hover { text-decoration: underline; }
+  .cpkx .cpk-pill-ok { background: color-mix(in srgb, var(--cpk-ok) 14%, transparent); color: var(--cpk-ok); }
+  .cpkx .cpk-pill-warn { background: color-mix(in srgb, var(--cpk-warn) 22%, transparent); color: var(--cpk-warn-text); }
+  .cpkx .cpk-pill-bad { background: color-mix(in srgb, var(--cpk-bad) 12%, transparent); color: var(--cpk-bad); }
+  .cpkx .cpk-pill-live { background: color-mix(in srgb, var(--cpk-primary) 13%, transparent); color: var(--cpk-primary); }
+  .cpkx .cpk-pill .cpk-type { font-size: 10px; letter-spacing: .04em; opacity: .75; }
+  .cpkx .cpk-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--cpk-soft); vertical-align: middle; white-space: nowrap; }
+  .cpkx .cpk-tag-live { background: color-mix(in srgb, var(--cpk-primary) 13%, transparent); color: var(--cpk-primary); }
+  .cpkx .cpk-tag-warn { background: color-mix(in srgb, var(--cpk-warn) 22%, transparent); color: var(--cpk-warn-text); }
+  .cpkx .cpk-tag-bad { background: color-mix(in srgb, var(--cpk-bad) 12%, transparent); color: var(--cpk-bad); }
+  .cpkx .cpk-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .cpkx .cpk-more { padding: 0; font-size: 12px; font-weight: 700; text-decoration: none; }
+  .cpkx .cpk-muted { color: var(--cpk-muted); font-weight: 600; }
+  .cpkx .cpk-hint { font-size: 11.5px; color: var(--cpk-muted); font-weight: 600; margin-top: 3px; }
+  .cpkx .cpk-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .cpkx .cpk-nowrap { white-space: nowrap; }
+  .cpkx .cpk-url { font-size: 12px; overflow-wrap: anywhere; }
+  .cpkx .cpk-empty { color: var(--cpk-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .cpkx .cpk-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--cpk-bad); overflow-wrap: anywhere; }
+  .cpkx .cpk-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .cpkx .cpk-note { padding: 8px 18px 0; font-size: 12px; color: var(--cpk-muted); font-weight: 600; }
+  .cpkx .cpk-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); display: flex; align-items: center; gap: 8px; }
+  .cpkx .cpk-spin { display: inline-block; animation: cpk-spin 1s linear infinite; }
+  .cpkx .cpk-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .cpkx .cpk-off { display: inline-block; cursor: not-allowed; }
+  .cpkx .cpk-off .btn { pointer-events: none; }
+  /* Add/Edit dialog */
+  .cpkx.cpk-dialog .cpk-alert { padding: 0 0 12px; }
+  .cpkx .cpk-picker-h { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 4px; }
+  .cpkx .cpk-picker-h .k { margin: 0; }
+  .cpkx .cpk-section { border: 1px solid var(--cpk-line); border-radius: 10px; margin-top: 8px; overflow: hidden; }
+  .cpkx .cpk-section-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: var(--surface, #fff); border: 0; font-size: 13px; font-weight: 700; text-align: left; color: inherit; }
+  .cpkx .cpk-section-h:hover { background: var(--cpk-surface-2); }
+  .cpkx .cpk-section-h .cpk-chev { color: var(--cpk-muted); transition: transform .15s ease; }
+  .cpkx .cpk-section-h:not(.collapsed) .cpk-chev { transform: rotate(90deg); }
+  .cpkx .cpk-section-h .cpk-tag { margin-left: auto; }
+  .cpkx .cpk-section-b { padding: 10px 14px 12px; border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+  .cpkx .cpk-pick { display: flex; align-items: center; gap: 8px; padding: 5px 6px; margin: 0; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .cpkx .cpk-pick:hover { background: var(--cpk-surface-2); }
+  .cpkx .cpk-pick .form-check-input { margin: 0; flex: 0 0 auto; }
+  .cpkx .cpk-pick .cpk-mono { font-size: 11.5px; color: var(--cpk-muted); }
+  .cpkx .cpk-pick-repo { margin-left: auto; font-size: 11.5px; color: var(--cpk-muted); white-space: nowrap; }
+  /* Collapsible cards and table pager */
+  .cpkx .cpk-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+  .cpkx .cpk-fold .cpk-chev { color: var(--cpk-muted); transition: transform .15s ease; }
+  .cpkx .cpk-fold:not(.collapsed) .cpk-chev { transform: rotate(90deg); }
+  .cpkx .cpk-card-fold > .cpk-card-h { border-bottom: 0; }
+  .cpkx .cpk-card-b { border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--cpk-line); font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); }
+  @keyframes cpk-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Wires a page root: loads every [data-cpk-panel] from its data-cpk-src,
+  // client-side row filters (data-cpk-filter="#table"), Refresh buttons
+  // (data-cpk-refresh) and the "+N more" toggles in Contents cells.
+  window.cpkxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("cpkx-ready")) { return; }
+    $root.data("cpkx-ready", true);
+
+    // Client-side pages for a table with data-cpk-page-size; rows hidden by
+    // a filter (data "cpk-match" false) are left out of the count.
+    function paginate($table) {
+      var size = parseInt($table.attr("data-cpk-page-size"), 10) || 20;
+      var page = 0;
+      var $pager = $('<div class="cpk-pager"></div>');
+      var $after = $table.closest(".table-responsive");
+      ($after.length ? $after : $table).after($pager);
+      function render(reset) {
+        if (reset) { page = 0; }
+        var $rows = $table.find("tbody tr[data-cpk-row]");
+        var $match = $rows.filter(function () { return $(this).data("cpk-match") !== false; });
+        var pages = Math.max(1, Math.ceil($match.length / size));
+        page = Math.max(0, Math.min(page, pages - 1));
+        $rows.hide();
+        $match.slice(page * size, page * size + size).show();
+        $pager.empty().toggle($match.length > size);
+        if ($match.length > size) {
+          var first = page * size + 1;
+          var last = Math.min($match.length, first + size - 1);
+          $pager.append($("<span>").text(first + "–" + last + " of " + $match.length));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-step="-1" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>').prop("disabled", page === 0));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-step="1" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>').prop("disabled", page >= pages - 1));
+        }
+      }
+      $pager.on("click", "[data-cpk-step]", function () {
+        page += parseInt($(this).attr("data-cpk-step"), 10);
+        render(false);
+      });
+      $table.data("cpk-pager", render);
+      render(true);
+    }
+    function showCollapse($collapse) {
+      if (!$collapse.length || $collapse.hasClass("show")) { return; }
+      if (window.bootstrap && bootstrap.Collapse) {
+        bootstrap.Collapse.getOrCreateInstance($collapse[0], {toggle: false}).show();
+      } else {
+        $collapse.addClass("show");
+      }
+    }
+    function load($panel) {
+      $panel.data("cpk-loaded", true);
+      var label = $panel.data("cpk-loading") || "Loading";
+      $panel.empty().append(
+        $('<div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i></div>').append(document.createTextNode(" " + label + "…"))
+      );
+      $panel.load($panel.data("cpk-src"), function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + Number(xhr.status) + ').</div></div>');
+        } else {
+          var total = $panel.find("[data-cpk-total]").attr("data-cpk-total");
+          var id = $panel.attr("id");
+          if (id) {
+            $root.find('[data-cpk-count="' + id + '"]').text(total ? "\u00b7 " + total : "");
+            $root.find('[data-cpk-count-hint="' + id + '"]').remove();
+          }
+          $panel.find("table[data-cpk-page-size]").each(function () { paginate($(this)); });
+          // Keep a filter typed before a Refresh.
+          $panel.find("table[id]").each(function () {
+            $root.find('input[data-cpk-filter="#' + this.id + '"]').filter(function () { return this.value; }).trigger("input");
+          });
+          if (window.c2 && c2.tooltips) { c2.tooltips.init($panel); }
+        }
+      });
+    }
+    $root.on("input", "input[data-cpk-filter]", function () {
+      var needle = this.value.toLowerCase();
+      // find() treats the attribute as a selector only, never as HTML.
+      var $table = $root.find($(this).attr("data-cpk-filter"));
+      $table.find("tbody tr[data-cpk-row]").each(function () {
+        $(this).data("cpk-match", this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+      var pager = $table.data("cpk-pager");
+      if (pager) {
+        pager(true);
+      } else {
+        $table.find("tbody tr[data-cpk-row]").each(function () { $(this).toggle($(this).data("cpk-match")); });
+      }
+    });
+    // Refresh reloads its panel (data-cpk-refresh="#panel", else the
+    // enclosing one) and opens the panel's section when it is closed.
+    $root.on("click", "[data-cpk-refresh]", function (e) {
+      e.preventDefault();
+      var target = $(this).attr("data-cpk-refresh");
+      var $panel = target ? $root.find(target) : $(this).closest("[data-cpk-panel]");
+      load($panel);
+      showCollapse($panel.closest(".collapse"));
+    });
+    $root.on("click", "[data-cpk-more]", function () {
+      var $btn = $(this);
+      var open = $btn.attr("aria-expanded") === "true";
+      $btn.closest(".cpk-stack").find(".cpk-extra").toggleClass("d-none", open);
+      $btn.attr("aria-expanded", open ? "false" : "true").text(open ? $btn.data("cpk-more") : "Show fewer");
+    });
+    $root.on("click", "[data-cpk-reload]", function (e) {
+      e.preventDefault();
+      window.location.reload();
+    });
+    $root.find("table[data-cpk-page-size]").each(function () { paginate($(this)); });
+    // A panel inside a closed section loads the first time the section opens.
+    $root.find("[data-cpk-panel]").each(function () {
+      var $panel = $(this);
+      var $collapse = $panel.closest(".collapse");
+      if ($collapse.length && !$collapse.hasClass("show")) {
+        $collapse.one("show.bs.collapse", function () {
+          if (!$panel.data("cpk-loaded")) { load($panel); }
+        });
+      } else {
+        load($panel);
+      }
+    });
+  };
+
+  // Repository and branch fields in the Export, Sync and Import dialogs:
+  // loads the selected repository's branches from CloudBolt's own
+  // json_branches_by_repo_id view and preselects data-cpk-selected (else
+  // main, master or the first). With data-cpk-allow-new, a "New branch"
+  // option reveals the [data-cpk-new-branch] input. Triggers
+  // "cpk:branch" on the root whenever the chosen branch changes.
+  window.cpkxRepoBranch = function ($root) {
+    var $repo = $root.find("[data-cpk-repo]");
+    var $branch = $root.find("[data-cpk-branch]");
+    var $newWrap = $root.find("[data-cpk-new-branch-wrap]");
+    var urlTemplate = $branch.data("cpk-branches-url");
+    var allowNew = !!$branch.data("cpk-allow-new");
+
+    function changed() {
+      $newWrap.toggleClass("d-none", $branch.val() !== "__new__");
+      $root.trigger("cpk:branch", [$repo.val(), $branch.val()]);
+    }
+    function option(value, text, selected) {
+      return $("<option>").val(value).text(text).prop("selected", !!selected);
+    }
+    function load() {
+      var wanted = $branch.data("cpk-selected") || "";
+      $branch.prop("disabled", true).empty().append(option("", "Loading branches…"));
+      $.getJSON(urlTemplate.replace("999999999", $repo.val())).always(function (data, status) {
+        var branches = (status === "success" && data && data.branches) ? data.branches.slice().sort() : [];
+        $branch.empty();
+        if (branches.indexOf(wanted) === -1 && wanted !== "__new__") {
+          wanted = branches.indexOf("main") > -1 ? "main" : (branches.indexOf("master") > -1 ? "master" : branches[0]);
+        }
+        $.each(branches, function (i, name) { $branch.append(option(name, name, name === wanted)); });
+        if (!branches.length) {
+          var reason = (data && data.error) ? "Could not load branches" : "No branches found";
+          $branch.append(option("", reason, !allowNew));
+        }
+        if (allowNew) { $branch.append(option("__new__", "New branch…", wanted === "__new__" || !branches.length)); }
+        $branch.prop("disabled", false);
+        changed();
+      });
+    }
+    $repo.on("change", function () { $branch.data("cpk-selected", ""); load(); });
+    $branch.on("change", changed);
+    load();
+  };
+})();
+</script>

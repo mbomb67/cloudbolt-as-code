@@ -1,0 +1,137 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{% trans "Content Packages" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{% trans "Content Packages" %}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "content_packages/templates/_assets.html" %}
+
+<div id="cpkx-list" class="cpkx">
+  <div class="cpk-card">
+    <div class="cpk-hero-top">
+      <div>
+        <div class="cpk-eyebrow">{% trans "Content packages" %}</div>
+        <div class="cpk-title"><i class="bi bi-boxes" aria-hidden="true"></i> {% trans "Content that ships together" %}</div>
+        <div class="cpk-sub">{% trans "Each package names the blueprints, actions, plugins, shared modules and UI extensions to export to and sync from a repository as one unit." %}</div>
+      </div>
+      {% if not denied %}
+      <div class="cpk-tools">
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_import' %}" data-dialog-width="760px">
+          <i class="bi bi-cloud-download" aria-hidden="true"></i> {% trans "Import from repository" %}
+        </a>
+        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'content_packages_add' %}" data-dialog-width="960px">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add" %}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cpk-card">
+    {% if denied %}
+    <div class="cpk-alert">
+      <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+      <div>{% trans "Content packages are managed by CB Admins and Super Admins." %}</div>
+    </div>
+    {% else %}
+    <div class="cpk-card-h">
+      <span class="cpk-card-t">{% trans "Packages" %} &middot; {{ rows|length }}</span>
+      <div class="cpk-card-tools">
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter packages' %}" data-cpk-filter="#cpkx-packages-table">
+      </div>
+    </div>
+    {% if rows %}
+    <div class="table-responsive">
+      <table id="cpkx-packages-table" class="cpk-table">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Description" %}</th>
+            <th>{% trans "Contents" %}</th>
+            <th>{% trans "Repository" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% url 'content_packages_detail' row.id as detail_url %}
+          <tr data-cpk-row>
+            <td>
+              <a href="{{ detail_url }}">{{ row.name }}</a>
+              <div class="cpk-hint"><span class="cpk-mono">{{ row.id }}</span> &middot; {{ row.version }}</div>
+            </td>
+            <td>{{ row.description|default:"&mdash;" }}</td>
+            <td>
+              <div class="cpk-stack">
+                {% for m in row.members %}
+                <span class="cpk-pill{% if m.pill %} cpk-pill-{{ m.pill }}{% endif %}{% if forloop.counter > contents_shown %} cpk-extra d-none{% endif %}" title="{{ m.note }}">
+                  <span class="cpk-type">{{ m.prefix }}</span>
+                  {% if m.url %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}
+                </span>
+                {% empty %}
+                <span class="cpk-muted">{% trans "No members" %}</span>
+                {% endfor %}
+                {% if row.hidden_count %}
+                <button type="button" class="btn btn-link btn-sm cpk-more" aria-expanded="false" data-cpk-more="+{{ row.hidden_count }} {% trans 'more' %}">+{{ row.hidden_count }} {% trans "more" %}</button>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              {% if row.repository %}
+                <a href="{% url 'source_code_repo_detail' row.repository.id %}">{{ row.repository.label }}</a>
+                <div class="cpk-mono"><i class="bi bi-git" aria-hidden="true"></i> {{ row.repository.branch }}</div>
+                <div class="cpk-hint">
+                  {% if row.exported_at %}<span title="{{ row.exported_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.exported_at|timesince %}Exported {{ ago }} ago{% endblocktrans %}</span>{% else %}{% trans "Not exported yet" %}{% endif %}{% if row.export_state %} <a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.export_state.0 }}">{{ row.export_state.1 }}</a>{% endif %}
+                </div>
+                <div class="cpk-hint">
+                  {% if row.synced_at %}<span title="{{ row.synced_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.synced_at|timesince %}Synced {{ ago }} ago{% endblocktrans %}</span>{% if row.sync_state %} <a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</a>{% endif %}{% else %}{% trans "Never synced" %}{% endif %}
+                </div>
+              {% elif row.repository_missing %}
+                <span class="cpk-pill cpk-pill-bad">{% trans "Repository deleted" %}</span>
+              {% else %}
+                <span class="cpk-muted">{% trans "Never exported" %}</span>
+                {% if row.export_state %}<div><a href="{% url 'content_packages_detail' row.id %}" class="cpk-tag cpk-tag-{{ row.export_state.0 }}">{{ row.export_state.1 }}</a></div>{% endif %}
+              {% endif %}
+            </td>
+            <td>
+              <div class="cpk-row-tools">
+                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_edit' row.id %}" data-dialog-width="960px">
+                  <i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}
+                </a>
+                {% if row.members %}
+                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_export' row.id %}" data-dialog-width="760px">
+                  <i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}
+                </a>
+                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_sync' row.id %}" data-dialog-width="760px">
+                  <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}
+                </a>
+                {% else %}
+                <span class="cpk-off" title="{% trans 'Add members first' %}">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}</button>
+                </span>
+                <span class="cpk-off" title="{% trans 'Add members first' %}">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}</button>
+                </span>
+                {% endif %}
+                <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'content_packages_delete' row.id %}">
+                  <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="cpk-empty">{% trans "No packages yet. Add one to name the content that ships together." %}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}
+
+{% block onReady %}
+window.cpkxInit("cpkx-list");
+{% endblock onReady %}
