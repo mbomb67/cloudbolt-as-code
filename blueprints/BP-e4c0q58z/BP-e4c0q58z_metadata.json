@@ -114,11 +114,11 @@
         "icon": "fas fa-layer-group",
         "id": "RT-mu7y723b",
         "internal_only": false,
-        "label": "EKS Namespace",
+        "label": "Kubernetes Namespace",
         "lifecycle": "ACTIVE",
         "list_view_columns": [],
-        "name": "eks_namespace",
-        "plural_label": "EKS Namespaces"
+        "name": "kubernetes_namespace",
+        "plural_label": "Kubernetes Namespaces"
     },
     "sequence": 0,
     "show_recipient_field_on_order_form": false,
