@@ -15,8 +15,8 @@ Every button starts one of the blueprint's resource actions as a CloudBolt job (
 - The Workloads tab needs the container orchestrator the blueprint registers (`container_orchestrator_id`). Its bearer token is minted from the handler credentials, so that identity must be allowed to list nodes, pods, namespaces, services, and deployments; the cluster creator has this through the cluster admin access entry.
 
 ## Setup
-1. Sync the repository and confirm the extension is enabled under Admin > Extensions.
-2. Sync the blueprint's management actions as well: a button is hidden when its action is missing from the blueprint or the viewer may not run it.
+1. Sync the repository, then restart the web server (`systemctl restart httpd` on the appliance): the extension adds URL paths, which CloudBolt loads only at startup, and Admin > Extensions flags it with the same reminder. Confirm the extension is enabled there.
+2. Sync the blueprint as well, so its management actions include the two new ones: a button is hidden when its action is missing from the blueprint or the viewer may not run it. A blueprint sync resets the blueprint's group permissions to what the metadata lists (none, with any-group off), so restore them afterwards.
 
 ## Notes
 - Viewing needs `resource.view` on the resource. Each button appears only when `resource_action_permitted` allows that action for the viewer, and the job runs as the viewer; an action that requires approval creates an order instead.
