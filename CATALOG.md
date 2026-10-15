@@ -5,6 +5,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
+| [Packages](#packages) | 1 |
 | [Blueprints](#blueprints) | 24 |
 | [Resource actions](#resource-actions) | 37 |
 | [Server actions](#server-actions) | 1 |
@@ -17,6 +18,14 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [UI extensions](#ui-extensions) | 10 |
 | [Forms](#forms) | 9 |
 | [Form functions](#form-functions) | 2 |
+
+## Packages
+
+Named sets of content that the Content Package Manager extension (`extensions/XUI-iq65xgvr`) exports and syncs as one. A package lists top-level units only; each brings its own plugins, actions, forms, and shared modules.
+
+| Package | ID | Description | Version | Contents |
+|---|---|---|---|---|
+| AWS EKS | [PKG-bo8ensty](packages/PKG-bo8ensty/README.md) | Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [AWS EKS](blueprints/BP-r5apcf7e/README.md) (blueprint), [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) (blueprint), [AWS EKS Cluster](extensions/XUI-8a1jocmr/README.md) (UI extension) |
 
 ## Blueprints
 

@@ -4,6 +4,10 @@ Status: brainstorm, 2026-10-15. Steps 1 to 3 of the first cut are built in
 `extensions/XUI-iq65xgvr`. Where the build differs from this draft (packages
 stored in a namespaced CustomField, one sync job per member, export run as a
 job, card-style pages), the extension's README and code are current.
+Step 4 is built: the AGENTS.md rule, `docs/agents/metadata-schemas.md` §15,
+the catalog section (member back-references are a `packages` key in
+`catalog.json`, not a column), the validator's package checks, the
+`cb-scaffold-package` skill, and `packages/PKG-bo8ensty` for AWS EKS.
 
 ## Problem
 
