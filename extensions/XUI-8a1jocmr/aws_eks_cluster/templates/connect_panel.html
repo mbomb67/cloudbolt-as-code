@@ -70,6 +70,30 @@
   </div>
 </div>
 
+{# ── Pipeline identities ── #}
+{% if pipelines %}
+<div class="eks-card">
+  <div class="eks-card-h">
+    <span class="eks-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
+  </div>
+  {% for p in pipelines %}
+  <div class="eks-note">
+    <span class="eks-mono">{{ p.repository }}</span> &middot; {{ p.trigger }} &middot; <span class="eks-pill">{{ p.level|title }}</span>
+    <div class="eks-hint eks-mono">{{ p.role_arn }}</div>
+  </div>
+  <div class="eks-card-h">
+    <span class="eks-hint">{% trans "GitHub Actions workflow" %}</span>
+    <div class="eks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-copy="#eksx-pipeline-{{ forloop.counter }}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+    </div>
+  </div>
+  <pre class="eks-pre eks-mono" id="eksx-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
+  {% endfor %}
+</div>
+{% endif %}
+
 {# ── IAM access ── #}
 <div class="eks-card">
   <div class="eks-card-h">

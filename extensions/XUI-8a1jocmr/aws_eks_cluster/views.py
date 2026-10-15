@@ -24,8 +24,10 @@ blueprint (BP-e4c0q58z):
   Namespace) in the toolbar.
 - Connect (on eks_namespace resources): the update-kubeconfig and
   set-context commands, a ready-made kubeconfig to copy or download, and the
-  IAM roles and users whose EKS access policies cover the namespace, with a
-  Manage access button (Manage AWS EKS Namespace Access). Built by the
+  IAM roles and users whose EKS access policies cover the namespace, the
+  GitHub Actions pipeline identities with a workflow snippet each, and
+  Manage access (Manage AWS EKS Namespace Access) and Pipeline identity
+  (Manage AWS EKS Namespace Pipeline Identity) buttons. Built by the
   eks_namespace shared module (SHM-sa5yqm9j), which lists access entries
   with ListAccessEntries and ListAssociatedAccessPolicies.
 
@@ -102,6 +104,7 @@ ACTION_UPGRADE_NODEGROUP = "Upgrade AWS EKS Nodegroup"
 ACTION_UPDATE_ADDON = "Update AWS EKS Add-on"
 ACTION_CREATE_NAMESPACE = "Create AWS EKS Namespace"
 ACTION_MANAGE_NAMESPACE_ACCESS = "Manage AWS EKS Namespace Access"
+ACTION_MANAGE_PIPELINE_IDENTITY = "Manage AWS EKS Namespace Pipeline Identity"
 
 # amiType EKS reports for a node group whose launch template names its own
 # AMI; UpdateNodegroupVersion cannot move those, so no Upgrade button.
@@ -1375,6 +1378,9 @@ def namespace_connect_tab(request, obj_id):
         "connect_url": reverse("aws_eks_namespace_connect_panel", args=[resource.id]),
         "manage_access_url": _action_url(
             request.get_user_profile(), resource, ACTION_MANAGE_NAMESPACE_ACCESS
+        ),
+        "pipeline_url": _action_url(
+            request.get_user_profile(), resource, ACTION_MANAGE_PIPELINE_IDENTITY
         ),
     }
     return render(request, TEMPLATES + "connect_tab.html", context)

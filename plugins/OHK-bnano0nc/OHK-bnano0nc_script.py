@@ -12,8 +12,8 @@ services, PVCs. So this plugin:
      mints the EKS token from the orchestrator's first environment name);
   2. takes the namespace out of every EKS access policy association, so a
      namespace created later with the same name does not inherit the old
-     IAM access, and deletes access entries CloudBolt created that are left
-     with nothing to grant;
+     IAM access, deletes access entries CloudBolt created that are left
+     with nothing to grant, and deletes the namespace's pipeline roles;
   3. logs an inventory of what the namespace contains before deleting;
   4. waits for the namespace to finish terminating; then
   5. drops the orchestrator's inventory record for the namespace.
@@ -32,10 +32,12 @@ from shared_modules.eks_namespace import (
     access_context,
     aws_message,
     delete_environment,
+    load_pipeline_identities,
     load_cluster,
     load_environment,
     remove_all_namespace_access,
     remove_namespace_record,
+    remove_pipeline_identity,
 )
 from utilities.logger import ThreadLogger
 
@@ -77,6 +79,25 @@ def _remove_iam_access(resource):
     return ""
 
 
+def _remove_pipeline_identities(resource):
+    """Delete every pipeline role CloudBolt created for the namespace. Never fails the teardown.
+
+    Runs after the access cleanup, so each role's access entry is already
+    gone; the role is deleted even when the cluster no longer exists.
+    Returns a warning message when a role could not be deleted, else "".
+    """
+    warnings = []
+    for identity in load_pipeline_identities(resource):
+        try:
+            for message in remove_pipeline_identity(resource, identity):
+                set_progress(message)
+        except Exception as exc:
+            logger.exception("Pipeline role cleanup failed")
+            warnings.append(f"IAM role {identity.get('role_name')} was not deleted: {aws_message(exc)}")
+            set_progress(warnings[-1])
+    return " ".join(warnings)
+
+
 def run(job, resource, **kwargs):
     """Delete the EKS namespace and its CloudBolt environment."""
     set_progress("Starting AWS EKS Namespace teardown...")
@@ -100,7 +121,9 @@ def run(job, resource, **kwargs):
     _remove_environment(load_environment(resource))
 
     # ---- IAM access (EKS access entries) ---------------------------------
-    access_warning = _remove_iam_access(resource)
+    access_warning = " ".join(
+        w for w in (_remove_iam_access(resource), _remove_pipeline_identities(resource)) if w
+    )
 
     try:
         client = NamespaceClient.from_orchestrator(orchestrator)
