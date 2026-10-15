@@ -445,6 +445,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-iq65xgvr",
+    "type": "extensions",
+    "name": "Content Package Manager",
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, with a details page listing every dependency an export would write; export, sync, and import from a repository are not built yet.",
+    "path": "extensions/XUI-iq65xgvr",
+    "readme": "extensions/XUI-iq65xgvr/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-l43ailkn",
     "type": "extensions",
     "name": "Ssm Inventory",

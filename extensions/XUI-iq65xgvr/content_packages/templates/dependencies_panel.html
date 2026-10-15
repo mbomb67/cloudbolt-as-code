@@ -1,0 +1,50 @@
+{% load i18n %}
+<div class="cpk-card-h">
+  <span class="cpk-card-t">{% trans "Exported with the members" %}{% if not error %} &middot; {{ dependencies|length }}{% endif %}</span>
+  <div class="cpk-card-tools">
+    {% if dependencies %}
+    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter dependencies' %}" data-cpk-filter="#cpkx-deps-table">
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-refresh>
+      <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+    </button>
+  </div>
+</div>
+<div class="cpk-note">{% trans "Not stored in the package: each member is run through CloudBolt's own repository export into a scratch folder, and this lists every other folder that export writes." %}</div>
+{% if error %}
+<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+{% endif %}
+{% for e in errors %}
+<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ e.name }} ({{ e.ref }}): {{ e.error }}</div></div>
+{% endfor %}
+{% if dependencies %}
+<div class="table-responsive">
+  <table id="cpkx-deps-table" class="cpk-table">
+    <thead>
+      <tr>
+        <th>{% trans "Type" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Repository folder" %}</th>
+        <th>{% trans "Pulled in by" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dependencies %}
+      <tr data-cpk-row>
+        <td class="cpk-nowrap"><span class="cpk-tag">{{ d.prefix }}</span> {{ d.type_title }}</td>
+        <td>
+          {{ d.name }}
+          {% if d.member %}<span class="cpk-tag cpk-tag-live" title="{% trans 'Also listed as a member' %}">{% trans "member" %}</span>{% endif %}
+        </td>
+        <td class="cpk-mono">{{ d.path }}/</td>
+        <td>{{ d.via|join:", " }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif not error and not errors %}
+<div class="cpk-empty">
+  {% if member_count %}{% trans "The members bring nothing else with them." %}{% else %}{% trans "No members yet." %}{% endif %}
+</div>
+{% endif %}

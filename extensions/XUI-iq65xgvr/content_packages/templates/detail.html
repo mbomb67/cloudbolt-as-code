@@ -1,0 +1,129 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{{ row.name }} &middot; {% trans "Content Packages" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{{ row.name }}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "content_packages/templates/_assets.html" %}
+
+<div id="cpkx-detail" class="cpkx">
+  <div class="cpk-card">
+    <div class="cpk-hero-top">
+      <div>
+        <div class="cpk-eyebrow">{% trans "Content package" %}</div>
+        <div class="cpk-title"><i class="bi bi-box-seam-fill" aria-hidden="true"></i> {{ row.name }}</div>
+        <div class="cpk-sub"><span class="cpk-mono">{{ row.id }}</span> &middot; {% trans "version" %} {{ row.version }}</div>
+      </div>
+      <div class="cpk-tools">
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ edit_url }}" data-dialog-width="960px">
+          <i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}
+        </a>
+        <span class="cpk-off" title="{% trans 'Not available yet' %}">
+          <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-cloud-upload" aria-hidden="true"></i> {% trans "Export" %}</button>
+        </span>
+        <span class="cpk-off" title="{% trans 'Not available yet' %}">
+          <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Sync" %}</button>
+        </span>
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'content_packages_delete' row.id %}">
+          <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}
+        </a>
+      </div>
+    </div>
+    {% if row.description %}<div class="cpk-desc">{{ row.description }}</div>{% endif %}
+    <div class="cpk-meta">
+      <div class="cell">
+        <div class="k">{% trans "Repository" %}</div>
+        <div class="v">
+          {% if row.repository %}
+            <a href="{% url 'source_code_repo_detail' row.repository.id %}">{{ row.repository.label }}</a>
+          {% elif row.repository_missing %}
+            <span class="cpk-pill cpk-pill-bad">{% trans "Repository deleted" %}</span>
+          {% else %}
+            <span class="cpk-muted">{% trans "Never exported" %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Branch" %}</div>
+        <div class="v cpk-mono">{{ row.local.branch|default:"&mdash;" }}</div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Last exported" %}</div>
+        <div class="v">{% if row.exported_at %}{% blocktrans with ago=row.exported_at|timesince %}{{ ago }} ago{% endblocktrans %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}</div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Last synced" %}</div>
+        <div class="v">
+          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_job_url %} &middot; <a href="{{ row.sync_job_url }}">{% trans "job" %}</a>{% endif %}{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
+        </div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Last updated" %}</div>
+        <div class="v">{{ row.last_updated|default:"&mdash;" }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cpk-card">
+    <div class="cpk-card-h">
+      <span class="cpk-card-t">{% trans "Members" %} &middot; {{ row.members|length }}</span>
+      {% if row.problems %}<span class="cpk-tag cpk-tag-warn">{% blocktrans count n=row.problems %}{{ n }} needs attention{% plural %}{{ n }} need attention{% endblocktrans %}</span>{% endif %}
+      <div class="cpk-card-tools">
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter members' %}" data-cpk-filter="#cpkx-members-table">
+      </div>
+    </div>
+    {% if row.members %}
+    <div class="table-responsive">
+      <table id="cpkx-members-table" class="cpk-table">
+        <thead>
+          <tr>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Remote source" %}</th>
+            <th>{% trans "State" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in row.members %}
+          <tr data-cpk-row>
+            <td class="cpk-nowrap"><span class="cpk-tag">{{ m.prefix }}</span> {{ m.type_title }}</td>
+            <td>
+              {% if m.url %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}
+              <div class="cpk-hint cpk-mono">{{ m.ref }}</div>
+            </td>
+            <td>
+              {% if m.remote_source_url %}
+                <a href="{{ m.remote_source_url }}" target="_blank" rel="noopener" class="cpk-mono cpk-url">{{ m.remote_source_url }}</a>
+              {% else %}
+                <span class="cpk-muted">&mdash;</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if m.state == "missing" %}
+                <span class="cpk-pill cpk-pill-bad" title="{{ m.note }}"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Missing" %}</span>
+              {% elif m.state == "drift" %}
+                <span class="cpk-pill cpk-pill-warn" title="{{ m.note }}"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Not on" %} {{ row.repository.branch }}</span>
+              {% elif row.repository %}
+                <span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "On" %} {{ row.repository.branch }}</span>
+              {% else %}
+                <span class="cpk-muted">&mdash;</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="cpk-empty">{% trans "No members yet. Use Edit to pick the content this package holds." %}</div>
+    {% endif %}
+  </div>
+
+  <div class="cpk-card" data-cpk-panel data-cpk-src="{{ dependencies_url }}" data-cpk-loading="{% trans 'Working out dependencies' %}"></div>
+</div>
+{% endblock content %}
+
+{% block onReady %}
+window.cpkxInit("cpkx-detail");
+{% endblock onReady %}

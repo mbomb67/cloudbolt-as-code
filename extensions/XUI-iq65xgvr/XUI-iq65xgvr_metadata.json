@@ -1,0 +1,24 @@
+{
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, with a details page listing every dependency an export would write; export, sync, and import from a repository are not built yet.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-iq65xgvr",
+    "label": "Content Package Manager",
+    "last_updated": "2026-10-15",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "content_packages",
+    "package_contents": [
+        "__init__.py",
+        "store.py",
+        "dependencies.py",
+        "views.py",
+        "urls.py",
+        "templates/_assets.html",
+        "templates/packages.html",
+        "templates/detail.html",
+        "templates/dependencies_panel.html",
+        "templates/edit_dialog.html"
+    ],
+    "version": ""
+}

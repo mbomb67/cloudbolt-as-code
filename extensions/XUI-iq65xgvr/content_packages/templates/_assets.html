@@ -1,0 +1,127 @@
+{% comment %}
+  Shared styles and page helpers for the Content Packages pages and dialogs.
+  Same visual language as the AWS EKS Cluster and HCP Terraform Workspace
+  extensions: tokens derive from --bs-primary / --bs-body-color / --surface /
+  --neutral-* so Branded Themes re-theme the pages without an asset build.
+{% endcomment %}
+<style>
+  .cpkx {
+    --cpk-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --cpk-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --cpk-line: var(--neutral-250, #E2E8ED);
+    --cpk-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --cpk-primary: var(--bs-primary, #0d6efd);
+    --cpk-ok: var(--bs-success, #198754);
+    --cpk-warn: var(--bs-warning, #ffc107);
+    --cpk-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --cpk-bad: var(--bs-danger, #dc3545);
+  }
+  .cpkx .cpk-card { background: var(--surface, #fff); border: 1px solid var(--cpk-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .cpkx .cpk-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .cpkx .cpk-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--cpk-muted); }
+  .cpkx .cpk-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .cpkx .cpk-title .bi { color: var(--cpk-primary); }
+  .cpkx .cpk-sub { font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); margin-top: 2px; }
+  .cpkx .cpk-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .cpkx .cpk-desc { padding: 0 22px 16px; font-size: 13.5px; font-weight: 600; color: var(--cpk-soft); }
+  .cpkx .cpk-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--cpk-line); border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .cpkx .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--cpk-muted); margin-bottom: 3px; }
+  .cpkx .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .cpkx .cpk-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--cpk-line); flex-wrap: wrap; }
+  .cpkx .cpk-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--cpk-muted); }
+  .cpkx .cpk-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cpkx .cpk-card-tools .form-control { width: 220px; max-width: 100%; }
+  .cpkx .cpk-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .cpkx .cpk-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--cpk-muted); padding: 10px 18px; border-bottom: 1px solid var(--cpk-line); text-align: left; white-space: nowrap; }
+  .cpkx .cpk-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .cpkx .cpk-table tbody tr:last-child td { border-bottom: 0; }
+  .cpkx .cpk-table tbody tr:hover td { background: var(--cpk-surface-2); }
+  .cpkx .cpk-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--cpk-soft); }
+  .cpkx .cpk-pill a { color: inherit; text-decoration: none; }
+  .cpkx .cpk-pill a:hover { text-decoration: underline; }
+  .cpkx .cpk-pill-ok { background: color-mix(in srgb, var(--cpk-ok) 14%, transparent); color: var(--cpk-ok); }
+  .cpkx .cpk-pill-warn { background: color-mix(in srgb, var(--cpk-warn) 22%, transparent); color: var(--cpk-warn-text); }
+  .cpkx .cpk-pill-bad { background: color-mix(in srgb, var(--cpk-bad) 12%, transparent); color: var(--cpk-bad); }
+  .cpkx .cpk-pill .cpk-type { font-size: 10px; letter-spacing: .04em; opacity: .75; }
+  .cpkx .cpk-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--cpk-soft); vertical-align: middle; white-space: nowrap; }
+  .cpkx .cpk-tag-live { background: color-mix(in srgb, var(--cpk-primary) 13%, transparent); color: var(--cpk-primary); }
+  .cpkx .cpk-tag-warn { background: color-mix(in srgb, var(--cpk-warn) 22%, transparent); color: var(--cpk-warn-text); }
+  .cpkx .cpk-tag-bad { background: color-mix(in srgb, var(--cpk-bad) 12%, transparent); color: var(--cpk-bad); }
+  .cpkx .cpk-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .cpkx .cpk-more { padding: 0; font-size: 12px; font-weight: 700; text-decoration: none; }
+  .cpkx .cpk-muted { color: var(--cpk-muted); font-weight: 600; }
+  .cpkx .cpk-hint { font-size: 11.5px; color: var(--cpk-muted); font-weight: 600; margin-top: 3px; }
+  .cpkx .cpk-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .cpkx .cpk-nowrap { white-space: nowrap; }
+  .cpkx .cpk-url { font-size: 12px; overflow-wrap: anywhere; }
+  .cpkx .cpk-empty { color: var(--cpk-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .cpkx .cpk-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--cpk-bad); overflow-wrap: anywhere; }
+  .cpkx .cpk-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .cpkx .cpk-note { padding: 8px 18px 0; font-size: 12px; color: var(--cpk-muted); font-weight: 600; }
+  .cpkx .cpk-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); display: flex; align-items: center; gap: 8px; }
+  .cpkx .cpk-spin { display: inline-block; animation: cpk-spin 1s linear infinite; }
+  .cpkx .cpk-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .cpkx .cpk-off { display: inline-block; cursor: not-allowed; }
+  .cpkx .cpk-off .btn { pointer-events: none; }
+  /* Add/Edit dialog */
+  .cpkx.cpk-dialog .cpk-alert { padding: 0 0 12px; }
+  .cpkx .cpk-picker-h { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 4px; }
+  .cpkx .cpk-picker-h .k { margin: 0; }
+  .cpkx .cpk-section { border: 1px solid var(--cpk-line); border-radius: 10px; margin-top: 8px; overflow: hidden; }
+  .cpkx .cpk-section-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; background: var(--surface, #fff); border: 0; font-size: 13px; font-weight: 700; text-align: left; color: inherit; }
+  .cpkx .cpk-section-h:hover { background: var(--cpk-surface-2); }
+  .cpkx .cpk-section-h .cpk-chev { color: var(--cpk-muted); transition: transform .15s ease; }
+  .cpkx .cpk-section-h:not(.collapsed) .cpk-chev { transform: rotate(90deg); }
+  .cpkx .cpk-section-h .cpk-tag { margin-left: auto; }
+  .cpkx .cpk-section-b { padding: 10px 14px 12px; border-top: 1px solid var(--cpk-line); }
+  .cpkx .cpk-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+  .cpkx .cpk-pick { display: flex; align-items: center; gap: 8px; padding: 5px 6px; margin: 0; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .cpkx .cpk-pick:hover { background: var(--cpk-surface-2); }
+  .cpkx .cpk-pick .form-check-input { margin: 0; flex: 0 0 auto; }
+  .cpkx .cpk-pick .cpk-mono { font-size: 11.5px; color: var(--cpk-muted); }
+  .cpkx .cpk-pick-repo { margin-left: auto; font-size: 11.5px; color: var(--cpk-muted); white-space: nowrap; }
+  @keyframes cpk-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Wires a page root: loads every [data-cpk-panel] from its data-cpk-src,
+  // client-side row filters (data-cpk-filter="#table"), Refresh buttons
+  // (data-cpk-refresh) and the "+N more" toggles in Contents cells.
+  window.cpkxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("cpkx-ready")) { return; }
+    $root.data("cpkx-ready", true);
+
+    function load($panel) {
+      var label = $panel.data("cpk-loading") || "Loading";
+      $panel.html('<div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i> ' + label + '…</div>');
+      $panel.load($panel.data("cpk-src"), function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="cpk-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    $root.on("input", "input[data-cpk-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("cpk-filter")).find("tbody tr[data-cpk-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-cpk-refresh]", function (e) {
+      e.preventDefault();
+      load($(this).closest("[data-cpk-panel]"));
+    });
+    $root.on("click", "[data-cpk-more]", function () {
+      var $btn = $(this);
+      var open = $btn.attr("aria-expanded") === "true";
+      $btn.closest(".cpk-stack").find(".cpk-extra").toggleClass("d-none", open);
+      $btn.attr("aria-expanded", open ? "false" : "true").text(open ? $btn.data("cpk-more") : "Show fewer");
+    });
+    $root.find("[data-cpk-panel]").each(function () { load($(this)); });
+  };
+})();
+</script>
