@@ -2,28 +2,34 @@
 Content package store
 
 A content package is a named list of top-level content units, written as the
-repo's cross-reference strings ("<top_level_dir>/<GLOBAL_ID>"). Each package
-is one JSON file, <PKG-id>.json, under PROSERV_DIR/content_packages/. The file
-holds the manifest that an export will write to packages/<PKG-id>/ in a
-repository, plus a "local" block (home repository and branch, export and sync
-history) that stays on this appliance.
+repo's cross-reference strings ("<top_level_dir>/<GLOBAL_ID>").
 
-Writes go to a temp file in the same directory and are renamed into place, so
-a reader never sees a partial file. The directory sits outside the XUI folder,
-so re-syncing or upgrading the extension leaves the definitions alone.
+Packages live in the database as values of one CustomField,
+content_package_store (Multi-line Text, created on first write), in the
+content_packages Namespace. A namespaced field stays off the Parameters list
+and the blueprint parameter picker. Each package is one CustomFieldValue
+attached to no object, holding the full package JSON: the manifest an export
+will write to packages/<PKG-id>/ in a repository, plus a "local" block (home
+repository and branch, export and sync history) that stays on this appliance.
+The PKG- id inside the JSON is the key; the CustomFieldValue pk is only a
+local handle, and rows are updated in place. Re-syncing or removing the
+extension leaves the definitions alone; deleting the CustomField deletes them
+all, and exported manifests are the backup.
+
+Every write runs in a transaction holding a row lock on the CustomField, which
+is also where PKG ids and package names are kept unique.
 
 Member names are never stored: they are resolved from the appliance on every
 read, so the page can flag members that were deleted or that live on another
 repository or branch.
 """
 import json
-import os
 import re
-import tempfile
 from collections import OrderedDict
+from contextlib import contextmanager
 from datetime import date
 
-from django.conf import settings
+from django.db import transaction
 
 from cbhooks.models import (
     FlowControlAction,
@@ -39,12 +45,22 @@ from cbhooks.models import (
 from common.mixins import get_global_id_chars
 from cscv.models import ActionCITTest
 from extensions.models import UIExtension
+from infrastructure.models import CustomField, Namespace
+from orders.models import CustomFieldValue
 from servicecatalog.models import ServiceBlueprint
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
-STORE_DIR = os.path.join(settings.PROSERV_DIR, "content_packages")
+STORE_NAMESPACE = "content_packages"
+STORE_FIELD = "content_package_store"
+STORE_FIELD_LABEL = "Content package store"
+STORE_FIELD_DESCRIPTION = (
+    "Managed by the Content Package Manager UI extension: one value per content package. "
+    "Do not delete; deleting it deletes every package definition on this appliance."
+)
+# CustomFieldValue keeps both of these types in txt_value (a TextField).
+STORE_FIELD_TYPES = ("TXT", "CODE")
 
 ID_PREFIX = "PKG"
 METADATA_VERSION = "2026.1.0"
@@ -216,36 +232,47 @@ def validate_contents(contents, allow_unresolved=()):
 
 
 # ---------------------------------------------------------------------------
-# Files
+# Storage: one CustomFieldValue per package
 # ---------------------------------------------------------------------------
-def _path(pkg_id):
-    if not isinstance(pkg_id, str) or not PKG_ID_RE.match(pkg_id):
-        raise PackageNotFound("No content package with ID {}.".format(pkg_id))
-    return os.path.join(STORE_DIR, pkg_id + ".json")
+def _not_found(pkg_id):
+    return PackageNotFound("No content package with ID {}.".format(pkg_id))
 
 
-def _write(package):
-    os.makedirs(STORE_DIR, exist_ok=True)
-    handle, temp_path = tempfile.mkstemp(dir=STORE_DIR, prefix=".tmp-", suffix=".json")
-    try:
-        with os.fdopen(handle, "w") as stream:
-            json.dump(package, stream, indent=4)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temp_path, _path(package["id"]))
-    except Exception:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise
+def _existing_field():
+    """The store field, or None before the first package is created."""
+    return CustomField.objects.filter(name=STORE_FIELD).first()
 
 
-def _read(path):
-    with open(path) as stream:
-        package = json.load(stream)
-    package.setdefault("contents", [])
-    package["local"] = dict(_empty_local(), **(package.get("local") or {}))
-    return package
+def _field():
+    """The store field, created on first use in its own Namespace."""
+    namespace, _ = Namespace.objects.get_or_create(name=STORE_NAMESPACE)
+    field, _ = CustomField.objects.get_or_create(
+        name=STORE_FIELD,
+        defaults=dict(
+            label=STORE_FIELD_LABEL,
+            description=STORE_FIELD_DESCRIPTION,
+            type="TXT",
+            namespace=namespace,
+        ),
+    )
+    if field.type not in STORE_FIELD_TYPES:
+        raise PackageError(
+            "The {} parameter must be Multi-line Text or Code; it is {}.".format(STORE_FIELD, field.type)
+        )
+    if field.namespace_id != namespace.id:
+        field.namespace = namespace
+        field.save()
+    return field
+
+
+@contextmanager
+def _locked():
+    """A transaction holding a row lock on the store field, so concurrent
+    writes run one at a time and see each other's results."""
+    field = _field()
+    with transaction.atomic():
+        list(CustomField.objects.select_for_update().filter(pk=field.pk))
+        yield field
 
 
 def _empty_local():
@@ -259,11 +286,59 @@ def _empty_local():
     }
 
 
-def new_package_id():
+def _parse(text):
+    package = json.loads(text or "", object_pairs_hook=OrderedDict)
+    if not isinstance(package, dict) or not PKG_ID_RE.match(str(package.get("id") or "")):
+        raise ValueError("not a content package")
+    package.setdefault("contents", [])
+    package["local"] = dict(_empty_local(), **(package.get("local") or {}))
+    return package
+
+
+def _rows(field):
+    """[(CustomFieldValue, package)] for every stored package, oldest first.
+    A value that does not parse is logged and skipped; a second value with
+    an id already seen is ignored so the oldest row stays the package."""
+    if field is None:
+        return []
+    rows, seen = [], set()
+    for cfv in CustomFieldValue.objects.filter(field=field).order_by("id"):
+        try:
+            package = _parse(cfv.txt_value)
+        except ValueError:
+            logger.warning("Skipping unreadable content package value %s", cfv.id)
+            continue
+        if package["id"] in seen:
+            logger.warning("Ignoring duplicate content package %s in value %s", package["id"], cfv.id)
+            continue
+        seen.add(package["id"])
+        rows.append((cfv, package))
+    return rows
+
+
+def _find(rows, pkg_id):
+    if not isinstance(pkg_id, str) or not PKG_ID_RE.match(pkg_id):
+        raise _not_found(pkg_id)
+    for cfv, package in rows:
+        if package["id"] == pkg_id:
+            return cfv, package
+    raise _not_found(pkg_id)
+
+
+def _store(cfv, package):
+    # Set through the typed value property and save, so an existing row is
+    # updated in place rather than matched or re-created by value.
+    cfv.value = json.dumps(package, indent=2)
+    cfv.save()
+
+
+def new_package_id(existing=None):
     """PKG- plus CloudBolt's own global ID suffix, regenerated on collision."""
+    if existing is None:
+        existing = {p["id"] for p in list_packages()}
     while True:
         pkg_id = "{}-{}".format(ID_PREFIX, get_global_id_chars())
-        if not os.path.exists(_path(pkg_id)):
+        if pkg_id not in existing:
             return pkg_id
 
 
@@ -271,31 +346,18 @@ def new_package_id():
 # CRUD
 # ---------------------------------------------------------------------------
 def list_packages():
-    """Every stored package, sorted by name. A file that does not parse is
-    logged and skipped so one bad file does not hide the rest."""
-    if not os.path.isdir(STORE_DIR):
-        return []
-    packages = []
-    for filename in sorted(os.listdir(STORE_DIR)):
-        pkg_id, ext = os.path.splitext(filename)
-        if ext != ".json" or not PKG_ID_RE.match(pkg_id):
-            continue
-        try:
-            packages.append(_read(os.path.join(STORE_DIR, filename)))
-        except (OSError, ValueError):
-            logger.exception("Skipping unreadable content package file %s", filename)
+    """Every stored package, sorted by name."""
+    packages = [package for _, package in _rows(_existing_field())]
     return sorted(packages, key=lambda p: (p.get("name") or "").lower())
 
 
 def get_package(pkg_id):
-    path = _path(pkg_id)
-    if not os.path.exists(path):
-        raise PackageNotFound("No content package with ID {}.".format(pkg_id))
-    return _read(path)
+    return _find(_rows(_existing_field()), pkg_id)[1]
 
 
-def _clean_fields(fields, current=None):
-    """Validate the editable fields present in fields; return them cleaned."""
+def _clean_fields(fields, others, current=None):
+    """Validate the editable fields present in fields; return them cleaned.
+    others are the stored packages to keep the name unique against."""
     unknown = sorted(set(fields) - set(EDITABLE_FIELDS))
     if unknown:
         raise PackageError("Unknown field(s): {}. Editable fields: {}.".format(
@@ -308,8 +370,8 @@ def _clean_fields(fields, current=None):
             raise PackageError("A package needs a name.")
         if len(name) > NAME_MAX:
             raise PackageError("Keep the name under {} characters.".format(NAME_MAX))
-        for other in list_packages():
-            if other["id"] != (current or {}).get("id") and (other.get("name") or "").lower() == name.lower():
+        for other in others:
+            if (other.get("name") or "").lower() == name.lower():
                 raise PackageError('A package named "{}" already exists ({}).'.format(other["name"], other["id"]))
         cleaned["name"] = name
     if "description" in fields:
@@ -337,35 +399,39 @@ def create_package(**fields):
     fields.setdefault("description", "")
     fields.setdefault("contents", [])
     fields.setdefault("name", "")
-    cleaned = _clean_fields(fields)
-    package = OrderedDict([
-        ("id", new_package_id()),
-        ("name", cleaned["name"]),
-        ("description", cleaned["description"]),
-        ("version", cleaned["version"]),
-        ("minimum_version_required", ""),
-        ("last_updated", date.today().isoformat()),
-        ("metadata_version", METADATA_VERSION),
-        ("contents", cleaned["contents"]),
-        ("local", _empty_local()),
-    ])
-    _write(package)
+    with _locked() as field:
+        stored = [package for _, package in _rows(field)]
+        cleaned = _clean_fields(fields, others=stored)
+        package = OrderedDict([
+            ("id", new_package_id(existing={p["id"] for p in stored})),
+            ("name", cleaned["name"]),
+            ("description", cleaned["description"]),
+            ("version", cleaned["version"]),
+            ("minimum_version_required", ""),
+            ("last_updated", date.today().isoformat()),
+            ("metadata_version", METADATA_VERSION),
+            ("contents", cleaned["contents"]),
+            ("local", _empty_local()),
+        ])
+        _store(CustomFieldValue(field=field), package)
     return package
 
 
 def update_package(pkg_id, **fields):
-    package = get_package(pkg_id)
-    cleaned = _clean_fields(fields, current=package)
-    if cleaned:
-        package.update(cleaned)
-        package["last_updated"] = date.today().isoformat()
-        _write(package)
+    with _locked() as field:
+        rows = _rows(field)
+        cfv, package = _find(rows, pkg_id)
+        others = [p for _, p in rows if p["id"] != pkg_id]
+        cleaned = _clean_fields(fields, others=others, current=package)
+        if cleaned:
+            package.update(cleaned)
+            package["last_updated"] = date.today().isoformat()
+            _store(cfv, package)
     return package
 
 
 def delete_package(pkg_id):
     """Remove the local definition only; content and repositories are untouched."""
-    path = _path(pkg_id)
-    if not os.path.exists(path):
-        raise PackageNotFound("No content package with ID {}.".format(pkg_id))
-    os.remove(path)
+    with _locked() as field:
+        cfv, _ = _find(_rows(field), pkg_id)
+        cfv.delete()
