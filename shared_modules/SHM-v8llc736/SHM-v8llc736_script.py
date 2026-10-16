@@ -576,6 +576,43 @@ def parse_header(script):
     return found
 
 
+def file_choices():
+    """
+    Every stored file, for pickers (the workflow builder's file list): dicts of
+    ref ("archive/file"), archive, file, latest, versions and extractable.
+    """
+    choices = []
+    for archive in list_archives():
+        for item in archive["files"]:
+            choices.append(
+                {
+                    "ref": f"{archive['name']}/{item['name']}",
+                    "archive": archive["name"],
+                    "file": item["name"],
+                    "latest": item["latest"]["version"],
+                    "versions": [meta["version"] for meta in item["versions"]],
+                    "extractable": item["name"].lower().endswith(EXTRACTABLE),
+                }
+            )
+    return choices
+
+
+def validate_entry(entry, must_exist=True):
+    """
+    Check one entry written like a header ("archive/file[@latest|@N] [extract]"),
+    as run_task's archive_refs takes them. Raises ArchiveError; with
+    must_exist, also when the file or version is not stored.
+    """
+    found = parse_header(f"# cb-archive: {(entry or '').strip()}")
+    if len(found) != 1:
+        raise ArchiveError(f"'{entry}' is not a file reference. Use archive/file, archive/file@latest or archive/file@3.")
+    ref, _options = found[0]
+    if must_exist:
+        resolve(ref)
+    elif not REF.match(ref):
+        raise ArchiveError(f"'{ref}' is not a file reference. Use archive/file, archive/file@latest or archive/file@3.")
+
+
 def output_name(file_name):
     return "archive_%s_version" % re.sub(r"[^A-Za-z0-9_]", "_", file_name)
 
