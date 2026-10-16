@@ -1,17 +1,9 @@
-# Configure Data Disks (Windows), build item of the "Windows Server with Data Disks"
-# blueprint (see its README). Works on any hypervisor: the Attach Data Disks (Windows)
-# plug-in saved each disk on the server's data_disk_layout parameter with neutral keys
-# (serial, scsi_target, scsi_lun, address) filled in by a per-handler provider. Each disk
-# is matched to a RAW guest disk by serial number or unique ID, then SCSI target and LUN,
-# then attach order, always checking the size, and nothing changes unless every disk
-# matches. Each disk is then initialized GPT, given its drive letter, and formatted NTFS
-# with its label. Safe to run again. Keep this file under 9,000 characters: Azure Run
-# Command passes it to powershell.exe -EncodedCommand, and Windows caps a command line
-# at 32,767.
-#
-# Storage cmdlets: https://learn.microsoft.com/en-us/powershell/module/storage/
-# Win32_DiskDrive: https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-diskdrive
-# Win32_Volume: https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa394515(v=vs.85)
+# Configure Data Disks (Windows). See the blueprint README and shared_modules/SHM-iobsa4dm.
+# Matches each data_disk_layout entry to a RAW disk (serial, SCSI address, attach order,
+# with a size check), then GPT + drive letter + NTFS label. Keep under 8,500 characters:
+# Azure Run Command sends it as powershell -EncodedCommand (32,767-character cap).
+# Docs: learn.microsoft.com/powershell/module/storage, .../cimwin32prov/win32-diskdrive,
+# .../previous-versions/windows/desktop/legacy/aa394515(v=vs.85) (Win32_Volume)
 
 # Policy
 $FileSystem = 'NTFS'
@@ -26,6 +18,12 @@ function Fail([string]$Message) { Write-Output "ERROR: $Message"; exit 1 }
 function Get-HexId([string]$Value) { ($Value -replace '[^0-9A-Fa-f]', '').ToLowerInvariant() }
 
 function Test-Size($Disk, $SizeGB) { [math]::Abs($Disk.Bytes / 1GB - [int]$SizeGB) -le $ToleranceGB }
+
+# True when one of the disk's IDs contains an expected serial or the reverse (16+ hex digits).
+function Test-Id($Disk, $Serials) {
+  foreach ($i in $Serials) { foreach ($g in $Disk.Ids) { if ($g.Length -ge 16 -and ($g.Contains($i) -or $i.Contains($g))) { return $true } } }
+  $false
+}
 
 # Win32_Volume DriveType: 3 = local disk, 5 = CD-ROM.
 function Get-LetterVolume([string]$Letter) {
@@ -105,9 +103,9 @@ try {
   foreach ($e in $pending) {
     $free = @($raw | Where-Object { -not $claimed.ContainsKey($_.Number) })
     $m = $null; $how = ''
-    $sid = Get-HexId ([string]$e.serial)
-    if ($sid.Length -ge 16) {
-      $hits = @($free | Where-Object { @($_.Ids | Where-Object { $_.Contains($sid) }).Count -gt 0 })
+    $sids = @($e.serials | ForEach-Object { Get-HexId ([string]$_) } | Where-Object { $_.Length -ge 16 })
+    if ($sids.Count -gt 0) {
+      $hits = @($free | Where-Object { Test-Id $_ $sids })
       if ($hits.Count -eq 1) { $m = $hits[0]; $how = 'serial number' }
     }
     if (-not $m -and ($null -ne $e.scsi_target -or $null -ne $e.scsi_lun)) {
@@ -118,6 +116,11 @@ try {
         $m = $hits[0]
         $how = 'SCSI ' + ((@(@('target', $e.scsi_target), @('LUN', $e.scsi_lun)) | Where-Object { $null -ne $_[1] } | ForEach-Object { $_[0] }) -join ' and ')
       }
+    }
+    if (-not $m -and $null -ne $e.scsi_index) {
+      $x = [int]$e.scsi_index
+      $hits = @($free | Where-Object { (($_.Target -eq $x -and $_.Lun -eq 0) -or ($_.Target -eq 0 -and $_.Lun -eq $x)) -and (Test-Size $_ $e.size_gb) })
+      if ($hits.Count -eq 1) { $m = $hits[0]; $how = 'SCSI index' }
     }
     if (-not $m) {
       $m = @($free | Sort-Object -Property Port, Bus, Target, Lun, Number | Where-Object { Test-Size $_ $e.size_gb }) | Select-Object -First 1

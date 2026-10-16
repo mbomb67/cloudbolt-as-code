@@ -7,15 +7,17 @@
 # Build item of the "Oracle Linux Server with Data Disks" blueprint. It runs in
 # the guest after the Attach Data Disks (Linux) plug-in and works on any
 # hypervisor: the plug-in saved each disk on the server's data_disk_layout
-# parameter with neutral keys (serial, scsi_target, scsi_lun, address) filled in
-# by a per-handler provider in the data_disk_mapping shared module. CloudBolt
+# parameter with neutral keys (serials, scsi_target, scsi_lun, scsi_index, address)
+# filled in by a per-handler provider in the data_disk_mapping shared module. CloudBolt
 # fills that parameter in below before it sends the script to the guest.
 #
 # Each entry is matched to one unused guest disk (no partitions, no signature),
 # trying in turn:
-#   1. Serial number: the disk's SERIAL or WWN contains the expected serial.
+#   1. Serial number: the disk's SERIAL or WWN contains one of the expected
+#      serials, or the reverse (hex digits only, at least 16).
 #   2. SCSI address: the T and L of the disk's H:C:T:L equal the expected SCSI
-#      target and LUN (whichever of the two the provider supplied).
+#      target and LUN (whichever the provider supplied), or, for a bus index whose
+#      target/LUN placement is unknown, T:L is index:0 or 0:index.
 #   3. Attach order: CloudBolt adds the disks in table order, so the next unused
 #      disk in H:C:T:L order is taken.
 # Every match must also agree on size. If any entry cannot be matched, or a
@@ -65,13 +67,19 @@ PY=$(command -v python3 || true)
 if [ -z "$PY" ] && [ -x /usr/libexec/platform-python ]; then PY=/usr/libexec/platform-python; fi
 [ -n "$PY" ] || fail "python3 is required to read the data disk layout."
 
-# One line per entry: disk|mount_point|size_gb|volume_name|serial|scsi_target|scsi_lun|address
+# One line per entry: disk|mount_point|size_gb|volume_name|serials|scsi_target|scsi_lun|scsi_index|address
 ENTRIES=$(printf '%s' "$LAYOUT_JSON" | "$PY" -c '
 import json, sys
 rows = json.load(sys.stdin)
-keys = ("disk", "mount_point", "size_gb", "volume_name", "serial", "scsi_target", "scsi_lun", "address")
+keys = ("disk", "mount_point", "size_gb", "volume_name", "serials", "scsi_target", "scsi_lun", "scsi_index", "address")
+def text(v):
+    if v is None:
+        return ""
+    if isinstance(v, list):
+        return ",".join(str(x) for x in v if x)
+    return str(v).replace("|", "/")
 for r in sorted(rows, key=lambda r: int(r["disk"])):
-    print("|".join("" if r.get(k) is None else str(r[k]).replace("|", "/") for k in keys))
+    print("|".join(text(r.get(k)) for k in keys))
 ' | tr -d '\r') || fail "data_disk_layout is not valid JSON."
 [ -n "$ENTRIES" ] || fail "data_disk_layout lists no disks."
 
@@ -122,12 +130,18 @@ is_claimed() {
 
 # Each finder prints the unclaimed CANDIDATES device names that match.
 find_by_serial() {
-    # $1 expected serial, hex digits only
-    local name bytes hctl serial wwn
+    # $1 expected serials, hex digits only, space-separated
+    local name bytes hctl serial wwn sid gid
     while IFS='|' read -r name bytes hctl serial wwn; do
         [ -n "$name" ] || continue
         is_claimed "$name" && continue
-        case "$(hex_id "$serial") $(hex_id "$wwn")" in *"$1"*) echo "$name" ;; esac
+        for sid in $1; do
+            for gid in "$(hex_id "$serial")" "$(hex_id "$wwn")"; do
+                [ "$(printf '%s' "$gid" | wc -c)" -ge 16 ] || continue
+                case "$gid" in *"$sid"*) echo "$name"; continue 3 ;; esac
+                case "$sid" in *"$gid"*) echo "$name"; continue 3 ;; esac
+            done
+        done
     done <<< "$CANDIDATES"
     return 0
 }
@@ -141,6 +155,20 @@ find_by_address() {
         [ -z "$1" ] || [ "$(echo "$hctl" | cut -d: -f3)" = "$1" ] || continue
         [ -z "$2" ] || [ "$(echo "$hctl" | cut -d: -f4)" = "$2" ] || continue
         size_ok "$bytes" "$3" && echo "$name"
+    done <<< "$CANDIDATES"
+    return 0
+}
+
+find_by_index() {
+    # $1 bus index, $2 size GB: T:L is index:0 or 0:index
+    local name bytes hctl serial wwn t l
+    while IFS='|' read -r name bytes hctl serial wwn; do
+        [ -n "$name" ] && [ -n "$hctl" ] || continue
+        is_claimed "$name" && continue
+        t=$(echo "$hctl" | cut -d: -f3)
+        l=$(echo "$hctl" | cut -d: -f4)
+        { [ "$t" = "$1" ] && [ "$l" = "0" ]; } || { [ "$t" = "0" ] && [ "$l" = "$1" ]; } || continue
+        size_ok "$bytes" "$2" && echo "$name"
     done <<< "$CANDIDATES"
     return 0
 }
@@ -166,14 +194,14 @@ one_line() {
 }
 
 echo "Requested data disks:"
-while IFS='|' read -r disk mp size_gb vname serial target lun address; do
+while IFS='|' read -r disk mp size_gb vname serials target lun index address; do
     echo "  disk $disk: $mp $size_gb GB '$vname' ${address:-}"
 done <<< "$ENTRIES"
 
 # Pre-flight: sort entries into done and pending, and check pending targets are free.
 PENDING=""
 DONE=""
-while IFS='|' read -r disk mp size_gb vname serial target lun address; do
+while IFS='|' read -r disk mp size_gb vname serials target lun index address; do
     if already_configured "$vname" "$mp"; then
         DONE+="$disk|$mp|$size_gb|$vname"$'\n'
         continue
@@ -182,7 +210,7 @@ while IFS='|' read -r disk mp size_gb vname serial target lun address; do
     mountpoint -q "$mp" 2>/dev/null && fail "Disk $disk: $mp is already a mount point."
     [ -e "$mp" ] && [ ! -d "$mp" ] && fail "Disk $disk: $mp exists and is not a directory."
     [ -d "$mp" ] && [ -n "$(ls -A "$mp")" ] && fail "Disk $disk: $mp is not empty; mounting over it would hide its contents."
-    PENDING+="$disk|$mp|$size_gb|$vname|$serial|$target|$lun|$address"$'\n'
+    PENDING+="$disk|$mp|$size_gb|$vname|$serials|$target|$lun|$index|$address"$'\n'
 done <<< "$ENTRIES"
 PENDING_COUNT=$(printf '%s' "$PENDING" | grep -c . || true)
 
@@ -205,13 +233,17 @@ fi
 # Match every pending entry before changing anything.
 CLAIMED=""
 PLAN=""
-while IFS='|' read -r disk mp size_gb vname serial target lun address; do
+while IFS='|' read -r disk mp size_gb vname serials target lun index address; do
     [ -n "$disk" ] || continue
     match=""
     how=""
-    sid=$(hex_id "$serial")
-    if [ "$(printf '%s' "$sid" | wc -c)" -ge 16 ]; then
-        found=$(find_by_serial "$sid")
+    sids=""
+    for s in $(echo "$serials" | tr ',' ' '); do
+        h=$(hex_id "$s")
+        [ "$(printf '%s' "$h" | wc -c)" -ge 16 ] && sids="$sids $h"
+    done
+    if [ -n "$sids" ]; then
+        found=$(find_by_serial "$sids")
         if one_line "$found"; then match=$found; how="serial number"; fi
     fi
     if [ -z "$match" ] && { [ -n "$target" ] || [ -n "$lun" ]; }; then
@@ -222,6 +254,10 @@ while IFS='|' read -r disk mp size_gb vname serial target lun address; do
             [ -n "$target" ] && how="SCSI target"
             [ -n "$target" ] && [ -n "$lun" ] && how="SCSI target and LUN"
         fi
+    fi
+    if [ -z "$match" ] && [ -n "$index" ]; then
+        found=$(find_by_index "$index" "$size_gb")
+        if one_line "$found"; then match=$found; how="SCSI index"; fi
     fi
     if [ -z "$match" ]; then
         match=$(find_by_order "$size_gb" | head -n 1)

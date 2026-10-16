@@ -9,23 +9,27 @@ data_disk_layout parameter, where every disk carries the same handler-neutral
 correlation keys, all optional:
 
     address      Text for reports, e.g. "vCenter SCSI(0:1)" or "Azure LUN 2".
-    serial       A disk identifier the guest sees inside the disk's serial number
-                 or WWN. The scripts compare hex digits only and accept a guest
-                 value that contains it.
+    serials      Disk identifiers (UUIDs) the guest may see inside the disk's
+                 serial number, WWN, or unique ID. The scripts compare hex digits
+                 only, at least 16 of them, and accept either value containing the
+                 other. Any one matching identifies the disk.
     scsi_target  SCSI target ID the guest reports for the disk.
     scsi_lun     SCSI LUN the guest reports for the disk.
+    scsi_index   The disk's position on its SCSI bus when the hypervisor does not
+                 say whether the guest sees it as the target (LUN 0) or as the LUN
+                 (target 0); the scripts accept either.
 
-The scripts try serial, then the SCSI target and LUN together, then attach order,
-and every match must also agree on size.
+The scripts try the serials, then the SCSI address, then attach order (SCSI
+address order), and every match must also agree on size.
 
 Supporting another resource handler means adding one DiskProvider subclass and
 registering it in PROVIDERS under the handler's type_slug. A provider's
 snapshot() returns {stable disk key: correlation keys} for every disk the VM has;
 attach_disks() calls it before and after each add, and the one new key is the
 disk just added. check_capacity() may refuse an order the VM cannot hold before
-any disk is added; add_disk() may override how the handler is called. Handlers without a provider still get their disks added (through
-the handler's own add_disk_to_existing_server) and are matched by attach order and
-size in the guest.
+any disk is added; add_disk() may override how the handler is called. Handlers
+without a provider still get their disks added (through the handler's own
+add_disk_to_existing_server) and are matched by attach order and size in the guest.
 """
 import json
 
@@ -36,7 +40,7 @@ from utilities.logger import ThreadLogger
 logger = ThreadLogger(__name__)
 
 LAYOUT_FIELD = "data_disk_layout"
-CORRELATION_KEYS = ("address", "serial", "scsi_target", "scsi_lun")
+CORRELATION_KEYS = ("address", "serials", "scsi_target", "scsi_lun", "scsi_index")
 
 
 class DiskProvider:
@@ -83,7 +87,7 @@ class VMwareProvider(DiskProvider):
         return {
             d["uuid"]: {
                 "address": f"vCenter SCSI({d.get('controller_bus')}:{d.get('unit')})",
-                "serial": d["uuid"],
+                "serials": [d["uuid"]],
                 "scsi_target": d.get("unit"),
                 "scsi_lun": 0,
             }
@@ -134,30 +138,63 @@ class AzureProvider(DiskProvider):
 
 
 class NutanixProvider(DiskProvider):
-    """Nutanix AHV: the disk's SCSI device index and UUID. Untested on a live cluster."""
+    """Nutanix AHV through Prism Central. Written from the v4 API reference; untested on a cluster."""
 
     label = "Nutanix AHV"
 
     def snapshot(self, handler, server):
-        # The acropolis handler's get_vm_dict lists each disk's uuid, adapter_type,
-        # and device_index (resourcehandlers/acropolis/acropolis_wrapper.py,
-        # _convert_disks). AHV presents disks through virtio-scsi, which on KVM
-        # exposes each disk index as a LUN on target 0; if a guest reports it
-        # differently, the address check finds nothing and the scripts fall back to
-        # attach order. The guest disk serial embeds the vmdisk UUID
-        # (https://next.nutanix.com/ahv-virtualization-27/map-ahv-vm-drives-to-os-41002);
-        # the uuid CloudBolt reports is offered as the serial and matches when it is
-        # that vmdisk UUID.
-        vm = handler.get_vm_dict(server)
+        wrapper = handler.get_api_wrapper()
+        if not getattr(wrapper, "is_api_v4", False):
+            return self._snapshot_legacy(handler, server)
+        # GET vmm/<version>/ahv/config/vms/<extId>, the call AcropolisWrapper.get_vm
+        # makes. CloudBolt's own disk summary keeps only Disk.extId, so read the raw
+        # record. Field meanings, from Nutanix's v4 SDK (ntnx-api-golang-clients,
+        # vmm-go-client models/vmm/v4/ahv/config):
+        #   Disk.extId               the disk's API instance ID
+        #   Disk.diskAddress         busType (SCSI, IDE, PCI, SATA, SPAPR) and index,
+        #                            "Device index on the bus"
+        #   VmDisk.diskExtId         "A globally unique identifier of a VM disk"
+        #                            (the vmdisk UUID); in every v4 version
+        #   VmDisk.serialId          "The disk serial ID is used to identify the disk
+        #                            in the hypervisor"; API v4.3 and later only
+        # An AHV guest's disk serial carries the vmdisk UUID (underscores for
+        # hyphens): https://next.nutanix.com/ahv-virtualization-27/map-ahv-vm-drives-to-os-41002
+        # All three IDs are offered; each is a random UUID, so any match is safe.
+        # Nothing public says whether the guest reports the bus index as the SCSI
+        # target or the LUN, so it is passed as scsi_index and the scripts accept
+        # either.
+        vm = wrapper.client.get(
+            f"vmm/{wrapper.api_version}/ahv/config/vms/{server.resource_handler_svr_id}"
+        ).get("data", {})
         disks = {}
-        for d in vm.get("disks", []):
+        for d in vm.get("disks") or []:
+            backing = d.get("backingInfo") or {}
+            if backing.get("$objectType") != "vmm.v4.ahv.config.VmDisk" or not d.get("extId"):
+                continue  # volume group disks and other backings are not data disks
+            bus = str((d.get("diskAddress") or {}).get("busType") or "").upper()
+            index = (d.get("diskAddress") or {}).get("index")
+            ids = [backing.get("serialId"), backing.get("diskExtId"), d.get("extId")]
+            fields = {
+                "address": f"Nutanix {bus.lower() or 'disk'}.{index}",
+                "serials": list(dict.fromkeys(i for i in ids if i)),
+            }
+            if bus == "SCSI" and index is not None:
+                fields["scsi_index"] = int(index)
+            disks[d["extId"]] = fields
+        return disks
+
+    def _snapshot_legacy(self, handler, server):
+        # Prism v2/v3 through CloudBolt's own disk summary: uuid, adapter_type,
+        # device_index (acropolis_wrapper.py, _convert_disks).
+        disks = {}
+        for d in handler.get_vm_dict(server).get("disks", []):
             if not d.get("uuid"):
                 continue
             bus = str(d.get("adapter_type") or "").upper()
             index = d.get("device_index")
-            fields = {"address": f"Nutanix {bus.lower() or 'disk'}.{index}", "serial": d["uuid"]}
+            fields = {"address": f"Nutanix {bus.lower() or 'disk'}.{index}", "serials": [d["uuid"]]}
             if bus == "SCSI" and index is not None:
-                fields.update(scsi_target=0, scsi_lun=int(index))
+                fields["scsi_index"] = int(index)
             disks[d["uuid"]] = fields
         return disks
 
