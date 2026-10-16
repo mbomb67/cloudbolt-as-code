@@ -133,6 +133,8 @@ def workflow_editor(request, workflow_id=None):
         "filters": swf.filter_choices(),
         "step_types": {key: {"label": info["label"], "icon": info["icon"]} for key, info in swf.STEP_TYPES.items()},
         "modes": list(swf.MODES),
+        # None when the File Archives content is not installed.
+        "archives": swf.archive_choices(),
         "reserved_keys": sorted(swf.RESERVED_KEYS),
         "limits": {
             "retries": swf.MAX_RETRIES,

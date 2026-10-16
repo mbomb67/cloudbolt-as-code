@@ -27,7 +27,7 @@ Admin > Custom Extensions > Server Workflows > Add workflow.
   - *Fixed value*: saved with the workflow, never asked.
   - *Output of a step*: an output of an earlier step in the same run.
 - **Each step** has a key (names its outputs), Continue on error, Retries with a delay, and, for non-script steps, a timeout.
-- **Files** (script steps): archive references such as `installers/agent.msi` or `configs/app.conf@4` to stage on the server before the script runs. This needs the File Archives content; until it is synced, a workflow with files attached refuses to start.
+- **Files** (script steps): files picked from the File Archives content, staged on the server before the script runs, as `archive/file`, `archive/file@N` and optionally `extract`. Without File Archives installed a step cannot have files.
 
 Password and object-type inputs (PWD, ETXT, networks, files, ...) can be neither asked for nor saved: CloudBolt writes this action's form payload to the job log, and the workflow store is plain text. A step whose action requires one cannot be added.
 

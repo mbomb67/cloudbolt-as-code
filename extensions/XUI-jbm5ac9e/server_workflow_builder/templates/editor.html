@@ -423,6 +423,52 @@
     ]);
   }
 
+  // Files a script step stages on the server before it runs, picked from the
+  // File Archives content (data.archives is null when it is not installed).
+  function filesBlock(step, index) {
+    var entries = step.archives || [];
+    var $block = el("div", { cls: "mb-2" }, [
+      el("div", { text: "Files" }).css({ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".03em", color: "var(--swf-muted)", marginBottom: "3px" })
+    ]);
+    if (entries.length) {
+      $block.append(el("div", { cls: "d-flex flex-wrap gap-2 mb-2" }, entries.map(function (entry, i) {
+        return el("span", { cls: "swf-pill" }, [
+          icon("bi-file-earmark-zip"), el("span", { cls: "swf-mono", text: entry }),
+          el("button", { type: "button", cls: "btn btn-sm btn-link p-0", "data-swf-archive-remove": i, title: "Remove file", "aria-label": "Remove " + entry }, [icon("bi-x-lg")])
+        ]);
+      })));
+    }
+    if (data.archives === null) {
+      $block.append(el("div", { cls: "swf-hint", text: "Install the File Archives content to stage files on the server before this script runs." }));
+      return $block;
+    }
+    if (!data.archives.length) {
+      $block.append(el("div", { cls: "swf-hint", text: "No files in File Archives yet." }));
+      return $block;
+    }
+    var chosen = data.archives[0];
+    var $file = el("select", { cls: "form-select form-select-sm", "data-swf-archive-file": index, "aria-label": "File" });
+    data.archives.forEach(function (file, i) { $file.append(el("option", { value: i, text: file.ref })); });
+    var $version = el("select", { cls: "form-select form-select-sm", "data-swf-archive-version": index, "aria-label": "Version" });
+    var $extract = el("input", { type: "checkbox", cls: "form-check-input", id: "swf-extract-" + index, "data-swf-archive-extract": index });
+    function versions(file) {
+      $version.empty().append(el("option", { value: "", text: "Latest" + (file.latest ? " (" + file.latest + ")" : "") }));
+      (file.versions || []).slice().sort(function (a, b) { return b - a; }).forEach(function (v) {
+        $version.append(el("option", { value: String(v), text: "Version " + v }));
+      });
+      $extract.prop("disabled", !file.extractable).prop("checked", false);
+    }
+    versions(chosen);
+    $file.on("change", function () { versions(data.archives[parseInt(this.value, 10)]); });
+    $block.append(el("div", { cls: "d-flex flex-wrap gap-2 align-items-center" }, [
+      $file.css("max-width", "320px"), $version.css("max-width", "160px"),
+      el("div", { cls: "form-check mb-0" }, [$extract, el("label", { cls: "form-check-label", "for": "swf-extract-" + index, text: "Extract" })]),
+      el("button", { type: "button", cls: "btn btn-sm btn-outline-primary", "data-swf-archive-add": index }, [icon("bi-plus-lg"), " Add file"])
+    ]));
+    $block.append(el("div", { cls: "swf-hint", text: "Staged on the server before the script runs; each reports its version as the output archive_<file stem>_version." }));
+    return $block;
+  }
+
   function inputRow(step, index, input) {
     var $label = el("td", { cls: "swf-col-input" }, [
       el("div", {}, [input.label, input.required ? el("span", { cls: "swf-req", text: " *" }) : null]),
@@ -462,11 +508,7 @@
         el("label", { cls: "form-check-label", "for": "swf-coe-" + index, text: "Continue on error" }).css({ textTransform: "none", fontSize: "13px", letterSpacing: 0 })
       ])
     ]);
-    var $files = step.type !== "script" ? null : el("div", { cls: "mb-2" }, [
-      el("label", { "for": "swf-files-" + index, text: "Files" }).css({ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".03em", color: "var(--swf-muted)" }),
-      el("input", { id: "swf-files-" + index, cls: "form-control form-control-sm swf-mono", "data-swf-field": "archives", value: (step.archives || []).join(", "), placeholder: "installers/agent.msi, configs/app.conf@4" }),
-      el("div", { cls: "swf-hint", text: "Archive files to stage on the server before the script runs (File Archives content). Each reports its version as an output, archive_<file stem>_version." })
-    ]);
+    var $files = step.type === "script" ? filesBlock(step, index) : null;
     var $body = el("div", { cls: "swf-step-b" }, [
       problems.length ? el("ul", { cls: "swf-problems" }, problems.map(function (p) { return el("li", { text: p }); })) : null,
       $settings,
@@ -541,8 +583,6 @@
         $.each(other.inputs, function (name, c) { if (c.mode === "output" && c.step === old) { c.step = step.key; } });
       });
       if (event.type === "change") { renderSteps(); }
-    } else if (field === "archives") {
-      step.archives = this.value.split(/[\s,]+/).filter(function (ref) { return ref; });
     } else {
       step[field] = this.value;
       if (field === "name" && event.type === "change") { renderSteps(); }
@@ -572,6 +612,24 @@
     markDirty();
   });
   $root.on("change", "[data-swf-output-name], [data-swf-value]", function () { rerenderStep(stepIndex(this)); });
+  $root.on("click", "[data-swf-archive-add]", function () {
+    var index = stepIndex(this);
+    var $card = $(this).closest("[data-swf-step]");
+    var file = data.archives[parseInt($card.find("[data-swf-archive-file]").val(), 10)];
+    var version = $card.find("[data-swf-archive-version]").val();
+    var entry = file.ref + (version ? "@" + version : "") + ($card.find("[data-swf-archive-extract]").prop("checked") ? " extract" : "");
+    var step = state.steps[index];
+    step.archives = (step.archives || []).filter(function (e) { return e.split(/[@ ]/)[0] !== file.ref; });
+    step.archives.push(entry);
+    markDirty();
+    rerenderStep(index);
+  });
+  $root.on("click", "[data-swf-archive-remove]", function () {
+    var index = stepIndex(this);
+    state.steps[index].archives.splice(parseInt($(this).attr("data-swf-archive-remove"), 10), 1);
+    markDirty();
+    rerenderStep(index);
+  });
   $root.on("click", "[data-swf-move]", function () {
     var index = stepIndex(this);
     moveStep(index, index + parseInt($(this).attr("data-swf-move"), 10));

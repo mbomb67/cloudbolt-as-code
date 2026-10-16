@@ -62,9 +62,12 @@ Outputs
   steps also receive them in their outputs keyword argument.
 
 Files
-  A script step can list archive files (for example installers/agent.msi or
-  configs/app.conf@4) for the File Archives content to stage on the server
-  before the script runs; they go to server_tasks.run_task as archive_refs.
+  A script step can list archive files for the File Archives content to stage
+  on the server before the script runs, as its entries
+  "archive/file[@latest|@N] [extract]" (for example installers/agent.msi or
+  configs/app.conf@4). They go to server_tasks.run_task as archive_refs. The
+  file_archives shared module checks each entry and lists the files; without
+  it a step cannot have files.
 
 Secrets
   CloudBolt writes a server action's custom-form payload and its plain-text
@@ -131,8 +134,6 @@ WORKFLOW_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
 STEP_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 # server_tasks.parse_outputs reads names of letters, digits and underscores.
 OUTPUT_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
-# An archive reference: a store path, optionally @<version>.
-ARCHIVE_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}(@[A-Za-z0-9._-]{1,64})?$")
 MAX_ARCHIVES = 20
 NAME_MAX = 255
 DESCRIPTION_MAX = 1000
@@ -953,25 +954,56 @@ def _clean_step(index, step, resolved, earlier, taken):
     )
 
 
+def _file_archives():
+    """The File Archives shared module, or None when that content is not installed."""
+    try:
+        from shared_modules import file_archives
+    except ImportError:
+        return None
+    return file_archives
+
+
+def archive_choices():
+    """
+    The files a step can attach, from file_archives.file_choices(): dicts with
+    ref, archive, file, latest, versions and extractable. None when File
+    Archives is not installed.
+    """
+    module = _file_archives()
+    if module is None:
+        return None
+    try:
+        return list(module.file_choices())
+    except Exception:
+        logger.exception("Could not list the File Archives files")
+        return []
+
+
 def _clean_archives(label, hook, archives):
-    """A script step's attached archive files, as references like installers/agent.msi or configs/app.conf@4."""
+    """A script step's attached files, each a File Archives entry such as installers/agent.msi@latest extract."""
     if archives in (None, "", []):
         return []
     if isinstance(archives, str):
-        archives = re.split(r"[\s,]+", archives)
+        # An entry may hold a space ("... extract"), so only commas and new lines separate entries.
+        archives = re.split(r"[,\n]+", archives)
     if not isinstance(archives, (list, tuple)):
-        raise WorkflowError(f"{label}: files must be a list of archive references.")
-    refs = list(dict.fromkeys(str(ref).strip() for ref in archives if str(ref).strip()))
-    if refs and not isinstance(hook, RemoteScriptHook):
+        raise WorkflowError(f"{label}: files must be a list of File Archives entries.")
+    entries = list(dict.fromkeys(" ".join(str(entry).split()) for entry in archives if str(entry).strip()))
+    if not entries:
+        return []
+    if not isinstance(hook, RemoteScriptHook):
         raise WorkflowError(f"{label}: only Remote Script steps can have files attached.")
-    if len(refs) > MAX_ARCHIVES:
+    if len(entries) > MAX_ARCHIVES:
         raise WorkflowError(f"{label}: attach at most {MAX_ARCHIVES} files.")
-    bad = [ref for ref in refs if not ARCHIVE_REF_RE.match(ref)]
-    if bad:
-        raise WorkflowError(
-            f"{label}: {', '.join(bad)} is not an archive reference such as installers/agent.msi or configs/app.conf@4."
-        )
-    return refs
+    module = _file_archives()
+    if module is None:
+        raise WorkflowError(f"{label}: files need the File Archives content, which is not installed on this appliance.")
+    for entry in entries:
+        try:
+            module.validate_entry(entry, must_exist=True)
+        except module.ArchiveError as err:
+            raise WorkflowError(f"{label}: {entry}: {err}")
+    return entries
 
 
 def _run_task_takes_archives():
