@@ -23,8 +23,8 @@
     "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-9h13o859",
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-9h13o859"
         ]
     },
     "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",

@@ -51,30 +51,62 @@
     },
     "favorited": false,
     "has_custom_form": true,
-    "icon": "terraform_rTNoRQp.png",
+    "icon": "terraform_rTNoRQp_QzRlH0w.png",
     "id": "BP-uh9v24v3",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-10-07",
+    "last_updated": "2026-10-16",
     "management_actions": [
-        {
-            "dependencies": {
-                "resource_action": "resource_actions/RSA-dxrh4m6j"
-            },
-            "enabled": true,
-            "label": "Update Variables"
-        },
         {
             "dependencies": {
                 "resource_action": "resource_actions/RSA-pngq92ss"
             },
             "enabled": true,
             "label": "Deploy Latest Version"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-dxrh4m6j"
+            },
+            "enabled": true,
+            "label": "Terraform Update"
         }
     ],
     "metadata_version": "2026.1.0",
     "name": "HCP Terraform No-Code + Ansible",
     "parameters": [
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Ansible job template maps (Variable Maps whose JSON has a job_template key), by global ID or name, whose AAP job templates the second build step launches on every server of the deployment; with no options the step does nothing.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-aualk6ei"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for Ansible job template maps"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-e9ll8cop",
+            "label": "Ansible Job Template Maps",
+            "name": "ansible_job_template_maps",
+            "options": [
+                "MAP-9qx28xel"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
         {
             "allow_multiple": false,
             "available_all_servers": false,
@@ -93,15 +125,49 @@
                 }
             ],
             "global_options": [],
-            "id": "CF-srk375z5",
+            "id": "CF-h36mznhf",
             "label": "TF Cloud Connection",
             "name": "tfc_connection_info",
-            "options": [],
+            "options": [
+                "CON-uqh22te8"
+            ],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
             "show_as_attribute": false,
             "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "The nocode-* module this deployment is provisioned from, pinned as this parameter's only option.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for HCP Terraform coordinates"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-758vbu7c",
+            "label": "TFC No-Code Module ID",
+            "name": "tfc_nocode_module_id",
+            "options": [
+                "nocode-26SrrPRC3PatahHA"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": true,
             "type": "STR",
             "value_pattern_string": null
         },
@@ -123,10 +189,12 @@
                 }
             ],
             "global_options": [],
-            "id": "CF-08m4lxj5",
+            "id": "CF-esqjjb3y",
             "label": "TFC Organization",
             "name": "tfc_organization",
-            "options": [],
+            "options": [
+                "mbomb67-cbtesting"
+            ],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
@@ -153,81 +221,25 @@
                 }
             ],
             "global_options": [],
-            "id": "CF-5a0mfzlv",
+            "id": "CF-fwbfrqai",
             "label": "TFC Project",
             "name": "tfc_project",
-            "options": [],
+            "options": [
+                "azure-nocode-poc"
+            ],
             "placeholder": null,
             "relevant_osfamilies": [],
             "required": true,
             "show_as_attribute": false,
             "show_on_servers": true,
-            "type": "STR",
-            "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "constraints": "Unconstrained",
-            "description": "The nocode-* module this deployment is provisioned from, pinned as this parameter's only option.",
-            "destination": "Resource",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "gen_options_hooks": [
-                {
-                    "dependencies": {
-                        "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
-                    },
-                    "enabled": true,
-                    "name": "Generate options for HCP Terraform coordinates"
-                }
-            ],
-            "global_options": [],
-            "id": "CF-679cv8ny",
-            "label": "TFC No-Code Module ID",
-            "name": "tfc_nocode_module_id",
-            "options": [],
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": true,
-            "show_as_attribute": false,
-            "show_on_servers": true,
-            "type": "STR",
-            "value_pattern_string": null
-        },
-        {
-            "allow_multiple": true,
-            "available_all_servers": false,
-            "constraints": "Unconstrained",
-            "description": "Ansible job template maps (Variable Maps whose JSON has a job_template key), by global ID or name, whose AAP job templates the second build step launches on every server of the deployment; with no options the step does nothing.",
-            "destination": "Resource",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "gen_options_hooks": [
-                {
-                    "dependencies": {
-                        "orchestration_hook": "orchestration_actions/HPA-aualk6ei"
-                    },
-                    "enabled": true,
-                    "name": "Generate options for Ansible job template maps"
-                }
-            ],
-            "global_options": [],
-            "id": "CF-e9ll8cop",
-            "label": "Ansible Job Template Maps",
-            "name": "ansible_job_template_maps",
-            "options": [],
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": false,
-            "show_as_attribute": false,
-            "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
         }
     ],
     "resource_name_template": null,
     "resource_type": {
+        "categories": [],
+        "description": null,
         "icon": "fas fa-cloud",
         "id": "RT-nbw86jvn",
         "internal_only": false,

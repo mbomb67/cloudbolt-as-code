@@ -1,8 +1,8 @@
 {
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-9h13o859",
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-9h13o859"
         ]
     },
     "description": "Destroys the HCP Terraform workspace behind a no-code deployment with a destroy run and a safe workspace delete.",

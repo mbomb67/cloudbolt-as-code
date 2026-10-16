@@ -1,10 +1,8 @@
 {
-    "action_inputs": [],
-    "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-9h13o859",
-            "shared_modules/SHM-jlguerjr"
+            "shared_modules/SHM-jlguerjr",
+            "shared_modules/SHM-9h13o859"
         ]
     },
     "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
