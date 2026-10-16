@@ -1,0 +1,16 @@
+{
+    "contents": [
+        "blueprints/BP-b0qm83lh",
+        "blueprints/BP-00meiwwz",
+        "blueprints/BP-uh9v24v3",
+        "webhooks/IWH-yj93is5z",
+        "extensions/XUI-ax1sluwi"
+    ],
+    "description": "Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs.",
+    "id": "PKG-0bo7vlxp",
+    "last_updated": "2026-10-16",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "HCP Terraform",
+    "version": "1.0.0"
+}
