@@ -1,10 +1,10 @@
 {
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
+    "description": null,
     "enabled": true,
     "icon_url": "",
     "id": "XUI-8a1jocmr",
     "label": "AWS EKS Cluster",
-    "last_updated": "2026-10-15",
+    "last_updated": "2026-10-16",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "aws_eks_cluster",
