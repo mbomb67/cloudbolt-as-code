@@ -49,11 +49,10 @@ FRM-58d5rxg8 has no disk question of its own. When the requester picks an enviro
 Servers without a `disk_map` are skipped without contacting the guest, so the actions ship enabled.
 
 ## Setup
-1. Create the parameter: Admin > Parameters > New Parameter, name `disk_map`, label `Data Disks`, type Multi-line Text, shown on servers.
+1. Import PKG-zny1ynfs from the repository on the Content Packages admin page and Sync it. The package creates the `disk_map` parameter (`parameters/CF-q3bexgap`). Without the Content Package Manager, sync the blueprint and the three actions, then create the parameter yourself: Admin > Parameters > New Parameter, name `disk_map`, label `Data Disks`, type Multi-line Text, shown on servers.
 2. Add `disk_map` to each environment that should offer data disks. Optionally give it a default map or make it required.
-3. Import PKG-zny1ynfs from the repository on the Content Packages admin page and Sync it, or sync the repository.
-4. The server tier allows the Windows and Oracle Enterprise Linux families and pins no OS build, so the form offers the environment's builds of those families. Restrict environments as needed.
-5. The guest scripts run with the server's credentials over WinRM or SSH (Linux with sudo), or through VMware Tools or Azure Run Command when the environment uses Tech-Specific Script Execution.
+3. The server tier allows the Windows and Oracle Enterprise Linux families and pins no OS build, so the form offers the environment's builds of those families. Restrict environments as needed.
+4. The guest scripts run with the server's credentials over WinRM or SSH (Linux with sudo), or through VMware Tools or Azure Run Command when the environment uses Tech-Specific Script Execution.
 
 ## Resource handlers
 The same providers as BP-9ph7xcok: vCenter records the VMDK UUID and unit (needs `disk.EnableUUID = TRUE`), Azure the LUN and the VM size's disk limit, Nutanix AHV the vmdisk UUID and device index (untested). Other handlers that can add disks fall back to attach order and size. See `shared_modules/SHM-iobsa4dm`.

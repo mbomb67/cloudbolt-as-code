@@ -1418,7 +1418,7 @@ Environment, group and blueprint assignments (and the options and defaults set t
 
 ### Worked example
 
-An illustrative `parameters/CF-xkwcyf59/CF-xkwcyf59_metadata.json` for a string parameter with two global options and a global default (no such folder exists in this repo yet; export real ones from an appliance):
+`parameters/CF-q3bexgap/CF-q3bexgap_metadata.json` (`disk_map`, member of `packages/PKG-zny1ynfs`) is a real export of a Multi-line Text parameter with no options, defaults or generated options; copy its shape. An illustrative string parameter with two global options and a global default would read:
 
 ```json
 {
