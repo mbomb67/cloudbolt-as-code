@@ -1,6 +1,6 @@
 ---
 name: cb-validate-metadata
-description: Lint every <GLOBAL_ID>_metadata.json file in a CloudBolt Source Control Repos content repo. Reports missing required fields, dangling cross-references, ID/folder mismatches, enum violations, key-casing mismatches in action_inputs[], orphan transitive content, and secret-placeholder values.
+description: Lint every <GLOBAL_ID>_metadata.json file in a CloudBolt Source Control Repos content repo. Reports missing required fields, dangling cross-references, ID/folder mismatches, enum violations, key-casing mismatches in action_inputs[], orphan transitive content, secret-placeholder values, and content package manifests whose members do not resolve or are not top-level.
 when_to_use: When the user says "validate my metadata", "lint the content", "check the repo for errors", "validate this folder", or before committing/pushing changes to a content repo. Also use after running any scaffold-* skill to confirm the generated files are clean.
 ---
 
@@ -14,7 +14,8 @@ This is a **best-effort linter**, not a full semantic validator. CloudBolt itsel
 Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md). This skill validates content against the schemas there. Specifically:
 
 - **§0** for universal rules: ID format, cross-reference convention, `action_inputs[]` casing, secret redaction placeholders, transitive-import asymmetry.
-- **§1–§13** for per-content-type Required Fields tables, Cross-reference fields, Enums, and Round-trip caveats.
+- **§1–§14** for per-content-type Required Fields tables, Cross-reference fields, Enums, and Round-trip caveats.
+- **§15** for content package manifests (`packages/PKG-*`), checked by Check J.
 
 When CloudBolt changes a schema, the linter inherits the change automatically — `metadata-schemas.md` is the single source of truth.
 
@@ -90,6 +91,16 @@ Per §0 [Parameter dependencies](../../../docs/agents/metadata-schemas.md#parame
 - **Error (enum):** `dependency-type` ∉ {`REGENOPTIONS`, `SHOWHIDE`, `HIDE`}.
 - **Error (code/metadata mismatch):** a field has a `REGENOPTIONS` controller but the colocated script has no `generate_options_for_<name>` method — or that method reads `control_value`/`control_value_dict` but the field declares **no** controllers (the values will always be empty). Match the generator's arity to the controller count per §0.
 - **Warning (sequence):** in `action_inputs_sequence`, a dependent field is ordered before one of its controllers.
+
+### Check J — Content packages (`packages/PKG-*`)
+Per §15. `python tools/validate_metadata.py` runs every item below, and CI runs that script.
+- **Error:** folder name is not `PKG-` plus 8 or more `[a-z0-9]`, or `id` is missing or differs from it.
+- **Error:** any of the eight manifest keys (`contents`, `description`, `id`, `last_updated`, `metadata_version`, `minimum_version_required`, `name`, `version`) is missing, or another key is present (the extension drops it on the next export).
+- **Error:** `name` empty or over 255 characters, `description` over 1000, `version` not like `1.0.0`, `last_updated` not `YYYY-MM-DD`.
+- **Error (members):** a `contents` entry that is not `"<top_level_dir>/<GLOBAL_ID>"`, whose prefix is not its dir's, under `forms/` or `form_functions/` (list the parent instead), under a dir a package cannot hold, listed twice, or not resolving to a folder in the repo.
+- **Error:** two packages share a name, ignoring case (an appliance imports only one).
+- **Error:** the file is not `json.dumps(data, indent=4, sort_keys=True)` plus a newline, the format the exporter writes.
+- **Warning:** a member that another member's export already carries (it is in that member's `dependencies`, followed transitively); drop it.
 
 3. **Report** as a grouped summary:
    ```

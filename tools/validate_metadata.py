@@ -6,8 +6,13 @@ Checks every <ID>_metadata.json under the content directories:
   - a plugin's script_filename exists
   - no default value carries a GUID, a real Azure subscription path, or an
     instance-specific hostname (defaults must use FILL-ME or <placeholder>)
+  - a package manifest (packages/PKG-*) has the eight keys the Content Package
+    Manager exporter writes, in its format, a unique name, and only distinct,
+    resolvable, top-level members (never forms/ or form_functions/); a member
+    that another member's export already carries is a warning
 
-Exit code 1 with a list of problems, 0 when clean. No dependencies.
+Exit code 1 with a list of problems, 0 when clean (warnings do not fail).
+No dependencies.
 """
 import glob
 import json
@@ -27,6 +32,21 @@ GUID_RE = re.compile(r"\b(?!0{8}-0{4}-0{4}-0{4}-0{12}\b)[0-9a-fA-F]{8}-[0-9a-fA-
 FORBIDDEN_RE = re.compile(r"(?i)(cblabsales|\bmb-dev\b|\bse-demo\b|/subscriptions/(?!0{8}-)[0-9a-f]{8}-)")
 DEFAULT_KEYS = {"value", "default", "default_value", "defaultValue"}
 PLACEHOLDER_RE = re.compile(r"FILL-ME|<[a-z][a-z-]*>")
+
+# Content package manifests; mirrors extensions/XUI-iq65xgvr/content_packages/store.py.
+PACKAGE_FIELDS = ("contents", "description", "id", "last_updated", "metadata_version",
+                  "minimum_version_required", "name", "version")
+PKG_ID_RE = re.compile(r"^PKG-[a-z0-9]{8,}$")
+PKG_VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$")
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+MEMBER_RE = re.compile(r"^(?P<dir>[a-z_]+)/(?P<prefix>[A-Z]{2,4})-[a-z0-9]{8,}$")
+MEMBER_PREFIXES = {
+    "blueprints": "BP", "resource_actions": "RSA", "server_actions": "SVA",
+    "orchestration_actions": "HPA", "flowcontrol_actions": "FCA", "recurring_jobs": "RJB",
+    "cit_tests": "CIT", "webhooks": "IWH", "mcp_tool_actions": "MTA", "shared_modules": "SHM",
+    "plugins": "OHK", "extensions": "XUI",
+}
+TRANSITIVE_DIRS = ("forms", "form_functions")
 
 
 def walk(obj, path=""):
@@ -52,9 +72,95 @@ def check_defaults(problems, where, data):
             problems.append(f"{where}: {path}.{key} contains an instance-specific value")
 
 
+def dependency_refs(obj):
+    """Every "<dir>/<ID>" string under any "dependencies" key."""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key == "dependencies" and isinstance(value, dict):
+                for dep in value.values():
+                    for item in (dep if isinstance(dep, list) else [dep]):
+                        if isinstance(item, str) and REF_RE.match(item):
+                            yield item
+            else:
+                yield from dependency_refs(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from dependency_refs(item)
+
+
+def carried_by(ref, parsed):
+    """What exporting ref writes along with it: its dependencies, transitively."""
+    seen, todo = set(), [ref]
+    while todo:
+        for dep in dependency_refs(parsed.get(todo.pop(), {})):
+            if dep not in seen:
+                seen.add(dep)
+                todo.append(dep)
+    seen.discard(ref)
+    return seen
+
+
+def check_package(problems, warnings, p, folder, data, text, known, parsed):
+    if not PKG_ID_RE.match(folder):
+        problems.append(f"{p}: package folder {folder} is not PKG- plus 8 or more [a-z0-9]")
+    if not data.get("id"):
+        problems.append(f"{p}: missing id")
+    missing = [k for k in PACKAGE_FIELDS if k not in data]
+    if missing:
+        problems.append(f"{p}: missing package field(s) {', '.join(missing)}")
+    unknown = sorted(set(data) - set(PACKAGE_FIELDS))
+    if unknown:
+        problems.append(f"{p}: unknown package field(s) {', '.join(unknown)}; "
+                        "the extension ignores them and the next export drops them")
+    name = data.get("name")
+    if "name" in data and (not isinstance(name, str) or not name.strip() or len(name) > 255):
+        problems.append(f"{p}: name must be non-empty text of at most 255 characters")
+    description = data.get("description")
+    if "description" in data and (not isinstance(description, str) or len(description) > 1000):
+        problems.append(f"{p}: description must be text of at most 1000 characters")
+    if "version" in data and not PKG_VERSION_RE.match(str(data["version"])):
+        problems.append(f"{p}: version {data['version']!r} is not like 1.0.0")
+    if "last_updated" in data and not DATE_RE.match(str(data["last_updated"])):
+        problems.append(f"{p}: last_updated must be YYYY-MM-DD")
+    for key in ("metadata_version", "minimum_version_required"):
+        if key in data and not isinstance(data[key], str):
+            problems.append(f"{p}: {key} must be a string")
+
+    contents = data.get("contents")
+    if "contents" in data and not isinstance(contents, list):
+        problems.append(f'{p}: contents must be a list of "<top_level_dir>/<GLOBAL_ID>" refs')
+        contents = []
+    members = []
+    for ref in contents or []:
+        m = MEMBER_RE.match(ref) if isinstance(ref, str) else None
+        if not m:
+            problems.append(f'{p}: member {ref!r} is not "<top_level_dir>/<GLOBAL_ID>"')
+        elif m.group("dir") in TRANSITIVE_DIRS:
+            problems.append(f"{p}: member {ref} only syncs with its parent; list the parent instead")
+        elif m.group("dir") not in MEMBER_PREFIXES:
+            problems.append(f"{p}: member {ref}: {m.group('dir')}/ is not a type a package can hold")
+        elif m.group("prefix") != MEMBER_PREFIXES[m.group("dir")]:
+            problems.append(f"{p}: member {ref}: {m.group('dir')}/ holds {MEMBER_PREFIXES[m.group('dir')]}- IDs")
+        elif ref in members:
+            problems.append(f"{p}: member {ref} is listed twice")
+        elif ref not in known:
+            problems.append(f"{p}: member {ref} does not resolve")
+        else:
+            members.append(ref)
+    for ref in members:
+        parents = [other for other in members if other != ref and ref in carried_by(other, parsed)]
+        if parents:
+            warnings.append(f"{p}: member {ref} already travels with {', '.join(parents)}; drop it")
+
+    if not missing and not unknown and text != json.dumps(data, indent=4, sort_keys=True) + "\n":
+        problems.append(f"{p}: not in the exporter's format (json.dumps(indent=4, sort_keys=True) "
+                        "plus a newline), so the next export would rewrite it")
+
+
 def main(root="."):
     os.chdir(root)
     problems = []
+    warnings = []
     metadata_files = sorted(glob.glob("*/*/*_metadata.json"))
     if not metadata_files:
         print("no metadata files found")
@@ -64,18 +170,28 @@ def main(root="."):
         top, folder, _ = p.replace("\\", "/").split("/")
         known[f"{top}/{folder}"] = p
 
+    parsed = {}
+    packages = []
     for p in metadata_files:
         p = p.replace("\\", "/")
         top, folder, fname = p.split("/")
         try:
-            data = json.load(open(p, encoding="utf-8"))
+            with open(p, encoding="utf-8") as fh:
+                text = fh.read()
+            data = json.loads(text)
         except Exception as e:  # noqa: BLE001
             problems.append(f"{p}: invalid JSON ({e})")
             continue
+        parsed[f"{top}/{folder}"] = data
         if fname != f"{folder}_metadata.json":
             problems.append(f"{p}: file name does not match folder {folder}")
         if data.get("id") and data["id"] != folder:
             problems.append(f"{p}: id {data['id']} does not match folder {folder}")
+        check_defaults(problems, p, data)
+        if top == "packages":
+            # Members are checked once every unit is parsed (see below).
+            packages.append((p, folder, data, text))
+            continue
 
         script = data.get("script_filename")
         if script and not os.path.exists(f"{top}/{folder}/{script}"):
@@ -98,7 +214,6 @@ def main(root="."):
                 if m and value not in known:
                     problems.append(f"{p}: reference {value} does not resolve")
 
-        check_defaults(problems, p, data)
         # Custom forms keep their definition as a JSON string; lint its defaults too.
         if top == "forms" and isinstance(data.get("json"), str):
             try:
@@ -106,9 +221,24 @@ def main(root="."):
             except Exception as e:  # noqa: BLE001
                 problems.append(f"{p}: form json field is not valid JSON ({e})")
 
+    names = {}
+    for p, folder, data, text in packages:
+        check_package(problems, warnings, p, folder, data, text, known, parsed)
+        if isinstance(data.get("name"), str):
+            names.setdefault(data["name"].strip().lower(), []).append(folder)
+    for folders in names.values():
+        if len(folders) > 1:
+            # The extension keys packages by id but refuses a second package with the same name.
+            problems.append(f"packages: {', '.join(folders)} share a name; an appliance can import only one")
+
     for msg in problems:
         print("PROBLEM:", msg)
-    print(f"checked {len(metadata_files)} metadata files, {len(problems)} problem(s)")
+    for msg in warnings:
+        print("WARNING:", msg)
+    summary = f"checked {len(metadata_files)} metadata files, {len(problems)} problem(s)"
+    if warnings:
+        summary += f", {len(warnings)} warning(s)"
+    print(summary)
     return 1 if problems else 0
 
 
