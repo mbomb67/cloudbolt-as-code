@@ -115,6 +115,12 @@ def run_export(job, package_id=None, source_code_repo_id=None, branch=None, comm
     failed = [r for r in members if r["status"] == "failure"]
     manifest = outcome["results"][-1]
     summary = "Pushed {} of {} members to {}, branch {}.".format(pushed, len(members), repo.label, branch)
+    if outcome["restored"]:
+        summary += " Restored {} README file{} the pushes deleted.".format(
+            len(outcome["restored"]), "" if len(outcome["restored"]) == 1 else "s"
+        )
+    elif outcome["restore_note"]:
+        summary += " " + outcome["restore_note"]
     if manifest["status"] != "success":
         return "FAILURE", summary, "The package manifest was not committed: {}".format(manifest["message"]), outcome
     if failed:

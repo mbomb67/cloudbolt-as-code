@@ -21,7 +21,7 @@
   </div>
   <div class="form-text mt-3">
     {% blocktrans with id=package.id count n=member_count %}Runs as a CloudBolt job: pushes {{ n }} member with CloudBolt's own Push to repository, then commits the package manifest to <span class="cpk-mono">packages/{{ id }}/</span>.{% plural %}Runs as a CloudBolt job: pushes {{ n }} members one at a time with CloudBolt's own Push to repository, then commits the package manifest to <span class="cpk-mono">packages/{{ id }}/</span>.{% endblocktrans %}
-    {% trans "Each push writes the member's whole folder and its plugins, shared modules and forms, as one commit. The details page shows the job and each member's result." %}
+    {% trans "Each push writes the member's whole folder and its plugins, shared modules and forms, as one commit. The push deletes READMEs; the manifest commit puts them back. The details page shows the job and each member's result." %}
   </div>
   {% if missing %}
   <div class="cpk-hint mt-2"><span class="cpk-tag cpk-tag-bad">{% trans "skipped" %}</span> {% trans "Not on this appliance:" %} {{ missing|join:", " }}</div>

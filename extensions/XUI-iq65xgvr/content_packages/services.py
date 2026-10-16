@@ -9,7 +9,10 @@ one member at a time rather than reimplementing them:
   dialogs; each push carries the member's plugins, shared modules and forms
   and re-points their Remote Source URLs. The package manifest is then
   committed to packages/<PKG-id>/ with the repository's own clone, commit and
-  push helpers.
+  push helpers. Each push deletes the member's folders before rewriting them,
+  which removes hand-written READMEs; the manifest commit puts back every
+  markdown file those pushes deleted, and any file such a README links to,
+  as it was on the branch before the export.
 - Sync creates one sourcecodereposync job per member, the job the
   syncFromRepo API and "Create from Repository" run, chained with prereq_job
   so members import one at a time and shared dependencies are never created
@@ -21,8 +24,10 @@ one member at a time rather than reimplementing them:
 """
 import json
 import os
+import posixpath
 import re
 from tempfile import TemporaryDirectory
+from urllib.parse import unquote, urlsplit
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -65,6 +70,15 @@ SYNC_KEYS = {
 # Sync order: libraries first, blueprints last (as sync_from_repo does), so
 # whatever a blueprint references is already in place when it imports.
 SYNC_ORDER = {"shared_modules": 0, "plugins": 1, "blueprints": 3}
+
+# Files a push deletes and never writes back, restored after an export: hand
+# written markdown, plus whatever such a file links to by relative path.
+DOC_SUFFIXES = (".md", ".markdown")
+DOC_LINK_RE = re.compile(r"""\]\(\s*<?([^)\s>]+)|\bsrc\s*=\s*["']([^"']+)["']""")
+
+# Where a branch the first push creates is cut from: the remote's default
+# branch, as prepare_repo_from_url_and_branch does.
+DEFAULT_BRANCH_REFS = ("origin/HEAD", "origin/main", "origin/master")
 
 
 # ---------------------------------------------------------------------------
@@ -200,12 +214,72 @@ def _push_member(service, obj, branch, message):
     return service.push_action_to_remote_source(obj, branch, message)
 
 
+def _commit_marker(package):
+    """Text every commit of a package export carries in its message."""
+    return "Content package {} ({}):".format(package["name"], package["id"])
+
+
+def _export_base(repo, branch):
+    """The commit an export starts from, read before the first push: the
+    branch's tip, or the default branch's tip when the first push will create
+    the branch. None when the repository cannot be read; READMEs are then not
+    restored."""
+    try:
+        branches = repo.get_branches()  # fetches the global clone
+        clone = repo.get_global_clone()
+    except Exception:
+        logger.exception("Could not read %s before exporting", repo.label)
+        return None
+    candidates = ["origin/{}".format(branch)] if branch in branches else list(DEFAULT_BRANCH_REFS)
+    for ref in candidates:
+        try:
+            return clone.git.rev_parse("--verify", ref + "^{commit}")
+        except Exception:
+            continue
+    logger.warning("Found none of %s in %s; READMEs will not be restored", ", ".join(candidates), repo.label)
+    return None
+
+
+def _doc_links(text, path):
+    """Repository paths that markdown at path links to by relative path."""
+    found = set()
+    for match in DOC_LINK_RE.finditer(text):
+        parts = urlsplit(match.group(1) or match.group(2))
+        if parts.scheme or parts.netloc or not parts.path:
+            continue
+        base = "" if parts.path.startswith("/") else posixpath.dirname(path)
+        found.add(posixpath.normpath(posixpath.join(base, unquote(parts.path).lstrip("/"))))
+    return found
+
+
+def restore_docs(clone, base, package):
+    """Put back, in clone's working tree, the markdown files this package's
+    export commits deleted after base, and the files those link to, as they
+    were at base. Files deleted by anyone else's commits stay deleted.
+    Returns the restored paths."""
+    output = clone.git.log(
+        "-z", "--no-renames", "--format=", "--name-only", "--diff-filter=D",
+        "--fixed-strings", "--grep", _commit_marker(package), "{}..HEAD".format(base),
+    )
+    deleted = {p for p in re.split(r"[\0\n]", output) if p}
+    gone = {p for p in deleted if not os.path.lexists(os.path.join(clone.working_dir, p))}
+    docs = {p for p in gone if p.lower().endswith(DOC_SUFFIXES)}
+    linked = set()
+    for path in docs:
+        linked |= _doc_links(clone.git.show("{}:{}".format(base, path)), path) & gone
+    restored = sorted(docs | linked)
+    if restored:
+        clone.git.checkout(base, "--", *restored)
+    return restored
+
+
 def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
-    manifest (and a README the first time) to packages/<PKG-id>/. A member
-    that fails does not stop the others. progress, when given, is called with
-    one line per step (the export job passes job.set_progress). Returns the
-    outcome: one result per member plus the manifest, and the PR link."""
+    manifest (and a README the first time) to packages/<PKG-id>/, together
+    with the READMEs the pushes deleted. A member that fails does not stop
+    the others. progress, when given, is called with one line per step (the
+    export job passes job.set_progress). Returns the outcome: one result per
+    member plus the manifest, the restored files, and the PR link."""
     report = progress or (lambda message: None)
     branch = check_branch(branch)
     commit_message = (commit_message or "").strip()
@@ -215,6 +289,12 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
     service = SourceCodeRepoService(repo, profile)
     refs = list(package.get("contents") or [])
     resolved = store.resolve_refs(refs)
+    base = _export_base(repo, branch)
+    restore_note = "" if base else "Could not read the branch before the export, so READMEs were not restored."
+    if base:
+        report("Starting from commit {} of {}".format(base[:12], branch))
+    else:
+        report(restore_note)
 
     results = []
     for ref in refs:
@@ -227,8 +307,9 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
             report("Skipped {}: not on this appliance".format(ref))
             continue
         row["name"] = member_type.name_of(obj)
-        detail = "{}\n\nContent package {} ({}): {} {} ({})".format(
-            commit_message, package["name"], package["id"], member_type.singular, row["name"], global_id
+        # restore_docs finds this export's commits by the marker.
+        detail = "{}\n\n{} {} {} ({})".format(
+            commit_message, _commit_marker(package), member_type.singular, row["name"], global_id
         )
         report("Pushing {} {} ({})".format(member_type.singular, row["name"], global_id))
         try:
@@ -245,9 +326,19 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
     manifest_row = {"ref": folder, "type_title": "Package manifest", "prefix": "PKG", "name": package["name"]}
     remote_url = repo.get_repo_url_for_file(branch, manifest_path)
     report("Committing the package manifest to {}".format(manifest_path))
+    restored = []
     try:
         with TemporaryDirectory(dir=settings.REPO_DIR) as repo_dir:
             clone = repo.prepare_repo_from_url_and_branch(branch, profile, repo_dir=repo_dir)
+            if base:
+                try:
+                    restored = restore_docs(clone, base, package)
+                except Exception as exc:
+                    logger.exception("Could not restore the READMEs of the %s export", package["id"])
+                    restore_note = "READMEs were not restored: {}".format(strip_tags(str(exc)) or type(exc).__name__)
+                    report(restore_note)
+                for path in restored:
+                    report("  restoring {}".format(path))
             target = os.path.join(clone.working_dir, PACKAGES_DIR, package["id"])
             os.makedirs(target, exist_ok=True)
             with open(os.path.join(target, "{}_metadata.json".format(package["id"])), "w") as stream:
@@ -256,16 +347,17 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
             if not os.path.exists(readme):
                 with open(readme, "w") as stream:
                     stream.write(_readme(package, resolved))
-            repo.commit_and_push(
-                branch,
-                "{}\n\nContent package {} ({}): manifest".format(commit_message, package["name"], package["id"]),
-                profile,
-                repo_dir=repo_dir,
-            )
+            message = "{}\n\n{} manifest".format(commit_message, _commit_marker(package))
+            if restored:
+                message += "\n\nRestores the READMEs the pushes deleted:\n{}".format("\n".join(restored))
+            repo.commit_and_push(branch, message, profile, repo_dir=repo_dir)
     except Exception as exc:
         logger.exception("Export of the %s manifest failed", package["id"])
         manifest_row.update(status="failure", message=strip_tags(str(exc)) or type(exc).__name__)
         report("  failed: {}".format(manifest_row["message"]))
+        if restored:
+            restore_note = "The READMEs the pushes deleted were not restored because the manifest commit failed."
+        restored = []
     else:
         manifest_row.update(status="success", message="Committed {}.".format(manifest_path))
         store.record_export(package["id"], repo.id, branch, remote_url)
@@ -284,6 +376,8 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         "pr_term": getattr(repo, "pull_request_term", "Pull Request"),
         "service_name": getattr(repo, "service_name", ""),
         "manifest_url": remote_url if manifest_row["status"] == "success" else "",
+        "restored": restored,
+        "restore_note": restore_note,
     }
 
 

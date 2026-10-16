@@ -5,7 +5,8 @@ from . import views
 # The list page itself is the admin extension, served by CloudBolt at
 # /extensions/admin/content_packages/packages.
 xui_urlpatterns = [
-    # Details page and the dependency panel it loads asynchronously
+    # Details page and the dependency panel and README list it loads
+    # asynchronously
     path(
         "xui/content_packages/packages/<str:pkg_id>/",
         views.package_detail,
@@ -15,6 +16,11 @@ xui_urlpatterns = [
         "xui/content_packages/packages/<str:pkg_id>/dependencies/",
         views.dependencies_panel,
         name="content_packages_dependencies",
+    ),
+    path(
+        "xui/content_packages/packages/<str:pkg_id>/docs/",
+        views.package_docs,
+        name="content_packages_docs",
     ),
     # Dialogs
     path(
@@ -46,6 +52,11 @@ xui_urlpatterns = [
         "xui/content_packages/dialogs/import/",
         views.package_import,
         name="content_packages_import",
+    ),
+    path(
+        "xui/content_packages/dialogs/readme/<str:global_id>/",
+        views.readme_dialog,
+        name="content_packages_readme",
     ),
     # JSON API: CB Admin, session auth with CSRF
     path(
