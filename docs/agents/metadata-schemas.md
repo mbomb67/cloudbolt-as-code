@@ -460,6 +460,7 @@ The base `OrchestrationHook` has no import mapping — a file with `type: "Orche
 | `minimum_version_required` | string | `"8.6"` | |
 | `maximum_version_required` | string | `""` | |
 | `target_os_families` | array[string] | `[]` | CloudBoltHook/CopyFile/RemoteScript only. |
+| `parameters` | array[object] | — | `[{"label","name","description","type"}]` (`type` is the display name, e.g. `"String"`). On import every entry whose `name` is an existing parameter is linked to the plugin (`hook.custom_fields`, `BaseActionSerializer.create_resource_from_metadata`); this is how a Generated Parameter Options plugin reaches a global parameter that no blueprint carries. Export writes it only with instance-specific info. Example: `plugins/OHK-z9qrccyu`. |
 | `resource_technologies` | array[string] | `[]` | |
 | `action_inputs` | array[object] | — | Snake_case keys (see Universal Rules §0). |
 | `action_inputs_sequence` | array[string] | `[]` | |

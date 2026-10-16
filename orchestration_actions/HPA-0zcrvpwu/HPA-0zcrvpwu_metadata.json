@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-z9qrccyu"
+    },
+    "description": "Turns the domain_ou parameter into a type-ahead that lists matching Active Directory OUs once the user types three characters.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-0zcrvpwu",
+    "last_updated": null,
+    "name": "Suggest Domain OUs",
+    "run_on_statuses": "",
+    "run_seq": null
+}

@@ -1,0 +1,18 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-gcba1u31"
+        ]
+    },
+    "description": "Joins a Windows server to the Active Directory domain of its domain_to_join LDAP Utility with Add-Computer, in its domain_ou, then waits for the restart and verifies the secure channel.",
+    "id": "OHK-9oqn6pur",
+    "max_retries": 0,
+    "name": "Join Windows Server to AD Domain",
+    "resource_technologies": [],
+    "script_filename": "OHK-9oqn6pur_script.py",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "CloudBolt Plug-in"
+}

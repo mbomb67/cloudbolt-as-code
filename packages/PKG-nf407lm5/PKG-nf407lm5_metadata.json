@@ -1,0 +1,14 @@
+{
+    "contents": [
+        "orchestration_actions/HPA-0zcrvpwu",
+        "orchestration_actions/HPA-jjp1vlfi",
+        "orchestration_actions/HPA-q181uofy"
+    ],
+    "description": "Joins provisioned Windows servers to the Active Directory domain of their domain_to_join LDAP Utility, with a type-ahead OU picker for domain_ou and deletion of the computer object at decommission.",
+    "id": "PKG-nf407lm5",
+    "last_updated": "2026-10-16",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Windows AD Domain Join",
+    "version": "1.0.0"
+}
