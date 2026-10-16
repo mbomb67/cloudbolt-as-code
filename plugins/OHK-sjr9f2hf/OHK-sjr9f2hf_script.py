@@ -14,6 +14,7 @@ find each disk: a serial number, a SCSI target, a LUN. Running the job again doe
 not add disks twice.
 """
 import ast
+import html
 import json
 import re
 
@@ -41,7 +42,8 @@ RESERVED_TREES = ("/boot/", "/dev/", "/proc/", "/run/", "/sys/")
 
 
 def _parse_rows(raw):
-    raw = (raw or "").strip()
+    # API orders store the text HTML-escaped (&quot;); a form order stores a Python literal.
+    raw = html.unescape(raw or "").strip()
     if not raw:
         raise ValueError("no rows were submitted; add at least one disk")
     try:
