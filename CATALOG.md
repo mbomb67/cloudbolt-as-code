@@ -5,7 +5,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Packages](#packages) | 2 |
+| [Packages](#packages) | 3 |
 | [Blueprints](#blueprints) | 27 |
 | [Resource actions](#resource-actions) | 37 |
 | [Server actions](#server-actions) | 1 |
@@ -27,6 +27,7 @@ Named sets of content that the Content Package Manager extension (`extensions/XU
 |---|---|---|---|---|
 | AWS EKS | [PKG-bo8ensty](packages/PKG-bo8ensty/README.md) | Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [AWS EKS](blueprints/BP-r5apcf7e/README.md) (blueprint), [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) (blueprint), [AWS EKS Cluster](extensions/XUI-8a1jocmr/README.md) (UI extension) |
 | Data Disks from a Disk Map | [PKG-zny1ynfs](packages/PKG-zny1ynfs/README.md) | Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest. | 1.0.0 | [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Windows)](orchestration_actions/HPA-42uy9dyo/README.md) (orchestration action), [Configure Data Disks from Disk Map (Oracle Linux)](orchestration_actions/HPA-4ptcwgg4/README.md) (orchestration action), [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) (blueprint) |
+| HCP Terraform | [PKG-0bo7vlxp](packages/PKG-0bo7vlxp/README.md) | Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs. | 1.0.0 | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) (blueprint), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) (blueprint), [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) (blueprint), [Form Options](webhooks/IWH-yj93is5z/) (webhook), [HCP Terraform Workspace](extensions/XUI-ax1sluwi/README.md) (UI extension) |
 
 ## Blueprints
 

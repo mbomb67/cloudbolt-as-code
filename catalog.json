@@ -15,7 +15,10 @@
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-0bo7vlxp"
+    ]
   },
   {
     "id": "BP-122nbdt5",
@@ -105,7 +108,10 @@
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-e59s1v24"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-0bo7vlxp"
+    ]
   },
   {
     "id": "BP-b91c5f90",
@@ -399,7 +405,10 @@
       "resource_actions/RSA-dxrh4m6j",
       "resource_actions/RSA-pngq92ss"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-0bo7vlxp"
+    ]
   },
   {
     "id": "BP-zmeot1ff",
@@ -488,7 +497,10 @@
     "readme": "extensions/XUI-ax1sluwi/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-0bo7vlxp"
+    ]
   },
   {
     "id": "XUI-i4kzuy3y",
@@ -1147,6 +1159,24 @@
     "used_by": [],
     "hook_point": "Post-Provision",
     "enabled": false
+  },
+  {
+    "id": "PKG-0bo7vlxp",
+    "type": "packages",
+    "name": "HCP Terraform",
+    "description": "Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs.",
+    "path": "packages/PKG-0bo7vlxp",
+    "readme": "packages/PKG-0bo7vlxp/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "blueprints/BP-b0qm83lh",
+      "blueprints/BP-00meiwwz",
+      "blueprints/BP-uh9v24v3",
+      "webhooks/IWH-yj93is5z",
+      "extensions/XUI-ax1sluwi"
+    ]
   },
   {
     "id": "PKG-bo8ensty",
@@ -4033,6 +4063,9 @@
       "plugins/OHK-fx500o2r"
     ],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-0bo7vlxp"
+    ]
   }
 ]
