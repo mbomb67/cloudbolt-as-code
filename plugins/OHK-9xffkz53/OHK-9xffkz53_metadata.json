@@ -25,7 +25,6 @@
     ],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-9h13o859",
             "shared_modules/SHM-jlguerjr"
         ]
     },

@@ -64,7 +64,7 @@
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
-            "hide_if_default_value": true,
+            "hide_if_default_value": false,
             "id": "CF-y79wklhu",
             "label": "TF Cloud Connection",
             "name": "tfc_connection_info",
@@ -165,9 +165,8 @@
     ],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-9h13o859",
-            "shared_modules/SHM-jlguerjr",
-            "shared_modules/SHM-r0oq14r7"
+            "shared_modules/SHM-r0oq14r7",
+            "shared_modules/SHM-jlguerjr"
         ]
     },
     "description": "Provisions a VM through HCP Terraform into a chosen CloudBolt environment's Azure subscription, in a dedicated workspace with a plan-approval pause before apply.",

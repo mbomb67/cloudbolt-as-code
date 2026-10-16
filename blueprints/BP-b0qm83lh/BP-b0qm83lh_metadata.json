@@ -27,31 +27,33 @@
     "description": "Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply.",
     "favorited": false,
     "has_custom_form": true,
-    "icon": "terraform_q83MTYB_XnNGUg2.png",
+    "icon": "terraform_q83MTYB_XnNGUg2_DRY2bjq.png",
     "id": "BP-b0qm83lh",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-07-16",
+    "last_updated": "2026-10-16",
     "management_actions": [
-        {
-            "dependencies": {
-                "resource_action": "resource_actions/RSA-dxrh4m6j"
-            },
-            "enabled": true,
-            "label": "Terraform Update"
-        },
         {
             "dependencies": {
                 "resource_action": "resource_actions/RSA-e59s1v24"
             },
             "enabled": true,
             "label": "Resize"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-dxrh4m6j"
+            },
+            "enabled": true,
+            "label": "Terraform Update"
         }
     ],
     "metadata_version": "2026.1.0",
     "name": "HCP Terraform VM",
     "resource_name_template": null,
     "resource_type": {
+        "categories": [],
+        "description": null,
         "icon": "fas fa-cloud",
         "id": "RT-lgz3aozx",
         "internal_only": false,
