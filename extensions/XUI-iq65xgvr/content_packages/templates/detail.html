@@ -82,13 +82,14 @@
       <div class="cpk-card-b">
         {% if row.members %}
         <div class="table-responsive">
-          <table id="cpkx-members-table" class="cpk-table">
+          <table id="cpkx-members-table" class="cpk-table" data-cpk-docs-src="{{ docs_url }}">
             <thead>
               <tr>
                 <th>{% trans "Type" %}</th>
                 <th>{% trans "Name" %}</th>
                 <th>{% trans "Remote source" %}</th>
                 <th>{% trans "State" %}</th>
+                <th><span class="visually-hidden">{% trans "Documentation" %}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -115,6 +116,13 @@
                     <span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "On" %} {{ row.repository.branch }}</span>
                   {% else %}
                     <span class="cpk-muted">&mdash;</span>
+                  {% endif %}
+                </td>
+                <td class="cpk-nowrap text-end">
+                  {% if m.exists %}
+                  <a class="btn btn-sm btn-outline-secondary open-dialog d-none" data-cpk-doc="{{ m.ref }}" href="{% url 'content_packages_readme' m.global_id %}" data-dialog-width="960px">
+                    <i class="bi bi-file-earmark-text" aria-hidden="true"></i> {% trans "Display documentation" %}
+                  </a>
                   {% endif %}
                 </td>
               </tr>
@@ -172,6 +180,14 @@
             </tbody>
           </table>
         </div>
+        {% if e.restored %}
+        <div class="cpk-note pb-3">
+          {% blocktrans count n=e.restored|length %}Restored {{ n }} README file the pushes deleted:{% plural %}Restored {{ n }} README files the pushes deleted:{% endblocktrans %}
+          <span class="cpk-mono">{{ e.restored|join:", " }}</span>
+        </div>
+        {% elif e.restore_note %}
+        <div class="cpk-note pb-3"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {{ e.restore_note }}</div>
+        {% endif %}
         {% elif e.active %}
         <div class="cpk-loading"><i class="bi bi-arrow-repeat cpk-spin" aria-hidden="true"></i> {% trans "The export job is running; the job page shows each member as it is pushed. Refresh for the results." %}</div>
         {% elif e.errors %}

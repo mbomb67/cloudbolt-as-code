@@ -16,6 +16,7 @@
         <th>{% trans "Name" %}</th>
         <th>{% trans "Repository folder" %}</th>
         <th>{% trans "Pulled in by" %}</th>
+        <th><span class="visually-hidden">{% trans "Documentation" %}</span></th>
       </tr>
     </thead>
     <tbody>
@@ -28,6 +29,13 @@
         </td>
         <td class="cpk-mono">{{ d.path }}/</td>
         <td>{{ d.via|join:", " }}</td>
+        <td class="cpk-nowrap text-end">
+          {% if d.has_readme %}
+          <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'content_packages_readme' d.global_id %}" data-dialog-width="960px">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i> {% trans "Display documentation" %}
+          </a>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

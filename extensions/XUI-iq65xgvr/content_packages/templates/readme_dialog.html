@@ -1,0 +1,27 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "content_packages/templates/_assets.html" %}
+<div class="cpkx cpk-dialog">
+  {% if error %}
+  <div class="cpk-alert"><i class="bi bi-info-circle" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% else %}
+  <div class="cpk-readme-src">
+    <span><i class="bi bi-file-earmark-text" aria-hidden="true"></i> <span class="cpk-mono">{{ readme.path }}</span></span>
+    <span>{% url 'source_code_repo_detail' readme.repo_id as repo_url %}<a href="{{ repo_url }}">{{ readme.repo_label }}</a> &middot; {% trans "branch" %} <span class="cpk-mono">{{ readme.branch }}</span></span>
+    {% if readme.web_url %}
+    <a class="cpk-readme-out" href="{{ readme.web_url }}" target="_blank" rel="noopener noreferrer">
+      <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% blocktrans with service=readme.service_name %}Open in {{ service }}{% endblocktrans %}
+    </a>
+    {% endif %}
+  </div>
+  {% if readme.truncated %}
+  <div class="cpk-hint mb-3">{% trans "This README is longer than 512 KB; only the start is shown." %}</div>
+  {% endif %}
+  <div class="cpk-md">{{ readme.html }}</div>
+  {% endif %}
+</div>
+{% endblock non_form_content %}
+
+{% block form_content %}{% endblock form_content %}

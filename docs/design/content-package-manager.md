@@ -254,6 +254,49 @@ Known behavior applies here: an appliance export rewrites every
 member folder, including hand-authored READMEs and form fields. Export always
 goes to a branch and the PR diff is the review step.
 
+#### Keeping READMEs through an export
+
+Why they disappear (CloudBolt v2026.3.83): every flattened export deletes the
+unit's folder before writing it (`shutil.rmtree` in
+`service_blueprint_import_export_mixin.py:2542`, `action_base.py:355`,
+`orchestration_hook.py:934` for plugins and shared modules,
+`custom_forms.py:325` for forms), and `SourceCodeRepo.commit` stages with
+`git add -A` (`source_code_repos/models.py:812`), so the deletion is
+committed. Export, commit and push all happen inside one
+`push_to_remote_source` call, so nothing can run between them. UI extensions
+are the exception: only `<XUI-id>/<package>/` is replaced, so the README beside
+the metadata survives. Filed as CMPITK-1424.
+
+Built (`services.restore_docs`): keep the OOB push and undo its README
+deletions in the manifest commit the export already makes.
+
+1. Before the first push, fetch the global clone and record the base: the
+   SHA of `origin/<branch>`, or of the default branch (`origin/HEAD`) when the
+   push will create the branch. If neither can be read, nothing is restored
+   and the job says so.
+2. Push the members unchanged.
+3. In the manifest clone, list files deleted between the base and `HEAD` by
+   this export's own commits (`git log --diff-filter=D --name-only base..HEAD
+   --fixed-strings --grep "Content package <name> (<PKG-id>):"`), keep the
+   `*.md` files still missing at `HEAD` and the files those READMEs link to
+   relatively (diagrams), and restore them with `git checkout <base> -- <paths>`.
+4. Commit them with the manifest and report the restored paths in the job
+   output and on the details page's Last export card.
+
+The PR's net diff then shows no README deletions; the member commits still
+show the delete, and a squash merge hides it. Restoring only deletions made
+by this export's commits leaves a README someone else deleted on the branch
+alone.
+
+Rejected: re-implementing the push to make one clean commit (duplicates
+`push_to_remote_source`'s remote-URL, history and alert bookkeeping);
+patching `SourceCodeRepo.commit` during the export (the job engine runs jobs
+as threads in one process, so the patch would leak into other pushes); moving
+READMEs out of the content folders (the Git host stops showing them with the
+folder). An export from CloudBolt's own Push to repository buttons bypasses
+the extension, so a repo-side CI check that names deleted READMEs and the
+`git checkout` that restores them is the complement.
+
 ### Sync (refresh the appliance from the package's home branch)
 
 1. Group `contents` by top-level dir and map to the sync keys:
