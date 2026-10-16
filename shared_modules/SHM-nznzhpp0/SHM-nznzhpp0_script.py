@@ -115,7 +115,7 @@ from infrastructure.models import CustomField, Environment, Namespace
 from jobs.models import Job
 from orders.models import CustomFieldValue
 from resourcehandlers.models import ResourceTechnology
-from servicecatalog.models import ServiceBlueprint
+from servicecatalog.models import RunCloudBoltHookServiceItem, ServiceBlueprint, TearDownServiceItem
 from utilities.events import add_server_event
 from utilities.logger import ThreadLogger
 
@@ -356,13 +356,18 @@ def _special_purpose_hook_ids():
     """
     Plug-ins that serve another purpose and are no use as a step: generated
     options, display conditions, blueprint discovery, inbound webhooks, MCP
-    tools and recurring jobs.
+    tools and recurring jobs, plus blueprint build and teardown items and
+    resource actions, which expect a resource, unless a server action or an
+    orchestration action also runs them.
     """
-    ids = set(
-        HookPointAction.objects.filter(hook_point__name="generated_custom_field_options").values_list(
-            "hook_id", flat=True
-        )
-    )
+    generated = HookPointAction.objects.filter(hook_point__name="generated_custom_field_options")
+    ids = set(generated.values_list("hook_id", flat=True))
+    resource_side = set(RunCloudBoltHookServiceItem.objects.values_list("hook_id", flat=True))
+    resource_side.update(TearDownServiceItem.objects.values_list("hook_id", flat=True))
+    resource_side.update(ResourceAction.objects.values_list("hook_id", flat=True))
+    server_side = set(ServerAction.objects.values_list("hook_id", flat=True))
+    server_side.update(HookPointAction.objects.exclude(pk__in=generated).values_list("hook_id", flat=True))
+    ids.update(resource_side - server_side)
     ids.update(ServerAction.objects.exclude(condition=None).values_list("condition_id", flat=True))
     ids.update(ResourceAction.objects.exclude(condition=None).values_list("condition_id", flat=True))
     ids.update(ServiceBlueprint.objects.exclude(discovery_plugin=None).values_list("discovery_plugin_id", flat=True))
