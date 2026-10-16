@@ -1,52 +1,29 @@
 """
-Export as a CloudBolt job.
+Export and parameter sync as CloudBolt jobs.
 
 start_export() runs in the web request. It checks the request, makes sure the
-export plugin exists, and starts it with OrchestrationHook.run_as_job, the
-call CloudBolt uses to run any plugin as a job. The plugin is a CloudBoltHook
-whose module file is this extension's export_job.py, by absolute path (the
-way CloudBolt's own built-in actions point at their files). It is created the
-first time anyone exports, and re-pointed if the extension ever moves.
+export plugin exists (hooks.py), and starts it with
+OrchestrationHook.run_as_job, the call CloudBolt uses to run any plugin as a
+job.
 
 run_export() runs inside that job. It pushes the package through
 services.export_package, reports each member as job progress, and returns
 the per-member results as the job's outputs. The job runs as the user who
 clicked Export, so pushes use that user's repository credentials.
+
+run_parameter_sync() runs inside the job services.sync_package queues for a
+parameter member, once the jobs before it in the package's sync chain have
+finished. It reads the parameter's metadata from the branch and creates or
+updates the parameter through parameters.import_metadata.
 """
-import os
-
-from cbhooks.models import CloudBoltHook
 from jobs.models import Job
+from utilities.logger import ThreadLogger
 
-from xui.content_packages import services, store
+from xui.content_packages import hooks, parameters, services, store
 
-HOOK_NAME = "Content Package Manager: Export"
-HOOK_DESCRIPTION = (
-    "Pushes a content package to a repository. Created and run by the Content Package Manager UI "
-    "extension; its code is the extension's export_job.py, so do not edit or delete it here."
-)
+logger = ThreadLogger(__name__)
 
 ACTIVE_STATUSES = ("INIT", "PENDING", "QUEUED", "RUNNING", "PAUSED", "STEP", "NEXT", "RETURN", "TO_CANCEL")
-
-
-def hook_file():
-    """Absolute path of export_job.py in the installed extension."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_job.py")
-
-
-def export_hook():
-    """The export plugin, created on first use and kept pointing at this
-    extension's export_job.py."""
-    path = hook_file()
-    hook = CloudBoltHook.objects.filter(name=HOOK_NAME).first()
-    if hook is None:
-        hook = CloudBoltHook(name=HOOK_NAME, description=HOOK_DESCRIPTION, shared=False)
-        hook.module_file = path
-        hook.save()
-    elif str(hook.module_file) != path:
-        hook.module_file = path
-        hook.save()
-    return hook
 
 
 def running_export(package):
@@ -70,7 +47,7 @@ def start_export(package, repo, branch, commit_message, profile):
         raise store.PackageError(
             "Job {} is still exporting this package; wait for it to finish.".format(running.id)
         )
-    created = export_hook().run_as_job(
+    created = hooks.export_hook().run_as_job(
         owner=profile,
         context={
             "package_id": package["id"],
@@ -110,11 +87,12 @@ def run_export(job, package_id=None, source_code_repo_id=None, branch=None, comm
     except store.PackageError as exc:
         return "FAILURE", "", str(exc)
 
-    members = [r for r in outcome["results"] if r["prefix"] != "PKG"]
-    pushed = sum(1 for r in members if r["status"] == "success")
-    failed = [r for r in members if r["status"] == "failure"]
+    # Rows with "via" are generated-options actions pushed for a parameter.
+    members = [r for r in outcome["results"] if r["prefix"] != "PKG" and not r.get("via")]
+    exported = sum(1 for r in members if r["status"] == "success")
+    failed = [r for r in outcome["results"] if r["status"] == "failure" and r["prefix"] != "PKG"]
     manifest = outcome["results"][-1]
-    summary = "Pushed {} of {} members to {}, branch {}.".format(pushed, len(members), repo.label, branch)
+    summary = "Exported {} of {} members to {}, branch {}.".format(exported, len(members), repo.label, branch)
     if outcome["restored"]:
         summary += " Restored {} README file{} the pushes deleted.".format(
             len(outcome["restored"]), "" if len(outcome["restored"]) == 1 else "s"
@@ -127,3 +105,36 @@ def run_export(job, package_id=None, source_code_repo_id=None, branch=None, comm
         errors = "; ".join("{} ({}): {}".format(r["name"], r["ref"], r["message"]) for r in failed)
         return "WARNING", summary, errors, outcome
     return "SUCCESS", summary, "", outcome
+
+
+def run_parameter_sync(job, package_id=None, ref=None, source_code_repo_id=None, branch=None,
+                       refresh_if_exists=True, **kwargs):
+    """Plugin entry point (via parameter_job.py) for one parameter member."""
+    def progress(message):
+        if job is not None:
+            job.set_progress(message)
+
+    try:
+        member_type, global_id = store.parse_ref(ref)
+        if member_type.synced:
+            raise store.PackageError("{} is not a parameter.".format(ref))
+        branch = services.check_branch(branch)
+        repo, clone = services.branch_clone(services.get_repo(source_code_repo_id), branch)
+        progress("Reading {} from {}, branch {}".format(parameters.metadata_path(global_id), repo.label, branch))
+        data = parameters.read_metadata(clone, branch, global_id)
+        progress("Creating or updating parameter {}".format(data["name"]))
+        cf, outcome, notes = parameters.import_metadata(data, refresh_if_exists)
+    except store.PackageError as exc:
+        return "FAILURE", "", str(exc)
+    except Exception as exc:
+        logger.exception("Sync of parameter %s failed", ref)
+        return "FAILURE", "", "Could not create or update the parameter: {}".format(str(exc) or type(exc).__name__)
+    store.record_alias(ref, cf.global_id)
+    summary = "Parameter {} ({}) {} from {}, branch {}.".format(cf.name, cf.global_id, outcome, repo.label, branch)
+    if cf.global_id != global_id:
+        summary += " It kept its own global ID; package {} now resolves {} to it.".format(package_id or "", ref)
+    for note in notes:
+        progress(note)
+    if notes:
+        return "WARNING", summary, " ".join(notes)
+    return "SUCCESS", summary, ""

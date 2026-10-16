@@ -34,6 +34,9 @@
   {% if has_extensions %}
   <div class="form-text">{% trans "A UI extension that adds URL paths needs a web server restart after it syncs." %}</div>
   {% endif %}
+  {% if has_parameters %}
+  <div class="form-text">{% trans "Each parameter syncs after the actions, from its parameters/ folder on the branch: a job of this extension creates it, or updates the parameter with the same name (only when refreshing), then links its generated-options actions, which sync just before it. Environment and group assignments are not part of the package." %}</div>
+  {% endif %}
 </div>
 {% endblock form_content %}
 
