@@ -1415,7 +1415,9 @@ def run_workflow(workflow, server, prompted, job=None):
                 break
             delay = int(step.data.get("retry_delay") or 0)
             if job is not None:
-                job.set_progress(f"{step.label} failed (attempt {attempt} of {attempts}): {error}. Retrying in {delay}s.")
+                job.set_progress(
+                    f"{step.label} failed (attempt {attempt} of {attempts}): {error.rstrip('.')}. Retrying in {delay}s."
+                )
             time.sleep(delay)
         record["seconds"] = round(time.time() - started)
         record["attempts"] = max(attempts, 1)
