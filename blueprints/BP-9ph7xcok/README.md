@@ -25,7 +25,7 @@ The guest scripts never know the hypervisor. The `data_disk_mapping` shared modu
 | Handler | What the provider records | Status |
 |---|---|---|
 | vCenter (`vmware`) | VMDK UUID as serial (needs `disk.EnableUUID = TRUE`), unit number as SCSI target, LUN 0 | Mocked only |
-| Azure (`azure_arm`) | Data disk LUN | Live test in progress |
+| Azure (`azure_arm`) | Data disk LUN; refuses an order the VM size cannot hold before adding any disk | Tested on a lab appliance (Windows Server 2022, Oracle Linux 8) |
 | Nutanix AHV (`acropolis`) | Disk UUID as serial (the AHV guest serial embeds the vmdisk UUID), device index as LUN on target 0 | Untested: verify on a cluster |
 | Any other handler that can add disks | Nothing; the guest matches by attach order and size | — |
 
@@ -44,4 +44,5 @@ To support another handler, subclass `DiskProvider` in `shared_modules/SHM-iobsa
 - Drive letters D to Z are offered; letters must be unique. Azure VM sizes with a temporary disk already use D:. Sizes are whole GB from 1 to 16384. Labels are up to 32 characters.
 - Re-running the build is safe: attached rows are not added again, and letters that already carry the requested label are reported as already configured.
 - On vCenter, disks go on the VM's `vmware_datastore` (or the OS disk's datastore) with the server's `vmware_disk_type` (thin by default), on the first SCSI controller with a free unit.
+- Each Azure VM size caps its data disks (Standard_B1s takes 2), so pick a size that holds the rows ordered.
 - No teardown items; deleting the resource deletes the VM and its disks.
