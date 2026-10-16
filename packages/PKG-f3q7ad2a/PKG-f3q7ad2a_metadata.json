@@ -1,0 +1,15 @@
+{
+    "contents": [
+        "blueprints/BP-uh9v24v3",
+        "blueprints/BP-00meiwwz",
+        "blueprints/BP-b0qm83lh",
+        "extensions/XUI-ax1sluwi"
+    ],
+    "description": "",
+    "id": "PKG-f3q7ad2a",
+    "last_updated": "2026-10-16",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "HCP Terraform",
+    "version": "1.0.0"
+}
