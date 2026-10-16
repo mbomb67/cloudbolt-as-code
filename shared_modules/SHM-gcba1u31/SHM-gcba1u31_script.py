@@ -45,22 +45,46 @@ def utilities():
     return list(LDAPUtility.objects.all())
 
 
-def domain_dn(domain):
-    """The naming context of a DNS domain name: corp.example.com -> DC=corp,DC=example,DC=com."""
-    labels = [label for label in str(domain).strip().strip(".").split(".") if label]
-    return ",".join("DC=" + label for label in labels)
+def naming_context(conn):
+    """
+    The domain naming context of the directory conn is bound to: the
+    defaultNamingContext attribute of its root DSE, e.g. DC=corp,DC=example,DC=com.
+    Empty when the server does not publish one.
+    https://learn.microsoft.com/en-us/windows/win32/adschema/rootdse
+    """
+    try:
+        entries = conn.search_ext_s("", ldap.SCOPE_BASE, "(objectClass=*)", ["defaultNamingContext"])
+    except ldap.LDAPError:
+        return ""
+    for _, entry in entries:
+        values = (entry or {}).get("defaultNamingContext")
+        if values:
+            return values[0].decode("utf-8")
+    return ""
 
 
-def search_base(ldap_utility):
+# search_base per LDAP Utility for the life of the process (a job, or a web worker).
+_BASES = {}
+
+
+def search_base(ldap_utility, conn=None):
     """
-    Where to search: the root of the utility's domain, so OUs and computers
-    outside a narrower Base DN set for user sign-in are still found. A Domain
-    field that is not a DNS name falls back to the utility's Base DN.
+    Where to search: the root of the domain the utility's directory server
+    holds, read from the server itself, so OUs and computers outside a narrower
+    Base DN set for user sign-in are still found. The utility's Domain field is
+    not used: it is often a sign-in or e-mail domain, not the AD domain name.
+    Falls back to the Base DN when the server publishes no naming context.
     """
-    domain = (ldap_utility.ldap_domain or "").strip()
-    if "." in domain:
-        return domain_dn(domain)
-    return ldap_utility.base_dn
+    key = (ldap_utility.id, ldap_utility.ip, ldap_utility.port, ldap_utility.base_dn)
+    if key not in _BASES:
+        own = conn or connect(ldap_utility)
+        try:
+            base = naming_context(own)
+        finally:
+            if conn is None:
+                own.unbind_s()
+        _BASES[key] = base or ldap_utility.base_dn
+    return _BASES[key]
 
 
 def dn_domain(dn):
@@ -124,11 +148,16 @@ def _search(conn, base, filterstr, attrs, limit):
 
 
 def utility_domain(ldap_utility):
-    """The DNS domain an LDAP Utility serves: its Domain field, or its Base DN's DC components."""
-    domain = (ldap_utility.ldap_domain or "").strip().strip(".").lower()
-    if "." in domain:
-        return domain
-    return dn_domain(ldap_utility.base_dn or "")
+    """
+    The DNS domain an LDAP Utility's directory holds, from its naming context.
+    When the directory cannot be reached, the Base DN's DC components, then the
+    Domain field.
+    """
+    try:
+        domain = dn_domain(search_base(ldap_utility))
+    except Exception:
+        domain = dn_domain(ldap_utility.base_dn or "")
+    return domain or (ldap_utility.ldap_domain or "").strip().strip(".").lower()
 
 
 def resolve(server, dn=None):

@@ -231,7 +231,7 @@ def _record_computer_object(server, ldap_utility, name):
     try:
         conn = ad_domain.connect(ldap_utility)
         try:
-            matches = ad_domain.find_computers(conn, ad_domain.search_base(ldap_utility), name=name)
+            matches = ad_domain.find_computers(conn, ad_domain.search_base(ldap_utility, conn), name=name)
         finally:
             conn.unbind_s()
     except Exception as err:

@@ -103,7 +103,7 @@ def _delete_one(server):
     try:
         conn = ad_domain.connect(ldap_utility)
         try:
-            target, status, reason = _find_target(conn, ad_domain.search_base(ldap_utility), server)
+            target, status, reason = _find_target(conn, ad_domain.search_base(ldap_utility, conn), server)
             if target is None:
                 return status, "%s: %s in %s." % (hostname, reason, ldap_utility.ldap_domain)
             ad_domain.delete_entry(conn, target["dn"])

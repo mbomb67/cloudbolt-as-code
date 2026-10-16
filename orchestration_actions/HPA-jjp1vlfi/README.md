@@ -13,7 +13,7 @@ Post-Provision orchestration action that joins each Windows server in the job to
 Related: [Suggest Domain OUs](../HPA-0zcrvpwu/) turns `domain_ou` into a type-ahead OU picker, and [Delete Windows Computer Object from AD](../HPA-q181uofy/) removes the object at decommission. Content package [PKG-nf407lm5](../../packages/PKG-nf407lm5/) syncs all three. Linux servers: [HPA-o6ctckmt](../HPA-o6ctckmt/).
 
 ## Prerequisites
-- An LDAP Utility (Admin > LDAP Authentication) per domain: Domain set to the DNS domain name, Account in `user@domain` form, its password, and an address the appliance can reach (the OU picker, the GUID lookup and the delete use LDAP from the appliance).
+- An LDAP Utility (Admin > LDAP Authentication) per domain: Account in `user@domain` form, its password, and the address of a domain controller the appliance can reach (the OU picker, the GUID lookup and the delete use LDAP from the appliance). The domain is read from that server (its `defaultNamingContext`), so the utility's Domain field may be a sign-in domain that differs from the AD domain.
 - The utility's account is the join account. Delegate on the target OUs: Create Computer objects, and on computer objects Reset password, Read and write account restrictions, Validated write to DNS host name, and Validated write to service principal name. Not Domain Admin.
 - `domain_ou` on the environment, group, or blueprint where users order.
 - Guest: Windows Server with Windows PowerShell 5.1, DNS servers that resolve the domain's domain controller SRV records, and access to the domain controllers on 53, 88, 135, 389, 445, 464 and 49152-65535.

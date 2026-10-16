@@ -13,8 +13,9 @@ Nothing is returned until the user has typed MIN_QUERY_LENGTH characters. Then
 the text is matched, ignoring case, anywhere in each OU's distinguished name or
 path (corp.example.com/Servers/Web), so a parent OU or the domain name finds
 the OUs under it. OUs whose own name matches come first. The OU list of each
-LDAP Utility's domain is read with a paged LDAP search and kept in CloudBolt's
-cache for CACHE_SECONDS, so typing does not search the directory per keystroke
+LDAP Utility's domain is read with a paged LDAP search, under the naming
+context the directory server itself reports, and kept in CloudBolt's cache for
+CACHE_SECONDS, so typing does not search the directory per keystroke
 and a new OU shows up within that time.
 
 Each choice's value is the OU's distinguished name, the form Add-Computer
@@ -34,8 +35,8 @@ lists domain_ou under parameters, which links this action to that parameter
 when the repository is synced.
 
 This runs in the web server, which keeps a synced shared module until it
-restarts, so the search lives here and uses only long-standing ad_domain
-helpers.
+restarts, so the search, including the naming context lookup, lives here and
+uses only long-standing ad_domain helpers.
 
 References:
   Paged results control: https://www.python-ldap.org/en/latest/reference/ldap-controls.html
@@ -63,25 +64,39 @@ def get_options_list(field, **kwargs):
     return None
 
 
+def _naming_context(conn, ldap_utility):
+    """
+    The root of the domain the directory server holds: its root DSE's
+    defaultNamingContext (https://learn.microsoft.com/en-us/windows/win32/adschema/rootdse).
+    The LDAP Utility's Domain field is often a sign-in or e-mail domain, not the
+    AD domain, so it is not used. Falls back to the utility's Base DN.
+    """
+    try:
+        for _, entry in conn.search_ext_s("", ldap.SCOPE_BASE, "(objectClass=*)", ["defaultNamingContext"]):
+            values = (entry or {}).get("defaultNamingContext")
+            if values:
+                return values[0].decode("utf-8")
+    except ldap.LDAPError:
+        pass
+    return ldap_utility.base_dn
+
+
 def _domain_ous(ldap_utility):
-    """Every OU DN in the utility's domain, from the cache or a paged search."""
-    key = "suggest_domain_ous_v2_%s" % ldap_utility.id
-    dns = cache.get(key)
-    if dns is not None:
-        return dns
+    """(search base, every OU DN under it) for the utility, from the cache or a paged search."""
+    key = "suggest_domain_ous_v3_%s" % ldap_utility.id
+    found = cache.get(key)
+    if found is not None:
+        return found["base"], found["dns"]
 
     dns = []
     # Not critical, so a directory without paged results still answers.
     page = SimplePagedResultsControl(False, size=PAGE_SIZE, cookie="")
     conn = ad_domain.connect(ldap_utility)
     try:
+        base = _naming_context(conn, ldap_utility)
         while True:
             msgid = conn.search_ext(
-                ad_domain.search_base(ldap_utility),
-                ldap.SCOPE_SUBTREE,
-                "(objectClass=organizationalUnit)",
-                ["ou"],
-                serverctrls=[page],
+                base, ldap.SCOPE_SUBTREE, "(objectClass=organizationalUnit)", ["ou"], serverctrls=[page]
             )
             _, data, _, controls = conn.result3(msgid, 1, ad_domain.LDAP_TIMEOUT)
             dns.extend(dn for dn, _ in data if dn)
@@ -98,11 +113,11 @@ def _domain_ous(ldap_utility):
     if dns:
         # An empty answer is not cached, so a fixed LDAP Utility shows its OUs at once.
         try:
-            cache.set(key, dns, CACHE_SECONDS)
+            cache.set(key, {"base": base, "dns": dns}, CACHE_SECONDS)
         except Exception as err:
             # A very large directory can exceed the cache's item size; search again next time.
-            logger.warning("Could not cache %d OUs of %s: %s", len(dns), ldap_utility.ldap_domain, err)
-    return dns
+            logger.warning("Could not cache %d OUs under %s: %s", len(dns), base, err)
+    return base, dns
 
 
 def suggest_options(field, query=None, **kwargs):
@@ -120,18 +135,18 @@ def suggest_options(field, query=None, **kwargs):
 
     needle = text.lower()
     hits = {}
-    problems = {}
+    problems = []
     for ldap_utility in utilities:
-        domain = (ldap_utility.ldap_domain or "").strip()
-        base = ad_domain.search_base(ldap_utility)
+        label = (ldap_utility.ldap_domain or "").strip()
         try:
-            dns = _domain_ous(ldap_utility)
+            base, dns = _domain_ous(ldap_utility)
         except Exception as err:
-            logger.warning("OU search in %s under %s failed: %s", domain, base, err)
-            problems[domain] = "OU search in %s under %s failed: %s" % (domain, base, err)
+            logger.warning("OU search with LDAP Utility %s failed: %s", label, err)
+            problems.append(([label], "OU search with LDAP Utility %s failed: %s" % (label, err)))
             continue
         if not dns:
-            problems[domain] = "%s has no OUs under %s that its LDAP Utility can read" % (domain, base)
+            names = [label, ad_domain.dn_domain(base)]
+            problems.append((names, "LDAP Utility %s found no OUs under %s" % (label, base)))
         for dn in dns:
             path = ad_domain.canonical_name(dn)
             if needle in dn.lower() or needle in path.lower():
@@ -139,10 +154,11 @@ def suggest_options(field, query=None, **kwargs):
                 hits[dn.lower()] = (0 if needle in own_name else 1, path.lower(), dn, path)
 
     options = [(dn, path) for _, _, dn, path in sorted(hits.values())[:MAX_RESULTS]]
-    # A domain whose search failed or found nothing says so when nothing matched
-    # at all, or when the user is typing that domain's name.
+    # An LDAP Utility whose search failed or found nothing says so when nothing
+    # matched at all, or when the user is typing its domain's name.
     matched = bool(options)
-    for domain, problem in sorted(problems.items()):
-        if not matched or (domain and (needle in domain.lower() or domain.lower() in needle)):
+    for names, problem in problems:
+        typed = any(name and (needle in name.lower() or name.lower() in needle) for name in names)
+        if not matched or typed:
             options.append(("", problem[:300]))
     return options
