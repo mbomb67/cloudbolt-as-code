@@ -18,5 +18,6 @@ Part of [PKG-nf407lm5](../../packages/PKG-nf407lm5/) with [Join Windows Server t
 ## Notes
 - Every LDAP Utility's domain is searched: CloudBolt passes a type-ahead only the typed text, so another parameter cannot narrow it.
 - Each domain's OU list is read with one paged LDAP search and cached for 5 minutes, so a new OU can take that long to appear.
-- At most 25 matches are shown; type more to narrow the list. When every directory search fails, the one choice shown is the error.
+- At most 25 matches are shown; type more to narrow the list.
+- A domain whose LDAP search fails or finds no OUs adds a choice that says why, shown when nothing matched or when you type that domain's name.
 - A blueprint whose metadata lists `domain_ou` under `parameters` without this action in `gen_options_hooks` unlinks it when that blueprint syncs. Sync this action again afterwards.

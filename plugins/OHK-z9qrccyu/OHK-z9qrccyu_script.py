@@ -23,9 +23,10 @@ components, so the join action finds the domain and its LDAP Utility from the
 OU alone.
 
 CloudBolt passes suggest_options only the field and the typed text, not other
-values on the form, so it cannot be narrowed by another parameter. When every
-directory search fails, the one choice returned says why, instead of an empty
-list.
+values on the form, so it cannot be narrowed by another parameter. A domain
+whose search fails or finds no OUs adds a choice with an empty value that says
+why, when nothing matched at all or when the typed text is that domain's name,
+so a broken LDAP Utility is visible on the form instead of returning nothing.
 
 get_options_list returns None, so CloudBolt keeps no option list of its own for
 domain_ou and accepts an OU passed in through the API. The plug-in's metadata
@@ -64,20 +65,21 @@ def get_options_list(field, **kwargs):
 
 def _domain_ous(ldap_utility):
     """Every OU DN in the utility's domain, from the cache or a paged search."""
-    key = "suggest_domain_ous_%s" % ldap_utility.id
+    key = "suggest_domain_ous_v2_%s" % ldap_utility.id
     dns = cache.get(key)
     if dns is not None:
         return dns
 
     dns = []
-    page = SimplePagedResultsControl(True, size=PAGE_SIZE, cookie="")
+    # Not critical, so a directory without paged results still answers.
+    page = SimplePagedResultsControl(False, size=PAGE_SIZE, cookie="")
     conn = ad_domain.connect(ldap_utility)
     try:
         while True:
             msgid = conn.search_ext(
                 ad_domain.search_base(ldap_utility),
                 ldap.SCOPE_SUBTREE,
-                "(objectCategory=organizationalUnit)",
+                "(objectClass=organizationalUnit)",
                 ["ou"],
                 serverctrls=[page],
             )
@@ -93,11 +95,13 @@ def _domain_ous(ldap_utility):
     finally:
         conn.unbind_s()
 
-    try:
-        cache.set(key, dns, CACHE_SECONDS)
-    except Exception as err:
-        # A very large directory can exceed the cache's item size; search again next time.
-        logger.warning("Could not cache %d OUs of %s: %s", len(dns), ldap_utility.ldap_domain, err)
+    if dns:
+        # An empty answer is not cached, so a fixed LDAP Utility shows its OUs at once.
+        try:
+            cache.set(key, dns, CACHE_SECONDS)
+        except Exception as err:
+            # A very large directory can exceed the cache's item size; search again next time.
+            logger.warning("Could not cache %d OUs of %s: %s", len(dns), ldap_utility.ldap_domain, err)
     return dns
 
 
@@ -116,21 +120,29 @@ def suggest_options(field, query=None, **kwargs):
 
     needle = text.lower()
     hits = {}
-    errors = []
+    problems = {}
     for ldap_utility in utilities:
+        domain = (ldap_utility.ldap_domain or "").strip()
+        base = ad_domain.search_base(ldap_utility)
         try:
             dns = _domain_ous(ldap_utility)
         except Exception as err:
-            logger.warning("OU search in %s failed: %s", ldap_utility.ldap_domain, err)
-            errors.append("%s: %s" % (ldap_utility.ldap_domain, err))
+            logger.warning("OU search in %s under %s failed: %s", domain, base, err)
+            problems[domain] = "OU search in %s under %s failed: %s" % (domain, base, err)
             continue
+        if not dns:
+            problems[domain] = "%s has no OUs under %s that its LDAP Utility can read" % (domain, base)
         for dn in dns:
             path = ad_domain.canonical_name(dn)
             if needle in dn.lower() or needle in path.lower():
                 own_name = path.rsplit("/", 1)[-1].lower()
                 hits[dn.lower()] = (0 if needle in own_name else 1, path.lower(), dn, path)
 
-    if not hits and errors and len(errors) == len(utilities):
-        return [("", "OU search failed. " + "; ".join(errors)[:300])]
-    ranked = sorted(hits.values())[:MAX_RESULTS]
-    return [(dn, path) for _, _, dn, path in ranked]
+    options = [(dn, path) for _, _, dn, path in sorted(hits.values())[:MAX_RESULTS]]
+    # A domain whose search failed or found nothing says so when nothing matched
+    # at all, or when the user is typing that domain's name.
+    matched = bool(options)
+    for domain, problem in sorted(problems.items()):
+        if not matched or (domain and (needle in domain.lower() or domain.lower() in needle)):
+            options.append(("", problem[:300]))
+    return options
