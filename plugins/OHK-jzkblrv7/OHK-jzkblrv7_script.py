@@ -25,7 +25,8 @@ def run(job, *args, **kwargs):
     # Post-Provision passes no server kwarg; the job's servers are the ones built.
     servers = [s for s in job.server_set.all() if dm.raw_value(s)]
     if not servers:
-        return "SUCCESS", "No server in this job has a disk_map.", ""
+        set_progress("No server in this job has a disk_map.")
+        return "SUCCESS", "", ""
 
     ddm.ensure_layout_field()
     summary, failures = [], []
@@ -47,5 +48,5 @@ def run(job, *args, **kwargs):
     if summary:
         set_progress("\n".join(summary))
     if failures:
-        return "FAILURE", "\n".join(summary), "\n".join(failures)
-    return "SUCCESS", "\n".join(summary), ""
+        return "FAILURE", "", "\n".join(failures)
+    return "SUCCESS", "", ""

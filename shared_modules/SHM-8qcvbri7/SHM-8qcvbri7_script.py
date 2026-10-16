@@ -191,12 +191,12 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
     The script runs through Server.execute_script, the call a Remote Script action
     makes (cbhooks RemoteScriptHook.run_hook_on_server): the resource handler's own
     channel when tech-specific script execution is on (VMware Tools, Azure Run
-    Command), else WinRM or SSH with the server's credentials.
+    Command), else WinRM or SSH with the server's credentials. execute_script pins
+    the script's output to the job log itself, so it is not repeated here.
     """
-    done, skipped, failures = [], [], []
+    done, failures = 0, []
     for server in servers:
         if not raw_value(server):
-            skipped.append(f"{server.hostname}: no disk_map")
             continue
         layout = str(server.get_value_for_custom_field(LAYOUT_FIELD) or "").strip()
         try:
@@ -215,7 +215,7 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
             body = body.replace("\r\n", "\n")  # what a Remote Script action does for Linux
         set_progress(f"{server.hostname}: configuring data disks in the guest")
         try:
-            output = server.execute_script(
+            server.execute_script(
                 script_contents=body,
                 file_extension=file_extension,
                 run_with_sudo=run_with_sudo,
@@ -225,11 +225,10 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
             logger.exception("Configuring data disks on %s failed", server.hostname)
             failures.append(f"{server.hostname}: {_guest_output(err)}")
             continue
-        set_progress(f"{server.hostname}:\n{output}")
-        done.append(f"{server.hostname}: data disks configured")
+        done += 1
 
     if failures:
-        return "FAILURE", "\n".join(done + skipped), "\n".join(failures)
+        return "FAILURE", "", "\n".join(failures)
     if not done:
-        return "SUCCESS", "No server in this job has a disk_map.", ""
-    return "SUCCESS", "\n".join(done + skipped), ""
+        set_progress("No server in this job has a disk_map.")
+    return "SUCCESS", "", ""
