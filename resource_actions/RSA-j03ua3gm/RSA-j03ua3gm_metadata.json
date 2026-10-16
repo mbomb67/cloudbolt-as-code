@@ -1,6 +1,5 @@
 {
     "action_input_default_values": [],
-    "action_inputs": [],
     "allow_scheduling": false,
     "always_allow_to_run": false,
     "auto_submit_order": false,

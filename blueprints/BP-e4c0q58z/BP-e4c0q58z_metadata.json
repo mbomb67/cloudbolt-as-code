@@ -14,7 +14,6 @@
             "execute_in_parallel": false,
             "id": "BDI-6e9u0qj0",
             "name": "AWS EKS Namespace",
-            "parameter_defaults": [],
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,
@@ -31,12 +30,19 @@
         "title": "Discover AWS EKS Namespaces"
     },
     "favorited": false,
-    "icon": "aws_eks_bp_logo_HB1E9Je.png",
+    "icon": "aws_eks_bp_logo_HB1E9Je_z8dVd99.png",
     "id": "BP-e4c0q58z",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-10-15",
+    "last_updated": "2026-10-16",
     "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-l59xsi54"
+            },
+            "enabled": true,
+            "label": "Manage Pipeline Identity"
+        },
         {
             "dependencies": {
                 "resource_action": "resource_actions/RSA-mwegogck"
@@ -64,13 +70,6 @@
             },
             "enabled": true,
             "label": "Namespace Connection Details"
-        },
-        {
-            "dependencies": {
-                "resource_action": "resource_actions/RSA-l59xsi54"
-            },
-            "enabled": true,
-            "label": "Manage Pipeline Identity"
         }
     ],
     "metadata_version": "2026.1.0",
