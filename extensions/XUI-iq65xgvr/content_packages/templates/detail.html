@@ -110,6 +110,8 @@
                 <td>
                   {% if m.state == "missing" %}
                     <span class="cpk-pill cpk-pill-bad" title="{{ m.note }}"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Missing" %}</span>
+                  {% elif m.type == "parameters" %}
+                    <span class="cpk-muted" title="{{ m.note }}">{% trans "Written by Export" %}</span>
                   {% elif m.state == "drift" %}
                     <span class="cpk-pill cpk-pill-warn" title="{{ m.note }}"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Not on" %} {{ row.repository.branch }}</span>
                   {% elif row.repository %}
@@ -120,7 +122,7 @@
                 </td>
                 <td class="cpk-nowrap text-end">
                   {% if m.exists %}
-                  <a class="btn btn-sm btn-outline-secondary open-dialog d-none" data-cpk-doc="{{ m.ref }}" href="{% url 'content_packages_readme' m.global_id %}" data-dialog-width="960px">
+                  <a class="btn btn-sm btn-outline-secondary open-dialog d-none" data-cpk-doc="{{ m.ref }}" href="{% url 'content_packages_readme' m.global_id %}{% if m.type == 'parameters' %}?package={{ row.id }}{% endif %}" data-dialog-width="960px">
                     <i class="bi bi-file-earmark-text" aria-hidden="true"></i> {% trans "Display documentation" %}
                   </a>
                   {% endif %}
@@ -168,9 +170,10 @@
             <tbody>
               {% for r in e.results %}
               <tr>
-                <td><span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}<div class="cpk-hint cpk-mono">{{ r.ref }}</div></td>
+                <td><span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}<div class="cpk-hint cpk-mono">{{ r.ref }}</div>{% if r.via %}<div class="cpk-hint">{% blocktrans with via=r.via %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
                 <td>
-                  {% if r.status == "success" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Pushed" %}</span>
+                  {% if r.status == "success" and r.prefix == "CF" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Written" %}</span>
+                  {% elif r.status == "success" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Pushed" %}</span>
                   {% elif r.status == "skipped" %}<span class="cpk-pill"><i class="bi bi-dash-circle" aria-hidden="true"></i> {% trans "Skipped" %}</span>
                   {% else %}<span class="cpk-pill cpk-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Failed" %}</span>{% endif %}
                   {% if r.status != "success" %}<div class="cpk-hint">{{ r.message }}</div>{% endif %}
@@ -224,7 +227,7 @@
             <tbody>
               {% for j in row.sync_jobs %}
               <tr>
-                <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div></td>
+                <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div>{% if j.via %}<div class="cpk-hint">{% blocktrans with via=j.via_name %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
                 <td>{% if j.url %}<a href="{{ j.url }}">{% trans "Job" %} {{ j.job_id }}</a>{% else %}<span class="cpk-muted">{{ j.job_id }}</span>{% endif %}</td>
                 <td><span class="cpk-pill{% if j.pill %} cpk-pill-{{ j.pill }}{% endif %}">{{ j.text }}</span></td>
               </tr>

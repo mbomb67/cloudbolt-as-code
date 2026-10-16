@@ -6,7 +6,8 @@ Content package `PKG-zny1ynfs`, version 1.0.0. Sync it from the Content Packages
 
 | Type | Name | Folder |
 |---|---|---|
-| Orchestration action | Attach Data Disks from Disk Map | [orchestration_actions/HPA-n67skws4](../../orchestration_actions/HPA-n67skws4/) |
-| Orchestration action | Configure Data Disks from Disk Map (Windows) | [orchestration_actions/HPA-42uy9dyo](../../orchestration_actions/HPA-42uy9dyo/) |
-| Orchestration action | Configure Data Disks from Disk Map (Oracle Linux) | [orchestration_actions/HPA-4ptcwgg4](../../orchestration_actions/HPA-4ptcwgg4/) |
 | Blueprint | Server with Data Disks | [blueprints/BP-g9zwqjoa](../../blueprints/BP-g9zwqjoa/) |
+| Orchestration action | Attach Data Disks from Disk Map | [orchestration_actions/HPA-n67skws4](../../orchestration_actions/HPA-n67skws4/) |
+| Orchestration action | Configure Data Disks from Disk Map (Oracle Linux) | [orchestration_actions/HPA-4ptcwgg4](../../orchestration_actions/HPA-4ptcwgg4/) |
+| Orchestration action | Configure Data Disks from Disk Map (Windows) | [orchestration_actions/HPA-42uy9dyo](../../orchestration_actions/HPA-42uy9dyo/) |
+| Parameter | Data Disks | [parameters/CF-q3bexgap](../../parameters/CF-q3bexgap/) |

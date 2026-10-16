@@ -7,8 +7,10 @@ show that closure without guessing it, each member is run through the same
 serializer call CloudBolt's own "Push to repository" uses
 (export_to_filesystem_as_unzipped_files_flattened, with the kwargs
 push_to_remote_source builds) into a throwaway directory, and every
-<GLOBAL_ID>_metadata.json the export writes is read back. Nothing is cloned,
-committed or saved; the directory is deleted afterwards.
+<GLOBAL_ID>_metadata.json the export writes is read back. A parameter member
+has no such export; its generated-options actions, which the package export
+pushes with it, are run through it instead. Nothing is cloned, committed or
+saved; the directory is deleted afterwards.
 """
 import json
 import os
@@ -21,7 +23,7 @@ from servicecatalog.models import ServiceBlueprint
 from source_code_repos.models import SourceCodeRepo
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import store
+from xui.content_packages import parameters, store
 
 logger = ThreadLogger(__name__)
 
@@ -98,7 +100,7 @@ def closure(package, repo=None):
     the path_to_* layout; without one CloudBolt's default folders apply."""
     repo = repo.cast() if repo is not None else SourceCodeRepo()
     refs = list(package.get("contents") or [])
-    resolved = store.resolve_refs(refs)
+    resolved = store.resolve_package(package)
     member_ids = {}
     for ref in refs:
         try:
@@ -117,7 +119,11 @@ def closure(package, repo=None):
             member_name = member_type.name_of(obj)
             root = os.path.join(scratch, str(index))
             try:
-                _export(obj, repo, root)
+                if member_type.synced:
+                    _export(obj, repo, root)
+                else:
+                    for action in parameters.gen_options_actions(obj):
+                        _export(action, repo, root)
             except Exception as exc:
                 logger.exception("Dependency export of %s failed", ref)
                 errors.append({"ref": ref, "name": member_name, "error": str(exc) or type(exc).__name__})

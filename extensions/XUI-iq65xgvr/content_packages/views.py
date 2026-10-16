@@ -2,8 +2,8 @@
 Content Package Manager XUI
 
 An admin page (Admin > Custom Extensions > Content Packages) for defining
-content packages: named sets of blueprints, actions, plugins, shared modules
-and UI extensions that belong together. Definitions live in store.py; export,
+content packages: named sets of blueprints, actions, plugins, shared modules,
+UI extensions and parameters that belong together. Definitions live in store.py; export,
 sync and import run through services.py. This module renders the list page, a
 details page per package, the Add/Edit, Delete, Export, Sync and Import
 dialogs, and the JSON API under xui/content_packages/api/.
@@ -15,8 +15,9 @@ dependency an export would write, worked out by dependencies.py, and offers
 each member's and dependency's README from its repository (docs.py).
 
 Export and Sync both run as CloudBolt jobs and return at once: Export through
-the self-registering plugin in jobs.py, Sync as one sourcecodereposync job per
-member. Everything here requires CB Admin.
+the self-registering plugin in hooks.py, Sync as one sourcecodereposync job per
+member, except a parameter, which gets the extension's parameter job.
+Everything here requires CB Admin.
 """
 import functools
 import json
@@ -137,6 +138,12 @@ def _member(ref, obj, repo, branch):
         info["url"] = obj.get_absolute_url()
     except Exception:
         info["url"] = None
+    if not member_type.synced:
+        # Written and read by this extension, not linked to a repository.
+        info["note"] = "Parameter {}; Export writes it to {}/{}/.".format(obj.name, store.PARAMETERS_DIR, global_id)
+        if obj.global_id != global_id:
+            info["note"] += " Here it is {}, matched by name.".format(obj.global_id)
+        return info
     remote_url = getattr(obj, "remote_source_url", "") or ""
     info["remote_source_url"] = remote_url
     if repo is not None and not _on_branch(remote_url, repo, branch):
@@ -150,7 +157,10 @@ def _member(ref, obj, repo, branch):
 
 def _describe(packages):
     """Packages with resolved members and home repository, JSON-safe."""
-    resolved = store.resolve_refs([ref for p in packages for ref in p.get("contents") or []])
+    aliases = {}
+    for package in packages:
+        aliases.update(store.aliases_of(package))
+    resolved = store.resolve_refs([ref for p in packages for ref in p.get("contents") or []], aliases)
     repo_ids = set()
     for package in packages:
         repo_id = package["local"].get("source_code_repo_id")
@@ -205,8 +215,8 @@ def _sync_jobs(local, jobs):
         # A failed job that was rerun hands its place in the chain to the rerun.
         while job is not None and job.rerun_job_id:
             job = job.rerun_job
-        row = {"ref": entry.get("ref"), "job_id": entry.get("job_id"), "url": None, "status": "MISSING",
-               "pill": "", "text": "Job deleted"}
+        row = {"ref": entry.get("ref"), "job_id": entry.get("job_id"), "via": entry.get("via"), "url": None,
+               "status": "MISSING", "pill": "", "text": "Job deleted"}
         if job is not None:
             row.update(url=job.get_absolute_url(), status=job.status)
             if job.status in JOB_PILLS:
@@ -267,7 +277,8 @@ def _row(item, jobs=None):
     for job in item["sync_jobs"]:
         member = members.get(job["ref"]) or {}
         job["name"] = member.get("name") or job["ref"]
-        job["prefix"] = member.get("prefix") or ""
+        job["prefix"] = member.get("prefix") or (job["ref"] or "").split("/", 1)[-1].split("-", 1)[0]
+        job["via_name"] = (members.get(job["via"]) or {}).get("name") or job["via"] or ""
     statuses = [j["status"] for j in item["sync_jobs"]]
     if "FAILURE" in statuses:
         item["sync_state"] = ("bad", "Sync failed")
@@ -293,8 +304,8 @@ def _row(item, jobs=None):
 # ---------------------------------------------------------------------------
 @admin_extension(
     title="Content Packages",
-    description="Define named sets of blueprints, actions, plugins, shared modules and UI extensions "
-    "that move between repositories and appliances together.",
+    description="Define named sets of blueprints, actions, plugins, shared modules, UI extensions and "
+    "parameters that move between repositories and appliances together.",
 )
 def packages(request):
     profile = request.get_user_profile()
@@ -353,10 +364,16 @@ def package_docs(request, pkg_id):
     on their repository branch, so it can show their Display documentation
     buttons."""
     package = _get_or_404(pkg_id)
-    refs = list(package.get("contents") or [])
-    resolved = {ref: obj for ref, obj in store.resolve_refs(refs).items() if obj is not None}
+    resolved = {ref: obj for ref, obj in store.resolve_package(package).items() if obj is not None}
+    home = _home_repo(package)
+    locations = {}
+    for ref, obj in resolved.items():
+        if not store.parse_ref(ref)[0].synced:
+            loc = docs.parameter_location(package, ref, home)
+            if loc is not None:
+                locations[obj.global_id] = loc
     try:
-        found = docs.readmes(resolved.values())
+        found = docs.readmes(resolved.values(), locations=locations)
     except Exception:
         logger.exception("Could not look up the READMEs of the members of %s", pkg_id)
         found = {}
@@ -366,13 +383,27 @@ def package_docs(request, pkg_id):
 @dialog_view(template_name=TEMPLATES + "readme_dialog.html")
 @cbadmin_required
 def readme_dialog(request, global_id):
-    """A member's or dependency's README, rendered from its repository."""
-    obj = docs.resolve([global_id]).get(global_id)
+    """A member's or dependency's README, rendered from its repository. A
+    parameter member's README is found through its package, named by the
+    package query parameter."""
+    obj, loc = docs.resolve([global_id]).get(global_id), None
+    pkg_id = request.GET.get("package")
+    if pkg_id:
+        package = _get_or_404(pkg_id)
+        for ref, member in store.resolve_package(package).items():
+            if member is None or not ref.endswith("/" + global_id) or store.parse_ref(ref)[0].synced:
+                continue
+            obj, loc = member, docs.parameter_location(package, ref, _home_repo(package))
+            if loc is None:
+                return {
+                    "title": "{} documentation".format(docs.name_of(obj)),
+                    "error": "{} has not been exported yet, so there is no README to show.".format(package["name"]),
+                }
     if obj is None:
         return {"title": global_id, "error": "No content with global ID {} exists on this appliance.".format(global_id)}
     title = "{} documentation".format(docs.name_of(obj))
     try:
-        return {"title": title, "readme": docs.read(obj)}
+        return {"title": title, "readme": docs.read(obj, loc)}
     except docs.NoReadme as exc:
         return {"title": title, "error": str(exc)}
 
@@ -380,10 +411,18 @@ def readme_dialog(request, global_id):
 # ---------------------------------------------------------------------------
 # Dialogs
 # ---------------------------------------------------------------------------
-def _picker(selected):
+def _repo_label(member_type, obj):
+    """The repository a unit is linked to, or a parameter's name."""
+    if not member_type.synced:
+        return obj.name
+    return obj.source_code_repo.label if obj.source_code_repo_id else ""
+
+
+def _picker(selected, aliases=None):
     """Picker sections, one per member type, plus an "Other members" section
     for selected refs the lists do not offer (deleted content, or a plugin
-    that is not standalone)."""
+    that is not standalone). aliases keeps a parameter matched by name under
+    the package's ref."""
     selected = list(selected or [])
     chosen = set(selected)
     offered = set()
@@ -391,13 +430,13 @@ def _picker(selected):
     for member_type in store.MEMBER_TYPES.values():
         items = []
         for obj in member_type.pickable():
-            ref = store.ref_for(member_type, obj)
+            ref = store.ref_for(member_type, obj, aliases)
             offered.add(ref)
             items.append({
                 "ref": ref,
                 "name": member_type.name_of(obj),
                 "global_id": obj.global_id,
-                "repo_label": obj.source_code_repo.label if obj.source_code_repo_id else "",
+                "repo_label": _repo_label(member_type, obj),
                 "checked": ref in chosen,
             })
         items.sort(key=lambda i: i["name"].lower())
@@ -410,7 +449,7 @@ def _picker(selected):
 
     leftovers = [ref for ref in selected if ref not in offered]
     if leftovers:
-        resolved = store.resolve_refs(leftovers)
+        resolved = store.resolve_refs(leftovers, aliases)
         items = []
         for ref in leftovers:
             member = _member(ref, resolved.get(ref), None, "")
@@ -460,7 +499,7 @@ def package_edit(request, pkg_id=None):
             )
             return HttpResponseRedirect(_safe_next(request) or _page_url())
 
-    sections = _picker(values["contents"])
+    sections = _picker(values["contents"], store.aliases_of(package or {}))
     if package:
         title = "Edit content package {}".format(package["name"])
         action_url = reverse("content_packages_edit", args=[package["id"]])
@@ -578,7 +617,7 @@ def package_export(request, pkg_id):
                 'Exporting {} to {}: <a href="{}">Job {}</a>.', package["name"], branch, job.get_absolute_url(), job.id
             ))
             return HttpResponseRedirect(_detail_url(package["id"]))
-    resolved = store.resolve_refs(package.get("contents") or [])
+    resolved = store.resolve_package(package)
     context = {
         "title": title,
         "action_url": reverse("content_packages_export", args=[package["id"]]),
@@ -622,10 +661,12 @@ def package_sync(request, pkg_id):
         except store.PackageError as exc:
             error = str(exc)
         else:
+            extra = sum(1 for _ref, _job, via in created if via)
             messages.success(
                 request,
-                "Started {} sync job{} for {}, one per member; they run one after another.".format(
-                    len(created), "" if len(created) == 1 else "s", package["name"]
+                "Started {} sync job{} for {}, one per member{}; they run one after another.".format(
+                    len(created), "" if len(created) == 1 else "s", package["name"],
+                    " plus {} for generated-options actions of its parameters".format(extra) if extra else "",
                 ),
             )
             return HttpResponseRedirect(_detail_url(package["id"]))
@@ -641,6 +682,9 @@ def package_sync(request, pkg_id):
         "member_count": len(package.get("contents") or []),
         "has_blueprints": any(ref.startswith("blueprints/") for ref in package.get("contents") or []),
         "has_extensions": any(ref.startswith("extensions/") for ref in package.get("contents") or []),
+        "has_parameters": any(
+            ref.startswith(store.PARAMETERS_DIR + "/") for ref in package.get("contents") or []
+        ),
     }
     context.update(_repo_context(package, values, repos))
     return context
@@ -780,7 +824,7 @@ def api_content(request):
                 "ref": store.ref_for(member_type, obj),
                 "name": member_type.name_of(obj),
                 "type_title": member_type.singular,
-                "repo_label": obj.source_code_repo.label if obj.source_code_repo_id else "",
+                "repo_label": _repo_label(member_type, obj),
             }
             for obj in member_type.pickable()
         ]
@@ -834,8 +878,9 @@ def api_sync(request, pkg_id):
     )
     return JsonResponse({
         "jobs": [
-            {"ref": ref, "job_id": job.id, "global_id": getattr(job, "global_id", ""), "url": job.get_absolute_url()}
-            for ref, job in created
+            {"ref": ref, "via": via, "job_id": job.id, "global_id": getattr(job, "global_id", ""),
+             "url": job.get_absolute_url()}
+            for ref, job, via in created
         ],
     }, status=201)
 
