@@ -243,10 +243,12 @@ while IFS='|' read -r disk mp size_gb vname dev hctl address how; do
     vg="vg_$vname"
     lv="lv_$vname"
     echo "Disk $disk: /dev/$dev (H:C:T:L $hctl, matched by $how) -> $mp '$vname'"
-    pvcreate -y "/dev/$dev" || fail "pvcreate /dev/$dev failed."
-    vgcreate "$vg" "/dev/$dev" || fail "vgcreate $vg failed."
-    lvcreate -y -n "$lv" -l 100%FREE "$vg" || fail "lvcreate $vg/$lv failed."
-    mkfs.xfs -L "$vname" "/dev/$vg/$lv" || fail "mkfs.xfs on /dev/$vg/$lv failed."
+    # Quiet unless they fail: Azure Run Command returns only the last 4 KB of output,
+    # and the summary table at the end must fit.
+    out=$(pvcreate -y "/dev/$dev" 2>&1) || fail "pvcreate /dev/$dev failed: $out"
+    out=$(vgcreate "$vg" "/dev/$dev" 2>&1) || fail "vgcreate $vg failed: $out"
+    out=$(lvcreate -y -n "$lv" -l 100%FREE "$vg" 2>&1) || fail "lvcreate $vg/$lv failed: $out"
+    out=$(mkfs.xfs -q -L "$vname" "/dev/$vg/$lv" 2>&1) || fail "mkfs.xfs on /dev/$vg/$lv failed: $out"
     fs_uuid=$(blkid -s UUID -o value "/dev/$vg/$lv")
     [ -n "$fs_uuid" ] || fail "Could not read the file system UUID of /dev/$vg/$lv."
     mkdir -p "$mp" || fail "Could not create $mp."
