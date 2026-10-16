@@ -1,0 +1,201 @@
+{% load i18n %}
+{% if error %}
+<div class="eks-card">
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{% for warning in warnings %}
+<div class="eks-card">
+  {% include "aws_eks_cluster/templates/_alert.html" with error=warning %}
+</div>
+{% endfor %}
+
+{# ── Summary ── #}
+<div class="eks-card">
+  <div class="eks-stats">
+    <div class="eks-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="eks-muted">/ {{ workloads|length }}</span></div></div>
+    <div class="eks-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="eks-muted">/ {{ pods|length }}</span></div></div>
+    <div class="eks-stat"><div class="k">{% trans "Services and ingresses" %}</div><div class="v">{{ endpoints|length }}</div></div>
+    <div class="eks-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
+  </div>
+</div>
+
+{# ── Quota usage ── #}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Quota usage" %}</span>
+  </summary>
+  {% if quota %}
+  {% comment %}One meter per limit on a single row, wrapping on narrow pages; the exact figures are in the hover tooltip and the accessible label.{% endcomment %}
+  <div class="eks-quota">
+    {% for q in quota %}
+    <div class="eks-quota-item" tabindex="0" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ q.percent }}"
+         aria-label="{{ q.label }}: {{ q.usage }}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ q.usage }}">
+      <div class="eks-quota-top">
+        <span class="k">{{ q.label }}</span>
+        <span class="eks-hint">{{ q.percent }}%</span>
+      </div>
+      <div class="eks-meter eks-meter-{{ q.style }}"><span style="width: {{ q.percent }}%"></span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "No ResourceQuota is set on this namespace." %}</div>
+  {% endif %}
+</details>
+
+{# ── Workloads ── #}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Deployments, StatefulSets and DaemonSets" %} &middot; {{ workloads|length }}</span>
+  </summary>
+  {% if workloads %}
+  <div class="table-responsive">
+    <table class="eks-table">
+      <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Kind" %}</th><th>{% trans "Status" %}</th><th>{% trans "Ready" %}</th><th>{% trans "Images" %}</th><th>{% trans "Age" %}</th></tr></thead>
+      <tbody>
+        {% for w in workloads %}
+        <tr>
+          <td class="eks-mono">{{ w.name }}</td>
+          <td>{{ w.kind }}</td>
+          <td><span class="eks-pill eks-pill-{{ w.status.style }}"><i class="bi {{ w.status.icon }}" aria-hidden="true"></i> {{ w.status.text }}</span></td>
+          <td class="eks-nowrap">{{ w.ready }}</td>
+          <td>{% for image in w.images %}<div class="eks-hint eks-mono">{{ image }}</div>{% endfor %}</td>
+          <td class="eks-nowrap">{{ w.age }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "Nothing is deployed to this namespace yet." %}</div>
+  {% endif %}
+</details>
+
+{# ── Pods ── #}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Pods" %} &middot; {{ pods|length }}</span>
+    {% if pods_failing %}<span class="eks-pill eks-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% blocktrans count n=pods_failing %}{{ n }} failing{% plural %}{{ n }} failing{% endblocktrans %}</span>{% endif %}
+    {% if pods %}
+    <div class="eks-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter pods' %}" data-eks-filter="#eksx-ns-pods">
+    </div>
+    {% endif %}
+  </summary>
+  {% if pods %}
+  <div class="table-responsive">
+    <table id="eksx-ns-pods" class="eks-table">
+      <thead><tr><th>{% trans "Pod" %}</th><th>{% trans "Status" %}</th><th>{% trans "Ready" %}</th><th>{% trans "Restarts" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Node" %}</th><th>{% trans "Age" %}</th></tr></thead>
+      <tbody>
+        {% for p in pods %}
+        <tr data-eks-row>
+          <td class="eks-mono">{{ p.name }}</td>
+          <td><span class="eks-pill eks-pill-{{ p.status.style }}"><i class="bi {{ p.status.icon }}" aria-hidden="true"></i> {{ p.status.text }}</span></td>
+          <td class="eks-nowrap">{{ p.ready }}</td>
+          <td>{% if p.restarts %}<span class="eks-tag eks-tag-warn">{{ p.restarts }}</span>{% else %}0{% endif %}</td>
+          <td class="eks-hint">{{ p.owner|default:"&mdash;" }}</td>
+          <td class="eks-hint eks-mono">{{ p.node|default:"&mdash;" }}</td>
+          <td class="eks-nowrap">{{ p.age }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "No pods." %}</div>
+  {% endif %}
+</details>
+
+{# ── Services and ingresses ── #}
+<details class="eks-card eks-fold" open>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Services and ingresses" %} &middot; {{ endpoints|length }}</span>
+  </summary>
+  {% if endpoints %}
+  <div class="table-responsive">
+    <table class="eks-table">
+      <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Kind" %}</th><th>{% trans "Type or class" %}</th><th>{% trans "Ports or hosts" %}</th><th>{% trans "Cluster IP" %}</th><th>{% trans "External address" %}</th><th>{% trans "Age" %}</th></tr></thead>
+      <tbody>
+        {% for e in endpoints %}
+        <tr>
+          <td class="eks-mono">{{ e.name }}</td>
+          <td>{{ e.kind }}</td>
+          <td>{{ e.type|default:"&mdash;" }}</td>
+          <td class="eks-mono">{{ e.ports|default:"&mdash;" }}</td>
+          <td class="eks-mono">{{ e.address|default:"&mdash;" }}</td>
+          <td class="eks-mono">{{ e.external|default:"&mdash;" }}</td>
+          <td class="eks-nowrap">{{ e.age }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "No services or ingresses." %}</div>
+  {% endif %}
+</details>
+
+{# ── Storage ── #}
+<details class="eks-card eks-fold"{% if claims %} open{% endif %}>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Persistent volume claims" %} &middot; {{ claims|length }}</span>
+  </summary>
+  {% if claims %}
+  <div class="table-responsive">
+    <table class="eks-table">
+      <thead><tr><th>{% trans "Claim" %}</th><th>{% trans "Status" %}</th><th>{% trans "Size" %}</th><th>{% trans "Storage class" %}</th><th>{% trans "Age" %}</th></tr></thead>
+      <tbody>
+        {% for c in claims %}
+        <tr>
+          <td class="eks-mono">{{ c.name }}</td>
+          <td><span class="eks-pill eks-pill-{{ c.status.style }}"><i class="bi {{ c.status.icon }}" aria-hidden="true"></i> {{ c.status.text }}</span></td>
+          <td class="eks-nowrap">{{ c.size|default:"&mdash;" }}</td>
+          <td>{{ c.storage_class|default:"&mdash;" }}</td>
+          <td class="eks-nowrap">{{ c.age }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="eks-empty">{% trans "No persistent volume claims." %}</div>
+  {% endif %}
+</details>
+
+{# ── Warning events ── #}
+<details class="eks-card eks-fold"{% if events %} open{% endif %}>
+  <summary class="eks-card-h">
+    <i class="bi bi-chevron-right eks-chevron" aria-hidden="true"></i>
+    <span class="eks-card-t">{% trans "Recent warning events" %} &middot; {{ warning_count }}</span>
+  </summary>
+  {% if events %}
+  <div class="table-responsive">
+    <table class="eks-table">
+      <thead><tr><th>{% trans "Age" %}</th><th>{% trans "Object" %}</th><th>{% trans "Reason" %}</th><th>{% trans "Message" %}</th><th>{% trans "Count" %}</th></tr></thead>
+      <tbody>
+        {% for ev in events %}
+        <tr>
+          <td class="eks-nowrap">{{ ev.age|default:"&mdash;" }}</td>
+          <td class="eks-mono">{{ ev.object }}</td>
+          <td><span class="eks-tag eks-tag-warn">{{ ev.reason }}</span></td>
+          <td>{{ ev.message }}</td>
+          <td>{{ ev.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if warning_count > events|length %}<div class="eks-note">{% blocktrans with shown=events|length %}Showing the newest {{ shown }}.{% endblocktrans %}</div>{% endif %}
+  {% else %}
+  <div class="eks-empty">{% trans "No warning events. Kubernetes keeps events for about an hour." %}</div>
+  {% endif %}
+</details>
+
+{% endif %}

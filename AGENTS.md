@@ -22,6 +22,7 @@ Content lives in **ID-prefixed folders** under type-specific top-level dirs, eac
 | `extensions/` | `XUI-` | Django UI extensions |
 | `forms/` | `FRM-` | Custom forms (transitive-import only) |
 | `form_functions/` | `FJS-` | Form JS helpers (transitive-import only) |
+| `packages/` | `PKG-` | Named sets of content exported and synced together (Content Package Manager) |
 | `typings/` | n/a | CloudBolt API type stubs, copied from your appliance and gitignored (see [docs/dev-environment-setup.md](docs/dev-environment-setup.md)) |
 
 Full per-type schemas, enums, required fields, and worked examples: **[docs/agents/metadata-schemas.md](docs/agents/metadata-schemas.md)**.
@@ -50,17 +51,21 @@ Resource/server/orchestration/flowcontrol actions, recurring jobs, CIT tests, an
 
 **A custom form replaces the native order form completely.** When a blueprint has a custom form, the deployment item's `parameter_defaults` are **not** applied to the plugin's inputs — the plugin receives only what the form submits. Every pinned per-blueprint value (connection, repo, branch, module ID, …) must therefore also exist in the form as a hidden text question `plugin-bdi-<item>.<input>` with a `defaultValue` equal to the BDI default, and the two copies must stay identical. Fields inside a Dynamic Panel are not plugin inputs, so their dropdowns cannot use `generate_options_for_*`; use `parameterOptions` for declared inputs and an inbound webhook for panel fields. For a blueprint that creates a Resource, prefer pinning such values as blueprint `parameters[]` with `destination: "Resource"` and exactly one option: CloudBolt hides a single-option parameter and writes it onto the resource before build items run, so the plugin reads it from the resource and the form carries nothing (`blueprints/BP-00meiwwz`; blueprint parameters never feed `{{ }}` inputs). Details: [plugin-templates.md → Custom forms and pinned defaults](docs/agents/plugin-templates.md#custom-forms-and-pinned-defaults).
 
+## Content packages
+
+`packages/PKG-<id>/PKG-<id>_metadata.json` is not CloudBolt content: Source Control Repos ignores it, and the Content Package Manager extension (`extensions/XUI-iq65xgvr`) reads it to export and sync a set of units as one. Its `contents` list uses the same `"<top_level_dir>/<GLOBAL_ID>"` refs as `dependencies`, but holds **top-level members only**: never `forms/` or `form_functions/`, and nothing another member's export already carries (a blueprint brings its plugins, management actions, generated-options actions, forms and shared modules; an action brings its plugin and shared modules). A webhook a form calls does not travel with the blueprint, so list it. The PKG suffix comes from rule 6's generator with the `PKG` prefix. Use `cb-scaffold-package`; schema in [metadata-schemas.md §15](docs/agents/metadata-schemas.md#15-packages--pkg-).
+
 ## Round-trip is not lossless
 
 When CloudBolt exports content to a repo, secrets are redacted to placeholder strings (`"YOUR_CREDENTIALS"`, `"YOUR_AUTH_INFO"`, `"YOUR_EMAIL_INFO"`, `"SOURCE_CODE_URL Redacted"`) and the importer skips them on re-sync. Customers must re-enter secrets after every sync. Instance-specific bindings (groups, environments) are also dropped. Full caveats: [metadata-schemas.md](docs/agents/metadata-schemas.md).
 
 ## Top-level dir names
 
-The dir names above are CloudBolt's defaults. They CAN be customized per repo via `SourceCodeRepo.path_to_*` (shell + API call), but the override is rare. **Assume the defaults.** Only probe for customization if a default dir is missing or a cross-reference path doesn't resolve.
+The dir names above are CloudBolt's defaults. They CAN be customized per repo via `SourceCodeRepo.path_to_*` (shell + API call), but the override is rare. **Assume the defaults.** Only probe for customization if a default dir is missing or a cross-reference path doesn't resolve. `packages/` has no `path_to_*` field and is always `packages/`.
 
 ## Tooling
 
-Eight Claude Code skills under `.claude/skills/` automate the common workflows. They load automatically when this repo is opened in Claude Code and run as `/cb-<name>` or when the task matches; the procedures are plain Markdown, so other agents can follow them from the same files.
+Nine Claude Code skills under `.claude/skills/` automate the common workflows. They load automatically when this repo is opened in Claude Code and run as `/cb-<name>` or when the task matches; the procedures are plain Markdown, so other agents can follow them from the same files.
 
 | Skill | What it does |
 |---|---|
@@ -68,6 +73,7 @@ Eight Claude Code skills under `.claude/skills/` automate the common workflows. 
 | `cb-scaffold-standalone-action` | Generate any of RSA/SVA/HPA/FCA/RJB/CIT/IWH + paired OHK plugin |
 | `cb-scaffold-form` | Generate FRM (+ optional FJS) wired into a named parent so it actually imports |
 | `cb-scaffold-bicep` | Generate a BP that deploys an Azure Bicep template on the generic Bicep engine (see blueprints/BP-nibk4erf) |
+| `cb-scaffold-package` | Generate a PKG content package from named units, keeping only top-level members, and say how to import and sync it on an appliance |
 | `cb-validate-metadata` | Lint every `<GLOBAL_ID>_metadata.json` for required fields, dangling refs, enum violations, key casing, orphans |
 | `cb-find-content-by-name` | Resolve human-readable name to ID-prefixed folder |
 | `cb-package-zip` | Build an uploadable CloudBolt import zip (nested package format, dependencies bundled) from a unit in this repo via `tools/package_zip.py` |

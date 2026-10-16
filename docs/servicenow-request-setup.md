@@ -6,7 +6,7 @@ CloudBolt stays the service catalog. Every order still produces a ServiceNow Req
 
 | CloudBolt event | Content | ServiceNow effect |
 |---|---|---|
-| Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval. Five seconds later the decision is read once, so a request approved outright proceeds without waiting for the poll |
+| Order submitted (pending) | HPA-i1x67v4h "Open on Submit" | REQ + RITM opened, `cloudbolt_approval=pending`; the item's flow requests approval. The decision is read once right away, without waiting, so a request ServiceNow approved while it was being opened proceeds without waiting for the poll |
 | Order approved in CloudBolt (auto-approval, super admin, approver click, or the sync job) | HPA-smbwmzj0 "Open on Approval" | With the wait pin on: RITM opened as pending if missing, decision read, order proceeds, is denied, or goes back to Pending. With it off: record-only RITM opened with `cloudbolt_approval=approved` |
 | Every five minutes | RJB-do33f7f3 "Approval Sync" | Approval read on the RITM for catalog-path orders and on the REQ for Table API orders; CloudBolt order approved or denied to match; RITMs of orders cancelled in CloudBolt closed |
 | Order denied in CloudBolt | HPA-i8r5x2kc "Close on Denial" | RITM closed incomplete with the reason |
@@ -37,7 +37,7 @@ Super admins, users who are approvers in their own group, and groups or environm
 - If `glide.sc.checkout.twostep` is true, `order_now` only fills a cart; the action submits the cart automatically.
 
 ### 2. Generic catalog item (catalog path, recommended)
-Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables with the sys_id the Open actions carry by default (`dc46b35f3b378f50421a9bdc73e45a3b`), plus a generic flow that approves every RITM, so nothing needs pinning and orders proceed immediately. Afterwards set the item's Category, then extend the flow with your approval policy as described in step 5. The rest of this step describes what the update set contains, for building it by hand or checking it.
+Fastest: import the update set in [examples/servicenow/](examples/servicenow/README.md). It creates the item, both variable sets and their variables with the sys_id the Open actions carry by default (`dc46b35f3b378f50421a9bdc73e45a3b`), plus a generic flow that approves every RITM, so nothing needs pinning. Orders proceed as soon as CloudBolt sees the approval: at submission when the flow has already run, otherwise at the next Approval Sync run. Afterwards set the item's Category, then extend the flow with your approval policy as described in step 5. The rest of this step describes what the update set contains, for building it by hand or checking it.
 
 Create one catalog item, for example "CloudBolt Automation Request", and note its sys_id. Add a variable set with these variables. Names must match exactly.
 

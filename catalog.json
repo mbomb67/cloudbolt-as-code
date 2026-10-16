@@ -155,7 +155,10 @@
       "resource_actions/RSA-mr1clc5e",
       "resource_actions/RSA-mwegogck"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-bo8ensty"
+    ]
   },
   {
     "id": "BP-f5y1fhe9",
@@ -314,7 +317,10 @@
       "resource_actions/RSA-rrbh1ntm",
       "resource_actions/RSA-xdlxetyc"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-bo8ensty"
+    ]
   },
   {
     "id": "BP-rgdg9gho",
@@ -448,12 +454,15 @@
     "id": "XUI-8a1jocmr",
     "type": "extensions",
     "name": "AWS EKS Cluster",
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access.",
+    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
     "path": "extensions/XUI-8a1jocmr",
     "readme": "extensions/XUI-8a1jocmr/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-bo8ensty"
+    ]
   },
   {
     "id": "XUI-ax1sluwi",
@@ -1046,6 +1055,22 @@
     "used_by": [],
     "hook_point": "Post-Provision",
     "enabled": false
+  },
+  {
+    "id": "PKG-bo8ensty",
+    "type": "packages",
+    "name": "AWS EKS",
+    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "path": "packages/PKG-bo8ensty",
+    "readme": "packages/PKG-bo8ensty/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-e4c0q58z",
+      "extensions/XUI-8a1jocmr"
+    ]
   },
   {
     "id": "OHK-0ql0870k",

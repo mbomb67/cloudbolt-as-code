@@ -5,6 +5,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
+| [Packages](#packages) | 1 |
 | [Blueprints](#blueprints) | 26 |
 | [Resource actions](#resource-actions) | 37 |
 | [Server actions](#server-actions) | 1 |
@@ -17,6 +18,14 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [UI extensions](#ui-extensions) | 10 |
 | [Forms](#forms) | 11 |
 | [Form functions](#form-functions) | 3 |
+
+## Packages
+
+Named sets of content that the Content Package Manager extension (`extensions/XUI-iq65xgvr`) exports and syncs as one. A package lists top-level units only; each brings its own plugins, actions, forms, and shared modules.
+
+| Package | ID | Description | Version | Contents |
+|---|---|---|---|---|
+| AWS EKS | [PKG-bo8ensty](packages/PKG-bo8ensty/README.md) | Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [AWS EKS](blueprints/BP-r5apcf7e/README.md) (blueprint), [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) (blueprint), [AWS EKS Cluster](extensions/XUI-8a1jocmr/README.md) (UI extension) |
 
 ## Blueprints
 
@@ -331,7 +340,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
-| AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access. |
+| AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | Content Package Manager | [XUI-iq65xgvr](extensions/XUI-iq65xgvr/README.md) | Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, and UI extensions, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync. |

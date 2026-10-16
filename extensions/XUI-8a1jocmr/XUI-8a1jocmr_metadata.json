@@ -1,5 +1,5 @@
 {
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access.",
+    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-8a1jocmr",
@@ -23,7 +23,9 @@
         "templates/workloads_tab.html",
         "templates/workloads_panel.html",
         "templates/connect_tab.html",
-        "templates/connect_panel.html"
+        "templates/connect_panel.html",
+        "templates/namespace_workloads_tab.html",
+        "templates/namespace_workloads_panel.html"
     ],
     "version": ""
 }
