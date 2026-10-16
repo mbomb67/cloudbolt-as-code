@@ -17,5 +17,5 @@ Read [../../docs/servicenow-request-setup.md](../../docs/servicenow-request-setu
 - Requested for is the order recipient or owner, matched to `sys_user` by email then username. `servicenow_requested_for_miss` decides whether an unmatched owner fails the order or opens the request for the integration user.
 - The RITM's `correlation_id` is the CloudBolt order global id; `short_description` and `description` are rewritten after ordering so approvers see the blueprint and target.
 - The order item gets two URL parameters, ServiceNow Request and ServiceNow RITM, that open the records; nothing else about the request is stored in CloudBolt.
-- Five seconds after the request is created the action reads the decision once and approves or denies the order if ServiceNow already decided; otherwise the Approval Sync job (every five minutes) picks it up.
+- Right after the request is created the action reads the decision once, without waiting, and approves or denies the order if ServiceNow already decided; otherwise the Approval Sync job (every five minutes) picks it up.
 - A failure here is shown to the user at submission and leaves the order pending.
