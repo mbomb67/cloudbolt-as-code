@@ -1,0 +1,7 @@
+{
+    "asynchronous": false,
+    "code": "function dataDiskLetterFree(params) {\n  // Hides a drive letter in a row of the Data Disks table when another row\n  // already uses it, so two disks cannot ask for the same letter.\n  // params: the table's rows, the letter offered, this row's own letter.\n  var rows = params[0] || [];\n  var letter = params[1];\n  if (!letter || letter === params[2]) return true;\n  for (var i = 0; i < rows.length; i++) {\n    if (rows[i] && rows[i].drive_letter === letter) return false;\n  }\n  return true;\n}\n",
+    "description": "Form function for the Windows Server with Data Disks order form: hides a drive letter in a Data Disks row once another row uses it.",
+    "id": "FJS-sq7c76cc",
+    "name": "dataDiskLetterFree"
+}

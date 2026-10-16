@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Matches each attached data disk to its Linux disk by serial number, LUN, SCSI target, or attach order, then creates an LVM volume with an XFS file system and mounts it at the requested mount point.",
+    "execution_timeout": 900,
+    "id": "OHK-p962x9z6",
+    "max_retries": 0,
+    "name": "Configure Data Disks (Oracle Linux)",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-p962x9z6_script.sh",
+    "shared": false,
+    "target_os_families": [
+        "Linux -> Oracle Enterprise Linux"
+    ],
+    "type": "Remote Script"
+}

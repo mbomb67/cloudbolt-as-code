@@ -6,18 +6,18 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | Type | Count |
 |---|---|
 | [Packages](#packages) | 1 |
-| [Blueprints](#blueprints) | 24 |
+| [Blueprints](#blueprints) | 26 |
 | [Resource actions](#resource-actions) | 37 |
 | [Server actions](#server-actions) | 1 |
 | [Orchestration actions](#orchestration-actions) | 15 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 3 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 128 |
-| [Shared modules](#shared-modules) | 15 |
+| [Plugins](#plugins) | 132 |
+| [Shared modules](#shared-modules) | 16 |
 | [UI extensions](#ui-extensions) | 10 |
-| [Forms](#forms) | 9 |
-| [Form functions](#form-functions) | 2 |
+| [Forms](#forms) | 11 |
+| [Form functions](#form-functions) | 3 |
 
 ## Packages
 
@@ -51,12 +51,14 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | Migrate Aria Automation Projects to Groups | [BP-s2fsbkpo](blueprints/BP-s2fsbkpo/README.md) | Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties. |
 | NGINX Web Application | [BP-anonytrx](blueprints/BP-anonytrx/README.md) | Deploys an Oracle Linux 8 server and installs an NGINX web application. |
 | OpenShift Project Landing Zone | [BP-tikkhf2y](blueprints/BP-tikkhf2y/README.md) | Creates a governed OpenShift project with quota, limits, and network isolation, and entitles the ordering group to deploy into it. |
+| Oracle Linux Server with Data Disks | [BP-rgdg9gho](blueprints/BP-rgdg9gho/README.md) | Deploys an Oracle Linux VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to create an LVM volume, format it XFS, and mount it. |
 | Postgres Database | [BP-b91c5f90](blueprints/BP-b91c5f90/README.md) | Deploys an Oracle Linux 8 server with PostgreSQL, one database, and its owning role. |
 | Request Certificate (Windows CA) | [BP-lt6a3yzf](blueprints/BP-lt6a3yzf/README.md) | Requests a certificate from a Microsoft AD CS certificate authority through Web Enrollment and stores the issued PEM on the resource. |
 | Run an Azure PowerShell Script | [BP-jvvjm3te](blueprints/BP-jvvjm3te/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment on a Windows host you manage (the script's Run on Server), with the sign-in handled by CloudBolt from the environment's resource handler. |
 | Run an Azure PowerShell Script (Deployment Script) | [BP-qo1stxre](blueprints/BP-qo1stxre/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment in a Microsoft-managed container started per run through an ARM deployment script, with no server to maintain and the sign-in handled by CloudBolt from the environment's resource handler. |
 | Run Aria Orchestrator Workflow | [BP-f5y1fhe9](blueprints/BP-f5y1fhe9/README.md) | Runs an Aria Orchestrator workflow as a CloudBolt resource build, stores the workflow outputs on the resource, and runs it again with teardown parameters on delete. |
 | Windows File Server | [BP-psw7rclb](blueprints/BP-psw7rclb/README.md) | Deploys a Windows server and installs the File Server role. |
+| Windows Server with Data Disks | [BP-9ph7xcok](blueprints/BP-9ph7xcok/README.md) | Deploys a Windows Server 2025 VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to initialize, letter, label, and format it. |
 
 ## Resource actions
 
@@ -184,6 +186,8 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Ansible Ad-Hoc | [OHK-xdjd5o9b](plugins/OHK-xdjd5o9b/) | Runs an Ansible playbook against the resource and stores the playbook's stats as resource fields. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
 | Apply Public-Exposure Policy | [OHK-b2az2bn6](plugins/OHK-b2az2bn6/) | Assigns the CloudBolt public-exposure Azure Policy initiative to the subscription. | CloudBolt Plug-in | [Apply Policy](resource_actions/RSA-mgh3dn9p/) |
 | Aria Migration Form Options | [OHK-xhpq1rn3](plugins/OHK-xhpq1rn3/) | Serves the dropdown options for the Aria migration order form: Aria projects, an Aria cloud template's resources, a CloudBolt blueprint's tiers, and CloudBolt groups. | CloudBolt Plug-in | [Aria Migration Form Options](webhooks/IWH-xr0508nf/) |
+| Attach Data Disks (Linux) | [OHK-sjr9f2hf](plugins/OHK-sjr9f2hf/) | Adds one virtual disk per row of the order form's Data Disks table to each Linux server and records on its data_disk_layout parameter what the guest uses to find each disk, through the per-handler providers in the data_disk_mapping shared module. | CloudBolt Plug-in | [Oracle Linux Server with Data Disks](blueprints/BP-rgdg9gho/README.md) |
+| Attach Data Disks (Windows) | [OHK-1m6n3gq9](plugins/OHK-1m6n3gq9/) | Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records on its data_disk_layout parameter what the guest uses to find each disk, through the per-handler providers in the data_disk_mapping shared module. | CloudBolt Plug-in | [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) |
 | AWS EKS Namespace | [OHK-u9jm7p8h](plugins/OHK-u9jm7p8h/) | Creates a namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, then pins a CloudBolt environment to it and entitles the ordering group. | CloudBolt Plug-in | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
 | AWS EKS Namespace Connection Details | [OHK-7n4o0hox](plugins/OHK-7n4o0hox/) | Shows the commands that connect kubectl to an EKS namespace and which IAM roles and users have access to it. | CloudBolt Plug-in | [Namespace Connection Details](resource_actions/RSA-j03ua3gm/) |
 | Azure CMK - Per-VM Disk Encryption Set | [OHK-vklpnqhq](plugins/OHK-vklpnqhq/) | Creates a per-VM Key Vault key and disk encryption set and re-encrypts a provisioned Azure VM's disks with it. | CloudBolt Plug-in | [Azure CMK - Per-VM Disk Encryption Set](orchestration_actions/HPA-w1dmx20b/README.md) |
@@ -207,6 +211,8 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Change Access Tier | [OHK-stdxttnw](plugins/OHK-stdxttnw/) | Changes the default blob access tier of the Azure storage account. | CloudBolt Plug-in | [Change Access Tier](resource_actions/RSA-0ldsokuc/) |
 | Change SKU | [OHK-fel441xh](plugins/OHK-fel441xh/) | Changes the replication SKU of the Azure storage account. | CloudBolt Plug-in | [Change SKU](resource_actions/RSA-gr2wsfzx/) |
 | Compare Azure List Prices | [OHK-r9cm4oar](plugins/OHK-r9cm4oar/) | Looks up Azure public list prices for any service across the regions of the Azure environments the caller can order into, with monthly estimates and hints for refining the search. | CloudBolt Plug-in | [Compare Azure List Prices](mcp_tool_actions/MTA-ab0krash/README.md) |
+| Configure Data Disks (Oracle Linux) | [OHK-p962x9z6](plugins/OHK-p962x9z6/) | Matches each attached data disk to its Linux disk by serial number, LUN, SCSI target, or attach order, then creates an LVM volume with an XFS file system and mounts it at the requested mount point. | Remote Script | [Oracle Linux Server with Data Disks](blueprints/BP-rgdg9gho/README.md) |
+| Configure Data Disks (Windows) | [OHK-ea8opsps](plugins/OHK-ea8opsps/) | Matches each attached data disk to its Windows disk by serial number, LUN, SCSI target, or attach order, then initializes it GPT and formats it NTFS with the requested drive letter and label. | Remote Script | [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) |
 | Create AWS EKS Namespace | [OHK-oguk4oad](plugins/OHK-oguk4oad/) | Creates a namespace landing zone on this cluster for a chosen CloudBolt group, filed as an AWS EKS Namespace resource with the same quota, policies, and pinned environment as an ordered one. | CloudBolt Plug-in | [Create AWS EKS Namespace](resource_actions/RSA-5c06txyi/) |
 | Create Blob Container | [OHK-l25x6wd8](plugins/OHK-l25x6wd8/) | Creates a blob container in the resource's Azure storage account. | CloudBolt Plug-in | [Create Blob Container](resource_actions/RSA-xzs5f3a2/) |
 | Create Environment | [OHK-yd1af0eu](plugins/OHK-yd1af0eu/) | Creates a CloudBolt environment on an AWS handler with the region and VPC stored as custom field values. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
@@ -317,6 +323,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `azure_pricing` | [SHM-6gtujb8t](shared_modules/SHM-6gtujb8t/) | Azure VM pricing engine that reads negotiated Price Sheet prices and falls back to the Retail Prices API. | [Azure Price Sheet Refresh](plugins/OHK-bjgpsxoq/), [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | `azure_subscription_helpers` | [SHM-5hjzm9e4](shared_modules/SHM-5hjzm9e4/) | REST helpers for Azure subscription, RBAC, and Policy operations used by the subscription plugins. | [Apply Public-Exposure Policy](plugins/OHK-b2az2bn6/), [Discover Azure Subscriptions](plugins/OHK-av52dzqm/), [Grant Restricted Contributor Access](plugins/OHK-pr8q2szp/), [List Subscription Access](plugins/OHK-ovt0z46j/), [Revoke Restricted Contributor Access](plugins/OHK-myrfeogg/) |
 | `bicep_engine` | [SHM-bbswv27r](shared_modules/SHM-bbswv27r/) | Bicep compiler bootstrap, parameter validation, deployment-stack client, and what-if approval engine. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Teardown Bicep Deployment](plugins/OHK-t2gs5caq/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
+| `data_disk_mapping` | [SHM-iobsa4dm](shared_modules/SHM-iobsa4dm/) | Adds data disks to a server through its resource handler and records, per handler (vCenter, Azure, Nutanix AHV), the serial and SCSI address the guest uses to find each disk. | [Attach Data Disks (Linux)](plugins/OHK-sjr9f2hf/), [Attach Data Disks (Windows)](plugins/OHK-1m6n3gq9/) |
 | `eks_namespace` | [SHM-sa5yqm9j](shared_modules/SHM-sa5yqm9j/) | Kubernetes API client on the EKS cluster's orchestrator, size-tier catalog, and cluster lookups for the AWS EKS Namespace blueprint. | [AWS EKS Namespace](plugins/OHK-u9jm7p8h/), [AWS EKS Namespace Connection Details](plugins/OHK-7n4o0hox/), [Create AWS EKS Namespace](plugins/OHK-oguk4oad/), [Discover AWS EKS Namespaces](plugins/OHK-ow9x0amc/), [Extend AWS EKS Namespace Expiration](plugins/OHK-paad1c56/), [Manage AWS EKS Namespace Access](plugins/OHK-3902mdky/), [Manage AWS EKS Namespace Pipeline Identity](plugins/OHK-h9moajbi/), [Request AWS EKS Namespace Quota Change](plugins/OHK-arour20h/), [Teardown AWS EKS Namespace](plugins/OHK-bnano0nc/) |
 | `env_options` | [SHM-r0oq14r7](shared_modules/SHM-r0oq14r7/) | RBAC-gated option sources (resource groups, subnets, images, sizes, any custom field) derived from a CloudBolt Environment for order-form dropdowns and build plugins. | [Azure PS Script Panel](plugins/OHK-bvn2l7q1/), [Compare Azure List Prices](plugins/OHK-r9cm4oar/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Run Azure PowerShell Script](plugins/OHK-pmyb1car/), [Run Azure PowerShell Script (Deployment Script)](plugins/OHK-oblhxhw2/) |
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
@@ -356,9 +363,11 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | HCP Terraform No-Code Module | [FRM-1dxfulvq](forms/FRM-1dxfulvq/) | Provisions an HCP Terraform no-code module; the job pauses for plan review before apply. | [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) |
 | HCP Terraform VM | [FRM-t3v8zpb7](forms/FRM-t3v8zpb7/) | Provisions a VM through HCP Terraform in a dedicated workspace and pauses for plan review before apply. | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) |
 | Migrate Aria Automation Deployments to Resources | [FRM-i53vgmce](forms/FRM-i53vgmce/) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. | [Migrate Aria Automation Deployments to Resources](blueprints/BP-zq0csldu/README.md) |
+| Oracle Linux Server with Data Disks | [FRM-1lqjo1lk](forms/FRM-1lqjo1lk/) | Deploys an Oracle Linux VM with the data disks you list below, each turned into an LVM volume with an XFS file system and mounted inside the guest. | [Oracle Linux Server with Data Disks](blueprints/BP-rgdg9gho/README.md) |
 | Run an Azure PowerShell Script | [FRM-mfveruw6](forms/FRM-mfveruw6/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run an Azure PowerShell Script (Deployment Script) | [FRM-qfupiiyj](forms/FRM-qfupiiyj/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose, in a container Azure starts for the run. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |
+| Windows Server with Data Disks | [FRM-jqnr84d0](forms/FRM-jqnr84d0/) | Deploys a Windows Server 2025 VM with the data disks you list below, each initialized, lettered, labeled, and formatted inside the guest. | [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) |
 
 ## Form functions
 
@@ -367,4 +376,5 @@ Form JavaScript helpers. A function syncs only as a dependency of a form.
 | Function | ID | Description | Form |
 |---|---|---|---|
 | azpsBuildScriptPanel | [FJS-ouuq5zsq](form_functions/FJS-ouuq5zsq/) | Async form function shared by the order forms of the two Azure PowerShell blueprints (the build-item prefix is its optional second argument): fetches the chosen script's input fields from the azps-script-panel webhook and installs them as the Script Parameters Dynamic Panel's template, resolving instantly on re-evaluation while the panel already matches the chosen script. | [Run an Azure PowerShell Script](forms/FRM-mfveruw6/), [Run an Azure PowerShell Script (Deployment Script)](forms/FRM-qfupiiyj/) |
+| dataDiskLetterFree | [FJS-sq7c76cc](form_functions/FJS-sq7c76cc/) | Form function for the Windows Server with Data Disks order form: hides a drive letter in a Data Disks row once another row uses it. | [Windows Server with Data Disks](forms/FRM-jqnr84d0/) |
 | tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |
