@@ -1,0 +1,135 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{% trans "Server Workflows" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{% trans "Server Workflows" %}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "server_workflow_builder/templates/_assets.html" %}
+
+<div id="swfx-list" class="swfx" data-csrf="{{ csrf_token }}">
+  <div class="swf-card">
+    <div class="swf-hero-top">
+      <div>
+        <div class="swf-eyebrow">{% trans "Server workflows" %}</div>
+        <div class="swf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> {% trans "Chain actions into one run" %}</div>
+        <div class="swf-sub">{% trans "Each workflow runs its steps in order on a server, from the Run Workflow server action. Its filters decide which servers offer it and which actions it can use." %}</div>
+      </div>
+      {% if not denied and not missing_module %}
+      <div class="swf-tools">
+        <a class="btn btn-sm btn-primary" href="{{ add_url }}">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add workflow" %}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="swf-card">
+    {% if denied %}
+    <div class="swf-alert">
+      <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+      <div>{% trans "Server workflows are managed by CB Admins and Super Admins." %}</div>
+    </div>
+    {% elif missing_module %}
+    <div class="swf-alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>{{ missing_message }}</div>
+    </div>
+    {% else %}
+    <div class="swf-card-h">
+      <span class="swf-card-t">{% trans "Workflows" %} &middot; {{ rows|length }}</span>
+      <div class="swf-card-tools">
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter workflows' %}" data-swf-filter="#swfx-workflows-table">
+      </div>
+    </div>
+    <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
+    {% if rows %}
+    <div class="table-responsive">
+      <table id="swfx-workflows-table" class="swf-table">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Filters" %}</th>
+            <th>{% trans "Steps" %}</th>
+            <th>{% trans "Updated" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-swf-row>
+            <td>
+              <a href="{{ row.edit_url }}">{{ row.name }}</a>
+              {% if not row.enabled %}<span class="swf-tag swf-tag-warn">{% trans "Disabled" %}</span>{% endif %}
+              {% if row.missing_steps %}<span class="swf-tag swf-tag-bad">{% blocktrans count n=row.missing_steps %}{{ n }} missing action{% plural %}{{ n }} missing actions{% endblocktrans %}</span>{% endif %}
+              {% if row.description %}<div class="swf-hint">{{ row.description }}</div>{% endif %}
+            </td>
+            <td>
+              {% for f in row.filters %}
+              <div class="swf-filter-line"><span class="k">{{ f.label }}:</span> {{ f.values|join:", " }}{% if f.missing %} <span class="swf-tag swf-tag-bad">{% trans "missing" %} {{ f.missing|length }}</span>{% endif %}</div>
+              {% empty %}
+              <span class="swf-muted">{% trans "Every server" %}</span>
+              {% endfor %}
+            </td>
+            <td>
+              <ol class="swf-steps-list">
+                {% for step in row.steps_shown %}
+                <li>{{ step.name }} <span class="swf-muted">({{ step.type_label }})</span>{% if not step.exists %} <span class="swf-tag swf-tag-bad">{% trans "missing" %}</span>{% endif %}</li>
+                {% endfor %}
+              </ol>
+              {% if row.steps_more %}<div class="swf-hint">{% blocktrans count n=row.steps_more %}+{{ n }} more step{% plural %}+{{ n }} more steps{% endblocktrans %}</div>{% endif %}
+            </td>
+            <td class="text-nowrap">
+              {{ row.updated }}
+              {% if row.updated_by %}<div class="swf-hint">{{ row.updated_by }}</div>{% endif %}
+            </td>
+            <td>
+              <div class="swf-row-tools">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ row.edit_url }}" title="{% trans 'Edit' %}"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">{% trans "Edit" %}</span></a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-swf-copy="{{ row.copy_url }}" title="{% trans 'Copy' %}"><i class="bi bi-files" aria-hidden="true"></i><span class="visually-hidden">{% trans "Copy" %}</span></button>
+                <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ row.delete_url }}" title="{% trans 'Delete' %}"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">{% trans "Delete" %}</span></a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="swf-empty">{% trans "No workflows yet. Add one to chain Remote Scripts, plug-ins and other actions into a single run." %}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $root = $("#swfx-list");
+  $root.on("input", "input[data-swf-filter]", function () {
+    var needle = this.value.toLowerCase();
+    $root.find($(this).attr("data-swf-filter")).find("tbody tr[data-swf-row]").each(function () {
+      $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+    });
+  });
+  $root.on("click", "[data-swf-copy]", function () {
+    var $btn = $(this).prop("disabled", true);
+    fetch($btn.attr("data-swf-copy"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json", "X-CSRFToken": $root.attr("data-csrf") }
+    })
+      .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+      .then(function (reply) {
+        if (!reply.ok || !reply.body.edit_url) { throw new Error(reply.body.error || "The copy failed."); }
+        window.location.href = reply.body.edit_url;
+      })
+      .catch(function (error) {
+        $btn.prop("disabled", false);
+        $root.find("[data-swf-error]").removeClass("d-none").find("div").text(String(error.message || error));
+      });
+  });
+})();
+</script>
+{% endblock content %}

@@ -1,0 +1,97 @@
+{% comment %}
+  Shared styles for the Server Workflows pages. Same visual language as the
+  Content Packages and HCP Terraform Workspace extensions: tokens derive from
+  --bs-primary / --bs-body-color / --surface / --neutral-* so Branded Themes
+  re-theme the pages without an asset build.
+{% endcomment %}
+<style>
+  .swfx {
+    --swf-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --swf-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --swf-line: var(--neutral-250, #E2E8ED);
+    --swf-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --swf-primary: var(--bs-primary, #0d6efd);
+    --swf-ok: var(--bs-success, #198754);
+    --swf-warn: var(--bs-warning, #ffc107);
+    --swf-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --swf-bad: var(--bs-danger, #dc3545);
+  }
+  .swfx .swf-card { background: var(--surface, #fff); border: 1px solid var(--swf-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .swfx .swf-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .swfx .swf-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--swf-muted); }
+  .swfx .swf-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .swfx .swf-title .bi { color: var(--swf-primary); }
+  .swfx .swf-sub { font-size: 12.5px; font-weight: 600; color: var(--swf-muted); margin-top: 2px; }
+  .swfx .swf-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .swfx .swf-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--swf-line); flex-wrap: wrap; }
+  .swfx .swf-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--swf-muted); }
+  .swfx .swf-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .swfx .swf-card-tools .form-control { width: 220px; max-width: 100%; }
+  .swfx .swf-card-b { padding: 16px 18px; }
+  .swfx .swf-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .swfx .swf-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--swf-muted); padding: 10px 18px; border-bottom: 1px solid var(--swf-line); text-align: left; white-space: nowrap; }
+  .swfx .swf-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .swfx .swf-table tbody tr:last-child td { border-bottom: 0; }
+  .swfx .swf-table tbody tr:hover td { background: var(--swf-surface-2); }
+  .swfx .swf-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--swf-soft); }
+  .swfx .swf-pill-ok { background: color-mix(in srgb, var(--swf-ok) 14%, transparent); color: var(--swf-ok); }
+  .swfx .swf-pill-warn { background: color-mix(in srgb, var(--swf-warn) 22%, transparent); color: var(--swf-warn-text); }
+  .swfx .swf-pill-bad { background: color-mix(in srgb, var(--swf-bad) 12%, transparent); color: var(--swf-bad); }
+  .swfx .swf-pill-live { background: color-mix(in srgb, var(--swf-primary) 13%, transparent); color: var(--swf-primary); }
+  .swfx .swf-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--swf-soft); vertical-align: middle; white-space: nowrap; }
+  .swfx .swf-tag-warn { background: color-mix(in srgb, var(--swf-warn) 22%, transparent); color: var(--swf-warn-text); }
+  .swfx .swf-tag-bad { background: color-mix(in srgb, var(--swf-bad) 12%, transparent); color: var(--swf-bad); }
+  .swfx .swf-tag-live { background: color-mix(in srgb, var(--swf-primary) 13%, transparent); color: var(--swf-primary); }
+  .swfx .swf-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .swfx .swf-muted { color: var(--swf-muted); font-weight: 600; }
+  .swfx .swf-hint { font-size: 11.5px; color: var(--swf-muted); font-weight: 600; margin-top: 3px; }
+  .swfx .swf-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .swfx .swf-empty { color: var(--swf-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .swfx .swf-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--swf-bad); overflow-wrap: anywhere; white-space: pre-line; }
+  .swfx .swf-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .swfx .swf-ok-note { display: flex; gap: 10px; align-items: center; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--swf-ok); }
+  .swfx .swf-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .swfx .swf-steps-list { margin: 0; padding-left: 18px; }
+  .swfx .swf-steps-list li { list-style-type: decimal; }
+  .swfx .swf-filter-line { font-size: 12px; }
+  .swfx .swf-filter-line .k { font-weight: 700; color: var(--swf-muted); }
+  /* Editor */
+  .swfx .swf-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px 18px; }
+  .swfx .swf-filters select[multiple] { min-height: 120px; }
+  .swfx .swf-step { border: 1px solid var(--swf-line); border-radius: 10px; margin-bottom: 12px; background: var(--surface, #fff); }
+  .swfx .swf-step.swf-step-bad { border-color: color-mix(in srgb, var(--swf-bad) 55%, var(--swf-line)); }
+  .swfx .swf-step.swf-drop { outline: 2px dashed var(--swf-primary); outline-offset: 2px; }
+  .swfx .swf-step-h { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--swf-line); flex-wrap: wrap; }
+  .swfx .swf-grip { cursor: grab; color: var(--swf-muted); font-size: 16px; }
+  .swfx .swf-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: color-mix(in srgb, var(--swf-primary) 13%, transparent); color: var(--swf-primary); font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+  .swfx .swf-step-name { max-width: 320px; font-weight: 700; }
+  .swfx .swf-step-action { font-size: 12.5px; font-weight: 600; color: var(--swf-muted); overflow-wrap: anywhere; }
+  .swfx .swf-step-b { padding: 12px 14px; }
+  .swfx .swf-settings { display: flex; gap: 14px 22px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
+  .swfx .swf-settings .form-control { width: 110px; }
+  .swfx .swf-settings .swf-key { width: 200px; }
+  .swfx .swf-settings label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--swf-muted); margin-bottom: 3px; display: block; }
+  .swfx .swf-inputs { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .swfx .swf-inputs th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--swf-muted); padding: 6px 8px; border-bottom: 1px solid var(--swf-line); text-align: left; }
+  .swfx .swf-inputs td { padding: 8px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; }
+  .swfx .swf-inputs tr:last-child td { border-bottom: 0; }
+  .swfx .swf-inputs .swf-col-input { width: 32%; }
+  .swfx .swf-inputs .swf-col-mode { width: 190px; }
+  .swfx .swf-req { color: var(--swf-bad); font-weight: 700; }
+  .swfx .swf-problems { color: var(--swf-bad); font-size: 12.5px; font-weight: 600; margin: 0 0 8px; padding-left: 18px; }
+  .swfx .swf-picker { border: 1px solid var(--swf-line); border-radius: 10px; margin-bottom: 12px; background: var(--swf-surface-2); }
+  .swfx .swf-picker-h { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--swf-line); }
+  .swfx .swf-picker-h .form-control { width: 260px; max-width: 100%; }
+  .swfx .swf-picker-list { max-height: 340px; overflow-y: auto; }
+  .swfx .swf-pick { display: flex; gap: 10px; align-items: flex-start; padding: 8px 14px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent); font-size: 13px; }
+  .swfx .swf-pick:last-child { border-bottom: 0; }
+  .swfx .swf-pick:hover { background: var(--surface, #fff); }
+  .swfx .swf-pick-main { flex: 1 1 auto; min-width: 0; }
+  .swfx .swf-pick-name { font-weight: 700; }
+  .swfx .swf-pick-off { opacity: .75; }
+  .swfx .swf-pick-off .swf-pick-why { color: var(--swf-bad); font-size: 12px; font-weight: 600; }
+  .swfx .swf-section-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; background: none; border: 0; border-top: 1px solid var(--swf-line); font-size: 12.5px; font-weight: 700; text-align: left; color: var(--swf-muted); }
+  .swfx .swf-footer { display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--swf-line); }
+  .swfx .swf-spin { display: inline-block; animation: swf-spin 1s linear infinite; }
+  @keyframes swf-spin { to { transform: rotate(360deg); } }
+</style>

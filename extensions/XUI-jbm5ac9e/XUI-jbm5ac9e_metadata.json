@@ -1,0 +1,20 @@
+{
+    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-jbm5ac9e",
+    "label": "Server Workflows",
+    "last_updated": "2026-10-16",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "server_workflow_builder",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "templates/_assets.html",
+        "templates/workflows.html",
+        "templates/editor.html"
+    ],
+    "version": ""
+}
