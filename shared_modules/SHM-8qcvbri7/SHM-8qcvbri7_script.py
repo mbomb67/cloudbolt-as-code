@@ -178,8 +178,11 @@ def describe(disk):
     return f"{target} {disk['size_gb']} GB '{disk['volume_name']}'"
 
 
-def _guest_output(err):
-    return str(getattr(err, "output", "") or err).strip()
+def _guest_error(output):
+    """The script's ERROR: lines, or the end of its output when it printed none."""
+    errors = [line.strip()[len("ERROR:"):].strip() for line in output.splitlines()
+              if line.strip().startswith("ERROR:")]
+    return "; ".join(errors) or output[-500:]
 
 
 def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
@@ -191,8 +194,9 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
     The script runs through Server.execute_script, the call a Remote Script action
     makes (cbhooks RemoteScriptHook.run_hook_on_server): the resource handler's own
     channel when tech-specific script execution is on (VMware Tools, Azure Run
-    Command), else WinRM or SSH with the server's credentials. execute_script pins
-    the script's output to the job log itself, so it is not repeated here.
+    Command), else WinRM or SSH with the server's credentials. The script's own
+    output goes to the job's log file only; the progress log gets one line per
+    server, or the script's error.
     """
     done, failures = 0, []
     for server in servers:
@@ -200,7 +204,8 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
             continue
         layout = str(server.get_value_for_custom_field(LAYOUT_FIELD) or "").strip()
         try:
-            layout = json.dumps(json.loads(layout), separators=(",", ":")) if layout else ""
+            disks = json.loads(layout) if layout else []
+            layout = json.dumps(disks, separators=(",", ":")) if disks else ""
         except ValueError:
             layout = ""
         if not layout:
@@ -213,18 +218,24 @@ def configure_in_guest(job, servers, script, file_extension, run_with_sudo):
         body = script.replace(LAYOUT_TOKEN, layout)
         if file_extension == "sh":
             body = body.replace("\r\n", "\n")  # what a Remote Script action does for Linux
-        set_progress(f"{server.hostname}: configuring data disks in the guest")
+        set_progress(f"{server.hostname}: preparing the data disks in the guest")
         try:
-            server.execute_script(
+            output = server.execute_script(
                 script_contents=body,
                 file_extension=file_extension,
                 run_with_sudo=run_with_sudo,
                 timeout=GUEST_TIMEOUT,
+                show_streaming_output=False,
             )
         except Exception as err:
-            logger.exception("Configuring data disks on %s failed", server.hostname)
-            failures.append(f"{server.hostname}: {_guest_output(err)}")
+            output = str(getattr(err, "output", "") or err).strip()
+            logger.error("Data disk script on %s failed:\n%s", server.hostname, output)
+            failures.append(f"{server.hostname}: {_guest_error(output)}")
             continue
+        logger.info("Data disk script on %s:\n%s", server.hostname, output)
+        set_progress(
+            f"{server.hostname}: data disks ready in the guest: " + ", ".join(describe(d) for d in disks)
+        )
         done += 1
 
     if failures:
