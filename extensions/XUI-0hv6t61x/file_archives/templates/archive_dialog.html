@@ -1,0 +1,30 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "file_archives/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div class="cfax cfa-dialog">
+  {% if error %}
+  <div class="cfa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="cfa-name">{% trans "Name" %}</label>
+      {% if existing %}
+      <input class="form-control" id="cfa-name" value="{{ values.name }}" disabled>
+      {% else %}
+      <input class="form-control" id="cfa-name" name="name" value="{{ values.name }}" maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" required>
+      <div class="form-text">{% trans "Letters, digits, dots, dashes and underscores. Scripts use it in archive/file, so it cannot change later." %}</div>
+      {% endif %}
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="cfa-description">{% trans "Description" %}</label>
+      <textarea class="form-control" id="cfa-description" name="description" rows="2" maxlength="500">{{ values.description }}</textarea>
+    </div>
+  </div>
+</div>
+{% endblock form_content %}

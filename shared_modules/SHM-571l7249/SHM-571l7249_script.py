@@ -514,7 +514,34 @@ def tail(text, limit=OUTPUT_LIMIT):
     return text if len(text) <= limit else "...\n" + text[-limit:]
 
 
-def run_task(hook, server, inputs, job=None):
+def _with_archives(script, server, job, archive_refs, timeout, attempts):
+    """
+    Put the file archives download step (shared_modules/SHM-v8llc736) into a
+    script that declares files with cb-archive header lines, or gets files
+    attached as archive_refs. Returns the script and the CB_OUTPUT lines
+    naming the version of each file, to append to the output after a
+    successful run (the versions are known here, before the script runs).
+    """
+    if not archive_refs and "cb-archive" not in script:
+        return script, ""
+    try:
+        from shared_modules import file_archives
+    except ImportError:
+        raise TaskError(
+            "This task uses file archives, but the file_archives shared module "
+            "(SHM-v8llc736) is not on this CloudBolt."
+        )
+    try:
+        script, outputs = file_archives.prepare(
+            script, server, job, extra_refs=archive_refs,
+            minutes=file_archives.link_lifetime(timeout, attempts),
+        )
+    except file_archives.ArchiveError as err:
+        raise TaskError(str(err))
+    return script, file_archives.output_lines(outputs)
+
+
+def run_task(hook, server, inputs, job=None, archive_refs=None):
     """
     Run hook on server the way a Remote Script action does
     (RemoteScriptHook.run_hook_on_server) and return the script's output.
@@ -524,6 +551,11 @@ def run_task(hook, server, inputs, job=None):
     Script's timeout, sudo and clean-up settings and its saved credentials
     (else the server's). execute_script raises when the script fails or
     exits non-zero. Retries follow the Remote Script's max_retries.
+
+    Files the script declares in cb-archive header lines, plus archive_refs
+    (files a workflow step attached, "archive/file[@version] [extract]"),
+    are downloaded onto the server before the script body runs; see the
+    file_archives shared module (SHM-v8llc736).
     """
     if server.power_status != "POWERON":
         raise TaskError(f"{server.hostname} is not powered on.")
@@ -535,6 +567,8 @@ def run_task(hook, server, inputs, job=None):
     args = hook.get_script_args(server, context) or None
     username, password, key = hook.get_runas_credentials(None)
     attempts = max(int(hook.max_retries or 0), 0) + 1
+    # Once, before the retry loop: the links must outlive every attempt.
+    script, archive_lines = _with_archives(script, server, job, archive_refs, hook.execution_timeout, attempts)
     attempt, busy_waits = 1, 0
     while True:
         try:
@@ -564,7 +598,7 @@ def run_task(hook, server, inputs, job=None):
             attempt += 1
             continue
         add_server_event("MODIFICATION", server, f"Run Task '{hook.name}' succeeded.", job=job)
-        return output or ""
+        return (output or "") + archive_lines
 
 
 OUTPUT_LINE = re.compile(r"^\s*CB_OUTPUT\s+([A-Za-z0-9_]+)=(.*?)\s*$", re.MULTILINE)
