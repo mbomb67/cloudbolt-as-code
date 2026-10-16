@@ -20,7 +20,7 @@
             "value_pattern_string": null
         }
     ],
-    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records where the hypervisor attached it (vCenter SCSI address and VMDK UUID, or Azure LUN) on the server's data_disk_layout parameter.",
+    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records on its data_disk_layout parameter what the guest uses to find each disk, through the per-handler providers in the data_disk_mapping shared module.",
     "id": "OHK-1m6n3gq9",
     "max_retries": 0,
     "name": "Attach Data Disks (Windows)",
@@ -28,5 +28,10 @@
     "script_filename": "OHK-1m6n3gq9_script.py",
     "shared": false,
     "target_os_families": [],
-    "type": "CloudBolt Plug-in"
+    "type": "CloudBolt Plug-in",
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-iobsa4dm"
+        ]
+    }
 }

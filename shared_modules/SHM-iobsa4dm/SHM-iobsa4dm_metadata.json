@@ -1,0 +1,12 @@
+{
+    "description": "Adds data disks to a server through its resource handler and records, per handler (vCenter, Azure, Nutanix AHV), the serial and SCSI address the guest uses to find each disk.",
+    "id": "SHM-iobsa4dm",
+    "label": "Data Disk Mapping",
+    "max_retries": 0,
+    "module_name": "data_disk_mapping",
+    "name": "data_disk_mapping",
+    "resource_technologies": [],
+    "script_filename": "SHM-iobsa4dm_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

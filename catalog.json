@@ -1063,10 +1063,12 @@
     "id": "OHK-1m6n3gq9",
     "type": "plugins",
     "name": "Attach Data Disks (Windows)",
-    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records where the hypervisor attached it (vCenter SCSI address and VMDK UUID, or Azure LUN) on the server's data_disk_layout parameter.",
+    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records on its data_disk_layout parameter what the guest uses to find each disk, through the per-handler providers in the data_disk_mapping shared module.",
     "path": "plugins/OHK-1m6n3gq9",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-iobsa4dm"
+    ],
     "used_by": [
       "blueprints/BP-9ph7xcok"
     ],
@@ -2520,10 +2522,12 @@
     "id": "OHK-sjr9f2hf",
     "type": "plugins",
     "name": "Attach Data Disks (Linux)",
-    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Linux server and records where the hypervisor attached it (vCenter SCSI address and VMDK UUID, or Azure LUN) on the server's data_disk_layout parameter.",
+    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Linux server and records on its data_disk_layout parameter what the guest uses to find each disk, through the per-handler providers in the data_disk_mapping shared module.",
     "path": "plugins/OHK-sjr9f2hf",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-iobsa4dm"
+    ],
     "used_by": [
       "blueprints/BP-rgdg9gho"
     ],
@@ -3634,6 +3638,19 @@
       "plugins/OHK-e5a4m2bm",
       "plugins/OHK-sf6w5pfn",
       "plugins/OHK-4xqzbdtx"
+    ]
+  },
+  {
+    "id": "SHM-iobsa4dm",
+    "type": "shared_modules",
+    "name": "data_disk_mapping",
+    "description": "Adds data disks to a server through its resource handler and records, per handler (vCenter, Azure, Nutanix AHV), the serial and SCSI address the guest uses to find each disk.",
+    "path": "shared_modules/SHM-iobsa4dm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-sjr9f2hf",
+      "plugins/OHK-1m6n3gq9"
     ]
   },
   {
