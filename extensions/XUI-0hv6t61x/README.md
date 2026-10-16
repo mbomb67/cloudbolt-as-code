@@ -21,6 +21,7 @@ Scripts run through Run Task (`server_actions/SVA-4sin3s0q`), whose `server_task
 - An archive is a named folder; a file in it is referenced as `archive/file`. Names use letters, digits, dots, dashes and underscores.
 - Every upload is a new version. A reference without a version, or with `@latest`, gets the newest; `@3` pins version 3. **Restore** copies an old version to a new latest one.
 - Settings keep the newest N versions per file (10 by default) and delete older ones on upload.
+- Uploads go through CloudBolt's own upload checks (antivirus scan and content-type allowlist, including any `CONTENT_TYPE_CHECK_CONF` setting). The upload dialog also allows archive and installer types that CloudBolt's default list leaves out (gzip, tar, bzip2, xz, 7z, rpm, deb, msi, exe, ELF binaries, jar, json, yaml, csv); other types are refused with their name. If CloudBolt's upload handler ever moves, the dialog falls back to CloudBolt's default checks rather than skipping them. Uploads over the limit in Settings (200 MB by default) are refused before they are stored.
 - Files are stored under `/var/opt/cloudbolt/proserv/file_archives`, outside the web root, so they are shared between the nodes of an HA install and are reachable only through a signed link or the admin page.
 
 ## Using a file in a script

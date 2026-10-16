@@ -42,6 +42,10 @@ Restoring an old version copies it to a new version, so history only grows
 until the retention count prunes it. Writes go to a temporary directory and
 are renamed into place, so a download never sees a partial file.
 
+Other content depends on these names; keep their signatures stable:
+prepare, output_lines and link_lifetime (server_tasks.run_task), and
+validate_entry, file_choices and ArchiveError (the workflow builder).
+
 The activity log (links issued, downloads, refusals, uploads) is kept in the
 database as JSON values of one CustomField in the file_archives namespace, one
 value per file, so every node of an HA install sees it.
@@ -80,8 +84,11 @@ DEFAULT_SETTINGS = {
     "keep_versions": 10,
     # Link lifetime before Run Task's retries and Azure busy waits are added.
     "link_minutes": 15,
+    # Largest upload accepted, in MB; the store is on the shared proserv disk.
+    "max_upload_mb": 200,
 }
 MAX_LINK_MINUTES = 60
+MAX_UPLOAD_MB = 4096
 ACTIVITY_LIMIT = 100
 
 NAME_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}"
@@ -139,24 +146,30 @@ def get_settings():
     return values
 
 
-def save_settings(base_url, verify_tls, keep_versions, link_minutes):
+def save_settings(base_url, verify_tls, keep_versions, link_minutes, max_upload_mb=None):
     base_url = (base_url or "").strip().rstrip("/")
     if base_url and not re.match(r"^https?://[A-Za-z0-9.:\[\]-]+(/[A-Za-z0-9._~/-]*)?$", base_url):
         raise ArchiveError("The download base URL must look like https://cloudbolt.example.com.")
+    if max_upload_mb in (None, ""):
+        max_upload_mb = DEFAULT_SETTINGS["max_upload_mb"]
     try:
         keep_versions = int(keep_versions)
         link_minutes = int(link_minutes)
+        max_upload_mb = int(max_upload_mb)
     except (TypeError, ValueError):
-        raise ArchiveError("Versions to keep and link minutes must be whole numbers.")
+        raise ArchiveError("Versions to keep, link minutes and the upload limit must be whole numbers.")
     if not 1 <= keep_versions <= 1000:
         raise ArchiveError("Versions to keep must be between 1 and 1000.")
     if not 1 <= link_minutes <= MAX_LINK_MINUTES:
         raise ArchiveError(f"Link minutes must be between 1 and {MAX_LINK_MINUTES}.")
+    if not 1 <= max_upload_mb <= MAX_UPLOAD_MB:
+        raise ArchiveError(f"The upload limit must be between 1 and {MAX_UPLOAD_MB} MB.")
     values = {
         "base_url": base_url,
         "verify_tls": bool(verify_tls),
         "keep_versions": keep_versions,
         "link_minutes": link_minutes,
+        "max_upload_mb": max_upload_mb,
     }
     _write_json(SETTINGS_FILE, values)
     return values
@@ -259,10 +272,13 @@ def add_version(archive, name, chunks, username, note="", restored_from=None):
     """
     Store the bytes from chunks (an iterable of bytes) as the next version of
     archive/name and return its metadata. Prunes versions beyond the retention
-    count, never the new one.
+    count, never the new one. Refuses more than the max_upload_mb setting
+    (restores copy a stored version, so they are not limited).
     """
     if not os.path.isfile(os.path.join(_archive_dir(archive), "archive.json")):
         raise ArchiveError(f"Archive '{archive}' does not exist.")
+    limit_mb = get_settings()["max_upload_mb"]
+    limit = None if restored_from else limit_mb * 1024 * 1024
     directory = _file_dir(archive, name)
     os.makedirs(directory, exist_ok=True)
     staging = tempfile.mkdtemp(dir=directory, prefix=".upload-")
@@ -272,6 +288,8 @@ def add_version(archive, name, chunks, username, note="", restored_from=None):
             for chunk in chunks:
                 digest.update(chunk)
                 size += len(chunk)
+                if limit and size > limit:
+                    raise ArchiveError(f"The file is larger than the {limit_mb} MB upload limit in Settings.")
                 handle.write(chunk)
         if not size:
             raise ArchiveError("The file is empty.")
@@ -300,6 +318,8 @@ def add_version(archive, name, chunks, username, note="", restored_from=None):
             raise ArchiveError("Could not store the file; try again.")
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)
+        if not versions(archive, name):
+            shutil.rmtree(directory, ignore_errors=True)
         raise
     _prune(archive, name, keep_version=version)
     return meta

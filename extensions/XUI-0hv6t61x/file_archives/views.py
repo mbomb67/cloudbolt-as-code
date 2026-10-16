@@ -13,9 +13,11 @@ the login middleware, and the view serves only the exact file version a valid,
 unexpired token names. Anything else is a 404.
 """
 from django.contrib import messages
+from django.core.files.uploadhandler import FileUploadHandler, SkipFile
 from django.http import FileResponse, Http404, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_safe
 
 from extensions.views import admin_extension
@@ -189,10 +191,110 @@ def archive_edit(request, archive=None):
     }
 
 
-@dialog_view(template_name=TEMPLATES + "upload_dialog.html")
-@cbadmin_required
+# Types the upload dialog accepts on top of CloudBolt's default upload
+# allowlist (utilities/upload_handlers), which has zip but not gzip, tar or
+# installers. Types as libmagic reports them.
+ARCHIVE_CONTENT_TYPES = [
+    "application/gzip",
+    "application/x-gzip",
+    "application/x-tar",
+    "application/x-bzip2",
+    "application/x-xz",
+    "application/zstd",
+    "application/x-7z-compressed",
+    "application/java-archive",
+    "application/x-rpm",
+    "application/vnd.debian.binary-package",
+    "application/x-debian-package",
+    "application/x-msi",
+    "application/vnd.ms-msi",
+    "application/x-ole-storage",
+    "application/CDFV2",
+    "application/vnd.ms-cab-compressed",
+    "application/x-dosexec",
+    "application/vnd.microsoft.portable-executable",
+    "application/x-executable",
+    "application/x-pie-executable",
+    "application/x-sharedlib",
+    "application/json",
+    "text/x-yaml",
+    "text/csv",
+]
+
+
+class _SizeLimit(FileUploadHandler):
+    """Skips a file as soon as it passes the File Archives upload limit, before it is written."""
+
+    def __init__(self, request, limit_mb):
+        super().__init__(request)
+        self.limit_mb = limit_mb
+        self.limit = limit_mb * 1024 * 1024
+        self.seen = 0
+
+    def new_file(self, *args, **kwargs):
+        super().new_file(*args, **kwargs)
+        self.seen = 0
+
+    def receive_data_chunk(self, raw_data, start):
+        self.seen += len(raw_data)
+        if self.seen > self.limit:
+            messages.error(self.request, f"The file is larger than the {self.limit_mb} MB upload limit in Settings.")
+            raise SkipFile()
+        return raw_data
+
+    def file_complete(self, file_size):
+        return None
+
+
+def _upload_handlers(request, limit_mb):
+    """
+    The size limit, then CloudBolt's own upload handler with its antivirus scan
+    and content-type check and any CONTENT_TYPE_CHECK_CONF setting, plus
+    ARCHIVE_CONTENT_TYPES; then the rest of FILE_UPLOAD_HANDLERS as CloudBolt
+    configures them. Raises if CloudBolt's handler is not where this expects.
+    """
+    from django.conf import settings
+    from django.core.files.uploadhandler import load_handler
+    from utilities.upload_handlers import av_service, content_type_config
+    from utilities.upload_handlers.handler import CustomUploadHandler
+
+    config = dict(content_type_config)
+    extra = list(config.pop("additional_content_types", None) or []) + ARCHIVE_CONTENT_TYPES
+    handlers = [
+        _SizeLimit(request, limit_mb),
+        CustomUploadHandler(request, av_service=av_service, additional_content_types=extra, **config),
+    ]
+    for path in settings.FILE_UPLOAD_HANDLERS:
+        if path != "utilities.upload_handlers.custom_upload_handler":
+            handlers.append(load_handler(path, request))
+    return handlers
+
+
+@csrf_exempt
 def upload(request, archive, name=None):
-    """Upload a new file to an archive, or a new version of one of its files."""
+    """
+    Upload a new file to an archive, or a new version of one of its files.
+
+    Upload handlers can only be replaced before anything reads the request
+    body, and CloudBolt's CSRF middleware reads it first; so this outer view is
+    exempt, swaps the handlers, and _upload checks CSRF itself.
+
+    Fails closed: if the handlers cannot be built (CloudBolt moved its upload
+    handler) or set, the request keeps CloudBolt's default handlers, which
+    scan and check it as usual and refuse the archive types.
+    """
+    try:
+        limit_mb = _fa().get_settings()["max_upload_mb"]
+        request.upload_handlers = _upload_handlers(request, limit_mb)
+    except Exception:
+        logger.exception("File Archives: kept CloudBolt's default upload handlers")
+    return _upload(request, archive, name)
+
+
+@dialog_view(template_name=TEMPLATES + "upload_dialog.html")
+@csrf_protect
+@cbadmin_required
+def _upload(request, archive, name=None):
     fa = _fa()
     if not any(a["name"] == archive for a in fa.list_archives()):
         raise Http404
@@ -203,7 +305,7 @@ def upload(request, archive, name=None):
         upload_file = request.FILES.get("file")
         target = name or request.POST.get("name", "").strip() or (upload_file.name if upload_file else "")
         if upload_file is None:
-            error = "Choose a file to upload."
+            error = "No file arrived. If a message above gives a reason, fix that and upload again."
         else:
             try:
                 meta = fa.add_version(archive, target, upload_file.chunks(), _username(request), note=note)
@@ -367,6 +469,7 @@ def settings_edit(request):
             "verify_tls": request.POST.get("verify_tls") == "on",
             "keep_versions": request.POST.get("keep_versions", ""),
             "link_minutes": request.POST.get("link_minutes", ""),
+            "max_upload_mb": request.POST.get("max_upload_mb", ""),
         }
         try:
             fa.save_settings(**values)
@@ -382,6 +485,7 @@ def settings_edit(request):
         "values": values,
         "base_url": _base_url_info(request, fa),
         "max_minutes": fa.MAX_LINK_MINUTES,
+        "max_upload_limit": fa.MAX_UPLOAD_MB,
         "error": error,
     }
 
