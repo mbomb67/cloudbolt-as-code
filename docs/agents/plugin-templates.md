@@ -841,6 +841,11 @@ import ast
 items = ast.literal_eval("""{{ items }}""")
 ```
 
+**Inputs come from the source, not only the metadata** (verified against CloudBolt source, `OrchestrationHook.save` → `update_action_inputs`, 2026-10). Every save of a CloudBolt Plug-in or Remote Script re-reads its file, creates an input for each bare `{{ name }}` variable (names under `server.`, `resource.`, `job.`, `group.`, `environment.`, `blueprint.`, `blueprint_context.` and `outputs.` excepted) and **deletes every input the file does not mention**. Three consequences:
+- A plug-in that reads its inputs only from `run()` kwargs loses them all after the sync. Name each one in a block that never renders: `# {% if False %}"{{ task }}" """{{ task_inputs }}"""{% endif %}` (`plugins/OHK-o4tgygjs`).
+- A filter inside the variable makes a stray input: `{{ name|urlencode }}` creates an input literally named `name|urlencode`. Apply filters with block tags around a bare variable instead, for example `{% autoescape off %}{% filter urlencode:"" %}{{ name }}{% endfilter %}{% endautoescape %}` (the Remote Scripts used by `server_actions/SVA-4sin3s0q`). Autoescape must be off inside, or the value is HTML-escaped before it is encoded.
+- Only string inputs are backslash-escaped before a plug-in renders (`_escape_action_inputs`). A list or dict, such as a custom form's Dynamic Panel, renders as its Python repr with nothing escaped, so `"""{{ panel }}"""` can be ended by a value containing three double quotes. Read such inputs from kwargs.
+
 ### Generate Options Functions
 
 **Basic Options**:

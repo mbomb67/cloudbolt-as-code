@@ -33,9 +33,11 @@ The task uses the Remote Script's saved credentials, else the server's. Azure an
 
 ## Adding a task
 1. Start from Server Task Template (Windows) or (Linux): paste its script into a new Remote Script in the CloudBolt UI, or add a Remote Script folder to the repo modeled on `plugins/OHK-lhm2916o` / `plugins/OHK-iub9a2jg` (generate the ID as AGENTS.md rule 6 says).
-2. Name it, set its OS families, and declare its inputs. Supported input types: string, integer, decimal, IP, date, date and time, multi-line text, code, boolean and URL, with options or a regex pattern if you want. Read each input in the script through the `urlencode` filter as the templates do:
-   - PowerShell: `$Name = [uri]::UnescapeDataString('{{ name|urlencode:"" }}')`
-   - bash (inside the `CB_TASK` block): `NAME="$(urldecode '{{ name|urlencode:"" }}')"`
+2. Name it, set its OS families, and declare its inputs. Supported input types: string, integer, decimal, IP, date, date and time, multi-line text, code, boolean and URL, with options or a regex pattern if you want. Read each input percent-encoded, as the templates do, so no value can break the script's quoting:
+   - PowerShell: `$Name = [uri]::UnescapeDataString('{% autoescape off %}{% filter urlencode:"" %}{{ name }}{% endfilter %}{% endautoescape %}')`
+   - bash (inside the `CB_TASK` block): `NAME="$(urldecode '{% autoescape off %}{% filter urlencode:"" %}{{ name }}{% endfilter %}{% endautoescape %}')"`
+
+   Keep `{{ name }}` bare, never `{{ name|urlencode }}`: CloudBolt rebuilds a script's inputs from the bare template variables in it on every save, so a filtered variable becomes a stray input and the declared one is deleted.
 3. Replace the task body. Log with `Log` / `log`, fail with `throw` / `fail`, and validate every input in the script.
 4. It appears in Run Task on matching servers immediately; no new action is needed.
 

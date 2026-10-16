@@ -25,8 +25,8 @@ SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo -n"; fi
 
 # ---- inputs ----
-SERVICE_NAME="$(urldecode '{{ service_name|urlencode:"" }}')"
-OPERATION="$(urldecode '{{ operation|urlencode:"" }}' | tr '[:upper:]' '[:lower:]')"
+SERVICE_NAME="$(urldecode '{% autoescape off %}{% filter urlencode:"" %}{{ service_name }}{% endfilter %}{% endautoescape %}')"
+OPERATION="$(urldecode '{% autoescape off %}{% filter urlencode:"" %}{{ operation }}{% endfilter %}{% endautoescape %}' | tr '[:upper:]' '[:lower:]')"
 printf '%s' "$SERVICE_NAME" | grep -Eq '^[A-Za-z0-9:_.@-]+$' \
     || fail "service_name '$SERVICE_NAME' must be one systemd unit name (letters, digits and : _ . @ -)."
 case "$OPERATION" in

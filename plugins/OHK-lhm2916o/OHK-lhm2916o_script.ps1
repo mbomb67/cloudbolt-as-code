@@ -7,12 +7,16 @@
 # summary of the server and an optional message.
 #
 # Conventions:
-#   Inputs   Each declared input is read once, under "inputs", through the
-#            urlencode template filter with an empty safe list, inside single
-#            quotes, and decoded with UnescapeDataString. The encoded text is
+#   Inputs   Each declared input is read once, under "inputs", inside single
+#            quotes, wrapped in Django's autoescape-off and urlencode filter
+#            tags, and decoded with UnescapeDataString. The encoded text is
 #            only letters, digits and percent signs, so no value can end the
-#            string. Validate every input before using it. Never write template
-#            braces in a comment: CloudBolt renders the whole file first.
+#            string. Keep the variable inside the tags bare (no filter after
+#            its name): CloudBolt creates the script's inputs from the bare
+#            template variables in the file and deletes the others. Validate
+#            every input before using it.
+#   Template CloudBolt renders the whole file as a Django template first, so
+#            never write template braces anywhere else, even in a comment.
 #   Output   Write-Output only (the Log function). VMware Tools captures only
 #            the success stream, and on Windows it fails the script on any
 #            stderr text.
@@ -35,7 +39,7 @@ function Log([string]$Text) {
 
 try {
     # ---- inputs ----
-    $Message = [uri]::UnescapeDataString('{{ message|urlencode:"" }}').Trim()
+    $Message = [uri]::UnescapeDataString('{% autoescape off %}{% filter urlencode:"" %}{{ message }}{% endfilter %}{% endautoescape %}').Trim()
     if ($Message.Length -gt 200) { throw 'message must be 200 characters or fewer.' }
 
     # ---- task body ----

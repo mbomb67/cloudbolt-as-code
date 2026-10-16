@@ -35,6 +35,12 @@ from shared_modules import server_tasks
 
 logger = ThreadLogger(__name__)
 
+# CloudBolt rebuilds a plug-in's inputs from the template variables in its
+# source on every save and deletes the others. The line below names both
+# inputs inside a block that never renders, so no submitted value is ever
+# written into this code; run() reads the values from its kwargs.
+# {% if False %}"{{ task }}" """{{ task_inputs }}"""{% endif %}
+
 
 def _targets(server=None, servers=None):
     targets = list(servers or [])

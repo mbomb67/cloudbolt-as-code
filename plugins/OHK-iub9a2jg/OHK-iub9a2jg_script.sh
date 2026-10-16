@@ -14,15 +14,18 @@
 #            temporary file and runs it with bash, because Azure Run Command can
 #            run the file with sh (dash on Ubuntu and Debian). Write the body in
 #            bash.
-#   Inputs   Each declared input is read once, under "inputs", through the
-#            urlencode template filter with an empty safe list, inside single
-#            quotes, and decoded with urldecode. The encoded text is only
+#   Inputs   Each declared input is read once, under "inputs", inside single
+#            quotes, wrapped in Django's autoescape-off and urlencode filter
+#            tags, and decoded with urldecode. The encoded text is only
 #            letters, digits and percent signs, so no value can end the string
-#            or the CB_TASK block. Validate every input before using it.
+#            or the CB_TASK block. Keep the variable inside the tags bare (no
+#            filter after its name): CloudBolt creates the script's inputs from
+#            the bare template variables in the file and deletes the others.
+#            Validate every input before using it.
 #   Template CloudBolt renders the whole file as a Django template first, so
-#            never write template braces, even in a comment, and avoid a brace
-#            followed by a hash or percent sign (bash string length is one;
-#            use wc -m instead).
+#            never write template braces anywhere else, even in a comment, and
+#            avoid a brace followed by a hash or percent sign (bash string
+#            length is one; use wc -m instead).
 #   Output   log writes to stdout. fail prints an ERROR line, writes it to
 #            stderr too, and exits 1. Every transport reads the exit code.
 #   Root     Azure Run Command and AWS SSM run as root. Over SSH or VMware
@@ -44,7 +47,7 @@ SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo -n"; fi
 
 # ---- inputs ----
-MESSAGE="$(urldecode '{{ message|urlencode:"" }}')"
+MESSAGE="$(urldecode '{% autoescape off %}{% filter urlencode:"" %}{{ message }}{% endfilter %}{% endautoescape %}')"
 [ "$(printf '%s' "$MESSAGE" | wc -m)" -le 200 ] || fail "message must be 200 characters or fewer."
 
 # ---- task body ----

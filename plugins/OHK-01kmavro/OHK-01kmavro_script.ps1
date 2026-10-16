@@ -22,8 +22,8 @@ function Log([string]$Text) {
 
 try {
     # ---- inputs ----
-    $ServiceName = [uri]::UnescapeDataString('{{ service_name|urlencode:"" }}').Trim()
-    $Operation = [uri]::UnescapeDataString('{{ operation|urlencode:"" }}').Trim().ToLowerInvariant()
+    $ServiceName = [uri]::UnescapeDataString('{% autoescape off %}{% filter urlencode:"" %}{{ service_name }}{% endfilter %}{% endautoescape %}').Trim()
+    $Operation = [uri]::UnescapeDataString('{% autoescape off %}{% filter urlencode:"" %}{{ operation }}{% endfilter %}{% endautoescape %}').Trim().ToLowerInvariant()
     if (-not $ServiceName) { throw 'service_name is required.' }
     if ($ServiceName -match '[\*\?\[\]]') { throw "service_name '$ServiceName' must be one exact service name, without wildcards." }
     if ($Operation -notin @('status', 'start', 'stop', 'restart')) {
