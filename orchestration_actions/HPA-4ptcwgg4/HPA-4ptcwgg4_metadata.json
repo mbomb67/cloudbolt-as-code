@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-9h9vphf5"
+    },
+    "description": "At Post-Provision, turns the disks from each Oracle Linux server's disk_map into LVM volumes with XFS file systems mounted at their mount points inside the guest.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-4ptcwgg4",
+    "last_updated": null,
+    "name": "Configure Data Disks from Disk Map (Oracle Linux)",
+    "run_on_statuses": "",
+    "run_seq": 51
+}

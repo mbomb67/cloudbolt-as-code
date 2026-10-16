@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-pdwb3xso"
+    },
+    "description": "At Post-Provision, formats the disks from each Windows server's disk_map inside the guest with their drive letters and NTFS labels.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-42uy9dyo",
+    "last_updated": null,
+    "name": "Configure Data Disks from Disk Map (Windows)",
+    "run_on_statuses": "",
+    "run_seq": 51
+}
