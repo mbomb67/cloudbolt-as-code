@@ -46,5 +46,5 @@ The task uses the Remote Script's saved credentials, else the server's. Azure an
 - CloudBolt does not validate a custom-form submit, so the plug-in rechecks the task against each server and every input against the script's own definition (required, options, pattern, type) before anything runs.
 - The API and MCP run the action without the form: pass `task` (the Remote Script's global ID) and `task_inputs` as a JSON object, for example `{"service_name": "Spooler", "operation": "status"}`.
 - Each Remote Script keeps its own timeout, Run with sudo, Remove after run and Max retries settings. Its Commandline args are passed, but WinRM rejects arguments and Azure Run Command ignores them; inject inputs into the script body instead.
-- Over WinRM a successful script's output is otherwise not shown in the job; Run Task adds it to the job progress. Azure Run Command returns only the last 4 KB of output.
+- Over WinRM a successful script's output is otherwise not shown in the job; Run Task adds it to the job progress. Azure Run Command returns only the last 4 KB of output, and runs one script per VM at a time: a task started while another runs waits up to five minutes for it.
 - On Windows over VMware Tools any stderr text fails the script, and Write-Host output is lost; the templates write only to stdout except for one ERROR line on failure.

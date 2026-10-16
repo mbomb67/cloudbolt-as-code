@@ -35,8 +35,10 @@ import html
 import json
 import os
 import re
+import time
 
 from cbhooks.models import RemoteScriptHook
+from common.methods import set_progress
 from cbhooks.services.parsing import get_hook_action_input_dict
 from infrastructure.models import Server
 from utilities.events import add_server_event
@@ -50,6 +52,12 @@ SECRET_TYPES = {"PWD", "ETXT"}
 # have no text form Run Task can collect.
 PLAIN_TYPES = {"STR", "INT", "DEC", "IP", "DT", "DTM", "TXT", "CODE", "BOOL", "URL"}
 OUTPUT_LIMIT = 4000
+# Azure's reply when a VM is already running a Run Command; only one script
+# runs at a time (https://learn.microsoft.com/azure/virtual-machines/windows/run-command,
+# Restrictions). Seen live as "(Conflict) Run command extension execution is in progress".
+AZURE_BUSY = "Run command extension execution is in progress"
+BUSY_WAIT_SECONDS = 20
+BUSY_WAIT_LIMIT = 15
 
 
 class TaskError(Exception):
@@ -470,7 +478,8 @@ def run_task(hook, server, inputs, job=None):
     args = hook.get_script_args(server, context) or None
     username, password, key = hook.get_runas_credentials(None)
     attempts = max(int(hook.max_retries or 0), 0) + 1
-    for attempt in range(1, attempts + 1):
+    attempt, busy_waits = 1, 0
+    while True:
         try:
             output = server.execute_script(
                 script_contents=script,
@@ -484,10 +493,18 @@ def run_task(hook, server, inputs, job=None):
                 remove_after_run=hook.remove_after_run,
             )
         except Exception as err:
-            if attempt == attempts:
+            # Azure runs one Run Command per VM at a time and refuses a second
+            # with Conflict; wait for the first instead of failing.
+            if AZURE_BUSY in str(err) and busy_waits < BUSY_WAIT_LIMIT:
+                busy_waits += 1
+                set_progress(f"{server.hostname} is running another script; waiting {BUSY_WAIT_SECONDS} seconds")
+                time.sleep(BUSY_WAIT_SECONDS)
+                continue
+            if attempt >= attempts:
                 add_server_event("MODIFICATION", server, f"Run Task '{hook.name}' failed.", job=job)
                 raise
             logger.warning("Run Task '%s' on %s failed (attempt %s): %s", hook.name, server.hostname, attempt, err)
+            attempt += 1
             continue
         add_server_event("MODIFICATION", server, f"Run Task '{hook.name}' succeeded.", job=job)
         return output or ""
