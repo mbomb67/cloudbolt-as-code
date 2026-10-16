@@ -21,11 +21,18 @@ one member at a time rather than reimplementing them:
 - Import reads packages/*/PKG-*_metadata.json from the repository's global
   clone after a fetch, the technique behind the metadata file picker, and
   registers the manifest locally keyed by its PKG id.
+
+Parameters are the exception, because Source Control Repos has no folder for
+them (parameters.py): export writes parameters/<CF-id>/ in the manifest commit
+after pushing each parameter's generated-options actions, and sync syncs those
+actions in their own jobs, then queues one job per parameter
+(jobs.run_parameter_sync) in the same chain.
 """
 import json
 import os
 import posixpath
 import re
+from collections import OrderedDict
 from tempfile import TemporaryDirectory
 from urllib.parse import unquote, urlsplit
 
@@ -34,14 +41,14 @@ from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
 
 from cbhooks.models import OrchestrationHook
-from jobs.models import Job, SourceCodeRepoSyncParameters
+from jobs.models import HookParameters, Job, SourceCodeRepoSyncParameters
 from servicecatalog.models import ServiceBlueprint
 from source_code_repos.models import SourceCodeRepo
 from source_code_repos.services import SourceCodeRepoService
 from source_code_repos.validators import validate_branch_name
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import store
+from xui.content_packages import hooks, parameters, store
 
 logger = ThreadLogger(__name__)
 
@@ -69,7 +76,10 @@ SYNC_KEYS = {
 
 # Sync order: libraries first, blueprints last (as sync_from_repo does), so
 # whatever a blueprint references is already in place when it imports.
-SYNC_ORDER = {"shared_modules": 0, "plugins": 1, "blueprints": 3}
+# Parameters follow the actions, so their generated-options actions exist
+# when they are linked.
+SYNC_ORDER = {"shared_modules": 0, "plugins": 1, "parameters": 3, "blueprints": 4}
+DEFAULT_SYNC_RANK = 2
 
 # Files a push deletes and never writes back, restored after an export: hand
 # written markdown, plus whatever such a file links to by relative path.
@@ -130,6 +140,23 @@ def require_branch(repo, branch):
         raise store.PackageError("{} has no branch {}.".format(repo.label, branch))
 
 
+def _clone(repo):
+    """The repository's global clone, fetched (get_branches fetches first)."""
+    repo = repo.cast()
+    branches = _branches(repo)
+    return repo, repo.get_global_clone(), branches
+
+
+def branch_clone(repo, branch):
+    """(repo, global clone) after a fetch, to read files on branch, which
+    must exist."""
+    branch = check_branch(branch)
+    repo, clone, branches = _clone(repo)
+    if branch not in branches:
+        raise store.PackageError("{} has no branch {}.".format(repo.label, branch))
+    return repo, clone
+
+
 def _member_object(obj):
     # The repo operations registry is keyed by the concrete hook type.
     return obj.cast() if isinstance(obj, OrchestrationHook) else obj
@@ -143,40 +170,109 @@ def sync_order(refs):
     ranked = []
     for index, ref in enumerate(refs):
         member_type = store.parse_ref(ref)[0]
-        ranked.append((SYNC_ORDER.get(member_type.dir, 2), index, ref))
+        ranked.append((SYNC_ORDER.get(member_type.dir, DEFAULT_SYNC_RANK), index, ref))
     return [ref for _, _, ref in sorted(ranked)]
 
 
+def _sync_plan(refs, repo, branch):
+    """[(ref, via)] in run order: every member (via None), plus each
+    generated-options action a parameter member's metadata on the branch
+    references and the package does not list (via is that parameter's ref),
+    run with the other actions. Reads the parameters' metadata, so a
+    parameter that was never exported fails here, before any job exists."""
+    extra = OrderedDict()
+    if any(not store.parse_ref(ref)[0].synced for ref in refs):
+        repo, clone = branch_clone(repo, branch)
+        for ref in refs:
+            member_type, global_id = store.parse_ref(ref)
+            if member_type.synced:
+                continue
+            for action_id in parameters.action_ids(parameters.read_metadata(clone, branch, global_id)):
+                action_ref = "orchestration_actions/{}".format(action_id)
+                if action_ref not in refs:
+                    extra.setdefault(action_ref, ref)
+    else:
+        require_branch(repo, branch)
+    ordered = sync_order(refs)
+    split = next(
+        (i for i, ref in enumerate(ordered)
+         if SYNC_ORDER.get(store.parse_ref(ref)[0].dir, DEFAULT_SYNC_RANK) > DEFAULT_SYNC_RANK),
+        len(ordered),
+    )
+    return (
+        [(ref, None) for ref in ordered[:split]]
+        + list(extra.items())
+        + [(ref, None) for ref in ordered[split:]]
+    )
+
+
+def _repo_sync_job(package, ref, repo, branch, refresh_if_exists, ignore_action_enabled, profile, previous):
+    """The OOB sourcecodereposync job for one unit, as the syncFromRepo API
+    creates it, behind previous."""
+    member_type, global_id = store.parse_ref(ref)
+    params = SourceCodeRepoSyncParameters.objects.create(
+        source_code_repo=repo,
+        branch_or_tag=branch,
+        objects_to_sync={SYNC_KEYS[member_type.dir]: ["{0}/{0}_metadata.json".format(global_id)]},
+        refresh_if_exists=bool(refresh_if_exists),
+        ignore_action_enabled=bool(ignore_action_enabled),
+    )
+    return Job.objects.create(
+        owner=profile,
+        job_parameters=params,
+        type="sourcecodereposync",
+        prereq_job=previous,
+        label="Content package {}: {}".format(package["name"], ref)[:256],
+    )
+
+
+def _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, previous):
+    """The job that creates or updates one parameter member, behind previous:
+    the HookParameters and Job OrchestrationHook.run_as_job creates for a
+    plugin, plus the prereq_job link run_as_job cannot set."""
+    params = HookParameters.objects.create(hook=hooks.parameter_hook())
+    params.arguments = {
+        "context": {
+            "package_id": package["id"],
+            "ref": ref,
+            "source_code_repo_id": repo.id,
+            "branch": branch,
+            "refresh_if_exists": bool(refresh_if_exists),
+        }
+    }
+    params.save()
+    return Job.objects.create(
+        owner=profile,
+        job_parameters=params,
+        type="orchestration_hook",
+        prereq_job=previous,
+        label="Content package {}: {}".format(package["name"], ref)[:256],
+    )
+
+
 def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled, profile):
-    """Create one OOB sourcecodereposync job per member, each waiting for the
-    one before it, and make the repository and branch the package's home.
-    Returns [(ref, Job)] in run order."""
+    """Create one job per member, each waiting for the one before it, and
+    make the repository and branch the package's home: the OOB
+    sourcecodereposync job for each unit, and for a parameter the extension's
+    parameter job, preceded by OOB sync jobs for the generated-options
+    actions it needs. Returns [(ref, Job, via)] in run order."""
     branch = check_branch(branch)
     refs = list(package.get("contents") or [])
     if not refs:
         raise store.PackageError("The package has no members to sync.")
-    require_branch(repo, branch)
+    plan = _sync_plan(refs, repo, branch)
 
     created, previous = [], None
-    for ref in sync_order(refs):
-        member_type, global_id = store.parse_ref(ref)
-        params = SourceCodeRepoSyncParameters.objects.create(
-            source_code_repo=repo,
-            branch_or_tag=branch,
-            objects_to_sync={SYNC_KEYS[member_type.dir]: ["{0}/{0}_metadata.json".format(global_id)]},
-            refresh_if_exists=bool(refresh_if_exists),
-            ignore_action_enabled=bool(ignore_action_enabled),
-        )
-        job = Job.objects.create(
-            owner=profile,
-            job_parameters=params,
-            type="sourcecodereposync",
-            prereq_job=previous,
-            label="Content package {}: {}".format(package["name"], ref)[:256],
-        )
-        created.append((ref, job))
+    for ref, via in plan:
+        if store.parse_ref(ref)[0].synced:
+            job = _repo_sync_job(
+                package, ref, repo, branch, refresh_if_exists, ignore_action_enabled, profile, previous
+            )
+        else:
+            job = _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, previous)
+        created.append((ref, job, via))
         previous = job
-    store.record_sync(package["id"], repo.id, branch, [(ref, job.id) for ref, job in created])
+    store.record_sync(package["id"], repo.id, branch, [(ref, job.id, via) for ref, job, via in created])
     return created
 
 
@@ -273,13 +369,53 @@ def restore_docs(clone, base, package):
     return restored
 
 
+def _push(service, package, member_type, obj, ref, branch, commit_message, report, via=None):
+    """Push one unit with CloudBolt's own per-object push and return its
+    result row. via is the parameter a generated-options action is pushed
+    for."""
+    name = member_type.name_of(obj)
+    row = {"ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix, "name": name, "via": via}
+    # restore_docs finds this export's commits by the marker.
+    detail = "{}\n\n{} {} {} ({})".format(
+        commit_message, _commit_marker(package), member_type.singular, name, obj.global_id
+    )
+    if via:
+        detail += ", which generates the options of {}".format(via)
+    report("Pushing {} {} ({}){}".format(
+        member_type.singular, name, obj.global_id, " for {}".format(via) if via else ""
+    ))
+    try:
+        status, message = _push_member(service, obj, branch, detail)
+    except Exception as exc:
+        logger.exception("Export of %s failed", ref)
+        status, message = "failure", str(exc) or type(exc).__name__
+    row.update(status="success" if status == "success" else "failure", message=strip_tags(message or ""))
+    report("  {}{}".format("pushed" if row["status"] == "success" else "failed: ", "" if row["status"] == "success" else row["message"]))
+    return row
+
+
+def _parameter_files(cf, repo, global_id):
+    """[(repo path, text, replace)] of a parameter member's folder: its
+    metadata, rewritten on every export, and a README written only when the
+    folder has none."""
+    data = parameters.export_metadata(cf, repo, global_id)
+    path = parameters.metadata_path(global_id)
+    return [
+        (path, parameters.dumps(data), True),
+        (posixpath.join(posixpath.dirname(path), "README.md"), parameters.readme(cf, data), False),
+    ]
+
+
 def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
     manifest (and a README the first time) to packages/<PKG-id>/, together
-    with the READMEs the pushes deleted. A member that fails does not stop
-    the others. progress, when given, is called with one line per step (the
-    export job passes job.set_progress). Returns the outcome: one result per
-    member plus the manifest, the restored files, and the PR link."""
+    with each parameter member's folder and the READMEs the pushes deleted.
+    A parameter's generated-options actions are pushed with it unless the
+    package lists them. A member that fails does not stop the others.
+    progress, when given, is called with one line per step (the export job
+    passes job.set_progress). Returns the outcome: one result per member, per
+    action pushed for a parameter, and for the manifest, the restored files,
+    and the PR link."""
     report = progress or (lambda message: None)
     branch = check_branch(branch)
     commit_message = (commit_message or "").strip()
@@ -288,7 +424,8 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
     repo = repo.cast()
     service = SourceCodeRepoService(repo, profile)
     refs = list(package.get("contents") or [])
-    resolved = store.resolve_refs(refs)
+    resolved = store.resolve_package(package)
+    listed = {store.parse_ref(ref)[1] for ref in refs}
     base = _export_base(repo, branch)
     restore_note = "" if base else "Could not read the branch before the export, so READMEs were not restored."
     if base:
@@ -297,33 +434,47 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         report(restore_note)
 
     results = []
+    written = []  # (row, files) of the parameters, committed with the manifest
+    actions_pushed = set()
+    action_type = store.MEMBER_TYPES["orchestration_actions"]
     for ref in refs:
         member_type, global_id = store.parse_ref(ref)
         obj = resolved.get(ref)
-        row = {"ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix, "name": global_id}
         if obj is None:
-            row.update(status="skipped", message="Not on this appliance, so there is nothing to push.")
-            results.append(row)
+            results.append({
+                "ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix, "name": global_id,
+                "via": None, "status": "skipped", "message": "Not on this appliance, so there is nothing to export.",
+            })
             report("Skipped {}: not on this appliance".format(ref))
             continue
-        row["name"] = member_type.name_of(obj)
-        # restore_docs finds this export's commits by the marker.
-        detail = "{}\n\n{} {} {} ({})".format(
-            commit_message, _commit_marker(package), member_type.singular, row["name"], global_id
-        )
-        report("Pushing {} {} ({})".format(member_type.singular, row["name"], global_id))
-        try:
-            status, message = _push_member(service, obj, branch, detail)
-        except Exception as exc:
-            logger.exception("Export of %s failed", ref)
-            status, message = "failure", str(exc) or type(exc).__name__
-        row.update(status="success" if status == "success" else "failure", message=strip_tags(message or ""))
+        if member_type.synced:
+            results.append(_push(service, package, member_type, obj, ref, branch, commit_message, report))
+            continue
+
+        row = {"ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix,
+               "name": member_type.name_of(obj), "via": None, "status": "pending", "message": ""}
         results.append(row)
-        report("  {}{}".format("pushed" if row["status"] == "success" else "failed: ", "" if row["status"] == "success" else row["message"]))
+        for action in parameters.gen_options_actions(obj):
+            if action.global_id in listed or action.global_id in actions_pushed:
+                continue
+            actions_pushed.add(action.global_id)
+            results.append(_push(
+                service, package, action_type, action, store.ref_for(action_type, action), branch,
+                commit_message, report, via=ref,
+            ))
+        try:
+            written.append((row, _parameter_files(obj, repo, global_id)))
+        except Exception as exc:
+            logger.exception("Export of parameter %s failed", ref)
+            row.update(status="failure", message=strip_tags(str(exc)) or type(exc).__name__)
+            report("Could not export parameter {}: {}".format(ref, row["message"]))
+        else:
+            report("Writing parameter {} ({}) with the manifest".format(row["name"], ref))
 
     folder = "{}/{}".format(PACKAGES_DIR, package["id"])
     manifest_path = "{}/{}_metadata.json".format(folder, package["id"])
-    manifest_row = {"ref": folder, "type_title": "Package manifest", "prefix": "PKG", "name": package["name"]}
+    manifest_row = {"ref": folder, "type_title": "Package manifest", "prefix": "PKG", "name": package["name"],
+                    "via": None}
     remote_url = repo.get_repo_url_for_file(branch, manifest_path)
     report("Committing the package manifest to {}".format(manifest_path))
     restored = []
@@ -339,15 +490,22 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                     report(restore_note)
                 for path in restored:
                     report("  restoring {}".format(path))
-            target = os.path.join(clone.working_dir, PACKAGES_DIR, package["id"])
-            os.makedirs(target, exist_ok=True)
-            with open(os.path.join(target, "{}_metadata.json".format(package["id"])), "w") as stream:
-                stream.write(json.dumps(store.manifest(package), indent=4, sort_keys=True) + "\n")
-            readme = os.path.join(target, "README.md")
-            if not os.path.exists(readme):
-                with open(readme, "w") as stream:
-                    stream.write(_readme(package, resolved))
+            files = [
+                (manifest_path, json.dumps(store.manifest(package), indent=4, sort_keys=True) + "\n", True),
+                ("{}/README.md".format(folder), _readme(package, resolved), False),
+            ]
+            for _row, parameter_files in written:
+                files.extend(parameter_files)
+            for path, text, replace in files:
+                target = os.path.join(clone.working_dir, *path.split("/"))
+                if not replace and os.path.exists(target):
+                    continue
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, "w") as stream:
+                    stream.write(text)
             message = "{}\n\n{} manifest".format(commit_message, _commit_marker(package))
+            if written:
+                message += "\n\nWrites the parameters:\n{}".format("\n".join(row["ref"] for row, _ in written))
             if restored:
                 message += "\n\nRestores the READMEs the pushes deleted:\n{}".format("\n".join(restored))
             repo.commit_and_push(branch, message, profile, repo_dir=repo_dir)
@@ -358,8 +516,12 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         if restored:
             restore_note = "The READMEs the pushes deleted were not restored because the manifest commit failed."
         restored = []
+        for row, _files in written:
+            row.update(status="failure", message="Not written: the manifest commit failed.")
     else:
         manifest_row.update(status="success", message="Committed {}.".format(manifest_path))
+        for row, parameter_files in written:
+            row.update(status="success", message="Committed {}.".format(parameter_files[0][0]))
         store.record_export(package["id"], repo.id, branch, remote_url)
     results.append(manifest_row)
 
@@ -384,19 +546,10 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
 # ---------------------------------------------------------------------------
 # Import from repository
 # ---------------------------------------------------------------------------
-def _clone(repo):
-    """The repository's global clone, fetched (get_branches fetches first)."""
-    repo = repo.cast()
-    branches = _branches(repo)
-    return repo, repo.get_global_clone(), branches
-
-
 def list_repo_packages(repo, branch):
     """Manifests under packages/ on a branch: [{ref, path, id, name, ...}]."""
     branch = check_branch(branch)
-    repo, clone, branches = _clone(repo)
-    if branch not in branches:
-        raise store.PackageError("{} has no branch {}.".format(repo.label, branch))
+    repo, clone = branch_clone(repo, branch)
     try:
         raw = clone.git.ls_tree("--name-only", "-r", "origin/{}".format(branch), "--", PACKAGES_DIR + "/")
     except Exception as exc:
@@ -437,9 +590,7 @@ def import_repo_package(repo, branch, ref):
         raise store.PackageError('Pick a package folder such as "packages/PKG-abcd1234".')
     pkg_id = match.group(1)
     path = "{}/{}/{}_metadata.json".format(PACKAGES_DIR, pkg_id, pkg_id)
-    repo, clone, branches = _clone(repo)
-    if branch not in branches:
-        raise store.PackageError("{} has no branch {}.".format(repo.label, branch))
+    repo, clone = branch_clone(repo, branch)
     try:
         data = json.loads(clone.git.show("origin/{}:{}".format(branch, path)))
     except Exception:

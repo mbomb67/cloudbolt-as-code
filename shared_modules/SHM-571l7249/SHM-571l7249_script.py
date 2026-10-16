@@ -37,7 +37,7 @@ import os
 import re
 import time
 
-from cbhooks.models import RemoteScriptHook
+from cbhooks.models import CopyFileAction, OrchestrationHook, RemoteScriptHook
 from common.methods import set_progress
 from cbhooks.services.parsing import get_hook_action_input_dict
 from infrastructure.models import Server
@@ -110,15 +110,18 @@ def _names(objects):
 class _Facts:
     """
     What the fit check compares, read once: one server, or a filter set (the
-    OS families, technologies, environments and groups a set of servers may
-    have, such as a workflow's filters; an empty kind allows any value).
+    OS families, technologies, environments, groups and configuration
+    managers a set of servers may have, such as a workflow's filters; an
+    empty kind allows any value).
 
-    A Remote Script fits a filter set only when it can run on every server the
-    set allows: a script restricted to Windows does not fit a set that allows
-    any OS family.
+    An action fits a filter set only when it can run on every server the set
+    allows: a script restricted to Windows does not fit a set that allows any
+    OS family.
     """
 
-    def __init__(self, os_families=(), technologies=(), environments=(), groups=(), server=None):
+    def __init__(
+        self, os_families=(), technologies=(), environments=(), groups=(), configuration_managers=(), server=None
+    ):
         self.server = server
         self.handler = None
         self._managers = None
@@ -129,6 +132,8 @@ class _Facts:
             technologies = [handler.resource_technology if handler else None]
             environments = [server.environment]
             groups = [server.group]
+        else:
+            self._managers = set(configuration_managers)
         self.os_families = [family for family in os_families]
         self.os_lineages = [set(_lineage(family)) for family in self.os_families]
         self.technologies = list(technologies)
@@ -137,7 +142,7 @@ class _Facts:
 
     @property
     def managers(self):
-        """The server's configuration managers; a filter set has none."""
+        """The server's environment's configuration managers, or the filter set's."""
         if self._managers is None:
             env = self.server.environment if self.server is not None else None
             self._managers = set(env.get_connector_confs()) if env else set()
@@ -156,17 +161,26 @@ def _allows(allowed, values):
     return not allowed or (bool(values) and all(value in allowed for value in values))
 
 
+def _concrete(hook):
+    """The action's own type (RemoteScriptHook, CloudBoltHook, ...), not the base OrchestrationHook."""
+    return hook.cast() if type(hook) is OrchestrationHook else hook
+
+
 def refusal(hook, server=None, facts=None):
     """
-    Why hook cannot run through Run Task on server (or on every server a
-    filter set's facts allow), or '' when it can.
+    Why the action cannot run on server (or on every server a filter set's
+    facts allow), or '' when it can. Works for any action type: the OS family
+    and Run on Server checks apply to the types that have them, and the
+    can-run-scripts check to Remote Scripts and Copy File actions.
     """
+    hook = _concrete(hook)
     facts = facts or _Facts(server=server)
-    if hook.run_on_server_id:
+    if getattr(hook, "run_on_server_id", None):
         return f"'{hook.name}' always runs on its Run on Server, not on the server it is started from."
-    if facts.server is not None and (not facts.handler or not facts.handler.can_run_scripts_on_servers):
-        return f"The resource handler of {facts.server.hostname} cannot run scripts on servers."
-    families = set(hook.os_families.all())
+    if facts.server is not None and isinstance(hook, (RemoteScriptHook, CopyFileAction)):
+        if not facts.handler or not facts.handler.can_run_scripts_on_servers:
+            return f"The resource handler of {facts.server.hostname} cannot run scripts on servers."
+    families = set(hook.os_families.all()) if hasattr(hook, "os_families") else set()
     if families and not (facts.os_lineages and all(lineage & families for lineage in facts.os_lineages)):
         return (
             f"'{hook.name}' runs on {_names(families)} servers only, and "
@@ -182,8 +196,12 @@ def refusal(hook, server=None, facts=None):
     if not _allows(groups, facts.groups):
         return f"'{hook.name}' runs for {_names(groups)} only, and {facts.describe(facts.groups, 'group')}."
     managers = set(hook.configuration_managers.all())
-    if managers and not facts.managers.intersection(managers):
-        return f"'{hook.name}' runs on servers managed by {_names(managers)} only."
+    if managers:
+        # A server needs any one of the action's managers (CloudBolt's own rule);
+        # a filter set must allow only managers the action accepts.
+        fits = facts.managers.intersection(managers) if facts.server is not None else _allows(managers, list(facts.managers))
+        if not fits:
+            return f"'{hook.name}' runs on servers managed by {_names(managers)} only."
     return ""
 
 
@@ -208,21 +226,25 @@ def task_options(servers):
     return [(hook.global_id, hook.name) for hook in tasks_for_servers(servers)]
 
 
-def filters_refusal(hook, os_families=(), technologies=(), environments=(), groups=()):
-    """Why hook cannot run on every server a filter set allows, or '' when it can."""
-    return refusal(hook, facts=_Facts(os_families, technologies, environments, groups))
+def filters_refusal(hook, os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()):
+    """Why the action cannot run on every server a filter set allows, or '' when it can."""
+    return refusal(hook, facts=_Facts(os_families, technologies, environments, groups, configuration_managers))
 
 
-def tasks_for_filters(os_families=(), technologies=(), environments=(), groups=()):
+def tasks_for_filters(os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()):
     """The Remote Scripts that can run on every server a filter set allows, by name."""
-    facts = _Facts(os_families, technologies, environments, groups)
+    facts = _Facts(os_families, technologies, environments, groups, configuration_managers)
     return [hook for hook in _remote_scripts() if not refusal(hook, facts=facts)]
 
 
-def server_fits_filters(server, os_families=(), technologies=(), environments=(), groups=()):
+def server_fits_filters(
+    server, os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()
+):
     """Whether server is one of the servers a filter set allows (an empty kind allows any)."""
     facts = _Facts(server=server)
     if os_families and not facts.os_lineages[0].intersection(os_families):
+        return False
+    if configuration_managers and not facts.managers.intersection(configuration_managers):
         return False
     return (
         _allows(set(technologies), facts.technologies)
@@ -312,11 +334,11 @@ def task_fields(hook):
     return sorted(fields, key=position)
 
 
-def _label(field):
+def input_label(field):
     return field.label or field.simple_name
 
 
-def _options(field):
+def input_options(field):
     try:
         return [str(option) for option in field.get_global_options()]
     except Exception:
@@ -334,12 +356,12 @@ def _default(field):
 
 def input_element(field):
     """One SurveyJS question for a task input, mapped as CloudBolt's own form builder maps types."""
-    element = {"name": field.simple_name, "title": _label(field), "isRequired": bool(field.required)}
+    element = {"name": field.simple_name, "title": input_label(field), "isRequired": bool(field.required)}
     if field.description:
         element["description"] = field.description
     if field.placeholder:
         element["placeholder"] = field.placeholder
-    options = _options(field)
+    options = input_options(field)
     if options:
         element["type"] = "tagbox" if field.allow_multiple else "dropdown"
         element["choices"] = options
@@ -371,7 +393,7 @@ def task_panel(hook):
     elements, omitted, blocking = [], [], []
     for field in task_fields(hook):
         if field.type in SECRET_TYPES or field.type not in PLAIN_TYPES:
-            (blocking if field.required else omitted).append(_label(field))
+            (blocking if field.required else omitted).append(input_label(field))
             continue
         elements.append(input_element(field))
     return {
@@ -414,8 +436,8 @@ def _payload_values(payload):
     return values, True
 
 
-def _coerce(field, value):
-    label = _label(field)
+def coerce_input(field, value):
+    label = input_label(field)
     if field.allow_multiple:
         items = value if isinstance(value, list) else [value]
         return [_coerce_one(field, label, item) for item in items]
@@ -447,7 +469,7 @@ def _coerce_one(field, label, value):
     text = str(value)
     if field.type not in ("TXT", "CODE"):
         text = text.strip()
-    options = _options(field)
+    options = input_options(field)
     if options and text not in options:
         raise TaskError(f"{label} must be one of: {', '.join(options)}.")
     if field.value_pattern_string and not re.search(field.value_pattern_string, text):
@@ -481,21 +503,25 @@ def parse_task_inputs(hook, payload):
         if field.type in SECRET_TYPES or field.type not in PLAIN_TYPES:
             if not blank:
                 raise TaskError(
-                    f"{_label(field)} is a {field.get_type_display()} input, which Run Task does not "
+                    f"{input_label(field)} is a {field.get_type_display()} input, which Run Task does not "
                     "carry (CloudBolt logs this action's inputs in plain text)."
                 )
             if field.required:
                 raise TaskError(
-                    f"'{hook.name}' requires {_label(field)}, a {field.get_type_display()} input Run "
+                    f"'{hook.name}' requires {input_label(field)}, a {field.get_type_display()} input Run "
                     "Task cannot carry. Run the script from its own action instead."
                 )
             continue
         if blank:
             if field.required:
-                raise TaskError(f"{_label(field)} is required.")
+                raise TaskError(f"{input_label(field)} is required.")
             continue
-        result[name] = _coerce(field, value)
+        result[name] = coerce_input(field, value)
     return result
+
+
+# Earlier private names, kept for callers that still use them.
+_label, _options, _coerce = input_label, input_options, coerce_input
 
 
 # ---- running a task -------------------------------------------------------

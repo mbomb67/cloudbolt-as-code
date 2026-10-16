@@ -1,9 +1,10 @@
 {
     "contents": [
+        "blueprints/BP-g9zwqjoa",
         "orchestration_actions/HPA-n67skws4",
-        "orchestration_actions/HPA-42uy9dyo",
         "orchestration_actions/HPA-4ptcwgg4",
-        "blueprints/BP-g9zwqjoa"
+        "orchestration_actions/HPA-42uy9dyo",
+        "parameters/CF-q3bexgap"
     ],
     "description": "Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest.",
     "id": "PKG-zny1ynfs",

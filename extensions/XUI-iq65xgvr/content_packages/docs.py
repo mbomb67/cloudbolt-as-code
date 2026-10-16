@@ -3,7 +3,9 @@ README files for the details page.
 
 A unit's documentation is the README.md in its own folder on the branch its
 Remote Source URL points at, the repository and branch it was last synced
-from or pushed to. Members and dependencies follow the same rule. Files are
+from or pushed to. Members and dependencies follow the same rule, except a
+parameter member: it has no Remote Source URL, so its folder is
+parameters/<CF-id>/ on its package's home branch. Files are
 read from CloudBolt's global clone of that repository, the clone the branch
 pickers fetch, which is fetched at most once a minute here; nothing is
 written.
@@ -59,9 +61,9 @@ class NoReadme(Exception):
 def _querysets():
     """Prefix -> queryset for every unit an export can write, including the
     forms and form functions that only travel as dependencies."""
-    sets = OrderedDict((t.prefix, t.resolvable()) for t in store.MEMBER_TYPES.values())
-    sets["FRM"] = CustomForm.objects.all()
-    sets["FJS"] = CustomFormFunction.objects.all()
+    sets = OrderedDict((t.prefix, t.with_repo(t.resolvable())) for t in store.MEMBER_TYPES.values())
+    sets["FRM"] = CustomForm.objects.select_related("source_code_repo")
+    sets["FJS"] = CustomFormFunction.objects.select_related("source_code_repo")
     return sets
 
 
@@ -77,7 +79,7 @@ def resolve(global_ids):
         queryset = sets.get(prefix)
         if queryset is None:
             continue
-        for obj in queryset.filter(global_id__in=ids).select_related("source_code_repo"):
+        for obj in queryset.filter(global_id__in=ids):
             found[obj.global_id] = obj
     return found
 
@@ -112,6 +114,16 @@ def location(obj):
     if not branch or not folder:
         return None
     return Location(repo, branch, folder)
+
+
+def parameter_location(package, ref, repo):
+    """Location of a parameter member's folder: parameters/<CF-id>/ on the
+    package's home branch of repo (its home repository), or None before the
+    package has one."""
+    branch = package["local"].get("branch") or ""
+    if repo is None or not branch:
+        return None
+    return Location(repo.cast(), branch, "{}/{}".format(store.PARAMETERS_DIR, ref.split("/", 1)[1]))
 
 
 # ---------------------------------------------------------------------------
@@ -155,13 +167,15 @@ def _rev(clone, branch):
     return None
 
 
-def readmes(objects, clones=None):
+def readmes(objects, clones=None, locations=None):
     """{global_id: README path} for every object whose folder holds a README
     on its own branch. One git call per repository and branch. clones caches
-    the global clones by repository id across calls."""
+    the global clones by repository id across calls; locations
+    ({global_id: Location}) gives the folder of objects with no Remote Source
+    URL."""
     trees = OrderedDict()
     for obj in objects:
-        loc = location(obj)
+        loc = (locations or {}).get(obj.global_id) or location(obj)
         if loc is not None:
             trees.setdefault((loc.repo.id, loc.branch), []).append((obj.global_id, loc))
 
@@ -189,14 +203,15 @@ def readmes(objects, clones=None):
     return found
 
 
-def read(obj):
+def read(obj, loc=None):
     """obj's README as a dict for the dialog: rendered html, path, branch,
-    repository and the file's URL on the Git host. Raises NoReadme."""
-    loc = location(obj)
+    repository and the file's URL on the Git host. loc overrides the folder
+    obj's Remote Source URL names. Raises NoReadme."""
+    loc = loc or location(obj)
     if loc is None:
         raise NoReadme("{} is not linked to a repository, so there is no README to show.".format(name_of(obj)))
     clones = {}
-    path = readmes([obj], clones).get(obj.global_id)
+    path = readmes([obj], clones, {obj.global_id: loc}).get(obj.global_id)
     if path is None:
         raise NoReadme("{} has no README.md in {}/ on branch {} of {}.".format(
             name_of(obj), loc.folder, loc.branch, loc.repo.label

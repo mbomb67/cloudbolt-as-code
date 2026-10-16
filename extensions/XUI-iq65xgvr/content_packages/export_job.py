@@ -13,6 +13,8 @@ import importlib
 # Reloaded in dependency order: each module imports the ones before it.
 MODULES = (
     "xui.content_packages.store",
+    "xui.content_packages.parameters",
+    "xui.content_packages.hooks",
     "xui.content_packages.services",
     "xui.content_packages.jobs",
 )
