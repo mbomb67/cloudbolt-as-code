@@ -1,0 +1,12 @@
+{
+    "description": "Parses and validates a server's disk_map parameter for its operating system and runs the in-guest data disk scripts of the disk map orchestration actions.",
+    "id": "SHM-8qcvbri7",
+    "label": "Disk Map",
+    "max_retries": 0,
+    "module_name": "disk_map",
+    "name": "disk_map",
+    "resource_technologies": [],
+    "script_filename": "SHM-8qcvbri7_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

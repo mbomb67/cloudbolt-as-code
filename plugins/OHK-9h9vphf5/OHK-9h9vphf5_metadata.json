@@ -1,0 +1,18 @@
+{
+    "description": "Prepares the disks from a Linux server's disk_map in the guest: matches each one by serial number, SCSI address, or attach order, then creates an LVM volume with an XFS file system and mounts it.",
+    "id": "OHK-9h9vphf5",
+    "max_retries": 0,
+    "name": "Configure Data Disks from Disk Map (Oracle Linux)",
+    "resource_technologies": [],
+    "script_filename": "OHK-9h9vphf5_script.py",
+    "shared": false,
+    "target_os_families": [
+        "Linux -> Oracle Enterprise Linux"
+    ],
+    "type": "CloudBolt Plug-in",
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-8qcvbri7"
+        ]
+    }
+}

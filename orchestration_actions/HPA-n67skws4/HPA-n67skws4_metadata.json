@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-jzkblrv7"
+    },
+    "description": "At Post-Provision, adds the data disks in each server's disk_map parameter through its resource handler and records each disk's controller, SCSI address, and serial for the in-guest step.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-n67skws4",
+    "last_updated": null,
+    "name": "Attach Data Disks from Disk Map",
+    "run_on_statuses": "",
+    "run_seq": 50
+}

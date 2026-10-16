@@ -1,0 +1,56 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "custom_form": "FRM-58d5rxg8",
+    "dependencies": {
+        "custom_form": "forms/FRM-58d5rxg8"
+    },
+    "deployment_items": [
+        {
+            "all_environments_enabled": true,
+            "allowed_os_families": [
+                "Windows",
+                "Oracle Enterprise Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "dsk-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-5501fspy",
+            "name": "Server",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploys a Windows Server or Oracle Linux VM whose order form turns the environment's disk_map parameter into a table of data disks, which the disk map orchestration actions attach and prepare inside the guest.",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": "data_disks.png",
+    "id": "BP-g9zwqjoa",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-16",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Server with Data Disks",
+    "resource_name_template": "disk-00X",
+    "resource_type": {
+        "icon": "bi bi-hdd-stack",
+        "id": "RT-t9dg6h2q",
+        "internal_only": false,
+        "label": "Server with Data Disks",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "server_with_data_disks",
+        "plural_label": "Servers with Data Disks"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}
