@@ -13,9 +13,9 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 143 |
-| [Shared modules](#shared-modules) | 19 |
-| [UI extensions](#ui-extensions) | 11 |
+| [Plugins](#plugins) | 145 |
+| [Shared modules](#shared-modules) | 20 |
+| [UI extensions](#ui-extensions) | 12 |
 | [Parameters](#parameters) | 1 |
 | [Forms](#forms) | 14 |
 | [Form functions](#form-functions) | 6 |
