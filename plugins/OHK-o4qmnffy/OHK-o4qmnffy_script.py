@@ -3,10 +3,11 @@ Open a ServiceNow Request (REQ) with one Requested Item (RITM) for a CloudBolt o
 
 Bound twice:
   * "Order Submitted for Approval": the order is PENDING and ServiceNow becomes
-    the approval system of record. A few seconds after the request is created
-    the action reads the decision once, so a request ServiceNow approves
-    outright proceeds immediately; anything still pending is picked up by the
-    ServiceNow Request Approval Sync recurring job.
+    the approval system of record. Right after the request is created the
+    action reads the decision once, without waiting (the user's submit is held
+    while it runs), so a request ServiceNow approves outright proceeds
+    immediately; anything still pending is picked up by the ServiceNow Request
+    Approval Sync recurring job.
   * "Post-Order Approval": CloudBolt has just approved the order, by a group or
     environment auto-approval, by the owner being an approver (super admins
     always are), by a CloudBolt approver, or by the sync job mirroring

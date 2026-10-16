@@ -47,7 +47,6 @@ via get_ssl_verification(); never hard-code verify=True/False.
 """
 import json
 import re
-import time
 from decimal import Decimal
 
 import requests
@@ -1216,10 +1215,6 @@ def record_event(order, message):
 # Opening requests and gating orders (shared by the two Open plugins)
 # ---------------------------------------------------------------------------
 
-# Seconds to wait before the one-time decision check, so ServiceNow's own
-# workflow or flow has run on the new request. The sync job covers the rest.
-IMMEDIATE_CHECK_DELAY_S = 5
-
 # Name of the Open plugin; used to ask CloudBolt whether the action bound to it
 # at Order Submitted for Approval is enabled and in scope for an order.
 OPEN_ON_SUBMIT_HOOK_NAME = "ServiceNow Request: Open"
@@ -1325,13 +1320,13 @@ def open_request(snow, order, approval, settings, job=None):
     return ids, path, msg
 
 
-def decide(snow, order, delay=0):
+def decide(snow, order):
     """
-    Read ServiceNow's decision once, after an optional delay.
-    Returns ("approved" | "denied" | "pending", note).
+    Read ServiceNow's decision once, without waiting: the Open actions run
+    while the order is being submitted or approved, so any delay here holds
+    the user's request. A decision ServiceNow has not made yet is left to the
+    Approval Sync job. Returns ("approved" | "denied" | "pending", note).
     """
-    if delay:
-        time.sleep(delay)
     record = load_request(snow, order)
     if not record:
         return "pending", " Decision not checked: the request could not be read back."
@@ -1360,7 +1355,7 @@ def run_on_submit(snow, order, settings, job=None):
         return "SUCCESS", f"Order {order.id} already has a ServiceNow request; nothing to do.", ""
     _, _, msg = open_request(snow, order, "pending", settings, job)
     try:
-        outcome, note = decide(snow, order, IMMEDIATE_CHECK_DELAY_S)
+        outcome, note = decide(snow, order)
         if outcome == "approved":
             order.approve()
             note = f" Order approved immediately:{note}"
@@ -1389,11 +1384,9 @@ def run_on_approval(snow, order, settings, job=None):
         return "SUCCESS", msg, ""
 
     msg = ""
-    delay = 0
     if not record:
         _, _, msg = open_request(snow, order, "pending", settings, job)
-        delay = IMMEDIATE_CHECK_DELAY_S
-    outcome, note = decide(snow, order, delay)
+    outcome, note = decide(snow, order)
     if outcome == "approved":
         return "SUCCESS", f"{msg} ServiceNow approved; proceeding.{note}".strip(), ""
     if outcome == "denied":
