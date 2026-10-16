@@ -27,12 +27,13 @@ Admin > Custom Extensions > Server Workflows > Add workflow.
   - *Fixed value*: saved with the workflow, never asked.
   - *Output of a step*: an output of an earlier step in the same run.
 - **Each step** has a key (names its outputs), Continue on error, Retries with a delay, and, for non-script steps, a timeout.
+- **Files** (script steps): archive references such as `installers/agent.msi` or `configs/app.conf@4` to stage on the server before the script runs. This needs the File Archives content; until it is synced, a workflow with files attached refuses to start.
 
 Password and object-type inputs (PWD, ETXT, networks, files, ...) can be neither asked for nor saved: CloudBolt writes this action's form payload to the job log, and the workflow store is plain text. A step whose action requires one cannot be added.
 
 ## Outputs
-- A Remote Script publishes an output by printing `OUTPUT: name=value`. Print these lines last with `Write-Output` (not `Write-Host`) or `echo`, and exit 0: WinRM drops a script's output when it exits non-zero, and Azure Run Command keeps only the last 4 KB.
-- Every script step also publishes `stdout`, the last 4,000 characters of its output.
+- A Remote Script publishes an output with a `CB_OUTPUT name=value` line, the convention of [Run Task](../SVA-4sin3s0q/): `Write-TaskOutput name value` (PowerShell) or `task_output name value` (bash) in its base scripts. Print them last and exit 0: WinRM drops a script's output when it exits non-zero, and Azure Run Command keeps only the last 4 KB.
+- Every script step also publishes `stdout`, the last 4,000 characters of its output, and one `archive_<file stem>_version` output per attached file.
 - A plug-in step publishes the `outputs` dict it returns.
 - Outputs are saved on the workflow's job under each step's key (visible on the job page), and later plug-in steps also receive them in their `outputs` keyword argument.
 

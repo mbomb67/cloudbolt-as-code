@@ -125,6 +125,7 @@
       retries: step.retries || 0,
       retry_delay: step.retry_delay || 0,
       timeout_minutes: step.timeout_minutes || "",
+      archives: (step.archives || []).slice(),
       inputs: $.extend(true, {}, step.inputs || {})
     };
   }
@@ -276,7 +277,7 @@
         el("span", { cls: "swf-pill" }, [icon(a.icon), a.type_label]),
         el("div", { cls: "swf-pick-main" }, [
           el("div", { cls: "swf-pick-name", text: a.name }),
-          el("div", { cls: "swf-pick-why", text: (a.reasons || []).join("; ") })
+          el("div", { cls: "swf-pick-why", text: (a.reasons || []).join(" ") })
         ])
       ]));
     });
@@ -339,7 +340,7 @@
   function stepProblems(step, index) {
     var problems = [];
     if (state.missing[step.action]) { problems.push(state.missing[step.action]); return problems; }
-    (state.reasons[step.action] || []).forEach(function (reason) { problems.push("With these filters the action " + reason + "."); });
+    (state.reasons[step.action] || []).forEach(function (reason) { problems.push(reason); });
     if (state.actionsLoaded && !state.offered[step.action] && !state.reasons[step.action]) {
       problems.push("The step picker does not offer this action; tick 'Include built-in and special-purpose plug-ins' if that is intended.");
     }
@@ -461,9 +462,15 @@
         el("label", { cls: "form-check-label", "for": "swf-coe-" + index, text: "Continue on error" }).css({ textTransform: "none", fontSize: "13px", letterSpacing: 0 })
       ])
     ]);
+    var $files = step.type !== "script" ? null : el("div", { cls: "mb-2" }, [
+      el("label", { "for": "swf-files-" + index, text: "Files" }).css({ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".03em", color: "var(--swf-muted)" }),
+      el("input", { id: "swf-files-" + index, cls: "form-control form-control-sm swf-mono", "data-swf-field": "archives", value: (step.archives || []).join(", "), placeholder: "installers/agent.msi, configs/app.conf@4" }),
+      el("div", { cls: "swf-hint", text: "Archive files to stage on the server before the script runs (File Archives content). Each reports its version as an output, archive_<file stem>_version." })
+    ]);
     var $body = el("div", { cls: "swf-step-b" }, [
       problems.length ? el("ul", { cls: "swf-problems" }, problems.map(function (p) { return el("li", { text: p }); })) : null,
-      $settings
+      $settings,
+      $files
     ]);
     if (detail) {
       if (detail.inputs.length) {
@@ -478,7 +485,7 @@
       }
       var outputs = (detail.outputs || []).filter(function (name) { return name !== "stdout"; });
       $body.append(el("div", { cls: "swf-hint mt-2" }, [
-        "Later steps can use this step's outputs" + (step.type === "script" ? ": stdout" + (outputs.length ? ", " + outputs.join(", ") : "") + ". A script publishes one by printing a line OUTPUT: name=value." : step.type === "plugin" ? ": the outputs dict the plug-in returns." : ", if it returns any.")
+        "Later steps can use this step's outputs" + (step.type === "script" ? ": stdout" + (outputs.length ? ", " + outputs.join(", ") : "") + ". A script publishes one with a CB_OUTPUT name=value line (Write-TaskOutput or task_output in the Run Task base scripts)." : step.type === "plugin" ? ": the outputs dict the plug-in returns." : ", if it returns any.")
       ]));
     }
     return el("div", { cls: "swf-step" + (problems.length ? " swf-step-bad" : ""), "data-swf-step": index }, [
@@ -534,6 +541,8 @@
         $.each(other.inputs, function (name, c) { if (c.mode === "output" && c.step === old) { c.step = step.key; } });
       });
       if (event.type === "change") { renderSteps(); }
+    } else if (field === "archives") {
+      step.archives = this.value.split(/[\s,]+/).filter(function (ref) { return ref; });
     } else {
       step[field] = this.value;
       if (field === "name" && event.type === "change") { renderSteps(); }
@@ -620,6 +629,7 @@
           retries: step.retries,
           retry_delay: step.retry_delay,
           timeout_minutes: step.type === "script" ? null : (step.timeout_minutes || null),
+          archives: step.type === "script" ? (step.archives || []) : [],
           inputs: inputs
         };
       })

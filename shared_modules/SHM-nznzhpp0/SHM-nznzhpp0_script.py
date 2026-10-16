@@ -50,16 +50,21 @@ Running
   with WARNING. Cancelling the job stops it before the next step.
 
 Outputs
-  A Remote Script publishes an output by printing a line
-      OUTPUT: name=value
-  (name: letters, digits and underscores; value: the rest of the line). Print
-  these last, with Write-Output rather than Write-Host on Windows, and exit 0:
-  WinRM drops a script's output when it exits non-zero, and Azure Run Command
-  keeps only the last 4 KB. Every script step also publishes "stdout", the
-  end of its output. A plug-in step publishes the "outputs" dict it returns.
-  Each step's outputs are saved on the workflow's job under the step's key,
-  so the job page shows them and later plug-in steps also receive them in
-  their outputs keyword argument.
+  A Remote Script publishes an output with Run Task's convention, a line
+      CB_OUTPUT name=value
+  printed by the base templates' Write-TaskOutput (PowerShell) or task_output
+  (bash) helper, last and before exit 0, and read by
+  server_tasks.parse_outputs. Files attached to a step report their resolved
+  versions the same way (archive_<file stem>_version). Every script step also
+  publishes "stdout", the end of its output. A plug-in step publishes the
+  "outputs" dict it returns. Each step's outputs are saved on the workflow's
+  job under the step's key, so the job page shows them and later plug-in
+  steps also receive them in their outputs keyword argument.
+
+Files
+  A script step can list archive files (for example installers/agent.msi or
+  configs/app.conf@4) for the File Archives content to stage on the server
+  before the script runs; they go to server_tasks.run_task as archive_refs.
 
 Secrets
   CloudBolt writes a server action's custom-form payload and its plain-text
@@ -69,6 +74,7 @@ Secrets
   objects (networks, files, ...) are left out the same way.
 """
 import html
+import inspect
 import json
 import re
 import time
@@ -123,8 +129,11 @@ STORE_FIELD_TYPES = ("TXT", "CODE")
 ID_PREFIX = "SWF"
 WORKFLOW_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
 STEP_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
-OUTPUT_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
-OUTPUT_LINE_RE = re.compile(r"^\s*OUTPUT:\s*([A-Za-z_][A-Za-z0-9_]{0,63})\s*=(.*)$")
+# server_tasks.parse_outputs reads names of letters, digits and underscores.
+OUTPUT_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
+# An archive reference: a store path, optionally @<version>.
+ARCHIVE_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}(@[A-Za-z0-9._-]{1,64})?$")
+MAX_ARCHIVES = 20
 NAME_MAX = 255
 DESCRIPTION_MAX = 1000
 MAX_STEPS = 50
@@ -282,21 +291,27 @@ def _managers(server):
 
 
 def workflow_refusal(workflow, server, resolved=None):
-    """Why workflow is not offered on server, or '' when it is."""
+    """
+    Why workflow is not offered on server, or '' when it is: Run Task's fit
+    check (server_tasks.server_fits_filters) for OS families, technologies,
+    environments and groups, then the two filters only workflows have.
+    """
     resolved = resolved if resolved is not None else resolve_filters(workflow.get("filters"))
     name = workflow.get("name") or workflow.get("id")
-    families = resolved["os_families"]
-    if families and not set(_lineage(server.os_family)).intersection(families):
-        return f"'{name}' runs on {_names(families)} servers only."
-    technologies = resolved["resource_technologies"]
-    if technologies and _technology(server) not in technologies:
-        return f"'{name}' runs on {_names(technologies)} only."
-    environments = resolved["environments"]
-    if environments and server.environment not in environments:
-        return f"'{name}' runs in {_names(environments)} only."
-    groups = resolved["groups"]
-    if groups and server.group not in groups:
-        return f"'{name}' runs for {_names(groups)} only."
+    fits = server_tasks.server_fits_filters(
+        server,
+        os_families=resolved["os_families"],
+        technologies=resolved["resource_technologies"],
+        environments=resolved["environments"],
+        groups=resolved["groups"],
+    )
+    if not fits:
+        described = "; ".join(
+            f"{f['label'].lower()}: {', '.join(f['values'])}"
+            for f in describe_filters(workflow.get("filters"))
+            if f["key"] in ("os_families", "resource_technologies", "environments", "groups") and f["values"]
+        )
+        return f"{server.hostname} is outside the filters of '{name}' ({described})."
     builds = resolved["os_builds"]
     if builds and server.os_build not in builds:
         return f"'{name}' runs on servers built from {_names(builds)} only."
@@ -435,32 +450,45 @@ def _effective(resolved):
     return technologies, families
 
 
+def _filters_allow(values, kind):
+    return f"the filters allow {_names(values) if values else f'any {kind}'}"
+
+
 def step_conflicts(hook, resolved):
     """
     Why hook cannot run on every server resolved (a workflow's resolved
-    filters) allows, as a list of reasons; empty when it can.
+    filters) allows, as a list of sentences; empty when it can. Remote
+    Scripts go through Run Task's fit check (server_tasks.filters_refusal).
+    The other action types, which Run Task does not run, get the same rule
+    here: an action restricted on a filter needs the workflow restricted on
+    it to values the action allows.
     """
     technologies, families = _effective(resolved)
+    if isinstance(hook, RemoteScriptHook):
+        reason = server_tasks.filters_refusal(
+            hook,
+            os_families=list(families),
+            technologies=list(technologies),
+            environments=resolved["environments"],
+            groups=resolved["groups"],
+        )
+        return [reason] if reason else []
     reasons = []
-    action_families = list(hook.os_families.all()) if hasattr(hook, "os_families") else []
-    if action_families:
-        if not families:
-            reasons.append(f"runs on {_names(action_families)} only; set the workflow's OS families to match")
-        elif any(not set(_lineage(f)).intersection(action_families) for f in families):
-            reasons.append(f"runs on {_names(action_families)} only")
+    action_families = set(hook.os_families.all()) if hasattr(hook, "os_families") else set()
+    if action_families and not (families and all(set(_lineage(f)) & action_families for f in families)):
+        reasons.append(
+            f"'{hook.name}' runs on {_names(action_families)} servers only, and "
+            f"{_filters_allow(families, 'OS family')}."
+        )
     checks = (
-        ("resource technologies", list(hook.resource_technologies.all()), technologies),
-        ("environments", list(hook.environments.all()), set(resolved["environments"])),
-        ("groups", list(hook.groups.all()), set(resolved["groups"])),
-        ("configuration managers", list(hook.configuration_managers.all()), set(resolved["configuration_managers"])),
+        ("technology", set(hook.resource_technologies.all()), technologies),
+        ("environment", set(hook.environments.all()), set(resolved["environments"])),
+        ("group", set(hook.groups.all()), set(resolved["groups"])),
+        ("configuration manager", set(hook.configuration_managers.all()), set(resolved["configuration_managers"])),
     )
-    for label, allowed, wanted in checks:
-        if not allowed:
-            continue
-        if not wanted:
-            reasons.append(f"runs for {_names(allowed)} only; set the workflow's {label} to match")
-        elif not wanted.issubset(allowed):
-            reasons.append(f"runs for {_names(allowed)} only")
+    for kind, allowed, wanted in checks:
+        if allowed and not (wanted and wanted.issubset(allowed)):
+            reasons.append(f"'{hook.name}' runs for {_names(allowed)} only, and {_filters_allow(wanted, kind)}.")
     return reasons
 
 
@@ -508,10 +536,17 @@ def _generated_inputs(hook, source=None):
 
 
 def output_suggestions(hook, source=None):
-    """Output names an action is known to publish: OUTPUT lines in a script, plus stdout."""
+    """
+    Output names a script is known to publish, read from its CB_OUTPUT lines
+    and its Write-TaskOutput / task_output calls, plus stdout.
+    """
     if not isinstance(hook, RemoteScriptHook):
         return []
-    names = re.findall(r"OUTPUT:\s*([A-Za-z_][A-Za-z0-9_]{0,63})\s*=", source or _source(hook))
+    pattern = re.compile(r"(?:CB_OUTPUT\s+|Write-TaskOutput\s+(?:-Name\s+)?['\"]?|task_output\s+['\"]?)([A-Za-z0-9_]+)")
+    names = []
+    for line in (source or _source(hook)).splitlines():
+        if not line.strip().startswith("#"):
+            names.extend(pattern.findall(line))
     return list(dict.fromkeys(names + ["stdout"]))
 
 
@@ -575,7 +610,7 @@ def actions_for_filters(filters, include_all=False):
         summary = action_summary(hook)
         reasons = step_conflicts(hook, resolved)
         if summary["blocking"]:
-            reasons.append(f"requires {', '.join(summary['blocking'])}, which a workflow cannot carry")
+            reasons.append(f"'{hook.name}' requires {', '.join(summary['blocking'])}, which a workflow cannot carry.")
         if reasons:
             summary["reasons"] = reasons
             unavailable.append(summary)
@@ -885,7 +920,7 @@ def _clean_step(index, step, resolved, earlier, taken):
         raise WorkflowError(f"{label}: another step already uses the key '{key}'.")
     conflicts = step_conflicts(hook, resolved)
     if conflicts:
-        raise WorkflowError(f"{label}: '{hook.name}' {'; '.join(conflicts)}.")
+        raise WorkflowError(f"{label}: {' '.join(conflicts)}")
     configs = step.get("inputs") or {}
     if not isinstance(configs, dict):
         raise WorkflowError(f"{label}: inputs must be an object of input names and settings.")
@@ -898,6 +933,7 @@ def _clean_step(index, step, resolved, earlier, taken):
         config = _clean_input(label, field, configs.get(input_name), earlier)
         if config is not None:
             inputs[input_name] = config
+    archives = _clean_archives(label, hook, step.get("archives"))
     return OrderedDict(
         [
             ("key", key),
@@ -912,8 +948,38 @@ def _clean_step(index, step, resolved, earlier, taken):
                 _int(step.get("timeout_minutes"), f"{label} timeout", 1, MAX_TIMEOUT_MINUTES, None),
             ),
             ("inputs", inputs),
+            ("archives", archives),
         ]
     )
+
+
+def _clean_archives(label, hook, archives):
+    """A script step's attached archive files, as references like installers/agent.msi or configs/app.conf@4."""
+    if archives in (None, "", []):
+        return []
+    if isinstance(archives, str):
+        archives = re.split(r"[\s,]+", archives)
+    if not isinstance(archives, (list, tuple)):
+        raise WorkflowError(f"{label}: files must be a list of archive references.")
+    refs = list(dict.fromkeys(str(ref).strip() for ref in archives if str(ref).strip()))
+    if refs and not isinstance(hook, RemoteScriptHook):
+        raise WorkflowError(f"{label}: only Remote Script steps can have files attached.")
+    if len(refs) > MAX_ARCHIVES:
+        raise WorkflowError(f"{label}: attach at most {MAX_ARCHIVES} files.")
+    bad = [ref for ref in refs if not ARCHIVE_REF_RE.match(ref)]
+    if bad:
+        raise WorkflowError(
+            f"{label}: {', '.join(bad)} is not an archive reference such as installers/agent.msi or configs/app.conf@4."
+        )
+    return refs
+
+
+def _run_task_takes_archives():
+    """Whether this appliance's server_tasks.run_task accepts archive_refs (added by the File Archives content)."""
+    try:
+        return "archive_refs" in inspect.signature(server_tasks.run_task).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def clean_workflow(data, others=()):
@@ -1079,7 +1145,7 @@ def prompt_panel(workflow, servers, profile=None):
             blocking.append(f"{step.label} requires {', '.join(step.blocking())}, which a workflow cannot carry.")
         questions = []
         for field in step.prompts():
-            element = server_tasks._element(field)
+            element = server_tasks.input_element(field)
             element["name"] = prompt_name(step, field)
             choices = _choices(step, field, server, profile)
             if choices and element.get("type") not in ("dropdown", "tagbox"):
@@ -1194,16 +1260,6 @@ def parse_prompt_values(workflow, steps, payload):
 # ---- run time: running ----------------------------------------------------
 
 
-def parse_outputs(text):
-    """{name: value} from a script's 'OUTPUT: name=value' lines; a later line wins."""
-    outputs = OrderedDict()
-    for line in (text or "").splitlines():
-        match = OUTPUT_LINE_RE.match(line)
-        if match:
-            outputs[match.group(1)] = match.group(2).strip()
-    return outputs
-
-
 def _canceled(job):
     return job is not None and Job.objects.filter(pk=job.pk, status="TO_CANCEL").exists()
 
@@ -1244,11 +1300,15 @@ def _step_inputs(step, prompted, outputs):
 
 
 def _run_script(step, server, inputs, job):
-    output = server_tasks.run_task(step.hook, server, inputs, job=job)
+    archives = step.data.get("archives") or []
+    if archives:
+        output = server_tasks.run_task(step.hook, server, inputs, job=job, archive_refs=archives)
+    else:
+        output = server_tasks.run_task(step.hook, server, inputs, job=job)
     # WinRM returns the output without adding it to the job, unlike the other transports.
     if job is not None and server.is_windows() and not server.use_tech_specific_script_execution():
         job.set_progress(f"Output of '{step.name}' on {server.hostname}", detailed_message=server_tasks.tail(output))
-    outputs = parse_outputs(output)
+    outputs = OrderedDict(server_tasks.parse_outputs(output))
     outputs["stdout"] = server_tasks.tail(output, STDOUT_LIMIT)
     return "SUCCESS", outputs, ""
 
@@ -1318,6 +1378,11 @@ def preflight(workflow, steps, servers, prompted):
     for step in steps:
         if step.blocking():
             problems.append(f"{step.label} requires {', '.join(step.blocking())}, which a workflow cannot carry.")
+        if step.data.get("archives") and not _run_task_takes_archives():
+            problems.append(
+                f"{step.label} has files attached, but this appliance's server_tasks module cannot stage files "
+                "yet; sync the File Archives content, or remove the files from the step."
+            )
         for name, field in step.fields.items():
             config = step.config(name)
             if not _supported(field) or config.get("mode") != "fixed":
