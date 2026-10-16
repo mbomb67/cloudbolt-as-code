@@ -14,7 +14,6 @@
             "execute_in_parallel": false,
             "id": "BDI-leunwuwx",
             "name": "Deploy EKS Cluster",
-            "parameter_defaults": [],
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,
@@ -31,7 +30,7 @@
         "title": "Discover EKS"
     },
     "favorited": false,
-    "icon": "aws_eks_bp_logo_HB1E9Je_ElAxv98.png",
+    "icon": "aws_eks_bp_logo_HB1E9Je_ElAxv98_f7iu6bK.png",
     "id": "BP-r5apcf7e",
     "is_orderable": true,
     "labels": [
@@ -57,7 +56,7 @@
             "sequence": 0
         }
     ],
-    "last_updated": "2026-10-15",
+    "last_updated": "2026-10-16",
     "management_actions": [
         {
             "dependencies": {
@@ -75,6 +74,20 @@
         },
         {
             "dependencies": {
+                "resource_action": "resource_actions/RSA-xdlxetyc"
+            },
+            "enabled": true,
+            "label": "Update AWS EKS Add-on"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-inhs50gi"
+            },
+            "enabled": true,
+            "label": "Scale AWS EKS Nodegroup"
+        },
+        {
+            "dependencies": {
                 "resource_action": "resource_actions/RSA-f9ivvn5q"
             },
             "enabled": true,
@@ -86,20 +99,6 @@
             },
             "enabled": true,
             "label": "List AWS EKS Nodegroup"
-        },
-        {
-            "dependencies": {
-                "resource_action": "resource_actions/RSA-inhs50gi"
-            },
-            "enabled": true,
-            "label": "Scale AWS EKS Nodegroup"
-        },
-        {
-            "dependencies": {
-                "resource_action": "resource_actions/RSA-xdlxetyc"
-            },
-            "enabled": true,
-            "label": "Update AWS EKS Add-on"
         },
         {
             "dependencies": {
