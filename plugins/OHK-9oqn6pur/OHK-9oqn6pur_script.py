@@ -13,7 +13,8 @@ Steps per server:
   1. Run JOIN_SCRIPT in the guest through Server.execute_script, the call a
      Remote Script action makes: the handler's own channel when the server's
      tech_specific_script_execution is on (VMware Tools, Azure Run Command, AWS
-     SSM), else WinRM with the server's credentials. The script exits early
+     SSM), else WinRM with the server's credentials, retried for up to
+     GUEST_READY_WAIT while the guest does not take scripts yet. The script exits early
      when the computer is already in the domain (CloudBolt's vCenter guest
      customization joins it when domain_to_join is set), checks that the
      domain's DC locator SRV record resolves, runs Add-Computer, and schedules
@@ -60,6 +61,7 @@ GUID_FIELD = "ad_computer_object_guid"
 DN_FIELD = "ad_computer_object_dn"
 
 JOIN_TIMEOUT = 600
+GUEST_READY_WAIT = 600
 VERIFY_TIMEOUT = 120
 FIRST_CHECK_DELAY = 60
 CHECK_INTERVAL = 30
@@ -271,7 +273,22 @@ def _join_server(server):
               .replace("__CB_OU__", _b64(ou))
               .replace("__CB_PASSWORD__", _b64(password)))
     rv, output = _execute(server, script, JOIN_TIMEOUT)
+    # A new VM can pass its cloud's reachability check before the guest takes
+    # scripts (the SSM agent registers, WinRM starts). The script is safe to
+    # run again, so retry while CloudBolt cannot run it at all.
+    deadline = time.time() + GUEST_READY_WAIT
+    if rv == -1 and time.time() + CHECK_INTERVAL < deadline:
+        set_progress("%s: the guest does not take scripts yet; retrying for up to %d minutes. %s" % (
+            hostname, GUEST_READY_WAIT // 60, _scrub(output, password).strip()[-300:]))
+    while rv == -1 and time.time() + CHECK_INTERVAL < deadline:
+        time.sleep(CHECK_INTERVAL)
+        rv, output = _execute(server, script, JOIN_TIMEOUT, show_output=False)
     output = _scrub(output, password)
+    if rv == -1:
+        message = "%s: AD domain join failed. CloudBolt could not run a script in the guest: %s" % (
+            hostname, output.strip()[-500:])
+        logger.error(message)
+        return "FAILURE", message
     if rv != 0:
         diagnosis = EXIT_CODE_DIAGNOSTICS.get(rv, "The join script failed (exit %s)." % rv)
         message = "%s: AD domain join failed. %s %s" % (hostname, diagnosis, _errors(output))

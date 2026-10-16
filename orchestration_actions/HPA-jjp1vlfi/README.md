@@ -21,6 +21,7 @@ Related: [Suggest Domain OUs](../HPA-0zcrvpwu/) turns `domain_ou` into a type-ah
 
 ## Notes
 - vCenter: CloudBolt's own guest customization joins the domain while the VM is built only when `domain_to_join` is set. This action then finds it joined, skips the join and restart, and records the GUID. With `domain_ou` alone, this action does the join.
+- A new VM can pass its cloud's reachability check before it takes scripts (the SSM agent registers, WinRM starts), so the action retries for up to 10 minutes while CloudBolt cannot run a script in the guest. On AWS with tech-specific execution, the instance needs an IAM instance profile that allows Systems Manager (`AmazonSSMManagedInstanceCore`).
 - The script schedules a restart 15 seconds after `Add-Computer`; the action waits up to 20 minutes for the guest to come back in the domain.
 - Exit codes in the job log: 3 the domain controller SRV record does not resolve (DNS), 4 `Add-Computer` failed (rights, password, domain controller access, or an existing computer object the join account did not create, which Windows refuses to reuse since KB5020276), 5 the restart could not be scheduled, 7 already in another domain.
 - The join password travels in the script body, base64 encoded and decoded into a SecureString, and is scrubbed from the job output. Run Command and WinRM keep no copy; AWS Systems Manager keeps the command in its history, so limit `ssm:ListCommands` on those accounts.
