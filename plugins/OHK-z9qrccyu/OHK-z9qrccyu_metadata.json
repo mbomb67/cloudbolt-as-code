@@ -8,14 +8,6 @@
     "id": "OHK-z9qrccyu",
     "max_retries": 0,
     "name": "Suggest Domain OUs",
-    "parameters": [
-        {
-            "description": "Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified.",
-            "label": "Domain OU",
-            "name": "domain_ou",
-            "type": "String"
-        }
-    ],
     "resource_technologies": [],
     "script_filename": "OHK-z9qrccyu_script.py",
     "shared": false,
