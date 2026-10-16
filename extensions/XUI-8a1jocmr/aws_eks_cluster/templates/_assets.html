@@ -89,6 +89,13 @@
   .eksx details.eks-fold[open] > summary .eks-chevron { transform: rotate(90deg); }
   .eksx details.eks-fold:not([open]) > summary { border-bottom: 0; }
   .eksx details.eks-fold > summary:focus-visible { outline: 2px solid var(--eks-primary); outline-offset: -2px; }
+  .eksx .eks-quota { display: flex; flex-wrap: wrap; gap: 14px 24px; padding: 14px 22px 16px; }
+  .eksx .eks-quota-item { flex: 1 1 130px; min-width: 130px; cursor: default; }
+  .eksx .eks-quota-item:focus-visible { outline: 2px solid var(--eks-primary); outline-offset: 4px; border-radius: 4px; }
+  .eksx .eks-quota-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .eksx .eks-quota-top .k { margin-bottom: 0; }
+  .eksx .eks-quota-top .eks-hint { margin-top: 0; }
+  .eksx .eks-quota-item .eks-meter { max-width: none; height: 8px; margin-top: 6px; }
   @keyframes eks-spin { to { transform: rotate(360deg); } }
 </style>
 <script>

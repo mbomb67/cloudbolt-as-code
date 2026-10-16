@@ -426,7 +426,7 @@
     "id": "XUI-8a1jocmr",
     "type": "extensions",
     "name": "AWS EKS Cluster",
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and a Connect tab to EKS namespace landing zones with kubectl commands, a kubeconfig, and the IAM principals that have access.",
+    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
     "path": "extensions/XUI-8a1jocmr",
     "readme": "extensions/XUI-8a1jocmr/README.md",
     "uses": [],
