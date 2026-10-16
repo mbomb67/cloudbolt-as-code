@@ -248,6 +248,8 @@ def _join_server(server):
     hostname = server.hostname
     if not server.is_windows():
         return "SKIPPED", "%s: not Windows, skipped." % hostname
+    if server.status == "HISTORICAL" or not server.resource_handler_svr_id:
+        return "SKIPPED", "%s: the VM was not created, skipped." % hostname
 
     try:
         ldap_utility, domain, ou = ad_domain.resolve(server)
@@ -296,6 +298,10 @@ def _join_server(server):
 
 def run(job, *args, **kwargs):
     """Post-Provision entry point."""
+    if job.status == "FAILURE":
+        # CloudBolt still runs Post-Provision actions after a failed provision
+        # (jobs/models.py, Job.run); there is no VM to join.
+        return "SUCCESS", "Provisioning failed, so no server was joined to a domain.", ""
     _ensure_custom_fields()
     # With an OS family filter CloudBolt passes only the matching servers.
     servers = kwargs.get("servers") or list(job.server_set.all())
