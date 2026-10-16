@@ -1,0 +1,14 @@
+{
+    "contents": [
+        "blueprints/BP-r5apcf7e",
+        "blueprints/BP-e4c0q58z",
+        "extensions/XUI-8a1jocmr"
+    ],
+    "description": "",
+    "id": "PKG-hwl2mtv8",
+    "last_updated": "2026-10-15",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "AWS EKS",
+    "version": "1.0.1"
+}
