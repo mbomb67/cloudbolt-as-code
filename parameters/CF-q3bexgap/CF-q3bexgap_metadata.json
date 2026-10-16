@@ -1,0 +1,21 @@
+{
+    "allow_multiple": false,
+    "available_all_servers": false,
+    "description": "Data disks to add to the server, as a JSON list: one entry per disk with drive_letter (Windows) or mount_point (Linux), size_gb, and volume_name.",
+    "field_dependency_controlling_set": [],
+    "field_dependency_dependent_set": [],
+    "global_constraints": {},
+    "global_defaults": [],
+    "global_options": [],
+    "id": "CF-q3bexgap",
+    "label": "Data Disks",
+    "last_updated": "2026-10-16",
+    "name": "disk_map",
+    "placeholder": null,
+    "relevant_osfamilies": [],
+    "required": false,
+    "show_as_attribute": false,
+    "show_on_servers": true,
+    "type": "TXT",
+    "value_pattern_string": null
+}

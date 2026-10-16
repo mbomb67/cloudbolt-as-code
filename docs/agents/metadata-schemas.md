@@ -28,6 +28,7 @@ Section anchors are stable (renames break skills):
 | §13 | `form_functions/` FJS-* (transitive-import only) |
 | §14 | `mcp_tool_actions/` MTA-* |
 | §15 | `packages/` PKG-* (Content Package Manager manifests; not a CloudBolt content type) |
+| §16 | `parameters/` CF-* (standalone parameters the Content Package Manager writes and syncs; not a Source Control Repos type) |
 
 When CloudBolt changes a schema (new required field, new enum value, new content type), update the relevant section here. Skills inherit the change automatically — no parallel edits required.
 
@@ -88,6 +89,7 @@ Every cross-reference between content units is a **repo-relative path string** o
 | Shared module | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | **camelCase** |
 | Form | `dependencies.form_functions[]` | `form_functions/FJS-*` | snake_case |
 | Package (§15) | `contents[]` | Any top-level dir except `forms/` and `form_functions/` (and never `packages/`) | snake_case |
+| Parameter (§16) | `gen_options_hooks[].dependencies.orchestration_hook` | `orchestration_actions/HPA-*` | snake_case |
 | Orchestration action (HPA) | `hook_point` | `cbhooks.HookPoint.label` (string, not a path) | n/a |
 
 ### `action_inputs[]` key-casing rule
@@ -1326,16 +1328,17 @@ Each entry is `"<top_level_dir>/<GLOBAL_ID>"` and the ID's prefix must be the di
 | `orchestration_actions/` | `HPA` | `shared_modules/` | `SHM` |
 | `flowcontrol_actions/` | `FCA` | `plugins/` | `OHK` |
 | `recurring_jobs/` | `RJB` | `extensions/` | `XUI` |
+| `parameters/` (§16) | `CF` | | |
 
 - **Never `forms/` or `form_functions/`.** They import only with a parent (§0 export/import asymmetry); list the parent.
-- **Top-level units only.** Leave out whatever another member's export carries, which is that member's `dependencies` refs followed transitively: a blueprint brings its build, teardown and discovery plugins, sub-blueprints, management actions, generated-options orchestration actions, custom form, form functions and shared modules; an action brings its plugin, display-condition plugin, custom form and shared modules. List a plugin or shared module only when nothing in the package references it.
-- **List what does not travel.** A webhook a blueprint's form calls is not a dependency, so it never syncs with the blueprint; add its `webhooks/IWH-*`. The same goes for a UI extension that adds tabs to the blueprint's resources and for standalone orchestration actions, recurring jobs and flow control actions that act on them.
+- **Top-level units only.** Leave out whatever another member's export carries, which is that member's `dependencies` refs followed transitively: a blueprint brings its build, teardown and discovery plugins, sub-blueprints, management actions, its own parameters, generated-options orchestration actions, custom form, form functions and shared modules; an action brings its plugin, display-condition plugin, custom form and shared modules; a parameter brings the orchestration actions that generate its options. List a plugin or shared module only when nothing in the package references it.
+- **List what does not travel.** A webhook a blueprint's form calls is not a dependency, so it never syncs with the blueprint; add its `webhooks/IWH-*`. The same goes for a UI extension that adds tabs to the blueprint's resources, for standalone orchestration actions, recurring jobs and flow control actions that act on them, and for a parameter the content reads that no blueprint defines (an environment or group parameter such as `disk_map`): add its `parameters/CF-*`.
 - A member need not exist on the appliance when the manifest is imported; Sync creates it. In this repo every ref must resolve to a folder.
 
 ### What the extension does with a package
 
-- **Sync** creates one `sourcecodereposync` job per member, each waiting for the one before (`prereq_job`): shared modules, then plugins, then the other members in `contents` order, blueprints last. A failed job holds the rest; Rerun it once the fix is pushed.
-- **Export** writes the manifest from the appliance's definition, so an edit made only in the repo is lost unless the package is imported again first. Member folders are rewritten by CloudBolt's push, with the usual export caveats.
+- **Sync** creates one `sourcecodereposync` job per member, each waiting for the one before (`prereq_job`): shared modules, then plugins, then the other members in `contents` order, then the generated-options actions of parameter members that the package does not list, then one "Content Package Manager: Sync Parameter" job per parameter (§16), blueprints last. A failed job holds the rest; Rerun it once the fix is pushed. Sync reads every parameter member's file first, so it refuses to start when one is missing on the branch.
+- **Export** writes the manifest from the appliance's definition, so an edit made only in the repo is lost unless the package is imported again first. Member folders are rewritten by CloudBolt's push, with the usual export caveats; parameter folders are written by the extension in the manifest commit.
 
 ### Worked example
 
@@ -1374,6 +1377,95 @@ Content package `PKG-bo8ensty`, version 1.0.0. Sync it from the Content Packages
 | Blueprint | AWS EKS | [blueprints/BP-r5apcf7e](../../blueprints/BP-r5apcf7e/) |
 | Blueprint | AWS EKS Namespace | [blueprints/BP-e4c0q58z](../../blueprints/BP-e4c0q58z/) |
 | UI extension | AWS EKS Cluster | [extensions/XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/) |
+```
+
+---
+
+## 16. `parameters/` — CF-* (Content Package Manager only)
+
+- **Not a Source Control Repos type.** `SourceCodeRepo` has no `path_to_*` for parameters, so CloudBolt never pushes or syncs one on its own; a parameter otherwise reaches a repository only inside a blueprint's `parameters[]` or an action's `action_inputs[]`. The Content Package Manager extension (`extensions/XUI-iq65xgvr/content_packages/parameters.py`) writes and reads this folder for a package member `parameters/CF-<id>`. A folder no package lists is never synced; the dir name is fixed.
+- **Written by** the extension's Export: it pushes each generated-options orchestration action with CloudBolt's own push (unless the package lists it), then writes `parameters/CF-<id>/CF-<id>_metadata.json` in the manifest commit, and `README.md` only when the folder has none.
+- **Read by** the extension's Sync, which syncs the referenced orchestration actions first and then runs one parameter job per member.
+- **Picker scope.** Any parameter Admin > Parameters lists (`CustomField.custom_field_list_parameters`). Action inputs (namespace `action_inputs`) travel with their action and are never members.
+
+### File format
+
+The file is CloudBolt's own export of the parameter, the object a blueprint export writes into `parameters[]`: `CustomFieldSerializer().resource_dict(cf, exporting=True, include_dependencies=True)` (`infrastructure/api/v3/serializers/custom_field.py`), without the blueprint-only `destination`, `options` and `constraints`, plus three keys the extension adds. Written as `json.dumps(indent=4, sort_keys=True)` plus a newline.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | The package's ID for the parameter, `CF-` plus 8 `[a-z0-9]`; equals the folder name. Import gives a new parameter this ID when no other parameter has it. |
+| `name` | string | The parameter's identity across appliances: import matches an existing parameter by `name` (`get_or_create_from_dict`). |
+| `label`, `description`, `placeholder` | string / null | `label` is what the picker, the catalog and the README show. |
+| `type` | string (enum) | ATTR_TYPES code (§0). Import refuses to change an existing parameter's type. |
+| `allow_multiple`, `required`, `show_on_servers`, `available_all_servers`, `show_as_attribute` | boolean | |
+| `value_pattern_string` | string / null | |
+| `relevant_osfamilies` | array[object] | `[{"name": ...}]`; missing OS families are created. |
+| `field_dependency_controlling_set`, `field_dependency_dependent_set` | array[object] | Dependency objects as in §0 [Parameter dependencies](#parameter-dependencies-field_dependency__set), but with bare names (no `_a<id>` suffix; a standalone parameter is not an action input). A dependency is created once both parameters exist, so list both in the package; both files carry it. |
+| `global_options` | array | Option values. Left out for `PWD` and `ETXT` (secrets) and for types whose values are appliance objects (`NET`, `LDAP`, `NSXS`, `NSXE`, `STOR`, `FILE`, `AAP`). |
+| `global_defaults` | array[object] | Added by the extension. `[{"target": "servers", "value": ..., "os_family": null}]`, the Parameters API shape (`CustomFieldService.get_global_defaults`). Left out for the same types. |
+| `global_constraints` | object | Added by the extension. Any of `minimum`, `maximum`, `slider_increment`, `regex_constraint` (`CustomFieldService.get_global_constraints`); `{}` when none. |
+| `gen_options_hooks` | array[object] | Present only when the parameter has generated options. `[{"name", "enabled", "dependencies": {"orchestration_hook": "orchestration_actions/HPA-*"}}]`, the HPA at hook point `Generated Parameter Options`. |
+| `last_updated` | string `YYYY-MM-DD` | Added by the extension; the export date. |
+
+Environment, group and blueprint assignments (and the options and defaults set there) are bindings to one appliance and are never written, as CloudBolt leaves them out of every export.
+
+### Sync behavior
+
+- Creates the parameter when no parameter has its `name`. With "Refresh content that already exists" on, updates the existing one: fields, then global options, defaults and constraints replaced by the file's (the serializer's `update_global_*`). With it off, leaves an existing parameter unchanged.
+- Replaces the parameter's generated-options actions with the ones listed, found by global ID, else by name, as blueprint import links them (`hpa.hook.custom_fields.add(cf)`).
+- An existing parameter keeps its own global ID (custom forms on that appliance reference it). The package then records the pair in its local `aliases` and resolves the ref to that parameter; export still writes the folder under the package's ID.
+- Ends in WARNING when an action was not found, a field dependency's other parameter does not exist yet, or global defaults could not be set.
+
+### Worked example
+
+`parameters/CF-q3bexgap/CF-q3bexgap_metadata.json` (`disk_map`, member of `packages/PKG-zny1ynfs`) is a real export of a Multi-line Text parameter with no options, defaults or generated options; copy its shape. An illustrative string parameter with two global options and a global default would read:
+
+```json
+{
+    "allow_multiple": false,
+    "available_all_servers": false,
+    "description": "Cost center charged for the order.",
+    "field_dependency_controlling_set": [],
+    "field_dependency_dependent_set": [],
+    "global_constraints": {},
+    "global_defaults": [
+        {
+            "os_family": null,
+            "target": "servers",
+            "value": "1000"
+        }
+    ],
+    "global_options": [
+        "1000",
+        "2000"
+    ],
+    "id": "CF-xkwcyf59",
+    "label": "Cost Center",
+    "last_updated": "2026-10-16",
+    "name": "cost_center",
+    "placeholder": null,
+    "relevant_osfamilies": [],
+    "required": true,
+    "show_as_attribute": false,
+    "show_on_servers": true,
+    "type": "STR",
+    "value_pattern_string": null
+}
+```
+
+A parameter whose options an orchestration action generates also carries, for example:
+
+```json
+"gen_options_hooks": [
+    {
+        "dependencies": {
+            "orchestration_hook": "orchestration_actions/HPA-swe1kifa"
+        },
+        "enabled": true,
+        "name": "Generate options for HCP Terraform coordinates"
+    }
+]
 ```
 
 ---
