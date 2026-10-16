@@ -37,6 +37,7 @@ the handler at runtime.
 """
 import csv
 import gzip
+import hashlib
 import io
 import json
 import os
@@ -66,6 +67,7 @@ _CLOUD_ENDPOINTS = {
 # equivalent unauthenticated endpoint, so retail fallback is disabled there.
 RETAIL_PRICES_URL = "https://prices.azure.com/api/retail/prices"
 RETAIL_API_VERSION = "2023-01-01-preview"
+RETAIL_CACHE_SECONDS = 86400
 
 BILLING_ACCOUNTS_API = "2024-04-01"
 PRICE_SHEET_API = "2023-11-01"
@@ -820,17 +822,38 @@ def load_negotiated_meters(rh, max_age_days=35):
 def retail_query(filter_str, currency="USD"):
     """Query the Azure Retail Prices API. Returns a list of price items (first
     page only — sufficient for our narrow filters). Public commercial cloud
-    only."""
+    only.
+
+    Answers are cached in django cache for RETAIL_CACHE_SECONDS (list prices
+    change at most monthly): one order runs the rate hook several times between
+    submit and the order page, each asking the same questions. Failed queries
+    are not cached."""
+    from django.core.cache import cache
+    key = "azure_retail_" + hashlib.sha1(
+        f"{RETAIL_API_VERSION}|{currency}|{filter_str}".encode()
+    ).hexdigest()
+    try:
+        cached = cache.get(key)
+    except Exception:
+        cached = None
+    if cached is not None:
+        return cached
+
     params = {"api-version": RETAIL_API_VERSION, "$filter": filter_str}
     if currency and currency != "USD":
         params["currencyCode"] = currency
     try:
         resp = requests.get(RETAIL_PRICES_URL, params=params, timeout=REQUEST_TIMEOUT)
         resp.raise_for_status()
-        return resp.json().get("Items", [])
+        items = resp.json().get("Items", [])
     except Exception as exc:
         logger.warning(f"[azure_pricing] Retail query failed ({filter_str}): {exc}")
         return []
+    try:
+        cache.set(key, items, RETAIL_CACHE_SECONDS)
+    except Exception as exc:
+        logger.warning(f"[azure_pricing] Could not cache retail query ({filter_str}): {exc}")
+    return items
 
 
 # =============================================================================

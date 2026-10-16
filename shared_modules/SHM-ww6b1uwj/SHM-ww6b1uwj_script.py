@@ -792,12 +792,19 @@ RATE_UNIT_TO_FREQUENCY = {
 }
 
 
-def _rate_numbers(order):
-    """Return (recurring amount as a 2-dp string, ServiceNow frequency) or ("", "")."""
+def _order_rate(order):
+    """
+    The order's rate, or None. Computed once per summary: each get_rate() call
+    reruns the blueprint's rate hook, which can mean cloud pricing API calls.
+    """
     try:
-        rate = order.get_rate()
+        return order.get_rate()
     except Exception:
-        return "", ""
+        return None
+
+
+def _rate_numbers(rate):
+    """Return (recurring amount as a 2-dp string, ServiceNow frequency) or ("", "")."""
     if rate in (None, "") or rate == Decimal("Infinity"):
         return "", ""
     unit = "MONTH"
@@ -812,11 +819,7 @@ def _rate_numbers(order):
     return str(amount), frequency
 
 
-def _rate_text(order):
-    try:
-        rate = order.get_rate()
-    except Exception:
-        return ""
+def _rate_text(rate):
     if rate in (None, ""):
         return ""
     try:
@@ -912,7 +915,8 @@ def describe_order(order, base_url="", approval="pending"):
                 resource_type = ""
     action = order_action(order)
     requested_for = _profile_identity(_requested_for_profile(order))
-    rate_amount, rate_frequency = _rate_numbers(order)
+    rate = _order_rate(order)
+    rate_amount, rate_frequency = _rate_numbers(rate)
     summary = {
         "rate_amount": rate_amount,
         "rate_frequency": rate_frequency,
@@ -925,7 +929,7 @@ def describe_order(order, base_url="", approval="pending"):
         "group": order.group.name if order.group else "",
         "environment": ", ".join(environments),
         "cloud": ", ".join(sorted(clouds)),
-        "cost": _rate_text(order),
+        "cost": _rate_text(rate),
         "requested_for": requested_for,
         "justification": _justification(order),
         "approval": approval,

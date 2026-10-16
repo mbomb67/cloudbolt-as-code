@@ -948,6 +948,20 @@
     "enabled": false
   },
   {
+    "id": "HPA-nq9gkrm7",
+    "type": "orchestration_actions",
+    "name": "List available azure node sizes based on storage type",
+    "description": "Replaces the code of CloudBolt's built-in Node Size options action with one that filters sizes by live Azure SKU capabilities and caches the SKU list.",
+    "path": "orchestration_actions/HPA-nq9gkrm7",
+    "readme": "orchestration_actions/HPA-nq9gkrm7/README.md",
+    "uses": [
+      "plugins/OHK-mhul31ct"
+    ],
+    "used_by": [],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true
+  },
+  {
     "id": "HPA-o6ctckmt",
     "type": "orchestration_actions",
     "name": "Join Linux Server to AD Domain",
@@ -2224,6 +2238,19 @@
     "uses": [],
     "used_by": [
       "mcp_tool_actions/MTA-ntmcnvv7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-mhul31ct",
+    "type": "plugins",
+    "name": "List available azure node sizes based on storage type",
+    "description": "Lists the environment's configured Azure node sizes that the region, OS image, storage type and security options can deploy, from a cached Azure Resource SKU list.",
+    "path": "plugins/OHK-mhul31ct",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-nq9gkrm7"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

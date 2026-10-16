@@ -1,0 +1,11 @@
+{
+    "description": "Lists the environment's configured Azure node sizes that the region, OS image, storage type and security options can deploy, from a cached Azure Resource SKU list.",
+    "id": "OHK-mhul31ct",
+    "max_retries": 0,
+    "name": "List available azure node sizes based on storage type",
+    "resource_technologies": [],
+    "script_filename": "OHK-mhul31ct_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

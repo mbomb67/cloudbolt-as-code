@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-mhul31ct"
+    },
+    "description": "Replaces the code of CloudBolt's built-in Node Size options action with one that filters sizes by live Azure SKU capabilities and caches the SKU list.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-nq9gkrm7",
+    "last_updated": null,
+    "name": "List available azure node sizes based on storage type",
+    "run_on_statuses": "",
+    "run_seq": null
+}
