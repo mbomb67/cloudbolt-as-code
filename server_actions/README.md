@@ -6,3 +6,4 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](../plugins/OHK-5wpzgw68/) |
+| Run Task | [SVA-4sin3s0q](SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid. | [Run Task](../plugins/OHK-o4tgygjs/) |

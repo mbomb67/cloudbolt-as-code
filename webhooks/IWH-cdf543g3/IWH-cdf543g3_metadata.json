@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "Server Tasks",
+    "dependencies": {
+        "hook": "plugins/OHK-bf3iyg9j"
+    },
+    "description": "Endpoint the Run Task form calls for the tasks that fit a server, a chosen task's inputs, and to save credentials on a server that has none.",
+    "enabled": true,
+    "id": "IWH-cdf543g3",
+    "label": "Server Tasks",
+    "last_updated": null,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "server-tasks"
+}

@@ -1,0 +1,39 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Optional text the task prints, up to 200 characters.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-l8l3iy9n",
+            "label": "Message",
+            "name": "message",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Base PowerShell script for Run Task server tasks: prints a summary of the Windows server and an optional message, and shows the input, logging and error conventions to copy.",
+    "execution_timeout": 300,
+    "id": "OHK-lhm2916o",
+    "max_retries": 0,
+    "name": "Server Task Template (Windows)",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-lhm2916o_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

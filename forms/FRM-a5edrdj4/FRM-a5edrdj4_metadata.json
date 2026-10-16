@@ -1,0 +1,12 @@
+{
+    "css_file": "FRM-a5edrdj4_css.css",
+    "dependencies": {
+        "form_functions": [
+            "form_functions/FJS-m3awusu7"
+        ]
+    },
+    "id": "FRM-a5edrdj4",
+    "json": "{\"title\": \"Run Task\", \"description\": \"Run one of the tasks that fit this server: pick a task, fill in its inputs, and submit.\", \"completedHtml\": \"<p class=\\\"custom-order-form-completed\\\">Your task has been submitted.</p>\", \"loadingHtml\": \"<p class=\\\"custom-order-form-loading\\\">Loading tasks...</p>\", \"showQuestionNumbers\": \"off\", \"clearInvisibleValues\": \"none\", \"completeText\": \"Run\", \"questionTitleLocation\": \"top\", \"pages\": [{\"name\": \"run_task\", \"elements\": [{\"type\": \"text\", \"name\": \"custom_form_id\", \"visible\": false, \"defaultValue\": \"FRM-a5edrdj4\", \"readOnly\": true}, {\"type\": \"text\", \"name\": \"server_task_form\", \"visible\": false, \"defaultValueExpression\": \"serverTaskForm({object_id})\"}, {\"type\": \"dropdown\", \"name\": \"action-input.task\", \"title\": \"Task\", \"description\": \"The Remote Scripts that can run on this server.\", \"isRequired\": true, \"choicesByUrl\": {\"url\": \"/api/v3/cmp/inboundWebHooks/server-tasks/run/?source=tasks&server={object_id}&servers={object_ids}\", \"path\": \"options\", \"valueName\": \"value\", \"titleName\": \"title\"}}, {\"type\": \"html\", \"name\": \"server_task_note\", \"visible\": false, \"html\": \"\"}, {\"type\": \"paneldynamic\", \"name\": \"action-input.task_inputs\", \"title\": \"Task inputs\", \"visible\": false, \"templateElements\": [], \"panelCount\": 0, \"minPanelCount\": 0, \"maxPanelCount\": 1, \"allowAddPanel\": false, \"allowRemovePanel\": false}]}]}",
+    "rendering_mode": "jquery",
+    "supported_languages": ""
+}

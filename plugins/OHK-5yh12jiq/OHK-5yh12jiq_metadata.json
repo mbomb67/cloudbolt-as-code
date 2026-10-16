@@ -1,0 +1,63 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The systemd unit, for example sshd or sshd.service. A name without a suffix means NAME.service.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-uslrjbca",
+            "label": "Service name",
+            "name": "service_name",
+            "placeholder": "sshd",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": "^[A-Za-z0-9:_.@-]+$"
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "status only reports the unit's state.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [
+                "restart",
+                "start",
+                "status",
+                "stop"
+            ],
+            "hide_if_default_value": false,
+            "id": "CF-hsc80k4d",
+            "label": "Operation",
+            "name": "operation",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Shows, starts, stops or restarts one systemd unit and prints its state afterwards.",
+    "execution_timeout": 600,
+    "id": "OHK-5yh12jiq",
+    "max_retries": 0,
+    "name": "Manage Linux Service",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-5yh12jiq_script.sh",
+    "shared": false,
+    "target_os_families": [
+        "Linux"
+    ],
+    "type": "Remote Script"
+}
