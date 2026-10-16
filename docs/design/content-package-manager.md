@@ -4,6 +4,7 @@ Status: brainstorm, 2026-10-15. Steps 1 to 3 of the first cut are built in
 `extensions/XUI-iq65xgvr`. Where the build differs from this draft (packages
 stored in a namespaced CustomField, one sync job per member, export run as a
 job, card-style pages), the extension's README and code are current.
+Standalone parameters were added on 2026-10-16 (see below).
 Step 4 is built: the AGENTS.md rule, `docs/agents/metadata-schemas.md` §15,
 the catalog section (member back-references are a `packages` key in
 `catalog.json`, not a column), the validator's package checks, the
@@ -296,6 +297,67 @@ READMEs out of the content folders (the Git host stops showing them with the
 folder). An export from CloudBolt's own Push to repository buttons bypasses
 the extension, so a repo-side CI check that names deleted READMEs and the
 `git checkout` that restores them is the complement.
+
+### Standalone parameters
+
+Added 2026-10-16. Parameter-driven orchestration (for example the `disk_map`
+environment parameter behind `packages/PKG-zny1ynfs`) needs the parameter on
+the target appliance, often with the orchestration action that generates its
+options, and nothing in a blueprint carries it.
+
+What CloudBolt has (v2026.3): `SourceCodeRepo` has no `path_to_*` for
+parameters and `model_repo_mapping` / `OBJECT_TYPE_MAPPINGS` do not list
+them, so Source Control Repos cannot push or sync one on its own. A
+parameter reaches a repository only inside a blueprint's `parameters[]` or an
+action's `action_inputs[]`. The serializer behind `parameters[]` is reusable
+as is: `infrastructure.api.v3.serializers.CustomFieldSerializer`, with
+`resource_dict(cf, exporting=True, include_dependencies=True)` on export
+(definition, OS families, field dependencies, global options, and each
+generated-options action under `gen_options_hooks[].dependencies.orchestration_hook`)
+and `get_or_create_from_dict(data, replace_existing)` on import (matches by
+name, keeps the exported global ID only when it creates). Blueprint import
+links an action with `hpa.hook.custom_fields.add(cf)` after removing the
+parameter's current generated-options plugins.
+
+Built:
+
+- A member type `parameters/` with prefix `CF`; the picker offers Admin >
+  Parameters (`CustomField.custom_field_list_parameters`), refs resolve to any
+  parameter outside a namespace (action inputs live in `action_inputs`).
+- Export writes `parameters/CF-<id>/CF-<id>_metadata.json` in the manifest
+  commit: the serializer's export, plus `global_defaults` and
+  `global_constraints` as the Parameters API returns them, with each action
+  rewritten to `orchestration_actions/HPA-<id>` the way the blueprint export's
+  `_process_dependencies` does. Each generated-options action is pushed with
+  the OOB per-object push first, unless the package lists it. A README is
+  written when the folder has none.
+- Sync reads each parameter's file from the global clone before creating any
+  job, adds an OOB sync job for each generated-options action the package
+  does not list (after the other actions), then one job per parameter (before
+  blueprints) of a second self-registering plugin, "Content Package Manager:
+  Sync Parameter" (`parameter_job.py`). It is queued like `run_as_job`
+  queues a plugin, plus `prereq_job`, so it sits in the same chain and Rerun
+  works the same. The job runs `get_or_create_from_dict` (update only with
+  "refresh content that already exists"; a type change is refused, as the
+  Parameters API refuses it), then the serializer's own
+  `update_global_options` / `update_global_defaults` /
+  `update_global_constraints`, then links the actions.
+- A parameter matched by name to one with another global ID keeps its ID
+  (custom forms on that appliance reference it); every package listing the
+  ref records `local.aliases[<package ID>] = <local ID>` and resolves
+  through it.
+
+Left out, as CloudBolt leaves them out of every export: environment, group
+and blueprint assignments. Also left out: option and default values of
+password and encrypted-text parameters (secrets) and of types whose values
+are appliance objects (network, LDAP, NSX, storage, file, AAP).
+
+Rejected: a parameter's own OOB push (none exists); embedding parameters in
+the package manifest (a parameter can belong to several packages, and the
+repo convention is one ID-prefixed folder per unit); syncing generated-options
+actions inside the parameter job with `refresh_action_from_local_path`, the
+blueprint import's internal path (per-object OOB sync jobs keep a job log and
+Rerun per action); changing a matched parameter's global ID.
 
 ### Sync (refresh the appliance from the package's home branch)
 

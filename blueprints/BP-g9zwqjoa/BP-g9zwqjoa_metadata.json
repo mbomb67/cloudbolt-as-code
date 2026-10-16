@@ -1,7 +1,6 @@
 {
     "any_group_can_deploy": true,
     "auto_historical_resources": false,
-    "custom_form": "FRM-58d5rxg8",
     "dependencies": {
         "custom_form": "forms/FRM-58d5rxg8"
     },
@@ -9,8 +8,8 @@
         {
             "all_environments_enabled": true,
             "allowed_os_families": [
-                "Windows",
-                "Oracle Enterprise Linux"
+                "Oracle Enterprise Linux",
+                "Windows"
             ],
             "applications": null,
             "deploy_seq": 1,
@@ -31,7 +30,7 @@
     "description": "Deploys a Windows Server or Oracle Linux VM whose order form turns the environment's disk_map parameter into a table of data disks, which the disk map orchestration actions attach and prepare inside the guest.",
     "favorited": false,
     "has_custom_form": true,
-    "icon": "data_disks.png",
+    "icon": "data_disks_5gfQ8j1.png",
     "id": "BP-g9zwqjoa",
     "is_orderable": true,
     "labels": [],
@@ -41,6 +40,8 @@
     "name": "Server with Data Disks",
     "resource_name_template": "disk-00X",
     "resource_type": {
+        "categories": [],
+        "description": null,
         "icon": "bi bi-hdd-stack",
         "id": "RT-t9dg6h2q",
         "internal_only": false,

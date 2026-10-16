@@ -16,6 +16,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 - **§0** for universal rules: ID format, cross-reference convention, `action_inputs[]` casing, secret redaction placeholders, transitive-import asymmetry.
 - **§1–§14** for per-content-type Required Fields tables, Cross-reference fields, Enums, and Round-trip caveats.
 - **§15** for content package manifests (`packages/PKG-*`), checked by Check J.
+- **§16** for standalone parameters (`parameters/CF-*`), checked by Check K.
 
 When CloudBolt changes a schema, the linter inherits the change automatically — `metadata-schemas.md` is the single source of truth.
 
@@ -101,6 +102,15 @@ Per §15. `python tools/validate_metadata.py` runs every item below, and CI runs
 - **Error:** two packages share a name, ignoring case (an appliance imports only one).
 - **Error:** the file is not `json.dumps(data, indent=4, sort_keys=True)` plus a newline, the format the exporter writes.
 - **Warning:** a member that another member's export already carries (it is in that member's `dependencies`, followed transitively); drop it.
+
+### Check K — Standalone parameters (`parameters/CF-*`)
+Per §16. `python tools/validate_metadata.py` runs every item below.
+- **Error:** folder name is not `CF-` plus 8 or more `[a-z0-9]`, or `id` is missing or differs from it.
+- **Error:** `name` missing (sync matches the parameter by name), `label` over 50 characters, or `type` not a CustomField type code.
+- **Error:** a `PWD` or `ETXT` parameter carries `global_options` or `global_defaults` (secrets).
+- **Error:** a `gen_options_hooks[]` entry without `dependencies.orchestration_hook` = `orchestration_actions/HPA-*`; a ref that does not resolve fails the general reference check.
+- **Warning:** no package lists the parameter, so it never syncs.
+- **Warning:** not in the exporter's format (`json.dumps(indent=4, sort_keys=True)` plus a newline).
 
 3. **Report** as a grouped summary:
    ```

@@ -2,7 +2,9 @@
 Content package store
 
 A content package is a named list of top-level content units, written as the
-repo's cross-reference strings ("<top_level_dir>/<GLOBAL_ID>").
+repo's cross-reference strings ("<top_level_dir>/<GLOBAL_ID>"). Besides the
+units CloudBolt's Source Control Repos syncs, a package may list standalone
+parameters as "parameters/CF-<id>"; parameters.py writes and reads those.
 
 Packages live in the database as values of one CustomField,
 content_package_store (Multi-line Text, created on first write), in the
@@ -21,7 +23,10 @@ is also where PKG ids and package names are kept unique.
 
 Member names are never stored: they are resolved from the appliance on every
 read, so the page can flag members that were deleted or that live on another
-repository or branch.
+repository or branch. The one exception is a parameter's local global ID:
+CloudBolt matches parameters by name on import, so a parameter that already
+existed here keeps its own global ID, and the package records that ID under
+local.aliases to keep resolving its ref.
 """
 import json
 import re
@@ -95,28 +100,38 @@ class PackageNotFound(PackageError):
 
 
 class MemberType(object):
-    """One kind of content a package may list, keyed by its repo dir."""
+    """One kind of content a package may list, keyed by its repo dir.
+    synced is False for parameters: Source Control Repos has no folder for
+    them, so they carry no repository link and sync through parameters.py."""
 
-    def __init__(self, dir, prefix, title, singular, model, name_attr, picker=None):
+    def __init__(self, dir, prefix, title, singular, model, name_attr, picker=None, resolvable=None,
+                 synced=True):
         self.dir = dir
         self.prefix = prefix
         self.title = title
         self.singular = singular
         self.model = model
         self.name_attr = name_attr
+        self.synced = synced
         self._picker = picker
+        self._resolvable = resolvable
 
     def resolvable(self):
         """Every object a ref of this type may point at."""
+        if self._resolvable:
+            return self._resolvable()
         if self.model is ServiceBlueprint:
             # Deleting a blueprint marks it HISTORICAL rather than removing it.
             return ServiceBlueprint.objects.filter(status="ACTIVE")
         return self.model.objects.all()
 
+    def with_repo(self, qs):
+        """qs with each object's repository fetched along, when it has one."""
+        return qs.select_related("source_code_repo") if self.synced else qs
+
     def pickable(self):
         """What the Add/Edit picker offers, mirroring the repo Contents tab."""
-        qs = self._picker() if self._picker else self.resolvable()
-        return qs.select_related("source_code_repo")
+        return self.with_repo(self._picker() if self._picker else self.resolvable())
 
     def name_of(self, obj):
         return getattr(obj, self.name_attr, "") or getattr(obj, "name", "") or obj.global_id
@@ -127,6 +142,17 @@ def _standalone_plugins():
     return OrchestrationHook.objects.filter(shared=True).exclude(
         pk__in=SharedModule.objects.values("pk")
     )
+
+
+def _parameters():
+    # Namespaced fields are internal: action inputs ("action_inputs") travel
+    # with their action, and this extension's own store is one of them.
+    return CustomField.objects.filter(namespace__isnull=True)
+
+
+def _parameters_list():
+    # What Admin > Parameters lists.
+    return CustomField.custom_field_list_parameters.all()
 
 
 # Picker order. Querysets follow the OOB Source Code Repository Contents tab.
@@ -150,8 +176,14 @@ MEMBER_TYPES = OrderedDict(
             "plugins", "OHK", "Plugins", "Plugin", OrchestrationHook, "name", picker=_standalone_plugins
         ),
         MemberType("extensions", "XUI", "UI extensions", "UI extension", UIExtension, "label"),
+        MemberType(
+            "parameters", "CF", "Parameters", "Parameter", CustomField, "label",
+            picker=_parameters_list, resolvable=_parameters, synced=False,
+        ),
     )
 )
+
+PARAMETERS_DIR = "parameters"
 
 
 # ---------------------------------------------------------------------------
@@ -185,25 +217,57 @@ def parse_ref(ref):
     return member_type, global_id
 
 
-def ref_for(member_type, obj):
-    return "{}/{}".format(member_type.dir, obj.global_id)
+def ref_for(member_type, obj, aliases=None):
+    """obj's ref. aliases ({package global ID: local global ID}) turns a
+    parameter that kept its own global ID back into the package's ref."""
+    global_id = obj.global_id
+    for package_id, local_id in (aliases or {}).items():
+        if local_id == global_id:
+            global_id = package_id
+            break
+    return "{}/{}".format(member_type.dir, global_id)
 
 
-def resolve_refs(refs):
+def aliases_of(package):
+    """{package global ID: local global ID} for the package's parameters that
+    were matched by name to a parameter with another global ID."""
+    aliases = (package.get("local") or {}).get("aliases")
+    return aliases if isinstance(aliases, dict) else {}
+
+
+def resolve_refs(refs, aliases=None):
     """Map each well-formed ref to its object on this appliance, or None when
-    nothing with that global ID exists. One query per member type."""
+    nothing with that global ID (or its alias) exists. One query per member
+    type."""
+    aliases = aliases or {}
     wanted = OrderedDict()
     for ref in refs:
         try:
             member_type, global_id = parse_ref(ref)
         except PackageError:
             continue
-        wanted.setdefault(member_type, []).append(global_id)
+        ids = wanted.setdefault(member_type, [])
+        ids.append(global_id)
+        if aliases.get(global_id):
+            ids.append(aliases[global_id])
     found = {}
     for member_type, ids in wanted.items():
-        for obj in member_type.resolvable().filter(global_id__in=ids).select_related("source_code_repo"):
-            found[ref_for(member_type, obj)] = obj
-    return {ref: found.get(ref) for ref in refs}
+        for obj in member_type.with_repo(member_type.resolvable().filter(global_id__in=ids)):
+            found["{}/{}".format(member_type.dir, obj.global_id)] = obj
+    resolved = {}
+    for ref in refs:
+        obj = found.get(ref)
+        if obj is None and isinstance(ref, str) and "/" in ref:
+            directory, global_id = ref.split("/", 1)
+            if aliases.get(global_id):
+                obj = found.get("{}/{}".format(directory, aliases[global_id]))
+        resolved[ref] = obj
+    return resolved
+
+
+def resolve_package(package):
+    """resolve_refs for a package's members, with its parameter aliases."""
+    return resolve_refs(list(package.get("contents") or []), aliases_of(package))
 
 
 def _check_refs(contents):
@@ -226,13 +290,13 @@ def _check_refs(contents):
     return unique, problems
 
 
-def validate_contents(contents, allow_unresolved=()):
+def validate_contents(contents, allow_unresolved=(), aliases=None):
     """Return contents de-duplicated in order, or raise PackageError naming
     every bad ref. Each ref must name an allowed type and resolve on this
     appliance; refs in allow_unresolved (members a package already had) may
     stay unresolved, so an edit does not force dropping a deleted member."""
     unique, problems = _check_refs(contents)
-    resolved = resolve_refs(unique)
+    resolved = resolve_refs(unique, aliases)
     for ref in unique:
         if resolved[ref] is None and ref not in allow_unresolved:
             member_type, global_id = parse_ref(ref)
@@ -300,6 +364,7 @@ def _empty_local():
         "last_export_job_id": None,
         "last_export_repo_id": None,
         "last_export_branch": "",
+        "aliases": {},
     }
 
 
@@ -407,7 +472,9 @@ def _clean_fields(fields, others, current=None):
         cleaned["version"] = version
     if "contents" in fields:
         existing = (current or {}).get("contents") or ()
-        cleaned["contents"] = validate_contents(fields["contents"], allow_unresolved=existing)
+        cleaned["contents"] = validate_contents(
+            fields["contents"], allow_unresolved=existing, aliases=aliases_of(current or {})
+        )
     return cleaned
 
 
@@ -540,17 +607,38 @@ def record_export(pkg_id, source_code_repo_id, branch, remote_source_url):
 
 
 def record_sync(pkg_id, source_code_repo_id, branch, jobs):
-    """Sync jobs were created, one per member as [(ref, job_id)] in run order.
-    The members will point at that repository and branch once they finish,
-    so it becomes the package's home."""
+    """Sync jobs were created, as [(ref, job_id, via)] in run order: one per
+    member (via None) plus one per generated-options action a parameter
+    member needs (via is that parameter's ref). The members will point at
+    that repository and branch once they finish, so it becomes the package's
+    home."""
     return _update_local(
         pkg_id,
         source_code_repo_id=source_code_repo_id,
         branch=branch,
         last_synced=_now(),
-        last_sync_jobs=[{"ref": ref, "job_id": job_id} for ref, job_id in jobs],
+        last_sync_jobs=[{"ref": ref, "job_id": job_id, "via": via} for ref, job_id, via in jobs],
         last_sync_job_id=jobs[-1][1] if jobs else None,
     )
+
+
+def record_alias(ref, local_id):
+    """A parameter sync matched ref's parameter by name to one with global ID
+    local_id. Every package listing ref records the alias (or drops it when
+    the IDs agree), so all of them keep resolving it."""
+    package_id = ref.split("/", 1)[1]
+    with _locked() as field:
+        for cfv, package in _rows(field):
+            if ref not in (package.get("contents") or []):
+                continue
+            aliases = dict(aliases_of(package))
+            if local_id and local_id != package_id:
+                aliases[package_id] = local_id
+            else:
+                aliases.pop(package_id, None)
+            if aliases != aliases_of(package):
+                package["local"]["aliases"] = aliases
+                _store(cfv, package)
 
 
 def record_export_job(pkg_id, job_id, source_code_repo_id, branch):

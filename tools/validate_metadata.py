@@ -10,6 +10,9 @@ Checks every <ID>_metadata.json under the content directories:
     Manager exporter writes, in its format, a unique name, and only distinct,
     resolvable, top-level members (never forms/ or form_functions/); a member
     that another member's export already carries is a warning
+  - a standalone parameter (parameters/CF-*) has a name, a known type, no
+    secret option or default values, generated-options refs to
+    orchestration_actions/, and belongs to a package (else it never syncs)
 
 Exit code 1 with a list of problems, 0 when clean (warnings do not fail).
 No dependencies.
@@ -24,7 +27,7 @@ CONTENT_DIRS = (
     "blueprints", "plugins", "resource_actions", "server_actions",
     "orchestration_actions", "flowcontrol_actions", "recurring_jobs",
     "cit_tests", "webhooks", "mcp_tool_actions", "shared_modules", "extensions", "forms",
-    "form_functions",
+    "form_functions", "parameters",
 )
 REF_RE = re.compile(r"^(%s)/([A-Z]+-[A-Za-z0-9]+)$" % "|".join(CONTENT_DIRS))
 # The nil GUID is an accepted placeholder.
@@ -44,9 +47,16 @@ MEMBER_PREFIXES = {
     "blueprints": "BP", "resource_actions": "RSA", "server_actions": "SVA",
     "orchestration_actions": "HPA", "flowcontrol_actions": "FCA", "recurring_jobs": "RJB",
     "cit_tests": "CIT", "webhooks": "IWH", "mcp_tool_actions": "MTA", "shared_modules": "SHM",
-    "plugins": "OHK", "extensions": "XUI",
+    "plugins": "OHK", "extensions": "XUI", "parameters": "CF",
 }
 TRANSITIVE_DIRS = ("forms", "form_functions")
+
+# Standalone parameters; mirrors extensions/XUI-iq65xgvr/content_packages/parameters.py.
+CF_ID_RE = re.compile(r"^CF-[a-z0-9]{8,}$")
+# infrastructure.models.CustomField.ATTR_TYPES
+PARAMETER_TYPES = {"STR", "INT", "IP", "DT", "DTM", "TXT", "ETXT", "CODE", "BOOL", "DEC", "NET", "PWD",
+                   "TUP", "LDAP", "URL", "NSXS", "NSXE", "STOR", "FILE", "AAP"}
+SECRET_TYPES = {"PWD", "ETXT"}
 
 
 def walk(obj, path=""):
@@ -157,6 +167,30 @@ def check_package(problems, warnings, p, folder, data, text, known, parsed):
                         "plus a newline), so the next export would rewrite it")
 
 
+def check_parameter(problems, warnings, p, folder, data, text):
+    if not CF_ID_RE.match(folder):
+        problems.append(f"{p}: parameter folder {folder} is not CF- plus 8 or more [a-z0-9]")
+    if not data.get("id"):
+        problems.append(f"{p}: missing id")
+    if not isinstance(data.get("name"), str) or not data["name"].strip():
+        problems.append(f"{p}: missing name; sync matches the parameter by name")
+    if len(data.get("label") or "") > 50:
+        problems.append(f"{p}: label is longer than 50 characters")
+    kind = data.get("type")
+    if kind not in PARAMETER_TYPES:
+        problems.append(f"{p}: type {kind!r} is not a CustomField type code")
+    if kind in SECRET_TYPES and (data.get("global_options") or data.get("global_defaults")):
+        problems.append(f"{p}: a {kind} parameter must not carry global option or default values")
+    for i, hook in enumerate(data.get("gen_options_hooks") or []):
+        ref = ((hook or {}).get("dependencies") or {}).get("orchestration_hook")
+        if not isinstance(ref, str) or not ref.startswith("orchestration_actions/HPA-"):
+            problems.append(f"{p}: gen_options_hooks[{i}] needs dependencies.orchestration_hook "
+                            "orchestration_actions/HPA-*")
+    if text != json.dumps(data, indent=4, sort_keys=True) + "\n":
+        warnings.append(f"{p}: not in the exporter's format (json.dumps(indent=4, sort_keys=True) "
+                        "plus a newline), so the next export rewrites it")
+
+
 def main(root="."):
     os.chdir(root)
     problems = []
@@ -172,6 +206,7 @@ def main(root="."):
 
     parsed = {}
     packages = []
+    parameters = []
     for p in metadata_files:
         p = p.replace("\\", "/")
         top, folder, fname = p.split("/")
@@ -192,6 +227,9 @@ def main(root="."):
             # Members are checked once every unit is parsed (see below).
             packages.append((p, folder, data, text))
             continue
+        if top == "parameters":
+            check_parameter(problems, warnings, p, folder, data, text)
+            parameters.append((p, f"{top}/{folder}"))
 
         script = data.get("script_filename")
         if script and not os.path.exists(f"{top}/{folder}/{script}"):
@@ -230,6 +268,10 @@ def main(root="."):
         if len(folders) > 1:
             # The extension keys packages by id but refuses a second package with the same name.
             problems.append(f"packages: {', '.join(folders)} share a name; an appliance can import only one")
+    members = {ref for _, _, data, _ in packages for ref in data.get("contents") or [] if isinstance(ref, str)}
+    for p, ref in parameters:
+        if ref not in members:
+            warnings.append(f"{p}: no package lists {ref}, so it never syncs; add it to the package that needs it")
 
     for msg in problems:
         print("PROBLEM:", msg)

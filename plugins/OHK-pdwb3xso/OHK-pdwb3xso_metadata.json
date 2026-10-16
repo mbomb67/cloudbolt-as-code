@@ -1,4 +1,9 @@
 {
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-8qcvbri7"
+        ]
+    },
     "description": "Formats the disks from a Windows server's disk_map in the guest: matches each one by serial number, SCSI address, or attach order, then initializes it GPT and formats it NTFS with its drive letter and label.",
     "id": "OHK-pdwb3xso",
     "max_retries": 0,
@@ -9,10 +14,5 @@
     "target_os_families": [
         "Windows"
     ],
-    "type": "CloudBolt Plug-in",
-    "dependencies": {
-        "sharedModules": [
-            "shared_modules/SHM-8qcvbri7"
-        ]
-    }
+    "type": "CloudBolt Plug-in"
 }
