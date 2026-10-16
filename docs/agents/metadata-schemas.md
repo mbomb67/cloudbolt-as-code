@@ -27,6 +27,7 @@ Section anchors are stable (renames break skills):
 | §12 | `forms/` FRM-* (transitive-import only) |
 | §13 | `form_functions/` FJS-* (transitive-import only) |
 | §14 | `mcp_tool_actions/` MTA-* |
+| §15 | `packages/` PKG-* (Content Package Manager manifests; not a CloudBolt content type) |
 
 When CloudBolt changes a schema (new required field, new enum value, new content type), update the relevant section here. Skills inherit the change automatically — no parallel edits required.
 
@@ -86,6 +87,7 @@ Every cross-reference between content units is a **repo-relative path string** o
 | Plugin (CloudBoltHook only) | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | **camelCase** |
 | Shared module | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | **camelCase** |
 | Form | `dependencies.form_functions[]` | `form_functions/FJS-*` | snake_case |
+| Package (§15) | `contents[]` | Any top-level dir except `forms/` and `form_functions/` (and never `packages/`) | snake_case |
 | Orchestration action (HPA) | `hook_point` | `cbhooks.HookPoint.label` (string, not a path) | n/a |
 
 ### `action_inputs[]` key-casing rule
@@ -1285,6 +1287,96 @@ An MCP tool action publishes a plugin as a tool on CloudBolt's MCP server. An AI
 
 ---
 
+## 15. `packages/` — PKG-*
+
+- **Not a CloudBolt content type.** Source Control Repos never reads `packages/`, and `SourceCodeRepo` has no `path_to_*` for it, so the dir name is fixed. The Content Package Manager extension (`extensions/XUI-iq65xgvr/content_packages/`) reads and writes these files: `store.py` holds the rules below, `services.py` exports, lists and imports.
+- **Written by** the extension's Export (`services.export_package`): it pushes each member with CloudBolt's own per-object push, then commits `packages/PKG-<id>/PKG-<id>_metadata.json`, and `README.md` only when the folder has none, so a README in the repo is never overwritten.
+- **Read by** Import from repository (`services.list_repo_packages`, `import_repo_package`): it lists `packages/PKG-<id>/PKG-<id>_metadata.json` on a branch, skips a file whose name and folder disagree, and registers the chosen manifest under its `id`, updating the package already registered with that id. The id is the package's identity across appliances.
+- **Standalone.** Nothing references a package; a unit may belong to several.
+
+### File format
+
+The exporter writes `json.dumps(store.manifest(package), indent=4, sort_keys=True) + "\n"`: exactly the eight keys below, alphabetical, four-space indent, non-ASCII escaped, one trailing newline. Write a manifest by hand in the same format, so the next export from an appliance changes nothing; `tools/validate_metadata.py` checks it. The appliance keeps a `local` block (home repository, branch, sync and export history) that never leaves it; do not write one.
+
+### Fields
+
+| Field | Type | Import default | Rules (`store.py`) |
+|---|---|---|---|
+| `id` | string | required | `PKG-` plus 8 or more `[a-z0-9]` (`PKG_ID_RE`). Equals the folder name and the file name stem. Generate it per §0, prefix `PKG`. |
+| `name` | string | required | Non-empty, at most 255 characters, unique (ignoring case) among the packages on an appliance: import fails when another id already has the name. |
+| `description` | string | `""` | One sentence saying what the package delivers; the catalog prints it. Whitespace is collapsed; at most 1000 characters. |
+| `version` | string | `"1.0.0"` | `^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$`. The author's version; nothing compares it. |
+| `minimum_version_required` | string | `""` | Stored and written back; nothing enforces it. A package created on an appliance has `""`. |
+| `last_updated` | string `YYYY-MM-DD` | import date | The appliance restamps it on every edit. |
+| `metadata_version` | string | `"2026.1.0"` | Manifest format version (`store.METADATA_VERSION`). |
+| `contents` | array[string] | `[]` | The members, in order. Import drops duplicates silently. |
+
+This repo requires all eight keys.
+
+### Member rules (`contents[]`)
+
+Each entry is `"<top_level_dir>/<GLOBAL_ID>"` and the ID's prefix must be the dir's (`store.parse_ref`); anything else fails the import. Allowed (`store.MEMBER_TYPES`):
+
+| Dir | Prefix | Dir | Prefix |
+|---|---|---|---|
+| `blueprints/` | `BP` | `cit_tests/` | `CIT` |
+| `resource_actions/` | `RSA` | `webhooks/` | `IWH` |
+| `server_actions/` | `SVA` | `mcp_tool_actions/` | `MTA` |
+| `orchestration_actions/` | `HPA` | `shared_modules/` | `SHM` |
+| `flowcontrol_actions/` | `FCA` | `plugins/` | `OHK` |
+| `recurring_jobs/` | `RJB` | `extensions/` | `XUI` |
+
+- **Never `forms/` or `form_functions/`.** They import only with a parent (§0 export/import asymmetry); list the parent.
+- **Top-level units only.** Leave out whatever another member's export carries, which is that member's `dependencies` refs followed transitively: a blueprint brings its build, teardown and discovery plugins, sub-blueprints, management actions, generated-options orchestration actions, custom form, form functions and shared modules; an action brings its plugin, display-condition plugin, custom form and shared modules. List a plugin or shared module only when nothing in the package references it.
+- **List what does not travel.** A webhook a blueprint's form calls is not a dependency, so it never syncs with the blueprint; add its `webhooks/IWH-*`. The same goes for a UI extension that adds tabs to the blueprint's resources and for standalone orchestration actions, recurring jobs and flow control actions that act on them.
+- A member need not exist on the appliance when the manifest is imported; Sync creates it. In this repo every ref must resolve to a folder.
+
+### What the extension does with a package
+
+- **Sync** creates one `sourcecodereposync` job per member, each waiting for the one before (`prereq_job`): shared modules, then plugins, then the other members in `contents` order, blueprints last. A failed job holds the rest; Rerun it once the fix is pushed.
+- **Export** writes the manifest from the appliance's definition, so an edit made only in the repo is lost unless the package is imported again first. Member folders are rewritten by CloudBolt's push, with the usual export caveats.
+
+### Worked example
+
+`packages/PKG-bo8ensty/PKG-bo8ensty_metadata.json`:
+
+```json
+{
+    "contents": [
+        "blueprints/BP-r5apcf7e",
+        "blueprints/BP-e4c0q58z",
+        "extensions/XUI-8a1jocmr"
+    ],
+    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "id": "PKG-bo8ensty",
+    "last_updated": "2026-10-15",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "AWS EKS",
+    "version": "1.0.0"
+}
+```
+
+Three members cover the solution. The cluster blueprint carries its eight resource actions, the namespace blueprint its five, and both carry their plugins, `shared_modules/SHM-sa5yqm9j` and the generated-options action `orchestration_actions/HPA-qb0w86mi`. The UI extension has no dependencies and nothing references it, so it is listed.
+
+The README next to it is the one the exporter would write (`services._readme`):
+
+```markdown
+# AWS EKS
+
+Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.
+
+Content package `PKG-bo8ensty`, version 1.0.0. Sync it from the Content Packages admin page (Content Package Manager UI extension).
+
+| Type | Name | Folder |
+|---|---|---|
+| Blueprint | AWS EKS | [blueprints/BP-r5apcf7e](../../blueprints/BP-r5apcf7e/) |
+| Blueprint | AWS EKS Namespace | [blueprints/BP-e4c0q58z](../../blueprints/BP-e4c0q58z/) |
+| UI extension | AWS EKS Cluster | [extensions/XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/) |
+```
+
+---
+
 ## Navigation Cookbooks
 
 ### Cookbook 1 — Given a blueprint, find its build/teardown/discovery plugins, day-2 actions, attached form
@@ -1328,6 +1420,16 @@ grep -rli '"name": "Expire Servers"' --include='*_metadata.json' .
 ```
 
 Different content types use different match keys (`name` for BP/OHK/HPA/RJB/CIT/SHM/XUI/FRM/FJS, `label` for RSA/SVA/FCA/IWH), so search both.
+
+### Cookbook 5 — Given a content unit, find the packages it belongs to
+
+A package lists only top-level units, so search for the unit and for each parent that carries it (Cookbook 2):
+
+```bash
+grep -l '"blueprints/BP-<id>"' packages/*/PKG-*_metadata.json
+```
+
+`catalog.json` gives the same answer in each record's `packages` key.
 
 ---
 

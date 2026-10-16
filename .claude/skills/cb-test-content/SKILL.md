@@ -26,7 +26,7 @@ Run the preflight table in testing-loop.md first, every session: server, connect
 
 Follow testing-loop.md steps 0 to 6 in order. In short:
 
-1. Scope: changed folders, replaced by the parents that import them. `cb-validate-metadata`, `tools/build_catalog.py`, commit, push.
+1. Scope: changed folders, replaced by the parents that import them; when one belongs to a content package (`packages/PKG-*`), sync the package so all its members come over together (testing-loop.md step 0.4). `cb-validate-metadata`, `tools/build_catalog.py`, commit, push.
 2. `sync_from_source_control_repo`, poll with `fetch_job_log`, every `syncResults` row `success`. Around a blueprint sync, `manage_blueprint_permissions`: list before, grant the same groups back after; a blueprint that entitled no group gets the configured group only, recorded in the ledger and revoked at cleanup.
 3. Exercise by type: blueprint = order, approve if pending, discovery, every day-2 action, Delete; standalone action = run against the configured target; recurring job = `run_recurring_job`; CIT = `run_cit_tests`.
 4. On failure read `fetch_job_log` (with `log_file_tail`), fix the repo, push, re-sync the affected parents, resume at the failed step. At most five iterations per unit.
