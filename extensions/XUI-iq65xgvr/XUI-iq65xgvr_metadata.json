@@ -15,6 +15,7 @@
         "jobs.py",
         "export_job.py",
         "dependencies.py",
+        "docs.py",
         "views.py",
         "urls.py",
         "templates/_assets.html",
@@ -25,7 +26,8 @@
         "templates/edit_dialog.html",
         "templates/export_dialog.html",
         "templates/sync_dialog.html",
-        "templates/import_dialog.html"
+        "templates/import_dialog.html",
+        "templates/readme_dialog.html"
     ],
     "version": ""
 }

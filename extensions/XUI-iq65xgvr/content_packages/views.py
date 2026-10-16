@@ -11,7 +11,8 @@ dialogs, and the JSON API under xui/content_packages/api/.
 Members are resolved against the appliance on every render. A member that no
 longer exists shows red; one whose Remote Source URL is not on the package's
 home repository and branch shows amber. The details page also lists every
-dependency an export would write, worked out by dependencies.py.
+dependency an export would write, worked out by dependencies.py, and offers
+each member's and dependency's README from its repository (docs.py).
 
 Export and Sync both run as CloudBolt jobs and return at once: Export through
 the self-registering plugin in jobs.py, Sync as one sourcecodereposync job per
@@ -37,7 +38,7 @@ from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
-from xui.content_packages import dependencies, services, store
+from xui.content_packages import dependencies, docs, services, store
 from xui.content_packages import jobs as export_jobs
 
 logger = ThreadLogger(__name__)
@@ -246,6 +247,8 @@ def _export_job(local, jobs):
         "pr_url": outputs.get("pr_url") or "",
         "pr_term": outputs.get("pr_term") or "Pull Request",
         "service_name": outputs.get("service_name") or "",
+        "restored": outputs.get("restored") or [],
+        "restore_note": outputs.get("restore_note") or "",
         "errors": job.errors or "",
     }
 
@@ -320,6 +323,7 @@ def package_detail(request, pkg_id):
             reverse("content_packages_edit", args=[row["id"]]), urlencode({"next": request.path})
         ),
         "dependencies_url": reverse("content_packages_dependencies", args=[row["id"]]),
+        "docs_url": reverse("content_packages_docs", args=[row["id"]]),
     })
 
 
@@ -332,8 +336,45 @@ def dependencies_panel(request, pkg_id):
     except Exception as exc:
         logger.exception("Could not work out the dependencies of %s", pkg_id)
         context = {"dependencies": [], "errors": [], "error": "Could not work out the dependencies: {}".format(exc)}
+    try:
+        found = docs.readmes(docs.resolve([d["global_id"] for d in context["dependencies"]]).values())
+    except Exception:
+        logger.exception("Could not look up the READMEs of the dependencies of %s", pkg_id)
+        found = {}
+    for dependency in context["dependencies"]:
+        dependency["has_readme"] = dependency["global_id"] in found
     context["member_count"] = len(package.get("contents") or [])
     return render(request, TEMPLATES + "dependencies_panel.html", context)
+
+
+@cbadmin_required
+def package_docs(request, pkg_id):
+    """JSON the details page loads: the members whose folder holds a README
+    on their repository branch, so it can show their Display documentation
+    buttons."""
+    package = _get_or_404(pkg_id)
+    refs = list(package.get("contents") or [])
+    resolved = {ref: obj for ref, obj in store.resolve_refs(refs).items() if obj is not None}
+    try:
+        found = docs.readmes(resolved.values())
+    except Exception:
+        logger.exception("Could not look up the READMEs of the members of %s", pkg_id)
+        found = {}
+    return JsonResponse({"docs": [ref for ref, obj in resolved.items() if obj.global_id in found]})
+
+
+@dialog_view(template_name=TEMPLATES + "readme_dialog.html")
+@cbadmin_required
+def readme_dialog(request, global_id):
+    """A member's or dependency's README, rendered from its repository."""
+    obj = docs.resolve([global_id]).get(global_id)
+    if obj is None:
+        return {"title": global_id, "error": "No content with global ID {} exists on this appliance.".format(global_id)}
+    title = "{} documentation".format(docs.name_of(obj))
+    try:
+        return {"title": title, "readme": docs.read(obj)}
+    except docs.NoReadme as exc:
+        return {"title": title, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------

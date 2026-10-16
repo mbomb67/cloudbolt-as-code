@@ -89,6 +89,27 @@
   .cpkx .cpk-card-fold > .cpk-card-h { border-bottom: 0; }
   .cpkx .cpk-card-b { border-top: 1px solid var(--cpk-line); }
   .cpkx .cpk-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--cpk-line); font-size: 12.5px; font-weight: 600; color: var(--cpk-muted); }
+  /* README dialog: the rendered markdown */
+  .cpkx .cpk-readme-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--cpk-line); font-size: 12px; font-weight: 600; color: var(--cpk-muted); }
+  .cpkx .cpk-readme-out { margin-left: auto; font-weight: 700; text-decoration: none; }
+  .cpkx .cpk-md { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+  .cpkx .cpk-md > :first-child { margin-top: 0; }
+  .cpkx .cpk-md h1 { font-size: 22px; font-weight: 700; margin: 0 0 12px; }
+  .cpkx .cpk-md h2 { font-size: 17px; font-weight: 700; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--cpk-line); }
+  .cpkx .cpk-md h3, .cpkx .cpk-md h4, .cpkx .cpk-md h5, .cpkx .cpk-md h6 { font-size: 14.5px; font-weight: 700; margin: 18px 0 6px; }
+  .cpkx .cpk-md p, .cpkx .cpk-md ul, .cpkx .cpk-md ol, .cpkx .cpk-md pre, .cpkx .cpk-md table, .cpkx .cpk-md blockquote { margin: 0 0 12px; }
+  .cpkx .cpk-md ul, .cpkx .cpk-md ol { padding-left: 24px; }
+  .cpkx .cpk-md ul li { list-style-type: disc; }
+  .cpkx .cpk-md ol li { list-style-type: decimal; }
+  .cpkx .cpk-md li + li { margin-top: 2px; }
+  .cpkx .cpk-md code { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: var(--cpk-surface-2); color: inherit; }
+  .cpkx .cpk-md pre { padding: 12px 14px; border: 1px solid var(--cpk-line); border-radius: 8px; background: var(--cpk-surface-2); overflow-x: auto; white-space: pre; overflow-wrap: normal; }
+  .cpkx .cpk-md pre code { padding: 0; background: none; font-size: 12.5px; }
+  .cpkx .cpk-md table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; }
+  .cpkx .cpk-md th, .cpkx .cpk-md td { padding: 6px 10px; border: 1px solid var(--cpk-line); text-align: left; vertical-align: top; }
+  .cpkx .cpk-md th { background: var(--cpk-surface-2); font-weight: 700; }
+  .cpkx .cpk-md blockquote { padding-left: 12px; border-left: 3px solid var(--cpk-line); color: var(--cpk-soft); }
+  .cpkx .cpk-md hr { border: 0; border-top: 1px solid var(--cpk-line); margin: 18px 0; opacity: 1; }
   @keyframes cpk-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
@@ -201,6 +222,18 @@
       window.location.reload();
     });
     $root.find("table[data-cpk-page-size]").each(function () { paginate($(this)); });
+    // Shows the Display documentation button ([data-cpk-doc="<ref>"]) of
+    // each row whose folder holds a README, from the list at
+    // data-cpk-docs-src.
+    $root.find("[data-cpk-docs-src]").each(function () {
+      var $scope = $(this);
+      $.getJSON($scope.attr("data-cpk-docs-src")).done(function (data) {
+        var refs = (data && data.docs) || [];
+        $scope.find("[data-cpk-doc]").each(function () {
+          $(this).toggleClass("d-none", refs.indexOf($(this).attr("data-cpk-doc")) === -1);
+        });
+      });
+    });
     // A panel inside a closed section loads the first time the section opens.
     $root.find("[data-cpk-panel]").each(function () {
       var $panel = $(this);
