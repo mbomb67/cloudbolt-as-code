@@ -78,7 +78,10 @@
       "plugins/OHK-1m6n3gq9",
       "plugins/OHK-ea8opsps"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-t1k7drin"
+    ]
   },
   {
     "id": "BP-anonytrx",
@@ -190,6 +193,7 @@
     ],
     "used_by": [],
     "packages": [
+      "packages/PKG-t1k7drin",
       "packages/PKG-zny1ynfs"
     ]
   },
@@ -355,7 +359,10 @@
       "plugins/OHK-p962x9z6",
       "plugins/OHK-sjr9f2hf"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-t1k7drin"
+    ]
   },
   {
     "id": "BP-s2fsbkpo",
@@ -914,6 +921,7 @@
     "hook_point": "Post-Provision",
     "enabled": true,
     "packages": [
+      "packages/PKG-t1k7drin",
       "packages/PKG-zny1ynfs"
     ]
   },
@@ -931,6 +939,7 @@
     "hook_point": "Post-Provision",
     "enabled": true,
     "packages": [
+      "packages/PKG-t1k7drin",
       "packages/PKG-zny1ynfs"
     ]
   },
@@ -1048,6 +1057,7 @@
     "hook_point": "Post-Provision",
     "enabled": true,
     "packages": [
+      "packages/PKG-t1k7drin",
       "packages/PKG-zny1ynfs"
     ]
   },
@@ -1192,6 +1202,25 @@
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
       "extensions/XUI-8a1jocmr"
+    ]
+  },
+  {
+    "id": "PKG-t1k7drin",
+    "type": "packages",
+    "name": "Data Disk Blueprints",
+    "description": "Deploys Windows Server and Oracle Linux VMs with order-time data disks through the Windows, Oracle Linux, and disk map blueprints, with the Post-Provision orchestration actions that attach the disk map's disks and prepare them inside the guest.",
+    "path": "packages/PKG-t1k7drin",
+    "readme": "packages/PKG-t1k7drin/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "orchestration_actions/HPA-n67skws4",
+      "orchestration_actions/HPA-42uy9dyo",
+      "orchestration_actions/HPA-4ptcwgg4",
+      "blueprints/BP-9ph7xcok",
+      "blueprints/BP-rgdg9gho",
+      "blueprints/BP-g9zwqjoa"
     ]
   },
   {

@@ -1,0 +1,17 @@
+{
+    "contents": [
+        "orchestration_actions/HPA-n67skws4",
+        "orchestration_actions/HPA-42uy9dyo",
+        "orchestration_actions/HPA-4ptcwgg4",
+        "blueprints/BP-9ph7xcok",
+        "blueprints/BP-rgdg9gho",
+        "blueprints/BP-g9zwqjoa"
+    ],
+    "description": "Deploys Windows Server and Oracle Linux VMs with order-time data disks through the Windows, Oracle Linux, and disk map blueprints, with the Post-Provision orchestration actions that attach the disk map's disks and prepare them inside the guest.",
+    "id": "PKG-t1k7drin",
+    "last_updated": "2026-10-16",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Data Disk Blueprints",
+    "version": "1.0.0"
+}
