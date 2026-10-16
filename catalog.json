@@ -897,7 +897,7 @@
     "id": "HPA-0zcrvpwu",
     "type": "orchestration_actions",
     "name": "Suggest Domain OUs",
-    "description": "Turns the domain_ou parameter into a type-ahead that lists matching Active Directory OUs once the user types three characters.",
+    "description": "Turns the domain_ou parameter into a type-ahead that lists Active Directory OUs matching the typed text anywhere in their path once the user types three characters.",
     "path": "orchestration_actions/HPA-0zcrvpwu",
     "readme": "orchestration_actions/HPA-0zcrvpwu/README.md",
     "uses": [
@@ -1259,7 +1259,7 @@
     "id": "PKG-nf407lm5",
     "type": "packages",
     "name": "Windows AD Domain Join",
-    "description": "Joins provisioned Windows servers to the Active Directory domain of their domain_to_join LDAP Utility, with a type-ahead OU picker for domain_ou and deletion of the computer object at decommission.",
+    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission.",
     "path": "packages/PKG-nf407lm5",
     "readme": "packages/PKG-nf407lm5/README.md",
     "uses": [],
@@ -1850,7 +1850,7 @@
     "id": "OHK-9oqn6pur",
     "type": "plugins",
     "name": "Join Windows Server to AD Domain",
-    "description": "Joins a Windows server to the Active Directory domain of its domain_to_join LDAP Utility with Add-Computer, in its domain_ou, then waits for the restart and verifies the secure channel.",
+    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names, bound as the LDAP Utility for that OU's domain (or domain_to_join), then waits for the restart and verifies the secure channel.",
     "path": "plugins/OHK-9oqn6pur",
     "readme": null,
     "uses": [
@@ -2033,7 +2033,7 @@
     "id": "OHK-bkoau0j8",
     "type": "plugins",
     "name": "Delete Windows Computer Object from AD",
-    "description": "Deletes a Windows server's Active Directory computer object over LDAP with its domain_to_join LDAP Utility, matching it by the objectGUID recorded at join or, failing that, by a name created after the server.",
+    "description": "Deletes a Windows server's Active Directory computer object over LDAP with the LDAP Utility for its domain, matching it by the objectGUID recorded at join or, failing that, by a name created after the server.",
     "path": "plugins/OHK-bkoau0j8",
     "readme": null,
     "uses": [
@@ -3244,7 +3244,7 @@
     "id": "OHK-z9qrccyu",
     "type": "plugins",
     "name": "Suggest Domain OUs",
-    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, searching every LDAP Utility's domain for OUs whose name contains the text.",
+    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain.",
     "path": "plugins/OHK-z9qrccyu",
     "readme": null,
     "uses": [
@@ -4009,7 +4009,7 @@
     "id": "SHM-gcba1u31",
     "type": "shared_modules",
     "name": "ad_domain",
-    "description": "Binds to an Active Directory domain with the LDAP Utility a server's domain_to_join names, searches it for organizational units, and finds and deletes computer objects.",
+    "description": "Finds the Active Directory domain and LDAP Utility for a server from its domain_ou or domain_to_join, binds with that utility, and finds and deletes computer objects.",
     "path": "shared_modules/SHM-gcba1u31",
     "readme": null,
     "uses": [],

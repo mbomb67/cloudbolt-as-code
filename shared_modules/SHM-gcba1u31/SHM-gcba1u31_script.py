@@ -123,15 +123,48 @@ def _search(conn, base, filterstr, attrs, limit):
     return entries
 
 
-def search_ous(ldap_utility, text, limit=25):
-    """DNs of the organizational units whose name contains text, at most limit."""
-    filterstr = "(&(objectCategory=organizationalUnit)(ou=*%s*))" % escape_filter_chars(text)
-    conn = connect(ldap_utility)
-    try:
-        entries = _search(conn, search_base(ldap_utility), filterstr, ["ou"], limit)
-    finally:
-        conn.unbind_s()
-    return [dn for dn, _ in entries]
+def utility_domain(ldap_utility):
+    """The DNS domain an LDAP Utility serves: its Domain field, or its Base DN's DC components."""
+    domain = (ldap_utility.ldap_domain or "").strip().strip(".").lower()
+    if "." in domain:
+        return domain
+    return dn_domain(ldap_utility.base_dn or "")
+
+
+def resolve(server, dn=None):
+    """
+    (LDAP Utility, domain, OU DN) for a server, or (None, "", "") when it has
+    neither domain_ou nor domain_to_join.
+
+    The domain comes from the DC components of dn when given (the cleanup
+    action passes the recorded computer object DN), else of domain_ou, and the
+    LDAP Utility is the one serving that domain. domain_to_join is needed only
+    with no OU (the domain's default Computers container) or to choose between
+    several utilities for one domain; when set it must agree with the OU.
+    Raises ValueError when it does not, or when no single utility serves the
+    domain.
+    """
+    ou = str(server.get_value_for_custom_field("domain_ou") or "").strip()
+    chosen = server.get_value_for_custom_field("domain_to_join")
+    source = dn or ou
+    if not source:
+        if chosen is None:
+            return None, "", ""
+        return chosen, utility_domain(chosen), ""
+
+    domain = dn_domain(source)
+    if not domain:
+        raise ValueError("%s is not a distinguished name with DC components" % source)
+    if chosen is not None:
+        if utility_domain(chosen) != domain:
+            raise ValueError("%s is in %s, but domain_to_join is %s" % (source, domain, utility_domain(chosen)))
+        return chosen, domain, ou
+    matches = [u for u in utilities() if utility_domain(u) == domain]
+    if not matches:
+        raise ValueError("no LDAP Utility serves %s, the domain of %s" % (domain, source))
+    if len(matches) > 1:
+        raise ValueError("%d LDAP Utilities serve %s; set domain_to_join to choose one" % (len(matches), domain))
+    return matches[0], domain, ou
 
 
 def guid_text(raw):

@@ -1,11 +1,14 @@
 """
 Delete Windows Computer Object from AD
 
-Pre-Delete orchestration action. For each Windows server being deleted whose
-domain_to_join parameter names an LDAP Utility, it deletes the server's
-computer object from that domain over LDAP, bound as the utility's service
-account. The guest is not contacted: the VM is about to be deleted, so an
-in-guest unjoin would only add a restart.
+Pre-Delete orchestration action. For each Windows server being deleted that
+has a domain_ou or domain_to_join, it deletes the server's computer object
+from Active Directory over LDAP, bound as the service account of the LDAP
+Utility that serves the domain. The domain comes from the computer object DN
+the join action recorded (ad_computer_object_dn), else from domain_ou or
+domain_to_join, the same way the join action finds it (ad_domain.resolve).
+The guest is not contacted: the VM is about to be deleted, so an in-guest
+unjoin would only add a restart.
 
 Which object is deleted:
   - The one whose objectGUID the join action recorded in
@@ -39,6 +42,7 @@ from shared_modules import ad_domain
 logger = ThreadLogger(__name__)
 
 GUID_FIELD = "ad_computer_object_guid"
+DN_FIELD = "ad_computer_object_dn"
 
 # Allowed clock difference between the appliance and the domain controllers
 # when comparing an object's whenCreated with the server's add date.
@@ -88,9 +92,13 @@ def _delete_one(server):
     hostname = server.hostname
     if not server.is_windows():
         return "SKIPPED", "%s: not Windows, skipped." % hostname
-    ldap_utility = server.get_value_for_custom_field("domain_to_join")
+    recorded_dn = str(server.get_value_for_custom_field(DN_FIELD) or "").strip()
+    try:
+        ldap_utility, _, _ = ad_domain.resolve(server, dn=recorded_dn or None)
+    except ValueError as err:
+        return "FAILURE", "%s: cannot tell which domain its computer object is in: %s." % (hostname, err)
     if ldap_utility is None:
-        return "SKIPPED", "%s: no domain_to_join, skipped." % hostname
+        return "SKIPPED", "%s: no domain_ou or domain_to_join, skipped." % hostname
 
     try:
         conn = ad_domain.connect(ldap_utility)

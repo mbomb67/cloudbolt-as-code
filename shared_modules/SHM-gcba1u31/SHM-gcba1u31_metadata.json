@@ -1,5 +1,5 @@
 {
-    "description": "Binds to an Active Directory domain with the LDAP Utility a server's domain_to_join names, searches it for organizational units, and finds and deletes computer objects.",
+    "description": "Finds the Active Directory domain and LDAP Utility for a server from its domain_ou or domain_to_join, binds with that utility, and finds and deletes computer objects.",
     "id": "SHM-gcba1u31",
     "label": "AD Domain",
     "max_retries": 0,

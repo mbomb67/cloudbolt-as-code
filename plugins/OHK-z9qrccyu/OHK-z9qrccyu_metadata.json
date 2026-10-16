@@ -4,7 +4,7 @@
             "shared_modules/SHM-gcba1u31"
         ]
     },
-    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, searching every LDAP Utility's domain for OUs whose name contains the text.",
+    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain.",
     "id": "OHK-z9qrccyu",
     "max_retries": 0,
     "name": "Suggest Domain OUs",

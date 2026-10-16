@@ -1,6 +1,6 @@
 # Delete Windows Computer Object from AD
 
-Pre-Delete orchestration action that deletes each Windows server's Active Directory computer object over LDAP, bound as the LDAP Utility its `domain_to_join` names. It deletes the object whose GUID [Join Windows Server to AD Domain](../HPA-jjp1vlfi/) recorded. Without a GUID it deletes the object named after the computer, but only when exactly one matches and AD created it after CloudBolt added the server. Child objects, such as BitLocker recovery information, are deleted with it. The guest is not contacted.
+Pre-Delete orchestration action that deletes each Windows server's Active Directory computer object over LDAP, bound as the LDAP Utility for its domain (taken from the recorded object DN, `domain_ou`, or `domain_to_join`, as the join action does). It deletes the object whose GUID [Join Windows Server to AD Domain](../HPA-jjp1vlfi/) recorded. Without a GUID it deletes the object named after the computer, but only when exactly one matches and AD created it after CloudBolt added the server. Child objects, such as BitLocker recovery information, are deleted with it. The guest is not contacted.
 
 | Role | ID | Name |
 |---|---|---|

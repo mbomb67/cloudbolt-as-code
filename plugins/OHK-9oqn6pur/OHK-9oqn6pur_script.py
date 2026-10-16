@@ -1,11 +1,13 @@
 """
 Join Windows Server to AD Domain
 
-Post-Provision orchestration action. For each Windows server in the job whose
-domain_to_join parameter names an LDAP Utility, it joins the server to that
-utility's domain with the utility's service account, in the OU from the
-server's domain_ou parameter (the domain's default Computers container when
-domain_ou is empty).
+Post-Provision orchestration action. It joins each Windows server in the job
+to Active Directory in the OU its domain_ou parameter names, a distinguished
+name. The domain is the OU's DC components, and the join account is the
+service account of the LDAP Utility that serves that domain (ad_domain.resolve).
+domain_to_join is optional: without an OU it names the domain to join (into
+the default Computers container), and it chooses between several LDAP
+Utilities for one domain. A server with neither parameter is skipped.
 
 Steps per server:
   1. Run JOIN_SCRIPT in the guest through Server.execute_script, the call a
@@ -247,21 +249,18 @@ def _join_server(server):
     if not server.is_windows():
         return "SKIPPED", "%s: not Windows, skipped." % hostname
 
-    ldap_utility = server.get_value_for_custom_field("domain_to_join")
+    try:
+        ldap_utility, domain, ou = ad_domain.resolve(server)
+    except ValueError as err:
+        return "FAILURE", "%s: cannot tell which domain to join: %s." % (hostname, err)
     if ldap_utility is None:
-        return "SKIPPED", "%s: no domain_to_join, skipped." % hostname
+        return "SKIPPED", "%s: no domain_ou or domain_to_join, skipped." % hostname
 
-    domain = (ldap_utility.ldap_domain or "").strip()
     user = (ldap_utility.serviceaccount or "").strip()
     password = ldap_utility.servicepasswd or ""
     if not domain or not user or not password:
         return "FAILURE", ("%s: LDAP Utility '%s' is missing its domain, account, or password."
                            % (hostname, ldap_utility))
-
-    ou = str(server.get_value_for_custom_field("domain_ou") or "").strip()
-    if ou and ad_domain.dn_domain(ou) != domain.lower():
-        return "FAILURE", ("%s: domain_ou %s is not in domain %s. Pick an OU in the domain_to_join domain."
-                           % (hostname, ou, domain))
 
     set_progress("%s: joining Active Directory domain %s%s" % (
         hostname, domain, " in " + ad_domain.canonical_name(ou) if ou else ""))
@@ -311,5 +310,5 @@ def run(job, *args, **kwargs):
     if failures:
         return "FAILURE", "\n".join(joined), "\n".join(failures)
     if not joined:
-        return "SUCCESS", "No Windows server in this job has a domain_to_join.", ""
+        return "SUCCESS", "No Windows server in this job has a domain_ou or domain_to_join.", ""
     return "SUCCESS", "\n".join(joined), ""

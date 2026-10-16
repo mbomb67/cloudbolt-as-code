@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-z9qrccyu"
     },
-    "description": "Turns the domain_ou parameter into a type-ahead that lists matching Active Directory OUs once the user types three characters.",
+    "description": "Turns the domain_ou parameter into a type-ahead that lists Active Directory OUs matching the typed text anywhere in their path once the user types three characters.",
     "enabled": true,
     "hook_point": "Generated Parameter Options",
     "id": "HPA-0zcrvpwu",
