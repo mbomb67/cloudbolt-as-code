@@ -5,7 +5,7 @@ Deploys one Oracle Linux VM with the data disks the requester lists on the order
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| Custom form | FRM-1lqjo1lk | Environment page plus a Data Disks table (`plugin-bdi-dvzbczv3.data_disks`) |
+| Custom form | FRM-1lqjo1lk | Environment page plus a Data Disks table (`plugin-bdi-dvzbczv3.data_disks`), styled with the shared custom form CSS |
 | Server tier (seq 1) | — | Oracle Linux Server (OS build "Oracle Linux 8"; hostname `ldd-<grp>-l-00X`; all environments enabled) |
 | Build (Plug-in, seq 2) | OHK-sjr9f2hf | Attach Data Disks (Linux) |
 | Shared module | SHM-iobsa4dm | Data Disk Mapping (per-handler providers) |
@@ -40,7 +40,7 @@ To support another handler, subclass `DiskProvider` in `shared_modules/SHM-iobsa
 2. Enter root run-as credentials on OHK-p962x9z6; the exported `credentials` value is the placeholder `YOUR_CREDENTIALS`. On Azure, turn on **Use Tech-Specific Script Execution** in the order form's environment panel instead: the script then runs through Azure Run Command and needs no credentials.
 
 ## Notes
-- Mount points must be unique, absolute, not nested in each other, and not operating system directories such as `/var` or `/usr` (subdirectories like `/var/lib/pgsql` are allowed). Volume names are up to 12 letters, digits, or underscores (the XFS label limit). Sizes are whole GB from 1 to 16384.
+- Mount point is free text with suggestions (`/u01`–`/u04` follow Oracle's Optimal Flexible Architecture convention; `/data`, `/app`, `/backup`). Mount points must be unique, absolute, not nested in each other, and not operating system directories such as `/var` or `/usr` (subdirectories like `/var/lib/pgsql` are allowed). Volume names are up to 12 letters, digits, or underscores (the XFS label limit). Sizes are whole GB from 1 to 16384.
 - Re-running the build is safe: attached rows are not added again, and volumes already mounted at their mount point are reported as already configured.
 - On vCenter, disks go on the VM's `vmware_datastore` (or the OS disk's datastore) with the server's `vmware_disk_type` (thin by default), on the first SCSI controller with a free unit.
 - Each Azure VM size caps its data disks (Standard_B1s takes 2), so pick a size that holds the rows ordered.

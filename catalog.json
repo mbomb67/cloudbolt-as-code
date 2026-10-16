@@ -535,6 +535,18 @@
     ]
   },
   {
+    "id": "FJS-sq7c76cc",
+    "type": "form_functions",
+    "name": "dataDiskLetterFree",
+    "description": "Form function for the Windows Server with Data Disks order form: hides a drive letter in a Data Disks row once another row uses it.",
+    "path": "form_functions/FJS-sq7c76cc",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-jqnr84d0"
+    ]
+  },
+  {
     "id": "FJS-ylyi1tc0",
     "type": "form_functions",
     "name": "tfcBuildDay2Panel",
@@ -639,7 +651,9 @@
     "description": "Deploys a Windows Server 2025 VM with the data disks you list below, each initialized, lettered, labeled, and formatted inside the guest.",
     "path": "forms/FRM-jqnr84d0",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "form_functions/FJS-sq7c76cc"
+    ],
     "used_by": [
       "blueprints/BP-9ph7xcok"
     ]

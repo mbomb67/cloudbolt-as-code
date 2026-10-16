@@ -5,7 +5,8 @@ Deploys one Windows Server 2025 VM with the data disks the requester lists on th
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| Custom form | FRM-jqnr84d0 | Environment page plus a Data Disks table (`plugin-bdi-xwp2jz95.data_disks`) |
+| Custom form | FRM-jqnr84d0 | Environment page plus a Data Disks table (`plugin-bdi-xwp2jz95.data_disks`), styled with the shared custom form CSS |
+| Form function | FJS-sq7c76cc | `dataDiskLetterFree`: hides a drive letter in a row once another row uses it |
 | Server tier (seq 1) | — | Windows Server (OS build "Windows 2025"; hostname `wdd-<grp>-w-00X`; all environments enabled) |
 | Build (Plug-in, seq 2) | OHK-1m6n3gq9 | Attach Data Disks (Windows) |
 | Shared module | SHM-iobsa4dm | Data Disk Mapping (per-handler providers) |
@@ -41,7 +42,7 @@ To support another handler, subclass `DiskProvider` in `shared_modules/SHM-iobsa
 3. Optional: set `$AllocationUnitSize` (for example 65536 for SQL Server) at the top of `plugins/OHK-ea8opsps/OHK-ea8opsps_script.ps1`.
 
 ## Notes
-- Drive letters D to Z are offered; letters must be unique. Azure VM sizes with a temporary disk already use D:. Sizes are whole GB from 1 to 16384. Labels are up to 32 characters.
+- Drive letters D to Z are offered, and a letter used in one row disappears from the others; duplicates are also rejected on submit. Azure VM sizes with a temporary disk already use D:. Sizes are whole GB from 1 to 16384. Labels are up to 32 characters.
 - Re-running the build is safe: attached rows are not added again, and letters that already carry the requested label are reported as already configured.
 - On vCenter, disks go on the VM's `vmware_datastore` (or the OS disk's datastore) with the server's `vmware_disk_type` (thin by default), on the first SCSI controller with a free unit.
 - Each Azure VM size caps its data disks (Standard_B1s takes 2), so pick a size that holds the rows ordered.
