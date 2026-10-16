@@ -845,6 +845,7 @@ items = ast.literal_eval("""{{ items }}""")
 - A plug-in that reads its inputs only from `run()` kwargs loses them all after the sync. Name each one in a block that never renders: `# {% if False %}"{{ task }}" """{{ task_inputs }}"""{% endif %}` (`plugins/OHK-o4tgygjs`).
 - A filter inside the variable makes a stray input: `{{ name|urlencode }}` creates an input literally named `name|urlencode`. Apply filters with block tags around a bare variable instead, for example `{% autoescape off %}{% filter urlencode:"" %}{{ name }}{% endfilter %}{% endautoescape %}` (the Remote Scripts used by `server_actions/SVA-4sin3s0q`). Autoescape must be off inside, or the value is HTML-escaped before it is encoded.
 - A refresh from the repo derives the inputs from the file that was on the appliance before the sync (observed 2026-10-16): after changing which variables a file uses, sync it twice.
+- The importer sets an input's `global_options` only when it creates the input (`c2_wrapper.update_or_create_hook_input`); an input that already exists, including one the token parser re-created, keeps the options it has. To change or restore options, delete the input on the appliance (the action's Action Inputs), then sync again.
 - Only string inputs are backslash-escaped before a plug-in renders (`_escape_action_inputs`). A list or dict, such as a custom form's Dynamic Panel, renders as its Python repr with nothing escaped, so `"""{{ panel }}"""` can be ended by a value containing three double quotes. Read such inputs from kwargs.
 
 ### Generate Options Functions
