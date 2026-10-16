@@ -35,7 +35,10 @@ Filters
 
   The admin page offers a step only when the action can run on every server
   the workflow's filters allow: an action restricted on a filter needs the
-  workflow restricted on that filter to values the action allows. Workflow
+  workflow restricted on that filter to values the action allows. Both
+  checks are Run Task's (server_tasks.server_fits_filters, filters_refusal
+  and refusal), which handle every action type; OS builds are checked here,
+  because only workflows have them. Workflow
   environments stand in for resource technologies, and OS builds for OS
   families, when the workflow sets only the former. Remote Scripts always
   name OS families, so a workflow needs an OS family (or OS build) filter
@@ -268,34 +271,15 @@ def describe_filters(filters):
     return described
 
 
-def _lineage(os_family):
-    """The OS family and its parents (Windows 2022 -> Windows)."""
-    families = []
-    while os_family is not None and os_family not in families:
-        families.append(os_family)
-        os_family = os_family.parent
-    return families
-
-
 def _names(objects):
     return ", ".join(sorted(str(getattr(obj, "name", obj)) for obj in objects))
-
-
-def _technology(server):
-    handler = server.resource_handler
-    return handler.resource_technology if handler else None
-
-
-def _managers(server):
-    env = server.environment
-    return set(env.get_connector_confs()) if env else set()
 
 
 def workflow_refusal(workflow, server, resolved=None):
     """
     Why workflow is not offered on server, or '' when it is: Run Task's fit
-    check (server_tasks.server_fits_filters) for OS families, technologies,
-    environments and groups, then the two filters only workflows have.
+    check (server_tasks.server_fits_filters) for every filter actions have,
+    then the OS build filter, which only workflows have.
     """
     resolved = resolved if resolved is not None else resolve_filters(workflow.get("filters"))
     name = workflow.get("name") or workflow.get("id")
@@ -305,20 +289,18 @@ def workflow_refusal(workflow, server, resolved=None):
         technologies=resolved["resource_technologies"],
         environments=resolved["environments"],
         groups=resolved["groups"],
+        configuration_managers=resolved["configuration_managers"],
     )
     if not fits:
         described = "; ".join(
             f"{f['label'].lower()}: {', '.join(f['values'])}"
             for f in describe_filters(workflow.get("filters"))
-            if f["key"] in ("os_families", "resource_technologies", "environments", "groups") and f["values"]
+            if f["key"] != "os_builds" and f["values"]
         )
         return f"{server.hostname} is outside the filters of '{name}' ({described})."
     builds = resolved["os_builds"]
     if builds and server.os_build not in builds:
         return f"'{name}' runs on servers built from {_names(builds)} only."
-    managers = resolved["configuration_managers"]
-    if managers and not _managers(server).intersection(managers):
-        return f"'{name}' runs on servers managed by {_names(managers)} only."
     return ""
 
 
@@ -451,71 +433,29 @@ def _effective(resolved):
     return technologies, families
 
 
-def _filters_allow(values, kind):
-    return f"the filters allow {_names(values) if values else f'any {kind}'}"
-
-
 def step_conflicts(hook, resolved):
     """
     Why hook cannot run on every server resolved (a workflow's resolved
-    filters) allows, as a list of sentences; empty when it can. Remote
-    Scripts go through Run Task's fit check (server_tasks.filters_refusal).
-    The other action types, which Run Task does not run, get the same rule
-    here: an action restricted on a filter needs the workflow restricted on
-    it to values the action allows.
+    filters) allows, as a list of sentences; empty when it can. This is Run
+    Task's fit check (server_tasks.filters_refusal), which covers every
+    action type: an action restricted on a filter needs the workflow
+    restricted on it to values the action allows.
     """
     technologies, families = _effective(resolved)
-    if isinstance(hook, RemoteScriptHook):
-        reason = server_tasks.filters_refusal(
-            hook,
-            os_families=list(families),
-            technologies=list(technologies),
-            environments=resolved["environments"],
-            groups=resolved["groups"],
-        )
-        return [reason] if reason else []
-    reasons = []
-    action_families = set(hook.os_families.all()) if hasattr(hook, "os_families") else set()
-    if action_families and not (families and all(set(_lineage(f)) & action_families for f in families)):
-        reasons.append(
-            f"'{hook.name}' runs on {_names(action_families)} servers only, and "
-            f"{_filters_allow(families, 'OS family')}."
-        )
-    checks = (
-        ("technology", set(hook.resource_technologies.all()), technologies),
-        ("environment", set(hook.environments.all()), set(resolved["environments"])),
-        ("group", set(hook.groups.all()), set(resolved["groups"])),
-        ("configuration manager", set(hook.configuration_managers.all()), set(resolved["configuration_managers"])),
+    reason = server_tasks.filters_refusal(
+        hook,
+        os_families=list(families),
+        technologies=list(technologies),
+        environments=resolved["environments"],
+        groups=resolved["groups"],
+        configuration_managers=resolved["configuration_managers"],
     )
-    for kind, allowed, wanted in checks:
-        if allowed and not (wanted and wanted.issubset(allowed)):
-            reasons.append(f"'{hook.name}' runs for {_names(allowed)} only, and {_filters_allow(wanted, kind)}.")
-    return reasons
+    return [reason] if reason else []
 
 
 def action_refusal(hook, server):
-    """Why hook cannot run on server, or '' when it can (server_tasks.refusal for scripts)."""
-    if isinstance(hook, RemoteScriptHook):
-        return server_tasks.refusal(hook, server)
-    families = list(hook.os_families.all()) if hasattr(hook, "os_families") else []
-    if families and not set(_lineage(server.os_family)).intersection(families):
-        return (
-            f"'{hook.name}' runs on {_names(families)} servers only, and {server.hostname} "
-            f"is {server.os_family or 'not set to any OS family'}."
-        )
-    technologies = list(hook.resource_technologies.all())
-    if technologies and _technology(server) not in technologies:
-        return f"'{hook.name}' runs on {_names(technologies)} only."
-    environments = list(hook.environments.all())
-    if environments and server.environment not in environments:
-        return f"'{hook.name}' runs in {_names(environments)} only."
-    groups = list(hook.groups.all())
-    if groups and server.group not in groups:
-        return f"'{hook.name}' runs for {_names(groups)} only."
-    managers = list(hook.configuration_managers.all())
-    if managers and not _managers(server).intersection(managers):
-        return f"'{hook.name}' runs on servers managed by {_names(managers)} only."
-    return ""
+    """Why hook cannot run on server, or '' when it can: Run Task's fit check."""
+    return server_tasks.refusal(hook, server)
 
 
 def _supported(field):
@@ -555,14 +495,14 @@ def input_info(field, generated=()):
     """An action input as the admin page and the run form show it."""
     return {
         "name": field.simple_name,
-        "label": server_tasks._label(field),
+        "label": server_tasks.input_label(field),
         "type": field.type,
         "type_label": field.get_type_display(),
         "required": bool(field.required),
         "multiple": bool(field.allow_multiple),
         "description": field.description or "",
         "placeholder": field.placeholder or "",
-        "options": server_tasks._options(field),
+        "options": server_tasks.input_options(field),
         "generated": field.simple_name in generated,
         "supported": _supported(field),
     }
@@ -573,7 +513,7 @@ def action_summary(hook):
     kind = step_type(hook)
     families = list(hook.os_families.all()) if hasattr(hook, "os_families") else []
     blocking = [
-        server_tasks._label(field)
+        server_tasks.input_label(field)
         for field in server_tasks.task_fields(hook)
         if field.required and not _supported(field)
     ]
@@ -866,7 +806,7 @@ def suggest_step_key(name, taken):
 
 def _clean_input(step_label, field, config, earlier):
     """One input's configuration, checked against the input; None leaves it to be asked for."""
-    label = f"{step_label}: {server_tasks._label(field)}"
+    label = f"{step_label}: {server_tasks.input_label(field)}"
     if config in (None, ""):
         config = {}
     if not isinstance(config, dict):
@@ -898,7 +838,7 @@ def _clean_input(step_label, field, config, earlier):
             raise WorkflowError(f"{label} is required: give it a value or ask for it when the workflow runs.")
         return OrderedDict([("mode", "fixed"), ("value", "")])
     try:
-        value = server_tasks._coerce(field, value)
+        value = server_tasks.coerce_input(field, value)
     except server_tasks.TaskError as err:
         raise WorkflowError(f"{step_label}: {err}")
     return OrderedDict([("mode", "fixed"), ("value", value)])
@@ -1104,7 +1044,7 @@ class Step(object):
 
     def blocking(self):
         """Required inputs a workflow cannot carry (added to the action after the workflow was saved)."""
-        return [server_tasks._label(f) for f in self.fields.values() if f.required and not _supported(f)]
+        return [server_tasks.input_label(f) for f in self.fields.values() if f.required and not _supported(f)]
 
 
 def load_steps(workflow):
@@ -1122,7 +1062,7 @@ def load_steps(workflow):
 
 def _choices(step, field, server, profile):
     """Dropdown values for a prompt: the input's own options, or a plug-in's generated ones for server."""
-    options = server_tasks._options(field)
+    options = server_tasks.input_options(field)
     if options or server is None or not isinstance(step.hook, CloudBoltHook):
         return [{"value": option, "text": option} for option in options]
     if field.simple_name not in _generated_inputs(step.hook):
@@ -1280,10 +1220,10 @@ def parse_prompt_values(workflow, steps, payload):
             value = given.get(name)
             if _blank(value):
                 if field.required:
-                    raise WorkflowError(f"{step.label}: {server_tasks._label(field)} is required.")
+                    raise WorkflowError(f"{step.label}: {server_tasks.input_label(field)} is required.")
                 continue
             try:
-                values[step.key][name] = server_tasks._coerce(field, value)
+                values[step.key][name] = server_tasks.coerce_input(field, value)
             except server_tasks.TaskError as err:
                 raise WorkflowError(f"{step.label}: {err}")
     return values
@@ -1314,7 +1254,7 @@ def _step_inputs(step, prompted, outputs):
             if _blank(value):
                 if field.required:
                     raise WorkflowError(
-                        f"{step.label}: {server_tasks._label(field)} takes output "
+                        f"{step.label}: {server_tasks.input_label(field)} takes output "
                         f"'{config.get('output')}' of step '{config.get('step')}', which did not publish it."
                     )
                 continue
@@ -1322,10 +1262,10 @@ def _step_inputs(step, prompted, outputs):
             value = prompted.get(name)
             if _blank(value):
                 if field.required:
-                    raise WorkflowError(f"{step.label}: {server_tasks._label(field)} is required.")
+                    raise WorkflowError(f"{step.label}: {server_tasks.input_label(field)} is required.")
                 continue
         try:
-            values[name] = server_tasks._coerce(field, value)
+            values[name] = server_tasks.coerce_input(field, value)
         except server_tasks.TaskError as err:
             raise WorkflowError(f"{step.label}: {err}")
     return values
@@ -1420,7 +1360,7 @@ def preflight(workflow, steps, servers, prompted):
             if not _supported(field) or config.get("mode") != "fixed":
                 continue
             if _blank(config.get("value")) and field.required:
-                problems.append(f"{step.label}: {server_tasks._label(field)} is required and has no value.")
+                problems.append(f"{step.label}: {server_tasks.input_label(field)} is required and has no value.")
     return list(dict.fromkeys(problems))
 
 
