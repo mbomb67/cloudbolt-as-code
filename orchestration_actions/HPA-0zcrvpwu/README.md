@@ -11,7 +11,7 @@ Generated Parameter Options action that turns the `domain_ou` parameter into a t
 Part of [PKG-nf407lm5](../../packages/PKG-nf407lm5/) with [Join Windows Server to AD Domain](../HPA-jjp1vlfi/).
 
 ## Setup
-1. Sync the action. The plugin's metadata links it to `domain_ou`, so no Parameters page step is needed. Admin > Parameters > Domain OU then lists it under the options.
+1. Sync the package, whose `domain_ou` parameter ([parameters/CF-8pif9mbf](../../parameters/CF-8pif9mbf/)) brings this action and links it, or sync the action alone: the plugin's metadata lists `domain_ou` under `parameters`, which links it too (an appliance export drops that list, so restore it after one). Admin > Parameters > Domain OU then lists the action under the options.
 2. Add `domain_ou` to the environment, group, or blueprint where users order.
 3. The LDAP Utility's account must be able to read the domain's OUs, and the appliance must reach a domain controller on the utility's port.
 

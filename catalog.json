@@ -903,7 +903,9 @@
     "uses": [
       "plugins/OHK-z9qrccyu"
     ],
-    "used_by": [],
+    "used_by": [
+      "parameters/CF-8pif9mbf"
+    ],
     "hook_point": "Generated Parameter Options",
     "enabled": true,
     "packages": [
@@ -1266,9 +1268,10 @@
     "used_by": [],
     "version": "1.0.0",
     "contents": [
-      "orchestration_actions/HPA-0zcrvpwu",
+      "orchestration_actions/HPA-q181uofy",
       "orchestration_actions/HPA-jjp1vlfi",
-      "orchestration_actions/HPA-q181uofy"
+      "orchestration_actions/HPA-0zcrvpwu",
+      "parameters/CF-8pif9mbf"
     ]
   },
   {
@@ -1306,6 +1309,23 @@
       "orchestration_actions/HPA-4ptcwgg4",
       "orchestration_actions/HPA-42uy9dyo",
       "parameters/CF-q3bexgap"
+    ]
+  },
+  {
+    "id": "CF-8pif9mbf",
+    "type": "parameters",
+    "name": "Domain OU",
+    "description": "Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified.",
+    "path": "parameters/CF-8pif9mbf",
+    "readme": "parameters/CF-8pif9mbf/README.md",
+    "uses": [
+      "orchestration_actions/HPA-0zcrvpwu"
+    ],
+    "used_by": [],
+    "parameter_name": "domain_ou",
+    "parameter_type": "STR",
+    "packages": [
+      "packages/PKG-nf407lm5"
     ]
   },
   {
