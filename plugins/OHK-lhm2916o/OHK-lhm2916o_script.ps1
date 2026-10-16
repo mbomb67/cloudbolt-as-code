@@ -20,6 +20,11 @@
 #   Output   Write-Output only (the Log function). VMware Tools captures only
 #            the success stream, and on Windows it fails the script on any
 #            stderr text.
+#   Outputs  To hand values to a later step (Run Workflow), print one line per
+#            value, OUTPUT: name=value (name of letters, digits and
+#            underscores, value the rest of the line), with Write-Output as the
+#            last lines before exit 0. WinRM drops stdout when the script
+#            fails, and Azure Run Command keeps only the last 4 KB.
 #   Errors   Throw. The catch block prints the error, writes one plain line to
 #            stderr (the line a WinRM failure shows) and exits 1. Every
 #            transport reads the exit code.
@@ -52,6 +57,8 @@ try {
     if ($Message) { Log "Message: $Message" }
 
     Log 'Task finished.'
+    # Outputs for a later workflow step, printed last, for example:
+    # Write-Output "OUTPUT: os_version=$($os.Version)"
     exit 0
 }
 catch {

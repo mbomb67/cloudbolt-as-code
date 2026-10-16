@@ -275,7 +275,7 @@ def _default(field):
     return None if value is None else str(value)
 
 
-def _element(field):
+def input_element(field):
     """One SurveyJS question for a task input, mapped as CloudBolt's own form builder maps types."""
     element = {"name": field.simple_name, "title": _label(field), "isRequired": bool(field.required)}
     if field.description:
@@ -316,7 +316,7 @@ def task_panel(hook):
         if field.type in SECRET_TYPES or field.type not in PLAIN_TYPES:
             (blocking if field.required else omitted).append(_label(field))
             continue
-        elements.append(_element(field))
+        elements.append(input_element(field))
     return {
         "title": hook.name,
         "description": hook.description or "",

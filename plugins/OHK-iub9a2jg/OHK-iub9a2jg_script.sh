@@ -28,6 +28,10 @@
 #            length is one; use wc -m instead).
 #   Output   log writes to stdout. fail prints an ERROR line, writes it to
 #            stderr too, and exits 1. Every transport reads the exit code.
+#   Outputs  To hand values to a later step (Run Workflow), print one line per
+#            value, OUTPUT: name=value (name of letters, digits and
+#            underscores, value the rest of the line), to stdout as the last
+#            lines, and exit 0. Azure Run Command keeps only the last 4 KB.
 #   Root     Azure Run Command and AWS SSM run as root. Over SSH or VMware
 #            Tools the script runs as the Remote Script's credentials, else the
 #            server's, else the username and password Run Task asks for; prefix
@@ -61,6 +65,8 @@ log "Running as: $(id -un)"
 if [ -n "$MESSAGE" ]; then log "Message: $MESSAGE"; fi
 
 log "Task finished."
+# Outputs for a later workflow step, printed last, for example:
+# printf 'OUTPUT: kernel=%s\n' "$(uname -r)"
 CB_TASK
 bash "$CB_TASK_FILE"
 CB_TASK_RC=$?
