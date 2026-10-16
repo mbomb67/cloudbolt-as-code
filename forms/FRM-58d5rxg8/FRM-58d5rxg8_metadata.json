@@ -1,0 +1,12 @@
+{
+    "css_file": "FRM-58d5rxg8_css.css",
+    "dependencies": {
+        "form_functions": [
+            "form_functions/FJS-1h4v6wx2"
+        ]
+    },
+    "id": "FRM-58d5rxg8",
+    "json": "{\"title\": \"Server with Data Disks\", \"description\": \"Deploys a Windows Server or Oracle Linux VM with the data disks you list, each prepared inside the guest.\", \"completedHtml\": \"<p class=\\\"custom-order-form-completed\\\">Your order is being processed.</p>\", \"loadingHtml\": \"<p class=\\\"custom-order-form-loading\\\">Loading order form...</p>\", \"showQuestionNumbers\": \"off\", \"clearInvisibleValues\": \"none\", \"completeText\": \"Order\", \"pages\": [{\"name\": \"order_details\", \"title\": \"Order Details\", \"elements\": [{\"type\": \"text\", \"name\": \"custom_form_id\", \"visible\": false, \"defaultValue\": \"FRM-58d5rxg8\", \"readOnly\": true}, {\"type\": \"text\", \"name\": \"blueprint_id\", \"visible\": false, \"defaultValue\": \"BP-g9zwqjoa\", \"readOnly\": true}, {\"type\": \"text\", \"name\": \"disk_map_form\", \"visible\": false, \"defaultValueExpression\": \"dataDiskMapForm()\"}, {\"type\": \"dropdown\", \"name\": \"group\", \"title\": \"Group\", \"isRequired\": true, \"choicesByUrl\": {\"url\": \"/api/v3/cmp/blueprints/{blueprint_id}/\", \"path\": \"_links,groupsThatCanDeploy\", \"valueName\": \"href\", \"titleName\": \"title\"}}]}, {\"name\": \"server\", \"title\": \"Server\", \"elements\": [{\"type\": \"html\", \"name\": \"data_disks_note\", \"html\": \"<p>Pick an environment and an OS build. Environments that offer data disks show a Data Disks table below them.</p>\"}, {\"type\": \"dropdown\", \"name\": \"server-bdi-5501fspy.environment\", \"title\": \"Environment\", \"isRequired\": true, \"choicesByUrl\": {\"url\": \"/api/v3/cmp/blueprints/{blueprint_id}/tierItems/BDI-5501fspy/enabledEnvironments?group={group}&fields=name,id\", \"path\": \"environments\", \"valueName\": \"id\", \"titleName\": \"name\"}}, {\"type\": \"panel\", \"name\": \"server-bdi-5501fspy.environment_panel\", \"elements\": []}]}], \"questionTitleLocation\": \"left\"}",
+    "rendering_mode": "jquery",
+    "supported_languages": ""
+}

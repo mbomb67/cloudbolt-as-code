@@ -179,6 +179,21 @@
     "used_by": []
   },
   {
+    "id": "BP-g9zwqjoa",
+    "type": "blueprints",
+    "name": "Server with Data Disks",
+    "description": "Deploys a Windows Server or Oracle Linux VM whose order form turns the environment's disk_map parameter into a table of data disks, which the disk map orchestration actions attach and prepare inside the guest.",
+    "path": "blueprints/BP-g9zwqjoa",
+    "readme": "blueprints/BP-g9zwqjoa/README.md",
+    "uses": [
+      "forms/FRM-58d5rxg8"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
     "id": "BP-jvvjm3te",
     "type": "blueprints",
     "name": "Run an Azure PowerShell Script",
@@ -543,6 +558,18 @@
     "enabled": true
   },
   {
+    "id": "FJS-1h4v6wx2",
+    "type": "form_functions",
+    "name": "dataDiskMapForm",
+    "description": "Async form function that turns an environment's disk_map parameter into a Data Disks table whose columns follow the selected OS build, writing the rows back to disk_map as a JSON list.",
+    "path": "form_functions/FJS-1h4v6wx2",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-58d5rxg8"
+    ]
+  },
+  {
     "id": "FJS-ouuq5zsq",
     "type": "form_functions",
     "name": "azpsBuildScriptPanel",
@@ -601,6 +628,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-rgdg9gho"
+    ]
+  },
+  {
+    "id": "FRM-58d5rxg8",
+    "type": "forms",
+    "name": "Server with Data Disks",
+    "description": "Deploys a Windows Server or Oracle Linux VM with the data disks you list, each prepared inside the guest.",
+    "path": "forms/FRM-58d5rxg8",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-1h4v6wx2"
+    ],
+    "used_by": [
+      "blueprints/BP-g9zwqjoa"
     ]
   },
   {
@@ -860,6 +901,40 @@
     "enabled": true
   },
   {
+    "id": "HPA-42uy9dyo",
+    "type": "orchestration_actions",
+    "name": "Configure Data Disks from Disk Map (Windows)",
+    "description": "At Post-Provision, formats the disks from each Windows server's disk_map inside the guest with their drive letters and NTFS labels.",
+    "path": "orchestration_actions/HPA-42uy9dyo",
+    "readme": "orchestration_actions/HPA-42uy9dyo/README.md",
+    "uses": [
+      "plugins/OHK-pdwb3xso"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
+    "id": "HPA-4ptcwgg4",
+    "type": "orchestration_actions",
+    "name": "Configure Data Disks from Disk Map (Oracle Linux)",
+    "description": "At Post-Provision, turns the disks from each Oracle Linux server's disk_map into LVM volumes with XFS file systems mounted at their mount points inside the guest.",
+    "path": "orchestration_actions/HPA-4ptcwgg4",
+    "readme": "orchestration_actions/HPA-4ptcwgg4/README.md",
+    "uses": [
+      "plugins/OHK-9h9vphf5"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
     "id": "HPA-aualk6ei",
     "type": "orchestration_actions",
     "name": "Generate options for Ansible job template maps",
@@ -958,6 +1033,23 @@
     "used_by": [],
     "hook_point": "Post-Order Denied",
     "enabled": false
+  },
+  {
+    "id": "HPA-n67skws4",
+    "type": "orchestration_actions",
+    "name": "Attach Data Disks from Disk Map",
+    "description": "At Post-Provision, adds the data disks in each server's disk_map parameter through its resource handler and records each disk's controller, SCSI address, and serial for the in-guest step.",
+    "path": "orchestration_actions/HPA-n67skws4",
+    "readme": "orchestration_actions/HPA-n67skws4/README.md",
+    "uses": [
+      "plugins/OHK-jzkblrv7"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-zny1ynfs"
+    ]
   },
   {
     "id": "HPA-o6ctckmt",
@@ -1100,6 +1192,23 @@
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
       "extensions/XUI-8a1jocmr"
+    ]
+  },
+  {
+    "id": "PKG-zny1ynfs",
+    "type": "packages",
+    "name": "Data Disks from a Disk Map",
+    "description": "Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest.",
+    "path": "packages/PKG-zny1ynfs",
+    "readme": "packages/PKG-zny1ynfs/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "orchestration_actions/HPA-n67skws4",
+      "orchestration_actions/HPA-42uy9dyo",
+      "orchestration_actions/HPA-4ptcwgg4",
+      "blueprints/BP-g9zwqjoa"
     ]
   },
   {
@@ -1594,6 +1703,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-fa7r7cg7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9h9vphf5",
+    "type": "plugins",
+    "name": "Configure Data Disks from Disk Map (Oracle Linux)",
+    "description": "Prepares the disks from a Linux server's disk_map in the guest: matches each one by serial number, SCSI address, or attach order, then creates an LVM volume with an XFS file system and mounts it.",
+    "path": "plugins/OHK-9h9vphf5",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-8qcvbri7"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-4ptcwgg4"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2179,6 +2303,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-jzkblrv7",
+    "type": "plugins",
+    "name": "Attach Data Disks from Disk Map",
+    "description": "Adds the data disks in each provisioned server's disk_map parameter through its resource handler and records each disk's controller, SCSI address, and serial on data_disk_layout.",
+    "path": "plugins/OHK-jzkblrv7",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-8qcvbri7",
+      "shared_modules/SHM-iobsa4dm"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-n67skws4"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-kdne1t5s",
     "type": "plugins",
     "name": "Azure Network Security Group Sync",
@@ -2401,6 +2541,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-03qqsnft"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-pdwb3xso",
+    "type": "plugins",
+    "name": "Configure Data Disks from Disk Map (Windows)",
+    "description": "Formats the disks from a Windows server's disk_map in the guest: matches each one by serial number, SCSI address, or attach order, then initializes it GPT and formats it NTFS with its drive letter and label.",
+    "path": "plugins/OHK-pdwb3xso",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-8qcvbri7"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-42uy9dyo"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3631,6 +3786,20 @@
     ]
   },
   {
+    "id": "SHM-8qcvbri7",
+    "type": "shared_modules",
+    "name": "disk_map",
+    "description": "Parses and validates a server's disk_map parameter for its operating system and runs the in-guest data disk scripts of the disk map orchestration actions.",
+    "path": "shared_modules/SHM-8qcvbri7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-jzkblrv7",
+      "plugins/OHK-9h9vphf5",
+      "plugins/OHK-pdwb3xso"
+    ]
+  },
+  {
     "id": "SHM-9h13o859",
     "type": "shared_modules",
     "name": "vm_adoption",
@@ -3719,7 +3888,8 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-sjr9f2hf",
-      "plugins/OHK-1m6n3gq9"
+      "plugins/OHK-1m6n3gq9",
+      "plugins/OHK-jzkblrv7"
     ]
   },
   {

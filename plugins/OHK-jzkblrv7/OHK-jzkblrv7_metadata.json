@@ -1,0 +1,17 @@
+{
+    "description": "Adds the data disks in each provisioned server's disk_map parameter through its resource handler and records each disk's controller, SCSI address, and serial on data_disk_layout.",
+    "id": "OHK-jzkblrv7",
+    "max_retries": 0,
+    "name": "Attach Data Disks from Disk Map",
+    "resource_technologies": [],
+    "script_filename": "OHK-jzkblrv7_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in",
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-iobsa4dm",
+            "shared_modules/SHM-8qcvbri7"
+        ]
+    }
+}
