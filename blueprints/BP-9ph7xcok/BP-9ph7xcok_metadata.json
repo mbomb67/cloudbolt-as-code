@@ -1,6 +1,7 @@
 {
     "any_group_can_deploy": true,
     "auto_historical_resources": false,
+    "custom_form": "FRM-jqnr84d0",
     "dependencies": {
         "custom_form": "forms/FRM-jqnr84d0"
     },
@@ -66,7 +67,7 @@
     "description": "Deploys a Windows Server 2025 VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to initialize, letter, label, and format it.",
     "favorited": false,
     "has_custom_form": true,
-    "custom_form": "FRM-jqnr84d0",
+    "icon": "windows_server.png",
     "id": "BP-9ph7xcok",
     "is_orderable": true,
     "labels": [],

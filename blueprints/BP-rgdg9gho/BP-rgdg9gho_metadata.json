@@ -1,6 +1,7 @@
 {
     "any_group_can_deploy": true,
     "auto_historical_resources": false,
+    "custom_form": "FRM-1lqjo1lk",
     "dependencies": {
         "custom_form": "forms/FRM-1lqjo1lk"
     },
@@ -66,7 +67,7 @@
     "description": "Deploys an Oracle Linux VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to create an LVM volume, format it XFS, and mount it.",
     "favorited": false,
     "has_custom_form": true,
-    "custom_form": "FRM-1lqjo1lk",
+    "icon": "oracle_linux.png",
     "id": "BP-rgdg9gho",
     "is_orderable": true,
     "labels": [],
