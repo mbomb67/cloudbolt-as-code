@@ -449,6 +449,17 @@
     "used_by": []
   },
   {
+    "id": "XUI-0hv6t61x",
+    "type": "extensions",
+    "name": "File Archives",
+    "description": "Adds a File Archives admin page for versioned files that server scripts declare and download, and the signed short-lived link that servers download them through.",
+    "path": "extensions/XUI-0hv6t61x",
+    "readme": "extensions/XUI-0hv6t61x/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-0jdk7t6h",
     "type": "extensions",
     "name": "Azure NSG Management",
@@ -2481,6 +2492,17 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-hgv6wp65",
+    "type": "plugins",
+    "name": "Run Installer from File Archive (Linux)",
+    "description": "Downloads a file from File Archives to a Linux server, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable).",
+    "path": "plugins/OHK-hgv6wp65",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-htrxkps2",
     "type": "plugins",
     "name": "ServiceNow Request: Close",
@@ -2711,7 +2733,8 @@
     "path": "plugins/OHK-o4tgygjs",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-571l7249"
+      "shared_modules/SHM-571l7249",
+      "shared_modules/SHM-v8llc736"
     ],
     "used_by": [
       "server_actions/SVA-4sin3s0q"
@@ -2762,6 +2785,17 @@
       "resource_actions/RSA-f7wb11ny"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ow68kerl",
+    "type": "plugins",
+    "name": "Run Installer from File Archive (Windows)",
+    "description": "Downloads a file from File Archives to a Windows server, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe).",
+    "path": "plugins/OHK-ow68kerl",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-ow9x0amc",
@@ -4321,6 +4355,18 @@
       "plugins/OHK-7sq2hqrb",
       "plugins/OHK-gyl8wlrq",
       "plugins/OHK-3bgpjmlr"
+    ]
+  },
+  {
+    "id": "SHM-v8llc736",
+    "type": "shared_modules",
+    "name": "file_archives",
+    "description": "Stores versioned files on the CloudBolt appliance, signs short-lived download links for them, and adds the download step to scripts that declare files with cb-archive header lines.",
+    "path": "shared_modules/SHM-v8llc736",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-o4tgygjs"
     ]
   },
   {

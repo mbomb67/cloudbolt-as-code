@@ -1,0 +1,36 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "file_archives/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div class="cfax cfa-dialog">
+  {% if error %}
+  <div class="cfa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="cfa-file">{% trans "File" %}</label>
+      <input class="form-control" type="file" id="cfa-file" name="file" required>
+    </div>
+    {% if not name %}
+    <div class="col-12">
+      <label class="form-label" for="cfa-target">{% trans "Store as" %}</label>
+      <input class="form-control" id="cfa-target" name="name" maxlength="100" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" placeholder="{% trans 'The uploaded file name' %}">
+      <div class="form-text">{% trans "Optional. Scripts name the file as" %} <span class="cfa-mono">{{ archive }}/&lt;file&gt;</span>. {% trans "Uploading to a name that exists adds a new version of it." %}</div>
+    </div>
+    {% else %}
+    <div class="col-12 form-text">
+      {% blocktrans with ref=archive|add:"/"|add:name %}The upload becomes the latest version of {{ ref }}. Scripts that do not pin a version get it on their next run.{% endblocktrans %}
+    </div>
+    {% endif %}
+    <div class="col-12">
+      <label class="form-label" for="cfa-note">{% trans "Note" %}</label>
+      <input class="form-control" id="cfa-note" name="note" value="{{ note }}" maxlength="500" placeholder="{% trans 'What changed, for example 7.4.2 with the March patches' %}">
+    </div>
+  </div>
+</div>
+{% endblock form_content %}

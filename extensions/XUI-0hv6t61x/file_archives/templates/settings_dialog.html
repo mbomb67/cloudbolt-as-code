@@ -1,0 +1,44 @@
+{% extends "v5/dialogs/dialog.html" %}
+{% load i18n %}
+
+{% block non_form_content %}
+{% include "file_archives/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div class="cfax cfa-dialog">
+  {% if error %}
+  <div class="cfa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="cfa-base-url">{% trans "Download base URL" %}</label>
+      <input class="form-control" id="cfa-base-url" name="base_url" value="{{ values.base_url }}" placeholder="{{ base_url.effective|default:base_url.suggestion }}">
+      <div class="form-text">{% trans "The address servers use to reach CloudBolt over HTTPS. Leave it empty to use the default portal's domain." %}</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="cfa-minutes">{% trans "Link lifetime (minutes)" %}</label>
+      <input class="form-control" type="number" id="cfa-minutes" name="link_minutes" min="1" max="{{ max_minutes }}" value="{{ values.link_minutes }}" required>
+      <div class="form-text">{% blocktrans %}Run Task adds each attempt's timeout and 5 minutes for a busy Azure VM, up to {{ max_minutes }}.{% endblocktrans %}</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="cfa-keep">{% trans "Versions to keep per file" %}</label>
+      <input class="form-control" type="number" id="cfa-keep" name="keep_versions" min="1" max="1000" value="{{ values.keep_versions }}" required>
+      <div class="form-text">{% trans "Older versions are deleted when a new one is uploaded." %}</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="cfa-max-upload">{% trans "Upload limit (MB)" %}</label>
+      <input class="form-control" type="number" id="cfa-max-upload" name="max_upload_mb" min="1" max="{{ max_upload_limit }}" value="{{ values.max_upload_mb }}" required>
+      <div class="form-text">{% trans "Larger uploads are refused before they are stored. Files live on the shared proserv disk." %}</div>
+    </div>
+    <div class="col-12">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="cfa-verify" name="verify_tls" {% if values.verify_tls %}checked{% endif %}>
+        <label class="form-check-label" for="cfa-verify">{% trans "Servers verify CloudBolt's TLS certificate" %}</label>
+      </div>
+      <div class="form-text">{% trans "Turn this on when servers trust the certificate CloudBolt serves. With it off, the SHA-256 check still rejects a changed file." %}</div>
+    </div>
+  </div>
+</div>
+{% endblock form_content %}
