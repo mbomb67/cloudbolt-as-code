@@ -49,7 +49,7 @@
         "hook": "plugins/OHK-69gk5ne9"
     },
     "dialog_message": "",
-    "dialog_title_template": "Run {{action.label}} on {{server.hostname}}",
+    "dialog_title_template": "{{action.label}} on {{server.hostname}}",
     "enabled": true,
     "extra_classes": "fas fa-project-diagram",
     "has_custom_form": true,
