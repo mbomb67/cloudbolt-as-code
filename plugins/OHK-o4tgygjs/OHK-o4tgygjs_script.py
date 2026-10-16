@@ -27,6 +27,10 @@ before anything runs. Credentials come from the Remote Script, else the
 server; when there are none (and no tech-specific execution without
 credentials), the form saves them on the server through the Server Tasks
 webhook first.
+
+Outputs: the CB_OUTPUT name=value lines a script prints become the job's
+outputs (server_tasks.parse_outputs), keyed by name for one server and by
+hostname, then name, for a bulk run.
 """
 from common.methods import set_progress
 from utilities.logger import ThreadLogger
@@ -76,7 +80,7 @@ def run(job=None, server=None, servers=None, task=None, task_inputs=None, **kwar
         )
 
     set_progress(f"Task '{hook.name}' on {len(targets)} server(s), inputs: {', '.join(inputs) or 'none'}")
-    outputs, failures = [], []
+    outputs, failures, published = [], [], {}
     for target in targets:
         set_progress(f"{target.hostname}: running '{hook.name}'")
         try:
@@ -88,6 +92,7 @@ def run(job=None, server=None, servers=None, task=None, task_inputs=None, **kwar
             logger.exception("Run Task '%s' failed on %s", hook.name, target.hostname)
             failures.append(f"{target.hostname}: {server_tasks.failure_text(err)}")
             continue
+        published[target.hostname] = server_tasks.parse_outputs(output)
         output = server_tasks.tail(output)
         # WinRM returns the output without adding it to the job, unlike the other transports.
         if job is not None and target.is_windows() and not target.use_tech_specific_script_execution():
@@ -96,6 +101,8 @@ def run(job=None, server=None, servers=None, task=None, task_inputs=None, **kwar
         set_progress(f"{target.hostname}: '{hook.name}' finished")
 
     output_text = "\n\n".join(outputs)
+    if len(targets) == 1:
+        published = published.get(targets[0].hostname, {})
     if failures:
-        return "FAILURE", output_text, "\n".join(failures)
-    return "SUCCESS", output_text, ""
+        return "FAILURE", output_text, "\n".join(failures), published
+    return "SUCCESS", output_text, "", published

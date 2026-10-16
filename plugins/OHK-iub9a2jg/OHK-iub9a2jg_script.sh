@@ -28,10 +28,11 @@
 #            length is one; use wc -m instead).
 #   Output   log writes to stdout. fail prints an ERROR line, writes it to
 #            stderr too, and exits 1. Every transport reads the exit code.
-#   Outputs  To hand values to a later step (Run Workflow), print one line per
-#            value, OUTPUT: name=value (name of letters, digits and
-#            underscores, value the rest of the line), to stdout as the last
-#            lines, and exit 0. Azure Run Command keeps only the last 4 KB.
+#   Outputs  task_output name value prints a CB_OUTPUT name=value line. Run
+#            Task turns those lines into the job's outputs, and a later
+#            workflow step can read them. Print them last: WinRM drops stdout
+#            when a script fails, and Azure Run Command keeps only the last
+#            4 KB of output.
 #   Root     Azure Run Command and AWS SSM run as root. Over SSH or VMware
 #            Tools the script runs as the Remote Script's credentials, else the
 #            server's, else the username and password Run Task asks for; prefix
@@ -46,6 +47,10 @@ set -Eeuo pipefail
 urldecode() { local v="${1//+/ }"; printf '%b' "${v//%/\\x}"; }
 log() { printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 fail() { log "ERROR: $*"; printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+task_output() {
+    printf '%s' "$1" | grep -Eq '^[A-Za-z0-9_]+$' || fail "Output name '$1' must be letters, digits and underscores."
+    printf 'CB_OUTPUT %s=%s\n' "$1" "$(printf '%s' "$2" | tr '\r\n' '  ')"
+}
 trap 'fail "line $LINENO: $BASH_COMMAND failed"' ERR
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo -n"; fi
@@ -65,8 +70,8 @@ log "Running as: $(id -un)"
 if [ -n "$MESSAGE" ]; then log "Message: $MESSAGE"; fi
 
 log "Task finished."
-# Outputs for a later workflow step, printed last, for example:
-# printf 'OUTPUT: kernel=%s\n' "$(uname -r)"
+task_output kernel "$(uname -r)"
+task_output host_name "$(hostname)"
 CB_TASK
 bash "$CB_TASK_FILE"
 CB_TASK_RC=$?

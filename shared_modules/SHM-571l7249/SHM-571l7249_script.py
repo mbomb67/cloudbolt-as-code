@@ -91,7 +91,7 @@ def can_manage_credentials(profile, server):
     return "server.manage_credentials" in get_cb_permissions(profile, server)
 
 
-# ---- which Remote Scripts are tasks for a server --------------------------
+# ---- which Remote Scripts fit a server, or a filter set ---------------------
 
 
 def _lineage(os_family):
@@ -107,71 +107,128 @@ def _names(objects):
     return ", ".join(sorted(str(getattr(obj, "name", obj)) for obj in objects))
 
 
-class _ServerFacts:
-    """What the filters read from one server, looked up once per server."""
+class _Facts:
+    """
+    What the fit check compares, read once: one server, or a filter set (the
+    OS families, technologies, environments and groups a set of servers may
+    have, such as a workflow's filters; an empty kind allows any value).
 
-    def __init__(self, server):
+    A Remote Script fits a filter set only when it can run on every server the
+    set allows: a script restricted to Windows does not fit a set that allows
+    any OS family.
+    """
+
+    def __init__(self, os_families=(), technologies=(), environments=(), groups=(), server=None):
         self.server = server
-        handler = server.resource_handler
-        self.handler = handler.cast() if handler else None
-        self.technology = handler.resource_technology if handler else None
-        self.os_families = set(_lineage(server.os_family))
+        self.handler = None
         self._managers = None
+        if server is not None:
+            handler = server.resource_handler
+            self.handler = handler.cast() if handler else None
+            os_families = [server.os_family]
+            technologies = [handler.resource_technology if handler else None]
+            environments = [server.environment]
+            groups = [server.group]
+        self.os_families = [family for family in os_families]
+        self.os_lineages = [set(_lineage(family)) for family in self.os_families]
+        self.technologies = list(technologies)
+        self.environments = list(environments)
+        self.groups = list(groups)
 
     @property
     def managers(self):
+        """The server's configuration managers; a filter set has none."""
         if self._managers is None:
-            env = self.server.environment
+            env = self.server.environment if self.server is not None else None
             self._managers = set(env.get_connector_confs()) if env else set()
         return self._managers
 
+    def describe(self, values, kind):
+        if self.server is not None:
+            value = values[0] if values else None
+            return f"{self.server.hostname} has {value or f'no {kind}'}"
+        listed = [value for value in values if value is not None]
+        return f"the filters allow {_names(listed) if listed else f'any {kind}'}"
 
-def refusal(hook, server, facts=None):
-    """Why hook cannot run on server through Run Task, or '' when it can."""
-    facts = facts or _ServerFacts(server)
+
+def _allows(allowed, values):
+    """A restriction (empty = any) allows values when it holds every one of them."""
+    return not allowed or (bool(values) and all(value in allowed for value in values))
+
+
+def refusal(hook, server=None, facts=None):
+    """
+    Why hook cannot run through Run Task on server (or on every server a
+    filter set's facts allow), or '' when it can.
+    """
+    facts = facts or _Facts(server=server)
     if hook.run_on_server_id:
         return f"'{hook.name}' always runs on its Run on Server, not on the server it is started from."
-    if not facts.handler or not facts.handler.can_run_scripts_on_servers:
-        return f"The resource handler of {server.hostname} cannot run scripts on servers."
-    families = list(hook.os_families.all())
-    if families and not facts.os_families.intersection(families):
+    if facts.server is not None and (not facts.handler or not facts.handler.can_run_scripts_on_servers):
+        return f"The resource handler of {facts.server.hostname} cannot run scripts on servers."
+    families = set(hook.os_families.all())
+    if families and not (facts.os_lineages and all(lineage & families for lineage in facts.os_lineages)):
         return (
-            f"'{hook.name}' runs on {_names(families)} servers only, and {server.hostname} "
-            f"is {server.os_family or 'not set to any OS family'}."
+            f"'{hook.name}' runs on {_names(families)} servers only, and "
+            f"{facts.describe(facts.os_families, 'OS family')}."
         )
-    technologies = list(hook.resource_technologies.all())
-    if technologies and facts.technology not in technologies:
-        return f"'{hook.name}' runs on {_names(technologies)} only."
-    environments = list(hook.environments.all())
-    if environments and server.environment not in environments:
-        return f"'{hook.name}' runs in {_names(environments)} only."
-    groups = list(hook.groups.all())
-    if groups and server.group not in groups:
-        return f"'{hook.name}' runs for {_names(groups)} only."
-    managers = list(hook.configuration_managers.all())
+    technologies = set(hook.resource_technologies.all())
+    if not _allows(technologies, facts.technologies):
+        return f"'{hook.name}' runs on {_names(technologies)} only, and {facts.describe(facts.technologies, 'technology')}."
+    environments = set(hook.environments.all())
+    if not _allows(environments, facts.environments):
+        return f"'{hook.name}' runs in {_names(environments)} only, and {facts.describe(facts.environments, 'environment')}."
+    groups = set(hook.groups.all())
+    if not _allows(groups, facts.groups):
+        return f"'{hook.name}' runs for {_names(groups)} only, and {facts.describe(facts.groups, 'group')}."
+    managers = set(hook.configuration_managers.all())
     if managers and not facts.managers.intersection(managers):
         return f"'{hook.name}' runs on servers managed by {_names(managers)} only."
     return ""
 
 
-def tasks_for_servers(servers):
-    """The Remote Scripts that can run on every one of servers, by name."""
-    facts = [_ServerFacts(server) for server in servers]
-    if not facts:
-        return []
-    hooks = (
+def _remote_scripts():
+    return (
         RemoteScriptHook.objects.filter(run_on_server__isnull=True)
-        .prefetch_related(
-            "os_families", "resource_technologies", "environments", "groups", "configuration_managers"
-        )
+        .prefetch_related("os_families", "resource_technologies", "environments", "groups", "configuration_managers")
         .order_by("name")
     )
-    return [hook for hook in hooks if not any(refusal(hook, f.server, f) for f in facts)]
+
+
+def tasks_for_servers(servers):
+    """The Remote Scripts that can run on every one of servers, by name."""
+    facts = [_Facts(server=server) for server in servers]
+    if not facts:
+        return []
+    return [hook for hook in _remote_scripts() if not any(refusal(hook, facts=f) for f in facts)]
 
 
 def task_options(servers):
     """(value, label) pairs for the task dropdown: the Remote Script's global ID and name."""
     return [(hook.global_id, hook.name) for hook in tasks_for_servers(servers)]
+
+
+def filters_refusal(hook, os_families=(), technologies=(), environments=(), groups=()):
+    """Why hook cannot run on every server a filter set allows, or '' when it can."""
+    return refusal(hook, facts=_Facts(os_families, technologies, environments, groups))
+
+
+def tasks_for_filters(os_families=(), technologies=(), environments=(), groups=()):
+    """The Remote Scripts that can run on every server a filter set allows, by name."""
+    facts = _Facts(os_families, technologies, environments, groups)
+    return [hook for hook in _remote_scripts() if not refusal(hook, facts=facts)]
+
+
+def server_fits_filters(server, os_families=(), technologies=(), environments=(), groups=()):
+    """Whether server is one of the servers a filter set allows (an empty kind allows any)."""
+    facts = _Facts(server=server)
+    if os_families and not facts.os_lineages[0].intersection(os_families):
+        return False
+    return (
+        _allows(set(technologies), facts.technologies)
+        and _allows(set(environments), facts.environments)
+        and _allows(set(groups), facts.groups)
+    )
 
 
 def resolve_task(value):
@@ -508,6 +565,19 @@ def run_task(hook, server, inputs, job=None):
             continue
         add_server_event("MODIFICATION", server, f"Run Task '{hook.name}' succeeded.", job=job)
         return output or ""
+
+
+OUTPUT_LINE = re.compile(r"^\s*CB_OUTPUT\s+([A-Za-z0-9_]+)=(.*?)\s*$", re.MULTILINE)
+
+
+def parse_outputs(text):
+    """
+    The values a script published with CB_OUTPUT name=value lines, as a dict
+    (a later line for the same name wins). The base templates print them with
+    a helper, last, on stdout, before exit 0: WinRM drops stdout when a script
+    fails, and Azure Run Command keeps only the last 4 KB of output.
+    """
+    return {name: value for name, value in OUTPUT_LINE.findall(text or "")}
 
 
 def failure_text(err):

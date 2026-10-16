@@ -38,7 +38,7 @@ The task uses the Remote Script's saved credentials, else the server's. Azure an
    - bash (inside the `CB_TASK` block): `NAME="$(urldecode '{% autoescape off %}{% filter urlencode:"" %}{{ name }}{% endfilter %}{% endautoescape %}')"`
 
    Keep `{{ name }}` bare, never `{{ name|urlencode }}`: CloudBolt rebuilds a script's inputs from the bare template variables in it on every save, so a filtered variable becomes a stray input and the declared one is deleted.
-3. Replace the task body. Log with `Log` / `log`, fail with `throw` / `fail`, and validate every input in the script.
+3. Replace the task body. Log with `Log` / `log`, fail with `throw` / `fail`, and validate every input in the script. To publish values, call `Write-TaskOutput name value` / `task_output name value` last: each prints a `CB_OUTPUT name=value` line, which Run Task records as the job's outputs and a later workflow step can read.
 4. It appears in Run Task on matching servers immediately; no new action is needed.
 
 ## Notes

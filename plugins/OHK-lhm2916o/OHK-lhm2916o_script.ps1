@@ -20,11 +20,11 @@
 #   Output   Write-Output only (the Log function). VMware Tools captures only
 #            the success stream, and on Windows it fails the script on any
 #            stderr text.
-#   Outputs  To hand values to a later step (Run Workflow), print one line per
-#            value, OUTPUT: name=value (name of letters, digits and
-#            underscores, value the rest of the line), with Write-Output as the
-#            last lines before exit 0. WinRM drops stdout when the script
-#            fails, and Azure Run Command keeps only the last 4 KB.
+#   Outputs  Write-TaskOutput name value prints a CB_OUTPUT name=value line.
+#            Run Task turns those lines into the job's outputs, and a later
+#            workflow step can read them. Print them last, just before exit 0:
+#            WinRM drops stdout when a script fails, and Azure Run Command
+#            keeps only the last 4 KB of output.
 #   Errors   Throw. The catch block prints the error, writes one plain line to
 #            stderr (the line a WinRM failure shows) and exits 1. Every
 #            transport reads the exit code.
@@ -42,6 +42,11 @@ function Log([string]$Text) {
     Write-Output ('[{0}] {1}' -f (Get-Date -Format 's'), $Text)
 }
 
+function Write-TaskOutput([string]$Name, [string]$Value) {
+    if ($Name -notmatch '^[A-Za-z0-9_]+$') { throw "Output name '$Name' must be letters, digits and underscores." }
+    Write-Output ('CB_OUTPUT {0}={1}' -f $Name, ($Value -replace '[\r\n]+', ' '))
+}
+
 try {
     # ---- inputs ----
     $Message = [uri]::UnescapeDataString('{% autoescape off %}{% filter urlencode:"" %}{{ message }}{% endfilter %}{% endautoescape %}').Trim()
@@ -57,8 +62,8 @@ try {
     if ($Message) { Log "Message: $Message" }
 
     Log 'Task finished.'
-    # Outputs for a later workflow step, printed last, for example:
-    # Write-Output "OUTPUT: os_version=$($os.Version)"
+    Write-TaskOutput 'os_version' $os.Version
+    Write-TaskOutput 'host_name' $env:COMPUTERNAME
     exit 0
 }
 catch {
