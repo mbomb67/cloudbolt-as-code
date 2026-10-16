@@ -1,0 +1,91 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-1lqjo1lk"
+    },
+    "deployment_items": [
+        {
+            "all_environments_enabled": true,
+            "allowed_os_families": [
+                "Oracle Enterprise Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "ldd-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-iuodt5x4",
+            "name": "Oracle Linux Server",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-pd2spm2e/",
+                "title": "Oracle Linux 8"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Attach Data Disks (Linux)",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-sjr9f2hf"
+            },
+            "deploy_seq": 2,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-dvzbczv3",
+            "name": "Attach Data Disks",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Configure Data Disks (Oracle Linux)",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-p962x9z6"
+            },
+            "deploy_seq": 3,
+            "description": "",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-i4pcoqfi",
+            "name": "Configure Data Disks",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "script"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploys an Oracle Linux VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to create an LVM volume, format it XFS, and mount it.",
+    "favorited": false,
+    "has_custom_form": true,
+    "custom_form": "FRM-1lqjo1lk",
+    "id": "BP-rgdg9gho",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-15",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Oracle Linux Server with Data Disks",
+    "resource_name_template": "ldisk-00X",
+    "resource_type": {
+        "icon": "bi bi-hdd-stack",
+        "id": "RT-t9dg6h2q",
+        "internal_only": false,
+        "label": "Server with Data Disks",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "server_with_data_disks",
+        "plural_label": "Servers with Data Disks"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

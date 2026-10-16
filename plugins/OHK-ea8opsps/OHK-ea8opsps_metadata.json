@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Matches each attached data disk to its Windows disk by serial number, LUN, SCSI target, or attach order, then initializes it GPT and formats it NTFS with the requested drive letter and label.",
+    "execution_timeout": 900,
+    "id": "OHK-ea8opsps",
+    "max_retries": 0,
+    "name": "Configure Data Disks (Windows)",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-ea8opsps_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

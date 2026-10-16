@@ -64,6 +64,20 @@
     "used_by": []
   },
   {
+    "id": "BP-9ph7xcok",
+    "type": "blueprints",
+    "name": "Windows Server with Data Disks",
+    "description": "Deploys a Windows Server 2025 VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to initialize, letter, label, and format it.",
+    "path": "blueprints/BP-9ph7xcok",
+    "readme": "blueprints/BP-9ph7xcok/README.md",
+    "uses": [
+      "forms/FRM-jqnr84d0",
+      "plugins/OHK-1m6n3gq9",
+      "plugins/OHK-ea8opsps"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-anonytrx",
     "type": "blueprints",
     "name": "NGINX Web Application",
@@ -303,6 +317,20 @@
     "used_by": []
   },
   {
+    "id": "BP-rgdg9gho",
+    "type": "blueprints",
+    "name": "Oracle Linux Server with Data Disks",
+    "description": "Deploys an Oracle Linux VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to create an LVM volume, format it XFS, and mount it.",
+    "path": "blueprints/BP-rgdg9gho",
+    "readme": "blueprints/BP-rgdg9gho/README.md",
+    "uses": [
+      "forms/FRM-1lqjo1lk",
+      "plugins/OHK-p962x9z6",
+      "plugins/OHK-sjr9f2hf"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-s2fsbkpo",
     "type": "blueprints",
     "name": "Migrate Aria Automation Projects to Groups",
@@ -531,6 +559,18 @@
     ]
   },
   {
+    "id": "FRM-1lqjo1lk",
+    "type": "forms",
+    "name": "Oracle Linux Server with Data Disks",
+    "description": "Deploys an Oracle Linux VM with the data disks you list below, each turned into an LVM volume with an XFS file system and mounted inside the guest.",
+    "path": "forms/FRM-1lqjo1lk",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-rgdg9gho"
+    ]
+  },
+  {
     "id": "FRM-84n18crj",
     "type": "forms",
     "name": "Bicep Deployment",
@@ -590,6 +630,18 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-p7zmh96m"
+    ]
+  },
+  {
+    "id": "FRM-jqnr84d0",
+    "type": "forms",
+    "name": "Windows Server with Data Disks",
+    "description": "Deploys a Windows Server 2025 VM with the data disks you list below, each initialized, lettered, labeled, and formatted inside the guest.",
+    "path": "forms/FRM-jqnr84d0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-9ph7xcok"
     ]
   },
   {
@@ -1004,6 +1056,19 @@
     "uses": [],
     "used_by": [
       "mcp_tool_actions/MTA-543b19sa"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-1m6n3gq9",
+    "type": "plugins",
+    "name": "Attach Data Disks (Windows)",
+    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Windows server and records where the hypervisor attached it (vCenter SCSI address and VMDK UUID, or Azure LUN) on the server's data_disk_layout parameter.",
+    "path": "plugins/OHK-1m6n3gq9",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-9ph7xcok"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1861,6 +1926,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ea8opsps",
+    "type": "plugins",
+    "name": "Configure Data Disks (Windows)",
+    "description": "Matches each attached data disk to its Windows disk by serial number, LUN, SCSI target, or attach order, then initializes it GPT and formats it NTFS with the requested drive letter and label.",
+    "path": "plugins/OHK-ea8opsps",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-9ph7xcok"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-el9giuz3",
     "type": "plugins",
     "name": "Upgrade AWS EKS Nodegroup",
@@ -2228,6 +2306,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-p962x9z6",
+    "type": "plugins",
+    "name": "Configure Data Disks (Oracle Linux)",
+    "description": "Matches each attached data disk to its Linux disk by serial number, LUN, SCSI target, or attach order, then creates an LVM volume with an XFS file system and mounts it at the requested mount point.",
+    "path": "plugins/OHK-p962x9z6",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-rgdg9gho"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-paad1c56",
     "type": "plugins",
     "name": "Extend AWS EKS Namespace Expiration",
@@ -2422,6 +2513,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-qwku9lip"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-sjr9f2hf",
+    "type": "plugins",
+    "name": "Attach Data Disks (Linux)",
+    "description": "Adds one virtual disk per row of the order form's Data Disks table to each Linux server and records where the hypervisor attached it (vCenter SCSI address and VMDK UUID, or Azure LUN) on the server's data_disk_layout parameter.",
+    "path": "plugins/OHK-sjr9f2hf",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-rgdg9gho"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
