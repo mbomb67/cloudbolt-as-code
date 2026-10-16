@@ -114,7 +114,10 @@ try {
       $hits = @($free | Where-Object {
         ($null -eq $e.scsi_target -or $_.Target -eq [int]$e.scsi_target) -and
         ($null -eq $e.scsi_lun -or $_.Lun -eq [int]$e.scsi_lun) -and (Test-Size $_ $e.size_gb) })
-      if ($hits.Count -eq 1) { $m = $hits[0]; $how = 'SCSI target and LUN' }
+      if ($hits.Count -eq 1) {
+        $m = $hits[0]
+        $how = 'SCSI ' + ((@(@('target', $e.scsi_target), @('LUN', $e.scsi_lun)) | Where-Object { $null -ne $_[1] } | ForEach-Object { $_[0] }) -join ' and ')
+      }
     }
     if (-not $m) {
       $m = @($free | Sort-Object -Property Port, Bus, Target, Lun, Number | Where-Object { Test-Size $_ $e.size_gb }) | Select-Object -First 1

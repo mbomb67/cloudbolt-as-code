@@ -22,7 +22,8 @@ Supporting another resource handler means adding one DiskProvider subclass and
 registering it in PROVIDERS under the handler's type_slug. A provider's
 snapshot() returns {stable disk key: correlation keys} for every disk the VM has;
 attach_disks() calls it before and after each add, and the one new key is the
-disk just added. Handlers without a provider still get their disks added (through
+disk just added. check_capacity() may refuse an order the VM cannot hold before
+any disk is added; add_disk() may override how the handler is called. Handlers without a provider still get their disks added (through
 the handler's own add_disk_to_existing_server) and are matched by attach order and
 size in the guest.
 """
@@ -50,6 +51,9 @@ class DiskProvider:
 
     def snapshot(self, handler, server):
         return None
+
+    def check_capacity(self, handler, server, adding):
+        """Raise ValueError when the VM cannot take `adding` more data disks."""
 
 
 class VMwareProvider(DiskProvider):
@@ -93,18 +97,40 @@ class AzureProvider(DiskProvider):
 
     label = "Azure"
 
-    def snapshot(self, handler, server):
-        # The VM lookup AzureARMHandler.add_disk_to_existing_server makes. The guest
-        # sees a data disk's LUN as its SCSI LUN:
-        # https://learn.microsoft.com/en-us/azure/virtual-machines/linux/add-disk
-        # DataDisk: https://learn.microsoft.com/en-us/python/api/azure-mgmt-compute/azure.mgmt.compute.models.datadisk
+    def _vm(self, handler, server):
+        # The VM lookup AzureARMHandler.add_disk_to_existing_server makes.
         info = handler.tech_specific_server_details(server)
         group = info.resource_group if info and info.resource_group else server.get_vm_name()
-        vm = handler.get_api_wrapper().compute_client.get_vm_object(server.get_vm_name(), group)
+        compute = handler.get_api_wrapper().compute_client
+        return compute, group, compute.get_vm_object(server.get_vm_name(), group)
+
+    def snapshot(self, handler, server):
+        # The guest sees a data disk's LUN as its SCSI LUN:
+        # https://learn.microsoft.com/en-us/azure/virtual-machines/linux/add-disk
+        # DataDisk: https://learn.microsoft.com/en-us/python/api/azure-mgmt-compute/azure.mgmt.compute.models.datadisk
+        _, _, vm = self._vm(handler, server)
         return {
             d.name: {"address": f"Azure LUN {d.lun}", "scsi_lun": d.lun}
             for d in vm.storage_profile.data_disks
         }
+
+    def check_capacity(self, handler, server, adding):
+        # Each VM size caps its data disks (VirtualMachineSize.max_data_disk_count):
+        # https://learn.microsoft.com/en-us/python/api/azure-mgmt-compute/azure.mgmt.compute.models.virtualmachinesize
+        # list_available_sizes is the call AzureARMHandler makes for resize options.
+        compute, group, vm = self._vm(handler, server)
+        size = vm.hardware_profile.vm_size
+        limit = next(
+            (s.max_data_disk_count for s in compute.virtual_machines.list_available_sizes(group, vm.name)
+             if s.name == size),
+            None,
+        )
+        attached = len(vm.storage_profile.data_disks)
+        if limit is not None and attached + adding > limit:
+            raise ValueError(
+                f"Azure size {size} takes at most {limit} data disks; the VM has {attached} and "
+                f"{adding} more were ordered. Order a larger size or fewer disks."
+            )
 
 
 class NutanixProvider(DiskProvider):
@@ -208,6 +234,14 @@ def attach_disks(server, disks, describe):
         raise ValueError(f"{handler.type_slug} resource handlers cannot add disks to a server")
     provider = provider_for(handler)
     layout = _layout_for(server, disks, [k for k in disks[0] if k != "attached"])
+    # Fail before attaching anything when the VM cannot take every disk. A lookup
+    # error is logged, not fatal: the add itself still reports a real limit.
+    try:
+        provider.check_capacity(handler, server, sum(1 for d in layout if not d.get("attached")))
+    except ValueError:
+        raise
+    except Exception:
+        logger.exception("Could not check the data disk capacity of %s", server.hostname)
 
     for disk in layout:
         if disk.get("attached"):

@@ -216,7 +216,12 @@ while IFS='|' read -r disk mp size_gb vname serial target lun address; do
     fi
     if [ -z "$match" ] && { [ -n "$target" ] || [ -n "$lun" ]; }; then
         found=$(find_by_address "$target" "$lun" "$size_gb")
-        if one_line "$found"; then match=$found; how="SCSI target and LUN"; fi
+        if one_line "$found"; then
+            match=$found
+            how="SCSI LUN"
+            [ -n "$target" ] && how="SCSI target"
+            [ -n "$target" ] && [ -n "$lun" ] && how="SCSI target and LUN"
+        fi
     fi
     if [ -z "$match" ]; then
         match=$(find_by_order "$size_gb" | head -n 1)
