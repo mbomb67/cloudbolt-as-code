@@ -330,13 +330,18 @@ def _payload_values(payload):
             if isinstance(item, dict):
                 values.update(item)
         return values, False
-    text = html.unescape(str(payload)).strip()
+    text = str(payload).strip()
     if not text:
         return {}, True
     try:
         values = json.loads(text)
     except ValueError as err:
-        raise TaskError(f"Task inputs must be a JSON object of input names and values: {err}")
+        # Some CloudBolt paths store a text input HTML-escaped (&quot;). Only
+        # then unescape: a value that parses as typed keeps its own entities.
+        try:
+            values = json.loads(html.unescape(text))
+        except ValueError:
+            raise TaskError(f"Task inputs must be a JSON object of input names and values: {err}")
     if isinstance(values, list):
         return _payload_values(values)[0], True
     if not isinstance(values, dict):
