@@ -4,7 +4,7 @@
             "shared_modules/SHM-gcba1u31"
         ]
     },
-    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names, bound as the LDAP Utility for that OU's domain (or domain_to_join), then waits for the restart and verifies the secure channel.",
+    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, then waits for the restart and verifies the name and secure channel.",
     "id": "OHK-9oqn6pur",
     "max_retries": 0,
     "name": "Join Windows Server to AD Domain",

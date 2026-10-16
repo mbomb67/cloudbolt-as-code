@@ -15,12 +15,18 @@ Steps per server:
      tech_specific_script_execution is on (VMware Tools, Azure Run Command, AWS
      SSM), else WinRM with the server's credentials, retried for up to
      GUEST_READY_WAIT while the guest does not take scripts yet. The script exits early
-     when the computer is already in the domain (CloudBolt's vCenter guest
-     customization joins it when domain_to_join is set), checks that the
-     domain's DC locator SRV record resolves, runs Add-Computer, and schedules
-     a restart 15 seconds out so the call returns first.
+     when the computer is already in the domain under its CloudBolt name
+     (CloudBolt's vCenter guest customization joins it when domain_to_join is
+     set). Otherwise it checks that the domain's DC locator SRV record
+     resolves and runs Add-Computer, with -NewName when the guest's computer
+     name is not the CloudBolt hostname (AWS Windows AMIs boot as
+     EC2AMAZ-...), so the rename and the join share one restart. A computer
+     already in the domain under another name is renamed with Rename-Computer
+     and the join account. The restart is scheduled 15 seconds out so the call
+     returns first.
   2. Wait for the restart and run VERIFY_SCRIPT until the guest has booted
-     again, is in the domain, and passes Test-ComputerSecureChannel.
+     again, is in the domain under the CloudBolt hostname, and passes
+     Test-ComputerSecureChannel.
   3. Look the computer object up over LDAP and record its objectGUID and DN on
      the server (ad_computer_object_guid, ad_computer_object_dn), so the
      cleanup action at Pre-Delete deletes exactly that object.
@@ -40,6 +46,7 @@ contain template tags; values reach the scripts through the __CB_*__ tokens.
 
 References:
   Add-Computer:               https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/add-computer?view=powershell-5.1
+  Rename-Computer:            https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/rename-computer?view=powershell-5.1
   Test-ComputerSecureChannel: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/test-computersecurechannel?view=powershell-5.1
   Resolve-DnsName:            https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname
   shutdown.exe:               https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/shutdown
@@ -76,40 +83,58 @@ try {
     $Domain = Decode '__CB_DOMAIN__'
     $User = Decode '__CB_USER__'
     $OUPath = Decode '__CB_OU__'
+    $NewName = Decode '__CB_NAME__'
     $cs = Get-CimInstance -ClassName Win32_ComputerSystem
     $boot = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks
-    Write-Output "CB_AD_COMPUTER_NAME=$env:COMPUTERNAME"
+    # -ne ignores case, so WEB-01 matches web-01.
+    $rename = $cs.Name -ne $NewName
+    Write-Output "CB_AD_COMPUTER_NAME=$($cs.Name)"
     Write-Output "CB_AD_BOOT_TICKS=$boot"
+    $secret = ConvertTo-SecureString -String (Decode '__CB_PASSWORD__') -AsPlainText -Force
+    $credential = New-Object System.Management.Automation.PSCredential -ArgumentList $User, $secret
     if ($cs.PartOfDomain) {
-        if ($cs.Domain -eq $Domain) {
+        if ($cs.Domain -ne $Domain) {
+            Write-Output "ERROR: the computer is already in domain $($cs.Domain), not $Domain."
+            exit 7
+        }
+        if (-not $rename) {
             Write-Output "CB_AD_RESULT=ALREADY_JOINED"
             exit 0
         }
-        Write-Output "ERROR: the computer is already in domain $($cs.Domain), not $Domain."
-        exit 7
+        # Joined under another name: rename it in the domain with the join account.
+        try {
+            Rename-Computer -NewName $NewName -DomainCredential $credential -Force -WarningAction SilentlyContinue
+        } catch {
+            Write-Output "ERROR: Rename-Computer to $NewName failed: $($_.Exception.Message)"
+            exit 10
+        }
+        $result = 'RENAMED'
+    } else {
+        try {
+            Resolve-DnsName -Name "_ldap._tcp.dc._msdcs.$Domain" -Type SRV -DnsOnly | Out-Null
+        } catch {
+            Write-Output "ERROR: _ldap._tcp.dc._msdcs.$Domain does not resolve: $($_.Exception.Message)"
+            exit 3
+        }
+        $join = @{ DomainName = $Domain; Credential = $credential; Force = $true; WarningAction = 'SilentlyContinue' }
+        if ($OUPath) { $join.OUPath = $OUPath }
+        # -NewName joins under the new name and renames the computer in the same
+        # restart (Add-Computer sets JoinWithNewName for it).
+        if ($rename) { $join.NewName = $NewName }
+        try {
+            Add-Computer @join
+        } catch {
+            Write-Output "ERROR: Add-Computer failed: $($_.Exception.Message)"
+            exit 4
+        }
+        $result = 'JOINED'
     }
-    try {
-        Resolve-DnsName -Name "_ldap._tcp.dc._msdcs.$Domain" -Type SRV -DnsOnly | Out-Null
-    } catch {
-        Write-Output "ERROR: _ldap._tcp.dc._msdcs.$Domain does not resolve: $($_.Exception.Message)"
-        exit 3
-    }
-    $secret = ConvertTo-SecureString -String (Decode '__CB_PASSWORD__') -AsPlainText -Force
-    $credential = New-Object System.Management.Automation.PSCredential -ArgumentList $User, $secret
-    $join = @{ DomainName = $Domain; Credential = $credential; Force = $true; WarningAction = 'SilentlyContinue' }
-    if ($OUPath) { $join.OUPath = $OUPath }
-    try {
-        Add-Computer @join
-    } catch {
-        Write-Output "ERROR: Add-Computer failed: $($_.Exception.Message)"
-        exit 4
-    }
-    shutdown.exe /r /t 15 /d p:4:2 /c "CloudBolt joined this computer to $Domain." | Out-Null
+    shutdown.exe /r /t 15 /d p:4:2 /c "CloudBolt joined this computer to $Domain as $NewName." | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-Output "ERROR: joined $Domain, but shutdown.exe could not schedule the restart (exit $LASTEXITCODE)."
+        Write-Output "ERROR: $result, but shutdown.exe could not schedule the restart (exit $LASTEXITCODE)."
         exit 5
     }
-    Write-Output "CB_AD_RESULT=JOINED"
+    Write-Output "CB_AD_RESULT=$result"
     exit 0
 } catch {
     Write-Output "ERROR: $($_.Exception.Message)"
@@ -127,10 +152,15 @@ try {
         Write-Output "CB_AD_RESULT=NOT_RESTARTED"
         exit 8
     }
+    $NewName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__CB_NAME__'))
     $cs = Get-CimInstance -ClassName Win32_ComputerSystem
     if (-not $cs.PartOfDomain -or $cs.Domain -ne $Domain) {
         Write-Output "ERROR: after the restart the computer is in $($cs.Domain), not $Domain."
         exit 4
+    }
+    if ($cs.Name -ne $NewName) {
+        Write-Output "ERROR: after the restart the computer is named $($cs.Name), not $NewName."
+        exit 9
     }
     if (-not (Test-ComputerSecureChannel)) {
         Write-Output "ERROR: the computer's secure channel to $Domain does not work yet."
@@ -152,7 +182,15 @@ EXIT_CODE_DIAGNOSTICS = {
        "KB5020276 Windows will not reuse one the join account did not create.",
     5: "The computer joined the domain but the restart could not be scheduled; restart it to finish.",
     7: "The computer is already in a different domain; this action does not move computers between domains.",
+    10: "The computer is in the domain under another name and could not be renamed. The join account needs "
+        "rights to rename computer objects in its OU (write the computer's name, DNS host name, and service "
+        "principal names).",
 }
+
+# What Windows accepts as a computer name that keeps its full NetBIOS name:
+# letters, digits, and hyphens, at most 15 characters, not only digits.
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/rename-computer?view=powershell-5.1
+COMPUTER_NAME = re.compile(r"^(?![0-9]+$)[A-Za-z0-9-]{1,15}$")
 
 MARKER = re.compile(r"^(CB_AD_[A-Z_]+)=(.*?)\s*$", re.MULTILINE)
 
@@ -210,9 +248,11 @@ def _ensure_custom_fields():
         )
 
 
-def _wait_for_restart(server, domain, boot_ticks):
+def _wait_for_restart(server, domain, name, boot_ticks):
     """Run VERIFY_SCRIPT until it passes or RESTART_WAIT runs out. Returns (ok, message)."""
-    script = VERIFY_SCRIPT.replace("__CB_DOMAIN__", _b64(domain)).replace("__CB_BOOT_TICKS__", boot_ticks)
+    script = (VERIFY_SCRIPT.replace("__CB_DOMAIN__", _b64(domain))
+              .replace("__CB_NAME__", _b64(name))
+              .replace("__CB_BOOT_TICKS__", boot_ticks))
     deadline = time.time() + RESTART_WAIT
     time.sleep(FIRST_CHECK_DELAY)
     last = "the guest did not answer"
@@ -220,7 +260,7 @@ def _wait_for_restart(server, domain, boot_ticks):
         rv, output = _execute(server, script, VERIFY_TIMEOUT, show_output=False)
         if rv == 0:
             return True, ""
-        if rv == 4:
+        if rv in (4, 9):
             return False, _errors(output)
         last = _errors(output) if rv > 0 else "the guest did not answer: " + output.strip()[-300:]
         if time.time() + CHECK_INTERVAL > deadline:
@@ -266,11 +306,19 @@ def _join_server(server):
         return "FAILURE", ("%s: LDAP Utility '%s' is missing its domain, account, or password."
                            % (hostname, ldap_utility))
 
-    set_progress("%s: joining Active Directory domain %s%s" % (
-        hostname, domain, " in " + ad_domain.canonical_name(ou) if ou else ""))
+    # The computer name must be the CloudBolt hostname's first label, so the
+    # guest, AD, DNS, and CloudBolt all use one name.
+    name = hostname.split(".")[0]
+    if not COMPUTER_NAME.match(name):
+        return "FAILURE", ("%s: '%s' cannot be a Windows computer name: use at most 15 letters, digits, "
+                           "and hyphens, not only digits." % (hostname, name))
+
+    set_progress("%s: joining Active Directory domain %s%s as %s" % (
+        hostname, domain, " in " + ad_domain.canonical_name(ou) if ou else "", name))
     script = (JOIN_SCRIPT.replace("__CB_DOMAIN__", _b64(domain))
               .replace("__CB_USER__", _b64(user))
               .replace("__CB_OU__", _b64(ou))
+              .replace("__CB_NAME__", _b64(name))
               .replace("__CB_PASSWORD__", _b64(password)))
     rv, output = _execute(server, script, JOIN_TIMEOUT)
     # A new VM can pass its cloud's reachability check before the guest takes
@@ -296,16 +344,19 @@ def _join_server(server):
         return "FAILURE", message
 
     markers = _markers(output)
-    name = markers.get("CB_AD_COMPUTER_NAME") or ad_domain.computer_name(hostname)
-    if markers.get("CB_AD_RESULT") == "ALREADY_JOINED":
-        set_progress("%s: already in domain %s." % (hostname, domain))
+    result = markers.get("CB_AD_RESULT")
+    old_name = markers.get("CB_AD_COMPUTER_NAME", "")
+    if result == "ALREADY_JOINED":
+        set_progress("%s: already in domain %s as %s." % (hostname, domain, name))
     else:
-        set_progress("%s: joined %s, waiting for the restart." % (hostname, domain))
+        renamed = " (renamed from %s)" % old_name if old_name and old_name.lower() != name.lower() else ""
+        done = "renamed in" if result == "RENAMED" else "joined"
+        set_progress("%s: %s %s as %s%s, waiting for the restart." % (hostname, done, domain, name, renamed))
         boot_ticks = markers.get("CB_AD_BOOT_TICKS", "")
-        ok, problem = _wait_for_restart(server, domain, boot_ticks if boot_ticks.isdigit() else "0")
+        ok, problem = _wait_for_restart(server, domain, name, boot_ticks if boot_ticks.isdigit() else "0")
         if not ok:
-            return "FAILURE", "%s: joined %s, but the check after the restart failed: %s" % (
-                hostname, domain, _scrub(problem, password))
+            return "FAILURE", "%s: %s %s, but the check after the restart failed: %s" % (
+                hostname, done, domain, _scrub(problem, password))
 
     warning = _record_computer_object(server, ldap_utility, name)
     if warning:
