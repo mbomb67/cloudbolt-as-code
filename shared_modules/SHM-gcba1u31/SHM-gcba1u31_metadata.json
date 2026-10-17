@@ -1,0 +1,12 @@
+{
+    "description": "Finds the Active Directory domain and LDAP Utility for a server from its domain_ou or domain_to_join, binds with that utility, and finds and deletes computer objects.",
+    "id": "SHM-gcba1u31",
+    "label": "AD Domain",
+    "max_retries": 0,
+    "module_name": "ad_domain",
+    "name": "ad_domain",
+    "resource_technologies": [],
+    "script_filename": "SHM-gcba1u31_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

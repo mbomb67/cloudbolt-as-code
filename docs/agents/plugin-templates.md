@@ -911,6 +911,19 @@ def get_options_list(field, **kwargs):
     }
 ```
 
+**Type-ahead (suggest options)**: a Generated Parameter Options plugin that defines `suggest_options` turns its parameter into a search-as-you-type field (`CustomField.get_suggest_options_action` in `infrastructure/models.py`). CloudBolt calls it from the order form (`/suggest_options_for_selectize/<field>/`), from a custom form (`customForms/<id>/suggestOptions/`), and once with the saved value when a form opens on one (`common/fields.py`). It receives **only the field and the typed text**: no environment, group, server, or other form values, so it cannot depend on another parameter. Return `(value, label)` pairs; return `[]` until the text is long enough. Define `get_options_list` returning `None` in the same plugin so validation and the API see no fixed option list. Example: `plugins/OHK-z9qrccyu` (Active Directory OUs for `domain_ou`), linked to that global parameter through its metadata `parameters` list ([metadata-schemas.md](metadata-schemas.md), plugin optional fields).
+
+```python
+def get_options_list(field, **kwargs):
+    return None
+
+def suggest_options(field, query=None, **kwargs):
+    text = str(query or "").strip()
+    if len(text) < 3:
+        return []
+    return [(value, label) for value, label in search(text)]
+```
+
 ## Custom Field Management
 
 ### Creating Custom Fields
