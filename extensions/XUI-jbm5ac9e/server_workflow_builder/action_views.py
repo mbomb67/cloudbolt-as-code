@@ -151,8 +151,11 @@ def _api(view):
             return view(request, server_tasks, swf, *args, **kwargs)
         except PermissionDenied:
             return JsonResponse({"error": "This requires CB Admin or Super Admin."}, status=403)
-        except (library.ActionError, server_tasks.TaskError, swf.WorkflowError) as exc:
+        except (library.ActionError, server_tasks.TaskError) as exc:
+            # Both carry only a message written for the admin.
             return JsonResponse({"error": str(exc)}, status=400)
+        except swf.WorkflowError as exc:
+            return JsonResponse({"error": getattr(exc, "public_message", "The workflow request was refused.")}, status=400)
         except Exception:
             logger.exception("Server workflow actions API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
