@@ -121,6 +121,7 @@ def action_new(request, kind):
         "environments": filters["environments"]["options"],
         "input_types": [{"value": key, "label": label} for key, label in library.INPUT_TYPES.items()],
         "option_types": sorted(library.OPTION_TYPES),
+        "pattern_types": sorted(library.PATTERN_TYPES),
         "limits": {
             "inputs": library.MAX_INPUTS,
             "timeout_min": library.TIMEOUT_MIN,

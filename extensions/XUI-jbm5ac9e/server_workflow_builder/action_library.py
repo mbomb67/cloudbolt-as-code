@@ -22,6 +22,12 @@ Inputs and options
   type, label, pattern and options. A final save checks that the options
   survive one.
 
+  A pattern is CloudBolt's regex constraint (the input's global constraint
+  mapping, regex_constraint, matched from the start with re.match on string
+  and multi-line text inputs), which export and import carry as
+  regex_constraint. value_pattern_string is not a regex: it is the display
+  "Formatter pattern" (a Python format string), so it is left alone.
+
 Secrets
   CloudBolt logs a server action's custom-form payload and plain-text inputs,
   so neither this page's forms nor Run Task carry passwords: password inputs
@@ -38,6 +44,7 @@ from django.template import Template, TemplateSyntaxError
 from django.urls import reverse
 
 from accounts.models import Group
+from behavior_mapping.models import CustomFieldMapping
 from cbhooks.models import CloudBoltHook, RemoteScriptHook, ServerAction
 from common.methods import tokenize_template_string
 from externalcontent.models import OSFamily
@@ -100,6 +107,8 @@ INPUT_TYPES = OrderedDict(
 )
 # Types that take a list of options.
 OPTION_TYPES = {"STR", "INT", "DEC", "IP", "URL"}
+# Types CloudBolt checks a regex constraint on (CustomFieldMapping.validate).
+PATTERN_TYPES = {"STR", "TXT"}
 
 INPUT_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 NAME_MAX = 255
@@ -239,7 +248,7 @@ def _input_spec(field):
         "required": bool(field.required),
         "description": field.description or "",
         "options": options,
-        "pattern": field.value_pattern_string or "",
+        "pattern": regex_constraint(field),
     }
 
 
@@ -365,8 +374,11 @@ def clean_inputs(kind, platform, specs):
             raise ActionError(f"{where}: type must be one of {', '.join(INPUT_TYPES)}.")
         pattern = str(spec.get("pattern") or "").strip()
         if pattern:
-            if field_type in ("BOOL", "DT", "DTM"):
-                raise ActionError(f"{where}: a {INPUT_TYPES[field_type]} input takes no pattern.")
+            if field_type not in PATTERN_TYPES:
+                raise ActionError(
+                    f"{where}: CloudBolt checks a pattern only on String and Multi-line text inputs, not on "
+                    f"{INPUT_TYPES[field_type]}."
+                )
             try:
                 regex = re.compile(pattern)
             except re.error as err:
@@ -380,7 +392,7 @@ def clean_inputs(kind, platform, specs):
         if len(options) > MAX_OPTIONS:
             raise ActionError(f"{where}: up to {MAX_OPTIONS} options.")
         for option in options:
-            if pattern and not regex.search(option):
+            if pattern and not regex.match(option):
                 raise ActionError(f"{where}: the option '{option}' does not match the pattern.")
         cleaned.append(
             {
@@ -580,6 +592,23 @@ def _body_offset(source):
 # ---- creating -------------------------------------------------------------
 
 
+def regex_constraint(field):
+    """The input's regex constraint, the pattern CloudBolt validates its values against, or ''."""
+    mapping = CustomFieldMapping.global_constraints.filter(custom_field=field).first()
+    return (mapping.regex_constraint or "") if mapping else ""
+
+
+def _set_pattern(field, pattern):
+    """Set the input's regex constraint on its global constraint mapping, as CloudBolt's own input editor does."""
+    mapping = CustomFieldMapping.global_constraints.filter(custom_field=field).first()
+    if mapping is None:
+        if not pattern:
+            return
+        mapping = CustomFieldMapping.global_constraints.create(custom_field=field)
+    mapping.regex_constraint = pattern or ""
+    mapping.save()
+
+
 def _set_options(field, options):
     """Replace the input's global options: CloudBolt's importer sets them only when it creates the input."""
     mapping = field.get_global_mapping()
@@ -601,17 +630,21 @@ def sync_inputs(hook, specs):
         field.type = spec["type"]
         field.required = spec["required"]
         field.description = spec["description"] or None
-        field.value_pattern_string = spec["pattern"] or None
         field.allow_multiple = False
         field.save()
         _set_options(field, spec["options"])
+        _set_pattern(field, spec["pattern"])
         ids.append(field.id)
     hook.sequence_action_inputs(ids)
     return ids
 
 
 def option_snapshot(hook):
-    return {field.simple_name: sorted(str(o) for o in field.get_global_options()) for field in hook.input_fields.all()}
+    """Each input's options and pattern, to compare across a save."""
+    return {
+        field.simple_name: (sorted(str(o) for o in field.get_global_options()), regex_constraint(field))
+        for field in hook.input_fields.all()
+    }
 
 
 def _unique_name(name):
@@ -655,7 +688,7 @@ def create_action(request, source, profile=None):
         if after != expected:
             logger.error("Inputs of '%s' changed on save: %s -> %s", hook.name, expected, after)
             raise ActionError(
-                "CloudBolt changed the new action's inputs when it was saved again, so nothing was created. "
+                "CloudBolt changed the new action's input options or patterns when it was saved again, so nothing was created. "
                 "See the application log."
             )
     origin = template_hook(request["platform"]).name if request["kind"] == "script" else "a blank plug-in"
@@ -769,14 +802,18 @@ def run_task_verdict(server_tasks, hook):
 
 
 def candidate_hooks(swf, include_builtin=False, ids=None):
-    """Every Remote Script, plug-in, webhook, email and copy-file action (or those ids), cast, by name."""
+    """
+    Every Remote Script, plug-in, webhook, email and copy-file action (or
+    those ids), cast, by name. CloudBolt's own actions are left out unless
+    include_builtin, except Remote Scripts: Run Task offers those too.
+    """
     hooks = []
     for info in swf.STEP_TYPES.values():
         model = info["model"]
         queryset = model.objects.filter(real_type=ContentType.objects.get_for_model(model))
         if ids is not None:
             queryset = queryset.filter(global_id__in=ids)
-        elif not include_builtin:
+        elif not include_builtin and model is not RemoteScriptHook:
             queryset = queryset.exclude(is_ootb=True)
         names = ["groups", "environments", "resource_technologies", "configuration_managers", "input_fields"]
         if hasattr(model, "os_families"):

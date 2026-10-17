@@ -119,7 +119,7 @@
             <th style="width: 12%">{% trans "Type" %}</th>
             <th>{% trans "Required" %}</th>
             <th style="width: 17%">{% trans "Options, one per line" %}</th>
-            <th style="width: 14%">{% trans "Pattern (regex)" %}</th>
+            <th style="width: 14%" title="{% trans 'Matched from the start of the value; String and Multi-line text inputs only.' %}">{% trans "Pattern (regex)" %}</th>
             <th>{% trans "Description" %}</th>
             <th></th>
           </tr>
@@ -161,6 +161,7 @@
   var $root = $("#swfx-action-editor");
   var csrf = $root.attr("data-csrf");
   var OPTION_TYPES = data.option_types;
+  var PATTERN_TYPES = data.pattern_types;
   var state = { inputs: (data.defaults.inputs || []).map(copyInput), busy: false };
 
   function el(tag, attrs, children) {
@@ -232,7 +233,7 @@
         return el("option", { value: t.value, text: t.label, selected: t.value === spec.type });
       }));
       var takesOptions = OPTION_TYPES.indexOf(spec.type) > -1;
-      var takesPattern = ["BOOL", "DT", "DTM"].indexOf(spec.type) < 0;
+      var takesPattern = PATTERN_TYPES.indexOf(spec.type) > -1;
       var $row = el("tr", {}, [
         el("td", {}, [
           el("input", { cls: "form-control form-control-sm swf-mono", value: spec.name, maxlength: 50, placeholder: "service_name", "aria-label": "Name", "data-k": "name" }),
@@ -269,7 +270,7 @@
       inputs: state.inputs.map(function (spec) {
         return {
           name: $.trim(spec.name), label: spec.label, type: spec.type, required: spec.required, description: spec.description,
-          pattern: ["BOOL", "DT", "DTM"].indexOf(spec.type) < 0 ? spec.pattern : "",
+          pattern: PATTERN_TYPES.indexOf(spec.type) > -1 ? spec.pattern : "",
           options: OPTION_TYPES.indexOf(spec.type) > -1 ? spec.options.split("\n") : []
         };
       })
