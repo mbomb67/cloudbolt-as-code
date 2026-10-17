@@ -16,14 +16,16 @@
         <div class="swf-eyebrow">{% trans "Workflow" %}</div>
         <div class="swf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> <span data-swf-heading>{{ title }}</span></div>
         <div class="swf-sub">{% if workflow %}<span class="swf-mono">{{ workflow.id }}</span>{% else %}{% trans "Not saved yet" %}{% endif %}</div>
+      </div>
+      <div class="swf-side">
+        <div class="swf-tools">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All workflows" %}</a>
+          <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
+        </div>
         <div class="form-check form-switch swf-enabled">
           <input class="form-check-input" type="checkbox" role="switch" id="swf-enabled">
           <label class="form-check-label" for="swf-enabled">{% trans "Enabled: offered in Run Workflow" %}</label>
         </div>
-      </div>
-      <div class="swf-tools">
-        <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All workflows" %}</a>
-        <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
       </div>
     </div>
     <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
