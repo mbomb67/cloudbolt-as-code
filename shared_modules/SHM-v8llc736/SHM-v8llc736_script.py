@@ -228,20 +228,31 @@ def list_archives():
     except OSError:
         return archives
     for archive in names:
-        info = _read_json(os.path.join(ROOT, archive, "archive.json"))
-        if not NAME.match(archive) or info is None:
-            continue
-        files = []
-        for name in sorted(os.listdir(os.path.join(ROOT, archive)), key=str.lower):
-            if NAME.match(name) and os.path.isdir(os.path.join(ROOT, archive, name)):
-                history = versions(archive, name)
-                if history:
-                    files.append({"name": name, "versions": history, "latest": history[-1]})
-        archives.append(dict(info, name=archive, files=files))
+        info = archive_info(archive)
+        if info is not None:
+            archives.append(info)
     return archives
 
 
+def archive_info(archive):
+    """One archive as list_archives() returns it, or None when it does not exist."""
+    if not NAME.match(archive or ""):
+        return None
+    info = _read_json(os.path.join(ROOT, archive, "archive.json"))
+    if info is None:
+        return None
+    files = []
+    for name in sorted(os.listdir(os.path.join(ROOT, archive)), key=str.lower):
+        if NAME.match(name) and os.path.isdir(os.path.join(ROOT, archive, name)):
+            history = versions(archive, name)
+            if history:
+                files.append({"name": name, "versions": history, "latest": history[-1]})
+    return dict(info, name=archive, files=files)
+
+
 def create_archive(archive, description, username):
+    if archive.lower() == "add":
+        raise ArchiveError("'add' is reserved by the File Archives page; choose another archive name.")
     directory = _archive_dir(archive)
     if os.path.exists(directory):
         raise ArchiveError(f"Archive '{archive}' already exists.")
@@ -553,15 +564,18 @@ def _read_value(cfv):
     return value if isinstance(value, dict) else {}
 
 
-def activity(ref=None, limit=50):
-    """Recent events for ref (or all files, merged), newest first."""
+def activity(ref=None, limit=50, archive=None):
+    """Recent events for ref, for every file of archive, or for all files; newest first."""
     events = []
     field = CustomField.objects.filter(name="file_archives_activity").first()
     if field is None:
         return events
     for cfv in CustomFieldValue.objects.filter(field=field):
         value = _read_value(cfv)
-        if ref is None or value.get("ref") == ref:
+        found = value.get("ref", "")
+        if archive is not None and not found.startswith(archive + "/"):
+            continue
+        if ref is None or found == ref:
             events.extend(dict(entry, ref=value.get("ref")) for entry in value.get("events", []))
     return sorted(events, key=lambda entry: entry["at"], reverse=True)[:limit]
 

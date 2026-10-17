@@ -11,7 +11,7 @@
   <div class="cfa-card">
     <div class="cfa-hero-top">
       <div>
-        <div class="cfa-eyebrow">{% trans "Archive" %} {{ archive }}</div>
+        <div class="cfa-eyebrow">{% trans "Archive" %} <a href="{{ archive_url }}">{{ archive }}</a></div>
         <div class="cfa-title"><i class="bi bi-file-earmark-zip-fill" aria-hidden="true"></i> {{ name }}</div>
         <div class="cfa-sub">{% trans "Latest version" %} {{ latest.version }} &middot; {{ latest.size_text }}</div>
       </div>
@@ -31,69 +31,66 @@
     </div>
   </div>
 
-  <div class="cfa-card">
-    <div class="cfa-card-h"><span class="cfa-card-t">{% trans "Use it in a script" %}</span></div>
-    <div class="cfa-body">
-      <p>{% trans "Name the file in a header line of a Remote Script that runs through Run Task. Leave the version off to always get the latest, or pin one with @ and its number." %}</p>
+  <div class="cfa-card cfa-card-fold">
+    <div class="cfa-card-h">
+      <button type="button" class="cfa-fold collapsed" data-bs-toggle="collapse" data-bs-target="#cfax-usage-body" aria-expanded="false" aria-controls="cfax-usage-body">
+        <i class="bi bi-chevron-right cfa-chev" aria-hidden="true"></i>
+        <span class="cfa-card-t">{% trans "Use it in a script" %}</span>
+      </button>
+    </div>
+    <div id="cfax-usage-body" class="collapse">
+      <div class="cfa-card-b cfa-body">
+        <p>{% trans "Name the file in a header line of a Remote Script that runs through Run Task. Leave the version off to always get the latest, or pin one with @ and its number." %}</p>
 <pre class="cfa-code"># cb-archive: {{ ref }}{% if extractable %} extract{% endif %}
 # cb-archive: {{ ref }}@{{ latest.version }}{% if extractable %} extract{% endif %}</pre>
-      <p style="margin-top: 10px;">{% trans "Before the script body runs, the file is downloaded and checked" %}{% if extractable %}{% trans ", and with extract, unpacked" %}{% endif %}{% trans " in a new directory, which is the current directory and is in the CB_ARCHIVE_DIR environment variable:" %}</p>
+        <p style="margin-top: 10px;">{% trans "Before the script body runs, the file is downloaded and checked" %}{% if extractable %}{% trans ", and with extract, unpacked" %}{% endif %}{% trans " in a new directory, which is the current directory and is in the CB_ARCHIVE_DIR environment variable:" %}</p>
 <pre class="cfa-code">ls "$CB_ARCHIVE_DIR"                        # bash
 Get-ChildItem $env:CB_ARCHIVE_DIR           # PowerShell</pre>
+      </div>
     </div>
   </div>
 
-  <div class="cfa-card">
-    <div class="cfa-card-h"><span class="cfa-card-t">{% trans "Versions" %} &middot; {{ versions|length }}</span></div>
-    <div class="table-responsive">
-      <table class="cfa-table">
-        <thead>
-          <tr><th>{% trans "Version" %}</th><th>{% trans "Uploaded" %}</th><th>{% trans "Size" %}</th><th>{% trans "SHA-256" %}</th><th>{% trans "Note" %}</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for meta in versions %}
-          <tr>
-            <td>v{{ meta.version }}{% if meta.version == latest.version %} <span class="cfa-tag cfa-tag-live">{% trans "latest" %}</span>{% endif %}</td>
-            <td>{{ meta.uploaded_at }}<div class="cfa-hint">{{ meta.uploaded_by }}</div></td>
-            <td>{{ meta.size_text }}</td>
-            <td class="cfa-mono" title="{{ meta.sha256 }}">{{ meta.sha256|truncatechars:17 }}</td>
-            <td>{{ meta.note|default:"&mdash;" }}</td>
-            <td>
-              <div class="cfa-row-tools">
-                <a class="btn btn-sm btn-outline-secondary" href="{{ meta.download_url }}" title="{% trans 'Download' %}"><i class="bi bi-download" aria-hidden="true"></i></a>
-                {% if meta.version != latest.version %}
-                <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_version_restore' archive name meta.version %}" title="{% trans 'Restore as latest' %}"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></a>
-                {% endif %}
-                <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_version_delete' archive name meta.version %}" title="{% trans 'Delete version' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="cfa-card cfa-card-fold">
+    <div class="cfa-card-h">
+      <button type="button" class="cfa-fold" data-bs-toggle="collapse" data-bs-target="#cfax-versions-body" aria-expanded="true" aria-controls="cfax-versions-body">
+        <i class="bi bi-chevron-right cfa-chev" aria-hidden="true"></i>
+        <span class="cfa-card-t">{% trans "Versions" %} &middot; {{ versions|length }}</span>
+      </button>
+    </div>
+    <div id="cfax-versions-body" class="collapse show">
+      <div class="cfa-card-b">
+        <div class="table-responsive">
+          <table class="cfa-table" data-cfa-page-size="10">
+            <thead>
+              <tr><th>{% trans "Version" %}</th><th>{% trans "Uploaded" %}</th><th>{% trans "Size" %}</th><th>{% trans "SHA-256" %}</th><th>{% trans "Note" %}</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for meta in versions %}
+              <tr data-cfa-row>
+                <td>v{{ meta.version }}{% if meta.version == latest.version %} <span class="cfa-tag cfa-tag-live">{% trans "latest" %}</span>{% endif %}</td>
+                <td>{{ meta.uploaded_at }}<div class="cfa-hint">{{ meta.uploaded_by }}</div></td>
+                <td>{{ meta.size_text }}</td>
+                <td class="cfa-mono" title="{{ meta.sha256 }}">{{ meta.sha256|truncatechars:17 }}</td>
+                <td>{{ meta.note|default:"&mdash;" }}</td>
+                <td>
+                  <div class="cfa-row-tools">
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ meta.download_url }}" title="{% trans 'Download' %}"><i class="bi bi-download" aria-hidden="true"></i></a>
+                    {% if meta.version != latest.version %}
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_version_restore' archive name meta.version %}" title="{% trans 'Restore as latest' %}"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></a>
+                    {% endif %}
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_version_delete' archive name meta.version %}" title="{% trans 'Delete version' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="cfa-card">
-    <div class="cfa-card-h"><span class="cfa-card-t">{% trans "Activity" %}</span></div>
-    {% if activity %}
-    <div class="table-responsive">
-      <table class="cfa-table">
-        <thead><tr><th>{% trans "When (UTC)" %}</th><th>{% trans "Event" %}</th><th>{% trans "Detail" %}</th></tr></thead>
-        <tbody>
-          {% for entry in activity %}
-          <tr>
-            <td class="cfa-mono">{{ entry.at }}</td>
-            <td><span class="cfa-tag{% if entry.event == 'refused' %} cfa-tag-bad{% elif entry.event == 'downloaded' %} cfa-tag-ok{% endif %}">{{ entry.event }}</span></td>
-            <td>{{ entry.detail }}{% if entry.by %} <span class="cfa-hint">({{ entry.by }})</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="cfa-empty">{% trans "Nothing yet." %}</div>
-    {% endif %}
-  </div>
+  {% include "file_archives/templates/_activity.html" with activity_id="cfax-file-activity" show_file=False collapsed=True %}
 </div>
+<script>window.cfaxInit("cfax-file");</script>
 {% endblock content %}
