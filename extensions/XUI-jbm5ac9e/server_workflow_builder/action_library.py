@@ -791,7 +791,12 @@ def run_task_verdict(server_tasks, hook):
         return {"offered": None, "text": "Remote Scripts only"}
     if hook.run_on_server_id:
         return {"offered": False, "text": "Not offered", "reason": "It always runs on its Run on Server."}
-    blocking = server_tasks.task_panel(hook)["blocking"]
+    # task_panel's rule, read from the prefetched inputs: a required input Run Task cannot carry.
+    blocking = [
+        server_tasks.input_label(field)
+        for field in hook.input_fields.all()
+        if field.required and (field.type in server_tasks.SECRET_TYPES or field.type not in server_tasks.PLAIN_TYPES)
+    ]
     if blocking:
         return {
             "offered": False,
@@ -818,7 +823,8 @@ def candidate_hooks(swf, include_builtin=False, ids=None):
         names = ["groups", "environments", "resource_technologies", "configuration_managers", "input_fields"]
         if hasattr(model, "os_families"):
             names.append("os_families")
-        hooks.extend(queryset.prefetch_related(*names))
+        # step_type reads real_type; without select_related that is a query per action.
+        hooks.extend(queryset.select_related("real_type").prefetch_related(*names))
     return sorted(hooks, key=lambda hook: hook.name.lower())
 
 
