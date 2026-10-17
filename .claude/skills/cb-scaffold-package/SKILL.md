@@ -137,4 +137,4 @@ Do not create the package with **Add** or `POST /xui/content_packages/api/packag
 - Never `forms/` or `form_functions/` members, never duplicates, never a member another member carries.
 - Every member must exist in the repo (the validator checks it). The appliance does not need it yet; Sync creates it.
 - A `parameters/CF-*` folder comes from an appliance export, never from this skill.
-- Write the files with the step 6 script, not by hand, so the format matches the exporter. An appliance export later replaces the manifest with its own definition but leaves the README alone.
+- Write the files with the step 6 script, not by hand, so the format matches the exporter. An appliance export later replaces the manifest with its own definition and rebuilds only the README's member table (from the `| Type | Name | Folder |` header to its last row), so keep that header and keep hand-written text outside the table.

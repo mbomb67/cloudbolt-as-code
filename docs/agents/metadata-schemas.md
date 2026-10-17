@@ -1292,7 +1292,7 @@ An MCP tool action publishes a plugin as a tool on CloudBolt's MCP server. An AI
 ## 15. `packages/` — PKG-*
 
 - **Not a CloudBolt content type.** Source Control Repos never reads `packages/`, and `SourceCodeRepo` has no `path_to_*` for it, so the dir name is fixed. The Content Package Manager extension (`extensions/XUI-iq65xgvr/content_packages/`) reads and writes these files: `store.py` holds the rules below, `services.py` exports, lists and imports.
-- **Written by** the extension's Export (`services.export_package`): it pushes each member with CloudBolt's own per-object push, then commits `packages/PKG-<id>/PKG-<id>_metadata.json`, and `README.md` only when the folder has none, so a README in the repo is never overwritten.
+- **Written by** the extension's Export (`services.export_package`): it pushes each member with CloudBolt's own per-object push, then commits `packages/PKG-<id>/PKG-<id>_metadata.json` and `README.md`: the README whole when the folder has none, otherwise only its member table (the block from the `| Type | Name | Folder |` header through its last row) rebuilt from the current members, so a member added later is listed and text outside the table is kept.
 - **Read by** Import from repository (`services.list_repo_packages`, `import_repo_package`): it lists `packages/PKG-<id>/PKG-<id>_metadata.json` on a branch, skips a file whose name and folder disagree, and registers the chosen manifest under its `id`, updating the package already registered with that id. The id is the package's identity across appliances.
 - **Standalone.** Nothing references a package; a unit may belong to several.
 
