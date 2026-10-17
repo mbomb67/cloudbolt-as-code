@@ -20,6 +20,9 @@
         <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_settings' %}" data-dialog-width="640px">
           <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}
         </a>
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_rotate_key' %}">
+          <i class="bi bi-shield-x" aria-hidden="true"></i> {% trans "Revoke all links" %}
+        </a>
         <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_archive_add' %}" data-dialog-width="640px">
           <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add archive" %}
         </a>
@@ -51,14 +54,6 @@
         <div class="k">{% trans "Versions kept" %}</div>
         <div class="v">{{ settings.keep_versions }} {% trans "per file" %}<div class="cfa-hint">{% trans "Uploads up to" %} {{ settings.max_upload_mb }} MB</div></div>
       </div>
-      <div class="cell">
-        <div class="k">{% trans "Issued links" %}</div>
-        <div class="v">
-          <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_rotate_key' %}">
-            <i class="bi bi-shield-x" aria-hidden="true"></i> {% trans "Revoke all links" %}
-          </a>
-        </div>
-      </div>
     </div>
     {% endif %}
   </div>
@@ -83,82 +78,65 @@
   </div>
   {% endif %}
 
-  {% for archive in archives %}
-  <div class="cfa-card">
+  <div class="cfa-card cfa-card-fold">
     <div class="cfa-card-h">
-      <div>
-        <span class="cfa-card-t"><i class="bi bi-folder2" aria-hidden="true"></i> {{ archive.name }}</span>
-        {% if archive.description %}<div class="cfa-card-sub">{{ archive.description }}</div>{% endif %}
-      </div>
+      <button type="button" class="cfa-fold" data-bs-toggle="collapse" data-bs-target="#cfax-archives-body" aria-expanded="true" aria-controls="cfax-archives-body">
+        <i class="bi bi-chevron-right cfa-chev" aria-hidden="true"></i>
+        <span class="cfa-card-t">{% trans "File archives" %} &middot; {{ archives|length }}</span>
+      </button>
       <div class="cfa-card-tools">
-        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_upload' archive.name %}" data-dialog-width="640px">
-          <i class="bi bi-upload" aria-hidden="true"></i> {% trans "Upload file" %}
-        </a>
-        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_archive_edit' archive.name %}" data-dialog-width="640px" title="{% trans 'Edit' %}">
-          <i class="bi bi-pencil" aria-hidden="true"></i>
-        </a>
-        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_archive_delete' archive.name %}" title="{% trans 'Delete' %}">
-          <i class="bi bi-trash" aria-hidden="true"></i>
-        </a>
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter archives' %}" data-cfa-filter="#cfax-archives-table">
       </div>
     </div>
-    {% if archive.files %}
-    <div class="table-responsive">
-      <table class="cfa-table">
-        <thead>
-          <tr>
-            <th>{% trans "File" %}</th>
-            <th>{% trans "Latest" %}</th>
-            <th>{% trans "Size" %}</th>
-            <th>{% trans "Uploaded" %}</th>
-            <th>{% trans "Script header" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in archive.files %}
-          <tr>
-            <td><a href="{{ item.url }}">{{ item.name }}</a></td>
-            <td><span class="cfa-tag cfa-tag-live">v{{ item.latest.version }}</span> <span class="cfa-hint">{{ item.versions|length }} {% trans "kept" %}</span></td>
-            <td>{{ item.size }}</td>
-            <td>{{ item.latest.uploaded_at }}<div class="cfa-hint">{{ item.latest.uploaded_by }}</div></td>
-            <td><span class="cfa-mono"># cb-archive: {{ archive.name }}/{{ item.name }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div id="cfax-archives-body" class="collapse show">
+      <div class="cfa-card-b">
+        {% if archives %}
+        <div class="table-responsive">
+          <table id="cfax-archives-table" class="cfa-table" data-cfa-page-size="20">
+            <thead>
+              <tr>
+                <th>{% trans "Archive" %}</th>
+                <th>{% trans "Files" %}</th>
+                <th>{% trans "Stored" %}</th>
+                <th>{% trans "Last upload" %}</th>
+                <th>{% trans "Created" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in archives %}
+              <tr data-cfa-row>
+                <td>
+                  <a href="{{ row.url }}"><i class="bi bi-folder2" aria-hidden="true"></i> {{ row.name }}</a>
+                  {% if row.description %}<div class="cfa-desc">{{ row.description }}</div>{% endif %}
+                </td>
+                <td>{{ row.file_count }}<div class="cfa-hint">{{ row.version_count }} {% trans "versions" %}</div></td>
+                <td>{{ row.stored }}</td>
+                <td>
+                  {% if row.last_upload %}{{ row.last_upload.uploaded_at }}<div class="cfa-hint">{{ row.last_upload.uploaded_by }}</div>{% else %}<span class="cfa-muted">&mdash;</span>{% endif %}
+                </td>
+                <td>{{ row.created_at }}<div class="cfa-hint">{{ row.created_by }}</div></td>
+                <td>
+                  <div class="cfa-row-tools">
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_upload' row.name %}" data-dialog-width="640px" title="{% trans 'Upload file' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_archive_edit' row.name %}" data-dialog-width="640px" title="{% trans 'Edit' %}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_archive_delete' row.name %}" title="{% trans 'Delete' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="cfa-empty">{% trans "No archives yet. Add one, then upload files to it." %}</div>
+        {% endif %}
+      </div>
     </div>
-    {% else %}
-    <div class="cfa-empty">{% trans "No files yet. Upload one." %}</div>
-    {% endif %}
   </div>
-  {% empty %}
-  <div class="cfa-card">
-    <div class="cfa-empty">{% trans "No archives yet. Add one, then upload files to it." %}</div>
-  </div>
-  {% endfor %}
 
-  <div class="cfa-card">
-    <div class="cfa-card-h"><span class="cfa-card-t">{% trans "Recent activity" %}</span></div>
-    {% if activity %}
-    <div class="table-responsive">
-      <table class="cfa-table">
-        <thead><tr><th>{% trans "When (UTC)" %}</th><th>{% trans "File" %}</th><th>{% trans "Event" %}</th><th>{% trans "Detail" %}</th></tr></thead>
-        <tbody>
-          {% for entry in activity %}
-          <tr>
-            <td class="cfa-mono">{{ entry.at }}</td>
-            <td>{{ entry.ref }}</td>
-            <td><span class="cfa-tag{% if entry.event == 'refused' %} cfa-tag-bad{% elif entry.event == 'downloaded' %} cfa-tag-ok{% endif %}">{{ entry.event }}</span></td>
-            <td>{{ entry.detail }}{% if entry.by %} <span class="cfa-hint">({{ entry.by }})</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="cfa-empty">{% trans "Nothing yet." %}</div>
-    {% endif %}
-  </div>
+  {% include "file_archives/templates/_activity.html" with activity_id="cfax-activity" show_file=True collapsed=True %}
   {% endif %}
 </div>
+<script>window.cfaxInit("cfax-list");</script>
 {% endblock content %}

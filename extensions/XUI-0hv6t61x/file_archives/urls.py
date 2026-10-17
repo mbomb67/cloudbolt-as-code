@@ -8,6 +8,7 @@ xui_urlpatterns = [
     path("xui/file_archives/settings/", views.settings_edit, name="file_archives_settings"),
     path("xui/file_archives/rotate-key/", views.rotate_key, name="file_archives_rotate_key"),
     path("xui/file_archives/archives/add/", views.archive_edit, name="file_archives_archive_add"),
+    path("xui/file_archives/archives/<str:archive>/", views.archive_detail, name="file_archives_archive"),
     path("xui/file_archives/archives/<str:archive>/edit/", views.archive_edit, name="file_archives_archive_edit"),
     path("xui/file_archives/archives/<str:archive>/delete/", views.archive_delete, name="file_archives_archive_delete"),
     path("xui/file_archives/archives/<str:archive>/upload/", views.upload, name="file_archives_upload"),

@@ -53,4 +53,68 @@
   .cfax .cfa-body { padding: 14px 18px; font-size: 13px; font-weight: 600; }
   .cfax .cfa-body p { margin: 0 0 8px; }
   .cfax.cfa-dialog .cfa-alert { padding: 0 0 12px; }
+  .cfax .cfa-card-tools .form-control { width: 220px; max-width: 100%; }
+  .cfax .cfa-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+  .cfax .cfa-fold .cfa-chev { color: var(--cfa-muted); transition: transform .15s ease; }
+  .cfax .cfa-fold:not(.collapsed) .cfa-chev { transform: rotate(90deg); }
+  .cfax .cfa-card-fold > .cfa-card-h { border-bottom: 0; }
+  .cfax .cfa-card-b { border-top: 1px solid var(--cfa-line); }
+  .cfax .cfa-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--cfa-line); font-size: 12.5px; font-weight: 600; color: var(--cfa-muted); }
+  .cfax .cfa-desc { font-size: 12px; font-weight: 600; color: var(--cfa-muted); margin-top: 2px; overflow-wrap: anywhere; }
 </style>
+<script>
+(function () {
+  "use strict";
+  // Wires a page root: client-side pages for every table with
+  // data-cfa-page-size, and row filters (data-cfa-filter="#table") that
+  // page over the matching rows only.
+  window.cfaxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("cfax-ready")) { return; }
+    $root.data("cfax-ready", true);
+
+    function paginate($table) {
+      var size = parseInt($table.attr("data-cfa-page-size"), 10) || 20;
+      var page = 0;
+      var $pager = $('<div class="cfa-pager"></div>');
+      var $after = $table.closest(".table-responsive");
+      ($after.length ? $after : $table).after($pager);
+      function render(reset) {
+        if (reset) { page = 0; }
+        var $rows = $table.find("tbody tr[data-cfa-row]");
+        var $match = $rows.filter(function () { return $(this).data("cfa-match") !== false; });
+        var pages = Math.max(1, Math.ceil($match.length / size));
+        page = Math.max(0, Math.min(page, pages - 1));
+        $rows.hide();
+        $match.slice(page * size, page * size + size).show();
+        $pager.empty().toggle($match.length > size);
+        if ($match.length > size) {
+          var first = page * size + 1;
+          var last = Math.min($match.length, first + size - 1);
+          $pager.append($("<span>").text(first + "–" + last + " of " + $match.length));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cfa-step="-1" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>').prop("disabled", page === 0));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-cfa-step="1" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>').prop("disabled", page >= pages - 1));
+        }
+      }
+      $pager.on("click", "[data-cfa-step]", function () {
+        page += parseInt($(this).attr("data-cfa-step"), 10);
+        render(false);
+      });
+      $table.data("cfa-pager", render);
+      render(true);
+    }
+
+    $root.on("input", "input[data-cfa-filter]", function () {
+      var needle = this.value.toLowerCase();
+      // find() treats the attribute as a selector only, never as HTML.
+      var $table = $root.find($(this).attr("data-cfa-filter"));
+      $table.find("tbody tr[data-cfa-row]").each(function () {
+        $(this).data("cfa-match", this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+      var pager = $table.data("cfa-pager");
+      if (pager) { pager(true); }
+    });
+    $root.find("table[data-cfa-page-size]").each(function () { paginate($(this)); });
+  };
+})();
+</script>
