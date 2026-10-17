@@ -27,6 +27,7 @@ Secrets
   so neither this page's forms nor Run Task carry passwords: password inputs
   (PWD, ETXT) cannot be declared here.
 """
+import keyword
 import re
 from collections import OrderedDict
 
@@ -133,6 +134,8 @@ BASH_RESERVED = {
     "OLDPWD", "OPTARG", "OPTIND", "OSTYPE", "PATH", "PIPESTATUS", "PPID", "PS1", "PS2", "PS4", "PWD",
     "RANDOM", "SECONDS", "SHELL", "SHELLOPTS", "SHLVL", "SUDO", "TERM", "TMPDIR", "UID", "USER",
 }
+# Names the generated plug-in defines or imports.
+PLUGIN_RESERVED = {"kwargs", "run", "set_progress"}
 TEMPLATE_SYNTAX = ("{{", "{%", "{#", "%}", "#}")
 
 
@@ -343,6 +346,8 @@ def clean_inputs(kind, platform, specs):
         if name in names:
             raise ActionError(f"{where}: another input already uses this name.")
         variable = variable_for(kind, platform, name)
+        if kind == "plugin" and (keyword.iskeyword(name) or name in PLUGIN_RESERVED):
+            raise ActionError(f"{where}: '{name}' is a Python keyword or a name the plug-in uses itself.")
         if kind == "script":
             reserved = POWERSHELL_RESERVED if platform == "windows" else BASH_RESERVED
             check = variable[1:].lower() if platform == "windows" else variable
