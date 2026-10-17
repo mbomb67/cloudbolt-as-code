@@ -558,7 +558,9 @@ def build_source(request):
         try:
             compile(source, request["name"], "exec")
         except SyntaxError as err:
-            raise ActionError(f"The plug-in is not valid Python: line {err.lineno - _body_offset(source)}: {err.msg}")
+            line = (err.lineno or 0) - _body_offset(source)
+            where = f"task body line {line}" if line > 0 else "the generated code around the inputs"
+            raise ActionError(f"The plug-in is not valid Python ({where}): {err.msg}")
     elif request["platform"] == "windows" and len(source) > WINDOWS_SCRIPT_BUDGET:
         warnings.append(
             f"The script is {len(source)} characters. Azure Run Command and WinRM pass a Windows script on the "
