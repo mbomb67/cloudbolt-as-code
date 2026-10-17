@@ -159,7 +159,13 @@ PROMPT_SEPARATOR = "__"
 
 
 class WorkflowError(Exception):
-    """A request the workflow code refuses. The message is for the person using the page, form or API."""
+    """A request the workflow code refuses. public_message is written for the
+    person using the page, form or API and holds no internal detail, so it is
+    what responses show."""
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.public_message = message
 
 
 class WorkflowNotFound(WorkflowError):

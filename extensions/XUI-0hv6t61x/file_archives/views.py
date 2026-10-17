@@ -12,6 +12,8 @@ CloudBolt login: CloudBolt's own login_not_required decorator exempts it from
 the login middleware, and the view serves only the exact file version a valid,
 unexpired token names. Anything else is a 404.
 """
+from datetime import datetime
+
 from django.contrib import messages
 from django.core.files.uploadhandler import FileUploadHandler, SkipFile
 from django.http import FileResponse, Http404, HttpResponseRedirect
@@ -65,6 +67,7 @@ def _activity_rows(events):
         archive, _, name = (entry.get("ref") or "").partition("/")
         entry["archive"] = archive
         entry["file"] = name
+        entry["at_text"] = _when(entry.get("at"))
     return events
 
 
@@ -78,6 +81,14 @@ def _human_size(size):
         if size < 1024 or unit == "GB":
             return f"{int(size)} {unit}" if unit == "bytes" else f"{size:.1f} {unit}"
         size /= 1024
+
+
+def _when(stamp):
+    """A stored UTC stamp (2026-10-17T02:15:13Z) as 2026-10-17 02:15 UTC."""
+    try:
+        return datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M UTC")
+    except (TypeError, ValueError):
+        return stamp or ""
 
 
 def _base_url_info(request, fa):
@@ -107,8 +118,9 @@ def _archive_summary(archive):
         "version_count": sum(len(item["versions"]) for item in files),
         "stored": _human_size(stored),
         "created_by": archive.get("created_by", ""),
-        "created_at": archive.get("created_at", ""),
+        "created_text": _when(archive.get("created_at")),
         "last_upload": last,
+        "last_upload_text": _when(last["uploaded_at"]) if last else "",
     }
 
 
@@ -148,6 +160,7 @@ def archive_detail(request, archive):
         item["url"] = _file_url(archive, item["name"])
         item["size"] = _human_size(item["latest"]["size"])
         item["extractable"] = item["name"].lower().endswith(fa.EXTRACTABLE)
+        item["uploaded_text"] = _when(item["latest"]["uploaded_at"])
     context = {
         "uplink": {"url": _page_url(), "label": "File Archives"},
         "archive": info,
@@ -169,6 +182,7 @@ def file_detail(request, archive, name):
         raise Http404
     for meta in versions:
         meta["size_text"] = _human_size(meta["size"])
+        meta["uploaded_text"] = _when(meta["uploaded_at"])
         meta["download_url"] = reverse("file_archives_version_download", args=[archive, name, meta["version"]])
     latest = versions[-1]
     context = {
