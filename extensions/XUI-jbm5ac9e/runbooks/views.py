@@ -158,6 +158,8 @@ def workflow_editor(request, workflow_id=None):
         "data": data,
         "list_url": _page_url(),
         "title": workflow["name"] if workflow else "New workflow",
+        # Breadcrumb above the title, back to the Workflows tab.
+        "uplink": {"url": _page_url(), "label": "Workflows"},
     }
     return render(request, TEMPLATES + "editor.html", context)
 
