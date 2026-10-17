@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "Server Workflows",
+    "dependencies": {
+        "hook": "plugins/OHK-9ewh41dg"
+    },
+    "description": "Endpoint the Run Workflow form calls for the workflows that fit a server, a chosen workflow's steps and prompts, and to save credentials on a server that has none.",
+    "enabled": true,
+    "id": "IWH-xjlrmvc8",
+    "label": "Server Workflows",
+    "last_updated": null,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "server-workflows"
+}

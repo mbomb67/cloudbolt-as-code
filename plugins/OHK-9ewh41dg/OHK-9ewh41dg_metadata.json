@@ -1,0 +1,17 @@
+{
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-nznzhpp0"
+        ]
+    },
+    "description": "Serves the Run Workflow form: the workflows that fit a server, a chosen workflow's steps and prompts, and saving credentials on a server that has none.",
+    "id": "OHK-9ewh41dg",
+    "max_retries": 0,
+    "name": "Server Workflows",
+    "resource_technologies": [],
+    "script_filename": "OHK-9ewh41dg_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

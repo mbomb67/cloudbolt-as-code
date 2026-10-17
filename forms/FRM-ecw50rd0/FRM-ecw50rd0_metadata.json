@@ -1,0 +1,12 @@
+{
+    "css_file": "FRM-ecw50rd0_css.css",
+    "dependencies": {
+        "form_functions": [
+            "form_functions/FJS-kn5lr5am"
+        ]
+    },
+    "id": "FRM-ecw50rd0",
+    "json": "{\"title\": \"Run Workflow\", \"description\": \"Run one of the workflows that fit this server: pick a workflow, fill in what it asks for, and submit.\", \"completedHtml\": \"<p class=\\\"custom-order-form-completed\\\">Your workflow has been submitted.</p>\", \"loadingHtml\": \"<p class=\\\"custom-order-form-loading\\\">Loading workflows...</p>\", \"showQuestionNumbers\": \"off\", \"clearInvisibleValues\": \"none\", \"completeText\": \"Run\", \"questionTitleLocation\": \"top\", \"pages\": [{\"name\": \"run_workflow\", \"elements\": [{\"type\": \"text\", \"name\": \"custom_form_id\", \"visible\": false, \"defaultValue\": \"FRM-ecw50rd0\", \"readOnly\": true}, {\"type\": \"text\", \"name\": \"server_workflow_form\", \"visible\": false, \"defaultValueExpression\": \"serverWorkflowForm({object_id})\"}, {\"type\": \"dropdown\", \"name\": \"action-input.workflow\", \"title\": \"Workflow\", \"description\": \"The workflows that can run on this server.\", \"isRequired\": true, \"choices\": [], \"placeholder\": \"Loading workflows...\"}, {\"type\": \"html\", \"name\": \"server_workflow_note\", \"visible\": false, \"html\": \"\"}, {\"type\": \"paneldynamic\", \"name\": \"action-input.workflow_inputs\", \"title\": \"Workflow inputs\", \"visible\": false, \"templateElements\": [], \"panelCount\": 0, \"minPanelCount\": 0, \"maxPanelCount\": 1, \"allowAddPanel\": false, \"allowRemovePanel\": false}]}]}",
+    "rendering_mode": "jquery",
+    "supported_languages": ""
+}

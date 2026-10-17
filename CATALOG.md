@@ -5,20 +5,20 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Packages](#packages) | 6 |
-| [Blueprints](#blueprints) | 27 |
+| [Packages](#packages) | 7 |
+| [Blueprints](#blueprints) | 28 |
 | [Resource actions](#resource-actions) | 37 |
-| [Server actions](#server-actions) | 2 |
+| [Server actions](#server-actions) | 3 |
 | [Orchestration actions](#orchestration-actions) | 21 |
 | [Recurring jobs](#recurring-jobs) | 5 |
-| [Webhooks](#webhooks) | 4 |
+| [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 146 |
-| [Shared modules](#shared-modules) | 20 |
-| [UI extensions](#ui-extensions) | 11 |
+| [Plugins](#plugins) | 148 |
+| [Shared modules](#shared-modules) | 21 |
+| [UI extensions](#ui-extensions) | 12 |
 | [Parameters](#parameters) | 2 |
-| [Forms](#forms) | 13 |
-| [Form functions](#form-functions) | 5 |
+| [Forms](#forms) | 15 |
+| [Form functions](#form-functions) | 7 |
 
 ## Packages
 
@@ -31,6 +31,7 @@ Named sets of content that the Content Package Manager extension (`extensions/XU
 | Data Disks from a Disk Map | [PKG-zny1ynfs](packages/PKG-zny1ynfs/README.md) | Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest. | 1.0.0 | [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) (blueprint), [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Oracle Linux)](orchestration_actions/HPA-4ptcwgg4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Windows)](orchestration_actions/HPA-42uy9dyo/README.md) (orchestration action), [Data Disks](parameters/CF-q3bexgap/README.md) (parameter) |
 | HCP Terraform | [PKG-0bo7vlxp](packages/PKG-0bo7vlxp/README.md) | Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs. | 1.0.0 | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) (blueprint), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) (blueprint), [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) (blueprint), [Form Options](webhooks/IWH-yj93is5z/) (webhook), [HCP Terraform Workspace](extensions/XUI-ax1sluwi/README.md) (UI extension) |
 | Server Tasks | [PKG-93egd3on](packages/PKG-93egd3on/README.md) | Adds one Run Task server action that lists the Remote Scripts that can run on a server and runs the chosen one with its own inputs, plus Windows and Linux base task scripts and two service-management examples. | 1.0.0 | [Server Task Template (Windows)](plugins/OHK-lhm2916o/) (plugin), [Server Task Template (Linux)](plugins/OHK-iub9a2jg/) (plugin), [Manage Windows Service](plugins/OHK-01kmavro/) (plugin), [Manage Linux Service](plugins/OHK-5yh12jiq/) (plugin), [Server Tasks](webhooks/IWH-cdf543g3/) (webhook), [Run Task](server_actions/SVA-4sin3s0q/README.md) (server action) |
+| Server Workflows | [PKG-vfnycv8s](packages/PKG-vfnycv8s/README.md) | Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, the Server Workflows admin page for building workflows, and an example blueprint that runs a workflow on the server it deploys. | 1.0.0 | [Run Workflow](server_actions/SVA-j7rbsh39/README.md) (server action), [Server Workflows](webhooks/IWH-xjlrmvc8/) (webhook), [Server Workflows](extensions/XUI-jbm5ac9e/README.md) (UI extension), [Server with Workflow](blueprints/BP-vy9ytey6/README.md) (blueprint) |
 | Windows AD Domain Join | [PKG-nf407lm5](packages/PKG-nf407lm5/README.md) | Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission. | 1.0.0 | [Delete Windows Computer Object from AD](orchestration_actions/HPA-q181uofy/README.md) (orchestration action), [Join Windows Server to AD Domain](orchestration_actions/HPA-jjp1vlfi/README.md) (orchestration action), [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) (orchestration action), [Domain OU](parameters/CF-8pif9mbf/README.md) (parameter) |
 
 ## Blueprints
@@ -64,6 +65,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | Run an Azure PowerShell Script (Deployment Script) | [BP-qo1stxre](blueprints/BP-qo1stxre/README.md) | Runs one of a catalog of Azure PowerShell Remote Scripts against the Azure subscription of a chosen Environment in a Microsoft-managed container started per run through an ARM deployment script, with no server to maintain and the sign-in handled by CloudBolt from the environment's resource handler. |
 | Run Aria Orchestrator Workflow | [BP-f5y1fhe9](blueprints/BP-f5y1fhe9/README.md) | Runs an Aria Orchestrator workflow as a CloudBolt resource build, stores the workflow outputs on the resource, and runs it again with teardown parameters on delete. |
 | Server with Data Disks | [BP-g9zwqjoa](blueprints/BP-g9zwqjoa/README.md) | Deploys a Windows Server or Oracle Linux VM whose order form turns the environment's disk_map parameter into a table of data disks, which the disk map orchestration actions attach and prepare inside the guest. |
+| Server with Workflow | [BP-vy9ytey6](blueprints/BP-vy9ytey6/README.md) | Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item. |
 | Windows File Server | [BP-psw7rclb](blueprints/BP-psw7rclb/README.md) | Deploys a Windows server and installs the File Server role. |
 | Windows Server with Data Disks | [BP-9ph7xcok](blueprints/BP-9ph7xcok/README.md) | Deploys a Windows Server 2025 VM with an order-time list of data disks, attaching each one and then matching it inside the guest by serial number or SCSI address to initialize, letter, label, and format it. |
 
@@ -119,6 +121,7 @@ Day-2 actions on servers.
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](server_actions/SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](plugins/OHK-5wpzgw68/) |
 | Run Task | [SVA-4sin3s0q](server_actions/SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid. | [Run Task](plugins/OHK-o4tgygjs/) |
+| Run Workflow | [SVA-j7rbsh39](server_actions/SVA-j7rbsh39/README.md) | Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server. | [Run Workflow](plugins/OHK-69gk5ne9/) |
 
 ## Orchestration actions
 
@@ -170,6 +173,7 @@ Inbound REST endpoints.
 | Azure PS Script Panel | [IWH-vfkvduxm](webhooks/IWH-vfkvduxm/) | GET endpoint the Run an Azure PowerShell Script order form calls to fetch the SurveyJS fields for the chosen catalog script's declared action inputs. | [Azure PS Script Panel](plugins/OHK-bvn2l7q1/) |
 | Form Options | [IWH-yj93is5z](webhooks/IWH-yj93is5z/) | GET endpoint that custom forms call to fill dropdowns from a CloudBolt Environment (resource groups, subnets, images, sizes, any custom field), from an HCP Terraform no-code module's variable options, or to build a deployed resource's Terraform Update variables panel. | [Form Options](plugins/OHK-fx500o2r/) |
 | Server Tasks | [IWH-cdf543g3](webhooks/IWH-cdf543g3/) | Endpoint the Run Task form calls for the tasks that fit a server, a chosen task's inputs, and to save credentials on a server that has none. | [Server Tasks](plugins/OHK-bf3iyg9j/) |
+| Server Workflows | [IWH-xjlrmvc8](webhooks/IWH-xjlrmvc8/) | Endpoint the Run Workflow form calls for the workflows that fit a server, a chosen workflow's steps and prompts, and to save credentials on a server that has none. | [Server Workflows](plugins/OHK-9ewh41dg/) |
 
 ## MCP tool actions
 
@@ -310,10 +314,12 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Run Recurring Job | [OHK-qduf79xu](plugins/OHK-qduf79xu/) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | CloudBolt Plug-in | [Run Recurring Job](mcp_tool_actions/MTA-thkvyt0v/README.md) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
 | Run Task | [OHK-o4tgygjs](plugins/OHK-o4tgygjs/) | Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid. | CloudBolt Plug-in | [Run Task](server_actions/SVA-4sin3s0q/README.md) |
+| Run Workflow | [OHK-69gk5ne9](plugins/OHK-69gk5ne9/) | Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server. | CloudBolt Plug-in | [Run Workflow](server_actions/SVA-j7rbsh39/README.md), [Server with Workflow](blueprints/BP-vy9ytey6/README.md) |
 | Scale AWS EKS Nodegroup | [OHK-x1984ik1](plugins/OHK-x1984ik1/) | Changes a managed node group's minimum, maximum, and desired node counts, waits for AWS to apply them, and refreshes the node group sub-resource. | CloudBolt Plug-in | [Scale AWS EKS Nodegroup](resource_actions/RSA-inhs50gi/) |
 | Server Task Template (Linux) | [OHK-iub9a2jg](plugins/OHK-iub9a2jg/) | Base bash script for Run Task server tasks: prints a summary of the Linux server and an optional message, and shows the input, logging and error conventions to copy. | Remote Script | standalone |
 | Server Task Template (Windows) | [OHK-lhm2916o](plugins/OHK-lhm2916o/) | Base PowerShell script for Run Task server tasks: prints a summary of the Windows server and an optional message, and shows the input, logging and error conventions to copy. | Remote Script | standalone |
 | Server Tasks | [OHK-bf3iyg9j](plugins/OHK-bf3iyg9j/) | Serves the Run Task form: the tasks that fit a server, a chosen task's inputs, and saving credentials on a server that has none. | CloudBolt Plug-in | [Server Tasks](webhooks/IWH-cdf543g3/) |
+| Server Workflows | [OHK-9ewh41dg](plugins/OHK-9ewh41dg/) | Serves the Run Workflow form: the workflows that fit a server, a chosen workflow's steps and prompts, and saving credentials on a server that has none. | CloudBolt Plug-in | [Server Workflows](webhooks/IWH-xjlrmvc8/) |
 | ServiceNow Request Approval Sync | [OHK-bsqictlo](plugins/OHK-bsqictlo/) | Approves or denies pending CloudBolt orders to match the approval recorded on their ServiceNow RITM, and closes the RITM of orders cancelled in CloudBolt. | CloudBolt Plug-in | [ServiceNow Request Approval Sync](recurring_jobs/RJB-do33f7f3/README.md) |
 | ServiceNow Request: Close | [OHK-htrxkps2](plugins/OHK-htrxkps2/) | Closes the order's ServiceNow RITM complete or incomplete, attaches the CIs of the servers it produced as Affected CIs and as the RITM's configuration item, and links the created objects to the records. | CloudBolt Plug-in | [ServiceNow Request: Close on Completion](orchestration_actions/HPA-fxo5hujp/README.md) |
 | ServiceNow Request: Close on Denial | [OHK-w8exctx7](plugins/OHK-w8exctx7/) | Closes the order's ServiceNow RITM as incomplete when a CloudBolt approver denies the order. | CloudBolt Plug-in | [ServiceNow Request: Close on Denial](orchestration_actions/HPA-i8r5x2kc/README.md) |
@@ -361,7 +367,8 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
-| `server_tasks` | [SHM-571l7249](shared_modules/SHM-571l7249/) | Finds the Remote Scripts that can run on a server, checks credentials and task inputs, and runs a chosen script for the Run Task server action and its form webhook. | [Run Task](plugins/OHK-o4tgygjs/), [Server Tasks](plugins/OHK-bf3iyg9j/) |
+| `server_tasks` | [SHM-571l7249](shared_modules/SHM-571l7249/) | Finds the Remote Scripts that can run on a server, checks credentials and task inputs, and runs a chosen script for the Run Task server action and its form webhook. | [Run Task](plugins/OHK-o4tgygjs/), [Server Tasks](plugins/OHK-bf3iyg9j/), [server_workflows](shared_modules/SHM-nznzhpp0/) |
+| `server_workflows` | [SHM-nznzhpp0](shared_modules/SHM-nznzhpp0/) | Stores server workflows, works out which workflows and step actions fit a server or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them. | [Run Workflow](plugins/OHK-69gk5ne9/), [Server Workflows](plugins/OHK-9ewh41dg/) |
 | `servicenow_requests` | [SHM-ww6b1uwj](shared_modules/SHM-ww6b1uwj/) | ServiceNow REQ/RITM client plus the order-summary, catalog-variable, and identifier-storage helpers shared by the ServiceNow request actions. | [ServiceNow Request Approval Sync](plugins/OHK-bsqictlo/), [ServiceNow Request: Close](plugins/OHK-htrxkps2/), [ServiceNow Request: Close on Denial](plugins/OHK-w8exctx7/), [ServiceNow Request: Open](plugins/OHK-o4qmnffy/) |
 | `tfc_api` | [SHM-jlguerjr](shared_modules/SHM-jlguerjr/) | HCP Terraform REST client and run engine for workspace-per-deployment provisioning. | [Deploy Latest Version](plugins/OHK-4y8f1vff/), [Discover HCP Terraform No-Code Workspaces](plugins/OHK-b1n02ula/), [Form Options](plugins/OHK-fx500o2r/), [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
 | `vm_adoption` | [SHM-9h13o859](shared_modules/SHM-9h13o859/) | Adopts the VMs a Terraform deployment created (from its cloudbolt_vm_ids output) as CloudBolt Server records under the resource, hydrated through the Azure, AWS, or VMware handler, and retires them on teardown. | [Deploy Latest Version](plugins/OHK-4y8f1vff/), [HCP Terraform No-Code Module](plugins/OHK-axtt0yqq/), [HCP Terraform VM](plugins/OHK-pvo05e24/), [Resize](plugins/OHK-9xffkz53/), [Teardown HCP Terraform No-Code Module](plugins/OHK-y9d1uwhw/), [Teardown HCP Terraform VM](plugins/OHK-2b9qu490/), [Terraform Update](plugins/OHK-lvy5tj0y/) |
@@ -382,6 +389,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |
+| Server Workflows | [XUI-jbm5ac9e](extensions/XUI-jbm5ac9e/README.md) | Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action. |
 | Ssm Inventory | [XUI-l43ailkn](extensions/XUI-l43ailkn/README.md) | Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager. |
 | Technology Reference | [XUI-vwrd15py](extensions/XUI-vwrd15py/README.md) | Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx. |
 
@@ -410,7 +418,9 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | Run an Azure PowerShell Script | [FRM-mfveruw6](forms/FRM-mfveruw6/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script](blueprints/BP-jvvjm3te/README.md) |
 | Run an Azure PowerShell Script (Deployment Script) | [FRM-qfupiiyj](forms/FRM-qfupiiyj/) | Runs one of this blueprint's Azure PowerShell scripts against the Azure subscription behind the Environment you choose, in a container Azure starts for the run. CloudBolt signs the session in; no credentials are entered here. | [Run an Azure PowerShell Script (Deployment Script)](blueprints/BP-qo1stxre/README.md) |
 | Run Task | [FRM-a5edrdj4](forms/FRM-a5edrdj4/) | Run one of the tasks that fit this server: pick a task, fill in its inputs, and submit. | orphan |
+| Run Workflow | [FRM-ecw50rd0](forms/FRM-ecw50rd0/) | Run one of the workflows that fit this server: pick a workflow, fill in what it asks for, and submit. | orphan |
 | Server with Data Disks | [FRM-58d5rxg8](forms/FRM-58d5rxg8/) | Deploys a Windows Server or Oracle Linux VM with the data disks you list, each prepared inside the guest. | [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) |
+| Server with Workflow | [FRM-j7w530h7](forms/FRM-j7w530h7/) | Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it. | [Server with Workflow](blueprints/BP-vy9ytey6/README.md) |
 | Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |
 | Windows Server with Data Disks | [FRM-jqnr84d0](forms/FRM-jqnr84d0/) | Deploys a Windows Server 2025 VM with the data disks you list below, each initialized, lettered, labeled, and formatted inside the guest. | [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) |
 
@@ -424,4 +434,6 @@ Form JavaScript helpers. A function syncs only as a dependency of a form.
 | dataDiskLetterFree | [FJS-sq7c76cc](form_functions/FJS-sq7c76cc/) | Form function for the Windows Server with Data Disks order form: hides a drive letter in a Data Disks row once another row uses it. | [Windows Server with Data Disks](forms/FRM-jqnr84d0/) |
 | dataDiskMapForm | [FJS-1h4v6wx2](form_functions/FJS-1h4v6wx2/) | Async form function that turns an environment's disk_map parameter into a Data Disks table whose columns follow the selected OS build, writing the rows back to disk_map as a JSON list. | [Server with Data Disks](forms/FRM-58d5rxg8/) |
 | serverTaskForm | [FJS-m3awusu7](form_functions/FJS-m3awusu7/) | Async form function for the Run Task form: loads the chosen task's inputs into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form. | [Run Task](forms/FRM-a5edrdj4/) |
+| serverWorkflowForm | [FJS-kn5lr5am](form_functions/FJS-kn5lr5am/) | Async form function for the Run Workflow form: loads the chosen workflow's steps and prompts into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form. | [Run Workflow](forms/FRM-ecw50rd0/) |
+| serverWorkflowItems | [FJS-hufo9zd4](form_functions/FJS-hufo9zd4/) | Async form function for blueprint custom forms with Run Workflow build items: replaces each item's Workflow inputs box with a panel of the chosen or pinned workflow's prompts and writes the answers back as the item's input. | [Server with Workflow](forms/FRM-j7w530h7/) |
 | tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |

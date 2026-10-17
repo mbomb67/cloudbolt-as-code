@@ -418,6 +418,22 @@
     ]
   },
   {
+    "id": "BP-vy9ytey6",
+    "type": "blueprints",
+    "name": "Server with Workflow",
+    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "path": "blueprints/BP-vy9ytey6",
+    "readme": "blueprints/BP-vy9ytey6/README.md",
+    "uses": [
+      "forms/FRM-j7w530h7",
+      "plugins/OHK-69gk5ne9"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-vfnycv8s"
+    ]
+  },
+  {
     "id": "BP-zmeot1ff",
     "type": "blueprints",
     "name": "Azure Resource Group",
@@ -543,6 +559,20 @@
     "enabled": true
   },
   {
+    "id": "XUI-jbm5ac9e",
+    "type": "extensions",
+    "name": "Server Workflows",
+    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action.",
+    "path": "extensions/XUI-jbm5ac9e",
+    "readme": "extensions/XUI-jbm5ac9e/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-vfnycv8s"
+    ]
+  },
+  {
     "id": "XUI-l43ailkn",
     "type": "extensions",
     "name": "Ssm Inventory",
@@ -585,6 +615,30 @@
     "uses": [],
     "used_by": [
       "forms/FRM-58d5rxg8"
+    ]
+  },
+  {
+    "id": "FJS-hufo9zd4",
+    "type": "form_functions",
+    "name": "serverWorkflowItems",
+    "description": "Async form function for blueprint custom forms with Run Workflow build items: replaces each item's Workflow inputs box with a panel of the chosen or pinned workflow's prompts and writes the answers back as the item's input.",
+    "path": "form_functions/FJS-hufo9zd4",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-j7w530h7"
+    ]
+  },
+  {
+    "id": "FJS-kn5lr5am",
+    "type": "form_functions",
+    "name": "serverWorkflowForm",
+    "description": "Async form function for the Run Workflow form: loads the chosen workflow's steps and prompts into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form.",
+    "path": "form_functions/FJS-kn5lr5am",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-ecw50rd0"
     ]
   },
   {
@@ -713,6 +767,20 @@
     ]
   },
   {
+    "id": "FRM-ecw50rd0",
+    "type": "forms",
+    "name": "Run Workflow",
+    "description": "Run one of the workflows that fit this server: pick a workflow, fill in what it asks for, and submit.",
+    "path": "forms/FRM-ecw50rd0",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-kn5lr5am"
+    ],
+    "used_by": [
+      "server_actions/SVA-j7rbsh39"
+    ]
+  },
+  {
     "id": "FRM-h4py5w3a",
     "type": "forms",
     "name": "Terraform Update",
@@ -748,6 +816,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-p7zmh96m"
+    ]
+  },
+  {
+    "id": "FRM-j7w530h7",
+    "type": "forms",
+    "name": "Server with Workflow",
+    "description": "Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it.",
+    "path": "forms/FRM-j7w530h7",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-hufo9zd4"
+    ],
+    "used_by": [
+      "blueprints/BP-vy9ytey6"
     ]
   },
   {
@@ -1350,6 +1432,23 @@
     ]
   },
   {
+    "id": "PKG-vfnycv8s",
+    "type": "packages",
+    "name": "Server Workflows",
+    "description": "Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, the Server Workflows admin page for building workflows, and an example blueprint that runs a workflow on the server it deploys.",
+    "path": "packages/PKG-vfnycv8s",
+    "readme": "packages/PKG-vfnycv8s/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "server_actions/SVA-j7rbsh39",
+      "webhooks/IWH-xjlrmvc8",
+      "extensions/XUI-jbm5ac9e",
+      "blueprints/BP-vy9ytey6"
+    ]
+  },
+  {
     "id": "PKG-zny1ynfs",
     "type": "packages",
     "name": "Data Disks from a Disk Map",
@@ -1777,6 +1876,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-69gk5ne9",
+    "type": "plugins",
+    "name": "Run Workflow",
+    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
+    "path": "plugins/OHK-69gk5ne9",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-nznzhpp0"
+    ],
+    "used_by": [
+      "server_actions/SVA-j7rbsh39",
+      "blueprints/BP-vy9ytey6"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-7987st2p",
     "type": "plugins",
     "name": "Azure Network Security Group Build",
@@ -1904,6 +2019,21 @@
     "readme": "plugins/OHK-9csbq3zd/README.md",
     "uses": [],
     "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9ewh41dg",
+    "type": "plugins",
+    "name": "Server Workflows",
+    "description": "Serves the Run Workflow form: the workflows that fit a server, a chosen workflow's steps and prompts, and saving credentials on a server that has none.",
+    "path": "plugins/OHK-9ewh41dg",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-nznzhpp0"
+    ],
+    "used_by": [
+      "webhooks/IWH-xjlrmvc8"
+    ],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -4103,6 +4233,23 @@
     ]
   },
   {
+    "id": "SVA-j7rbsh39",
+    "type": "server_actions",
+    "name": "Run Workflow",
+    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
+    "path": "server_actions/SVA-j7rbsh39",
+    "readme": "server_actions/SVA-j7rbsh39/README.md",
+    "uses": [
+      "forms/FRM-ecw50rd0",
+      "plugins/OHK-69gk5ne9"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-vfnycv8s"
+    ]
+  },
+  {
     "id": "SVA-mwbtjfr0",
     "type": "server_actions",
     "name": "Deploy AWS App Migration Agent",
@@ -4125,7 +4272,8 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-o4tgygjs",
-      "plugins/OHK-bf3iyg9j"
+      "plugins/OHK-bf3iyg9j",
+      "shared_modules/SHM-nznzhpp0"
     ]
   },
   {
@@ -4313,6 +4461,21 @@
     ]
   },
   {
+    "id": "SHM-nznzhpp0",
+    "type": "shared_modules",
+    "name": "server_workflows",
+    "description": "Stores server workflows, works out which workflows and step actions fit a server or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "path": "shared_modules/SHM-nznzhpp0",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-571l7249"
+    ],
+    "used_by": [
+      "plugins/OHK-69gk5ne9",
+      "plugins/OHK-9ewh41dg"
+    ]
+  },
+  {
     "id": "SHM-qmiweowv",
     "type": "shared_modules",
     "name": "openshift_landing_zone",
@@ -4452,6 +4615,22 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "IWH-xjlrmvc8",
+    "type": "webhooks",
+    "name": "Server Workflows",
+    "description": "Endpoint the Run Workflow form calls for the workflows that fit a server, a chosen workflow's steps and prompts, and to save credentials on a server that has none.",
+    "path": "webhooks/IWH-xjlrmvc8",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-9ewh41dg"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-vfnycv8s"
+    ]
   },
   {
     "id": "IWH-xr0508nf",
