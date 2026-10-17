@@ -37,7 +37,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values; pre-filled with the chosen workflow's prompts. In a blueprint, a prompt left empty takes a same-named parameter of the resource or server. Plain text: never put a password here.",
+            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values; pre-filled with the chosen workflow's prompts. In a blueprint, a prompt left empty takes a same-named parameter of the VM, or of the resource in a blueprint that creates one. Plain text: never put a password here.",
             "field-dependency-controlling-set": [
                 {
                     "controlling-field": {
