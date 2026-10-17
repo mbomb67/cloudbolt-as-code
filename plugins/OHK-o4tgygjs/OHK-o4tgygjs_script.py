@@ -79,7 +79,7 @@ def run(job=None, server=None, servers=None, task=None, task_inputs=None, **kwar
             "Run Task form, or set them on the VM or on the Remote Script, and run the task again.",
         )
 
-    set_progress(f"Task '{hook.name}' on {len(targets)} server(s), inputs: {', '.join(inputs) or 'none'}")
+    set_progress(f"Task '{hook.name}' on {len(targets)} VM(s), inputs: {', '.join(inputs) or 'none'}")
     outputs, failures, published = [], [], {}
     for target in targets:
         set_progress(f"{target.hostname}: running '{hook.name}'")

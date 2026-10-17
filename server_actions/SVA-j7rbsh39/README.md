@@ -45,10 +45,10 @@ Password and object-type inputs (PWD, ETXT, networks, files, ...) can be neither
 - With several VMs selected, each VM gets its own child job, all started at once.
 
 ## From a blueprint
-The Run Workflow plug-in is also a blueprint build item: add it after the VM item, as [VM with Workflow](../../blueprints/BP-vy9ytey6/) does. It runs on the VMs of the order's resource.
+The Run Workflow plug-in is also a blueprint build item: add it after the VM item, as [VM with Workflow](../../blueprints/BP-vy9ytey6/) does. It runs on the VMs the order built, or on the resource's VMs in a blueprint that creates a resource.
 - **Pinned**: give the item's Workflow input a default (the workflow's name), which hides it on the order form.
 - **User's choice**: leave it without a default and the order form lists every enabled workflow. On a custom form with the form function `runbookWorkflowItems` (FJS-hufo9zd4), the chosen workflow's prompts appear as a panel of their own; on the native form, Workflow inputs pre-fills them as JSON.
-- A prompt left empty takes a same-named parameter of the resource, else of the VM.
+- A prompt left empty takes a same-named parameter of the resource (when the blueprint creates one), else of the VM.
 - The item's outputs are the run's step outputs, for later build items.
 
 ## Notes

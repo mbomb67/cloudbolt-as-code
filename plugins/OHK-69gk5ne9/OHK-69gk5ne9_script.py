@@ -9,8 +9,10 @@ runner live in the runbook_workflows shared module
 (shared_modules/SHM-nznzhpp0).
 
 As a blueprint build item (after the VM item, for example
-blueprints/BP-vy9ytey6) it runs on the VMs of the resource the order
-deployed. An admin pins the workflow by giving the item's Workflow input a
+blueprints/BP-vy9ytey6) it runs on the VMs the order built: the
+resource's VMs when the blueprint creates a resource, else the VMs its VM
+items built (CloudBolt then passes a build item neither a resource nor
+VMs). An admin pins the workflow by giving the item's Workflow input a
 default (the workflow's name or SWF- id), which hides it on the order form;
 without a default the user picks one. A prompt the order does not answer in
 Workflow inputs takes the value of a parameter with the same name on the
@@ -135,20 +137,36 @@ def _resource_servers(resource):
     return list(resource.server_set.filter(status="ACTIVE").order_by("hostname"))
 
 
+def _order_servers(job):
+    """
+    The active VMs a blueprint order built, for a blueprint that creates no
+    resource. Each VM item runs as a job under the same deploy job as this
+    build item, and CloudBolt links each VM to the job that built it.
+    """
+    parent = getattr(job, "parent_job", None) if job is not None else None
+    if parent is None:
+        return []
+    from infrastructure.models import Server
+
+    return list(
+        Server.objects.filter(jobs__parent_job=parent, status="ACTIVE").distinct().order_by("hostname")
+    )
+
+
 def run(job=None, server=None, servers=None, resource=None, workflow=None, workflow_inputs=None, **kwargs):
     targets = _targets(server, servers)
-    from_blueprint = not targets and resource is not None
+    # No VMs passed in: a blueprint build item.
+    from_blueprint = not targets
     if from_blueprint:
-        targets = _resource_servers(resource)
+        targets = _resource_servers(resource) if resource is not None else _order_servers(job)
         if not targets:
+            where = f"on {resource.name}" if resource is not None else "in this order"
             return (
                 "FAILURE",
                 "",
-                f"Run Workflow found no active VMs on {resource.name}; put this build item after the "
+                f"Run Workflow found no active VMs {where}; put this build item after the "
                 "blueprint's VM item.",
             )
-    if not targets:
-        return "FAILURE", "", "Run Workflow needs at least one VM."
 
     try:
         chosen = swf.resolve_workflow(workflow)
@@ -166,7 +184,7 @@ def run(job=None, server=None, servers=None, resource=None, workflow=None, workf
         return "FAILURE", "", "The workflow cannot start:\n" + "\n".join(problems)
 
     set_progress(
-        f"Workflow '{chosen['name']}': {len(steps)} step(s) on {len(targets)} server(s): "
+        f"Workflow '{chosen['name']}': {len(steps)} step(s) on {len(targets)} VM(s): "
         + ", ".join(step.name for step in steps)
     )
     if len(targets) > 1:
