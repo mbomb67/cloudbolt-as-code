@@ -1419,7 +1419,7 @@
     "id": "PKG-v20qv308",
     "type": "packages",
     "name": "Server Automation",
-    "description": "Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base and example task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow.",
+    "description": "Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base, example and file-installer task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow.",
     "path": "packages/PKG-v20qv308",
     "readme": "packages/PKG-v20qv308/README.md",
     "uses": [],
@@ -1430,6 +1430,8 @@
       "plugins/OHK-iub9a2jg",
       "plugins/OHK-01kmavro",
       "plugins/OHK-5yh12jiq",
+      "plugins/OHK-hgv6wp65",
+      "plugins/OHK-ow68kerl",
       "webhooks/IWH-cdf543g3",
       "webhooks/IWH-xjlrmvc8",
       "server_actions/SVA-4sin3s0q",
@@ -2652,7 +2654,10 @@
     "readme": null,
     "uses": [],
     "used_by": [],
-    "plugin_type": "Remote Script"
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "OHK-htrxkps2",
@@ -2947,7 +2952,10 @@
     "readme": null,
     "uses": [],
     "used_by": [],
-    "plugin_type": "Remote Script"
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "OHK-ow9x0amc",
