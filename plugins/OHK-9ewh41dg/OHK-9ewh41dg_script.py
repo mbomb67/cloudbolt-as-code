@@ -16,6 +16,11 @@ GET ?source=prompts&server=<id>[&servers=<ids>]&workflow=<value>
     credentials for a script step:
     {"panel": {title, description, elements, steps, blocking},
      "credentials": {"needed": [hostnames], "can_save": bool}}.
+GET ?source=workflows  or  ?source=prompts&workflow=<value>, with no server
+    The same for a blueprint order form, where no server exists yet: every
+    enabled workflow, or the workflow's prompts without the checks that need
+    a server. The Run Workflow build item's form function
+    (form_functions/FJS-hufo9zd4, serverWorkflowItems) calls this.
 POST {"source": "credentials", "server": <id>, "username": ..., "password": ...}
     Saves a username and password on the server, as CloudBolt's own
     credential prompt does (needs Manage Credentials on that server):
@@ -88,11 +93,32 @@ def _credentials(workflow, servers, profile):
     return {"needed": [server.hostname for server in needed], "can_save": can_save}
 
 
+def _order_form(source, parameters, profile):
+    """
+    A blueprint order form (no server yet): every enabled workflow, or a
+    workflow's prompts without the checks that need a server.
+    """
+    if source == "workflows":
+        return {"options": [{"value": value, "title": title} for value, title in swf.workflow_options([])]}
+    value = _param(parameters, "workflow")
+    if not value:
+        return {"panel": None, "credentials": {"needed": [], "can_save": False}}
+    workflow = swf.resolve_workflow(value)
+    return {
+        "panel": swf.prompt_panel(workflow, [], profile=profile),
+        "credentials": {"needed": [], "can_save": False},
+    }
+
+
 def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     if profile is None:
         return _error(403, "Sign in to CloudBolt to use this form.")
     source = _param(parameters, "source")
     try:
+        if source in ("workflows", "prompts") and not (
+            _param(parameters, "server") or _param(parameters, "object_id")
+        ):
+            return _order_form(source, parameters, profile)
         servers = _servers(parameters, profile)
         if source == "workflows":
             options = swf.workflow_options(servers)
