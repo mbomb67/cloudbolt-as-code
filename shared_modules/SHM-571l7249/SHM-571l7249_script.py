@@ -37,6 +37,7 @@ import os
 import re
 import time
 
+from behavior_mapping.models import CustomFieldMapping
 from cbhooks.models import CopyFileAction, OrchestrationHook, RemoteScriptHook
 from common.methods import set_progress
 from cbhooks.services.parsing import get_hook_action_input_dict
@@ -338,6 +339,19 @@ def input_label(field):
     return field.label or field.simple_name
 
 
+def input_regex(field):
+    """
+    The input's validation regex. CloudBolt keeps it on the field's global
+    constraint mapping (regex_constraint, applied with re.match to text
+    inputs); value_pattern_string is a display format string, not a regex.
+    """
+    try:
+        mapping = CustomFieldMapping.global_constraints.filter(custom_field=field).first()
+    except Exception:
+        return ""
+    return (getattr(mapping, "regex_constraint", "") or "") if mapping else ""
+
+
 def input_options(field):
     try:
         return [str(option) for option in field.get_global_options()]
@@ -374,10 +388,10 @@ def input_element(field):
         input_type = {"INT": "number", "DEC": "number", "DT": "date", "DTM": "datetime-local", "URL": "url"}
         if field.type in input_type:
             element["inputType"] = input_type[field.type]
-    if field.value_pattern_string and element["type"] in ("text", "comment"):
-        element["validators"] = [
-            {"type": "regex", "regex": field.value_pattern_string, "text": f"Must match {field.value_pattern_string}"}
-        ]
+    pattern = input_regex(field)
+    if pattern and element["type"] in ("text", "comment"):
+        # CloudBolt matches from the start (re.match); a JavaScript regex searches anywhere.
+        element["validators"] = [{"type": "regex", "regex": f"^(?:{pattern})", "text": f"Must match {pattern}"}]
     default = _default(field)
     if default not in (None, ""):
         element["defaultValue"] = default
@@ -472,8 +486,9 @@ def _coerce_one(field, label, value):
     options = input_options(field)
     if options and text not in options:
         raise TaskError(f"{label} must be one of: {', '.join(options)}.")
-    if field.value_pattern_string and not re.search(field.value_pattern_string, text):
-        raise TaskError(f"{label} must match {field.value_pattern_string}.")
+    pattern = input_regex(field)
+    if pattern and not re.match(pattern, text):
+        raise TaskError(f"{label} must match {pattern}.")
     return text
 
 
