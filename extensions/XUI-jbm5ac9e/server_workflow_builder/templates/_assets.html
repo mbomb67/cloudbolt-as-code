@@ -93,5 +93,14 @@
   .swfx .swf-section-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; background: none; border: 0; border-top: 1px solid var(--swf-line); font-size: 12.5px; font-weight: 700; text-align: left; color: var(--swf-muted); }
   .swfx .swf-footer { display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--swf-line); }
   .swfx .swf-spin { display: inline-block; animation: swf-spin 1s linear infinite; }
+  /* Folding cards and steps, the Enabled switch in the top card, the list pager */
+  .swfx .swf-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: inherit; text-align: left; }
+  .swfx .swf-fold .swf-chev { color: var(--swf-muted); transition: transform .15s ease; }
+  .swfx .swf-fold:not(.collapsed) .swf-chev { transform: rotate(90deg); }
+  .swfx .swf-step-fold { font-size: 15px; padding: 2px 4px; }
+  .swfx .swf-step-closed .swf-step-h { border-bottom: 0; }
+  .swfx .swf-step-badges { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .swfx .swf-enabled { margin-top: 12px; font-size: 13.5px; font-weight: 600; }
+  .swfx .swf-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--swf-line); font-size: 12.5px; font-weight: 600; color: var(--swf-muted); }
   @keyframes swf-spin { to { transform: rotate(360deg); } }
 </style>

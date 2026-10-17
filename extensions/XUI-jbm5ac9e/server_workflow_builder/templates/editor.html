@@ -15,6 +15,10 @@
         <div class="swf-eyebrow">{% trans "Server workflow" %}</div>
         <div class="swf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> <span data-swf-heading>{{ title }}</span></div>
         <div class="swf-sub">{% if workflow %}<span class="swf-mono">{{ workflow.id }}</span>{% else %}{% trans "Not saved yet" %}{% endif %}</div>
+        <div class="form-check form-switch swf-enabled">
+          <input class="form-check-input" type="checkbox" role="switch" id="swf-enabled">
+          <label class="form-check-label" for="swf-enabled">{% trans "Enabled: offered in Run Workflow" %}</label>
+        </div>
       </div>
       <div class="swf-tools">
         <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All workflows" %}</a>
@@ -25,20 +29,19 @@
     <div class="swf-ok-note d-none" data-swf-saved><i class="bi bi-check-circle-fill" aria-hidden="true"></i><div>{% trans "Saved." %}</div></div>
   </div>
 
+  {% comment %}Cards fold from their header. An existing workflow opens with Workflow details and Filters folded; a new one with everything open.{% endcomment %}
   <div class="swf-card">
-    <div class="swf-card-h"><span class="swf-card-t">{% trans "Workflow" %}</span></div>
-    <div class="swf-card-b">
+    <div class="swf-card-h">
+      <button type="button" class="swf-fold{% if workflow %} collapsed{% endif %}" data-swf-fold="#swf-details-body" aria-expanded="{% if workflow %}false{% else %}true{% endif %}" aria-controls="swf-details-body">
+        <i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Workflow details" %}</span>
+      </button>
+    </div>
+    <div class="swf-card-b{% if workflow %} d-none{% endif %}" id="swf-details-body">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label" for="swf-name">{% trans "Name" %}</label>
           <input class="form-control" id="swf-name" maxlength="255" required>
           <div class="form-text">{% trans "What users pick in Run Workflow." %}</div>
-        </div>
-        <div class="col-md-6 d-flex align-items-end">
-          <div class="form-check form-switch mb-2">
-            <input class="form-check-input" type="checkbox" role="switch" id="swf-enabled">
-            <label class="form-check-label" for="swf-enabled">{% trans "Enabled: offered in Run Workflow" %}</label>
-          </div>
         </div>
         <div class="col-12">
           <label class="form-label" for="swf-description">{% trans "Description" %}</label>
@@ -51,27 +54,38 @@
 
   <div class="swf-card">
     <div class="swf-card-h">
-      <span class="swf-card-t">{% trans "Filters" %}</span>
-      <span class="swf-muted">{% trans "Run Workflow offers this workflow only on servers that pass every filter you set; leave a filter empty to allow any server. The step picker offers only actions that can run on all of those servers." %}</span>
+      <button type="button" class="swf-fold{% if workflow %} collapsed{% endif %}" data-swf-fold="#swf-filters-body" aria-expanded="{% if workflow %}false{% else %}true{% endif %}" aria-controls="swf-filters-body">
+        <i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Filters" %}</span>
+      </button>
+      <span class="swf-muted" data-swf-filter-summary></span>
     </div>
-    <div class="swf-card-b"><div class="swf-filters" data-swf-filters></div></div>
+    <div class="swf-card-b{% if workflow %} d-none{% endif %}" id="swf-filters-body">
+      <div class="swf-muted mb-3">{% trans "Run Workflow offers this workflow only on servers that pass every filter you set; leave a filter empty to allow any server. The step picker offers only actions that can run on all of those servers." %}</div>
+      <div class="swf-filters" data-swf-filters></div>
+    </div>
   </div>
 
   <div class="swf-card">
     <div class="swf-card-h">
-      <span class="swf-card-t">{% trans "Steps" %} <span data-swf-count></span></span>
+      <button type="button" class="swf-fold" data-swf-fold="#swf-steps-body" aria-expanded="true" aria-controls="swf-steps-body">
+        <i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Steps" %} <span data-swf-count></span></span>
+      </button>
       <span class="swf-muted">{% trans "Steps run in this order. A failed step stops the run unless it continues on error." %}</span>
       <div class="swf-card-tools">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-swf-steps-all="open">{% trans "Expand all" %}</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-swf-steps-all="close">{% trans "Collapse all" %}</button>
         <button type="button" class="btn btn-sm btn-outline-primary" data-swf-add><i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add step" %}</button>
       </div>
     </div>
-    <div class="swf-card-b">
-      <div data-swf-picker class="d-none"></div>
-      <div data-swf-steps></div>
-    </div>
-    <div class="swf-footer">
-      <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}">{% trans "Cancel" %}</a>
-      <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
+    <div id="swf-steps-body">
+      <div class="swf-card-b">
+        <div data-swf-picker class="d-none"></div>
+        <div data-swf-steps></div>
+      </div>
+      <div class="swf-footer">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}">{% trans "Cancel" %}</a>
+        <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
+      </div>
     </div>
   </div>
 </div>
@@ -86,6 +100,7 @@
   var source = data.workflow || { name: "", description: "", enabled: true, filters: {}, steps: [] };
   var MODE_LABELS = { prompt: "Ask when run", fixed: "Fixed value", output: "Output of a step" };
   var PLAIN = ["STR", "INT", "DEC", "IP", "DT", "DTM", "TXT", "CODE", "BOOL", "URL"];
+  var uidCounter = 0;
   var state = {
     id: data.workflow ? data.workflow.id : null,
     steps: (source.steps || []).map(copyStep),
@@ -97,6 +112,7 @@
     reasons: {},
     offered: {},
     picker: { open: false, query: "", type: "", includeAll: false, showUnavailable: false },
+    open: {},
     dirty: false,
     saving: false
   };
@@ -117,6 +133,7 @@
   function icon(name) { return el("i", { cls: "bi " + name, "aria-hidden": "true" }); }
   function copyStep(step) {
     return {
+      uid: ++uidCounter,
       key: step.key || "",
       name: step.name || "",
       action: step.action || "",
@@ -193,6 +210,7 @@
   var filterTimer = null;
   function filtersChanged() {
     markDirty();
+    filterSummary();
     clearTimeout(filterTimer);
     filterTimer = setTimeout(refreshActions, 350);
   }
@@ -202,6 +220,15 @@
     });
   } else {
     $filters.on("change", "select", filtersChanged);
+  }
+  function filterSummary() {
+    var parts = [];
+    data.filters.forEach(function (filter) {
+      var $select = $filters.find('select[data-swf-filter="' + filter.key + '"]');
+      var labels = $select.find("option:selected").map(function () { return $(this).text(); }).get();
+      if (labels.length) { parts.push(filter.label + ": " + labels.join(", ")); }
+    });
+    $root.find("[data-swf-filter-summary]").text(parts.length ? parts.join(" \u00b7 ") : "Every server");
   }
   function currentFilters() {
     var filters = {};
@@ -326,7 +353,9 @@
     if (!summary) { return; }
     if (state.steps.length >= data.limits.steps) { showError("A workflow can have at most " + data.limits.steps + " steps."); return; }
     loadDetail(id).then(function () {
-      state.steps.push(copyStep({ key: suggestKey(summary.name), name: summary.name, action: id, type: summary.type }));
+      var added = copyStep({ key: suggestKey(summary.name), name: summary.name, action: id, type: summary.type });
+      state.open[added.uid] = true;
+      state.steps.push(added);
       markDirty();
       renderSteps();
       var $last = $root.find("[data-swf-steps] .swf-step").last();
@@ -509,7 +538,15 @@
       ])
     ]);
     var $files = step.type === "script" ? filesBlock(step, index) : null;
-    var $body = el("div", { cls: "swf-step-b" }, [
+    var open = !!state.open[step.uid];
+    var prompts = detail ? detail.inputs.filter(function (i) { return i.supported && (step.inputs[i.name] || { mode: "prompt" }).mode === "prompt"; }).length : 0;
+    var $badges = el("span", { cls: "swf-step-badges" }, [
+      problems.length ? el("span", { cls: "swf-tag swf-tag-bad", text: problems.length + (problems.length === 1 ? " problem" : " problems") }) : null,
+      prompts ? el("span", { cls: "swf-tag", text: prompts + " asked when run" }) : null,
+      (step.archives || []).length ? el("span", { cls: "swf-tag", text: step.archives.length + (step.archives.length === 1 ? " file" : " files") }) : null,
+      step.continue_on_error ? el("span", { cls: "swf-tag swf-tag-warn", text: "Continues on error" }) : null
+    ]);
+    var $body = el("div", { cls: "swf-step-b" + (open ? "" : " d-none") }, [
       problems.length ? el("ul", { cls: "swf-problems" }, problems.map(function (p) { return el("li", { text: p }); })) : null,
       $settings,
       $files
@@ -530,13 +567,15 @@
         "Later steps can use this step's outputs" + (step.type === "script" ? ": stdout" + (outputs.length ? ", " + outputs.join(", ") : "") + ". A script publishes one with a CB_OUTPUT name=value line (Write-TaskOutput or task_output in the Run Task base scripts)." : step.type === "plugin" ? ": the outputs dict the plug-in returns." : ", if it returns any.")
       ]));
     }
-    return el("div", { cls: "swf-step" + (problems.length ? " swf-step-bad" : ""), "data-swf-step": index }, [
+    return el("div", { cls: "swf-step" + (problems.length ? " swf-step-bad" : "") + (open ? "" : " swf-step-closed"), "data-swf-step": index }, [
       el("div", { cls: "swf-step-h" }, [
+        el("button", { type: "button", cls: "swf-fold swf-step-fold" + (open ? "" : " collapsed"), "data-swf-step-fold": index, "aria-expanded": open ? "true" : "false", title: open ? "Collapse step" : "Expand step" }, [icon("bi-chevron-right swf-chev")]),
         el("span", { cls: "swf-grip", draggable: "true", title: "Drag to reorder", "data-swf-grip": index }, [icon("bi-grip-vertical")]),
         el("span", { cls: "swf-num", text: String(index + 1) }),
         el("input", { cls: "form-control form-control-sm swf-step-name", "data-swf-field": "name", value: step.name, "aria-label": "Step name", maxlength: 255 }),
         el("span", { cls: "swf-pill" }, [icon(typeInfo.icon), typeInfo.label]),
         el("span", { cls: "swf-step-action" }, [$action]),
+        $badges,
         el("div", { cls: "swf-tools" }, [
           el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-move": -1, title: "Move up", disabled: index === 0 }, [icon("bi-arrow-up")]),
           el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-move": 1, title: "Move down", disabled: index === state.steps.length - 1 }, [icon("bi-arrow-down")]),
@@ -663,6 +702,38 @@
   });
   $root.on("dragend", "[data-swf-grip]", function () { dragFrom = null; $root.find(".swf-drop").removeClass("swf-drop"); });
 
+  // ---- folding ---------------------------------------------------------------
+  function setFold($button, open) {
+    var $target = $root.find($button.attr("data-swf-fold"));
+    $target.toggleClass("d-none", !open);
+    $button.toggleClass("collapsed", !open).attr("aria-expanded", open ? "true" : "false");
+  }
+  $root.on("click", "[data-swf-fold]", function () {
+    setFold($(this), $(this).hasClass("collapsed"));
+  });
+  $root.on("click", "[data-swf-step-fold]", function () {
+    var step = state.steps[stepIndex(this)];
+    state.open[step.uid] = !state.open[step.uid];
+    rerenderStep(stepIndex(this));
+  });
+  $root.on("click", "[data-swf-steps-all]", function () {
+    var open = $(this).attr("data-swf-steps-all") === "open";
+    state.steps.forEach(function (step) { state.open[step.uid] = open; });
+    renderSteps();
+  });
+  // Opens whatever a save error names: a step ("Step 3 ..."), else the card holding the field.
+  function revealError(message) {
+    var match = /Step (\d+)/.exec(message || "");
+    if (match && state.steps[parseInt(match[1], 10) - 1]) {
+      state.open[state.steps[parseInt(match[1], 10) - 1].uid] = true;
+      renderSteps();
+    } else if (/name|description/i.test(message || "")) {
+      setFold($root.find('[data-swf-fold="#swf-details-body"]'), true);
+    } else if (/filter|OS famil|environment|group|technolog|OS build|configuration manager/i.test(message || "")) {
+      setFold($root.find('[data-swf-fold="#swf-filters-body"]'), true);
+    }
+  }
+
   // ---- save -----------------------------------------------------------------
   function payload() {
     return {
@@ -702,7 +773,11 @@
     api("POST", url, payload()).then(function (reply) {
       state.saving = false;
       $buttons.prop("disabled", false);
-      if (!reply.ok) { showError(reply.body.error || "The workflow was not saved."); return; }
+      if (!reply.ok) {
+        showError(reply.body.error || "The workflow was not saved.");
+        revealError(reply.body.error);
+        return;
+      }
       state.dirty = false;
       if (!state.id) {
         window.location.replace(data.urls.edit.replace("WORKFLOW_ID", reply.body.workflow.id) + "?saved=1");
@@ -722,6 +797,7 @@
   });
 
   // ---- start ------------------------------------------------------------------
+  filterSummary();
   if (/[?&]saved=1/.test(window.location.search)) { $root.find("[data-swf-saved]").removeClass("d-none"); }
   renderSteps();
   var unique = {};
