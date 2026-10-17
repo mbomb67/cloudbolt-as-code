@@ -1,0 +1,12 @@
+{
+    "description": "Finds the Remote Scripts that can run on a server, checks credentials and task inputs, and runs a chosen script for the Run Task server action and its form webhook.",
+    "id": "SHM-571l7249",
+    "label": "Server Tasks",
+    "max_retries": 0,
+    "module_name": "server_tasks",
+    "name": "server_tasks",
+    "resource_technologies": [],
+    "script_filename": "SHM-571l7249_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

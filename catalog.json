@@ -577,6 +577,18 @@
     ]
   },
   {
+    "id": "FJS-m3awusu7",
+    "type": "form_functions",
+    "name": "serverTaskForm",
+    "description": "Async form function for the Run Task form: loads the chosen task's inputs into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form.",
+    "path": "form_functions/FJS-m3awusu7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "forms/FRM-a5edrdj4"
+    ]
+  },
+  {
     "id": "FJS-ouuq5zsq",
     "type": "form_functions",
     "name": "azpsBuildScriptPanel",
@@ -661,6 +673,20 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-nibk4erf"
+    ]
+  },
+  {
+    "id": "FRM-a5edrdj4",
+    "type": "forms",
+    "name": "Run Task",
+    "description": "Run one of the tasks that fit this server: pick a task, fill in its inputs, and submit.",
+    "path": "forms/FRM-a5edrdj4",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-m3awusu7"
+    ],
+    "used_by": [
+      "server_actions/SVA-4sin3s0q"
     ]
   },
   {
@@ -1242,6 +1268,25 @@
     ]
   },
   {
+    "id": "PKG-93egd3on",
+    "type": "packages",
+    "name": "Server Tasks",
+    "description": "Adds one Run Task server action that lists the Remote Scripts that can run on a server and runs the chosen one with its own inputs, plus Windows and Linux base task scripts and two service-management examples.",
+    "path": "packages/PKG-93egd3on",
+    "readme": "packages/PKG-93egd3on/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "plugins/OHK-lhm2916o",
+      "plugins/OHK-iub9a2jg",
+      "plugins/OHK-01kmavro",
+      "plugins/OHK-5yh12jiq",
+      "webhooks/IWH-cdf543g3",
+      "server_actions/SVA-4sin3s0q"
+    ]
+  },
+  {
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
@@ -1341,6 +1386,20 @@
     "parameter_type": "TXT",
     "packages": [
       "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
+    "id": "OHK-01kmavro",
+    "type": "plugins",
+    "name": "Manage Windows Service",
+    "description": "Shows, starts, stops or restarts one Windows service by its service name and prints its state afterwards.",
+    "path": "plugins/OHK-01kmavro",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-93egd3on"
     ]
   },
   {
@@ -1676,6 +1735,20 @@
       "server_actions/SVA-mwbtjfr0"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-5yh12jiq",
+    "type": "plugins",
+    "name": "Manage Linux Service",
+    "description": "Shows, starts, stops or restarts one systemd unit and prints its state afterwards.",
+    "path": "plugins/OHK-5yh12jiq",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-93egd3on"
+    ]
   },
   {
     "id": "OHK-67bw7wgu",
@@ -2034,6 +2107,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-mgh3dn9p"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-bf3iyg9j",
+    "type": "plugins",
+    "name": "Server Tasks",
+    "description": "Serves the Run Task form: the tasks that fit a server, a chosen task's inputs, and saving credentials on a server that has none.",
+    "path": "plugins/OHK-bf3iyg9j",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-571l7249"
+    ],
+    "used_by": [
+      "webhooks/IWH-cdf543g3"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2452,6 +2540,20 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-iub9a2jg",
+    "type": "plugins",
+    "name": "Server Task Template (Linux)",
+    "description": "Base bash script for Run Task server tasks: prints a summary of the Linux server and an optional message, and shows the input, logging and error conventions to copy.",
+    "path": "plugins/OHK-iub9a2jg",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-93egd3on"
+    ]
+  },
+  {
     "id": "OHK-iy92hhvh",
     "type": "plugins",
     "name": "List Resources in Group",
@@ -2529,6 +2631,20 @@
       "resource_actions/RSA-xzs5f3a2"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-lhm2916o",
+    "type": "plugins",
+    "name": "Server Task Template (Windows)",
+    "description": "Base PowerShell script for Run Task server tasks: prints a summary of the Windows server and an optional message, and shows the input, logging and error conventions to copy.",
+    "path": "plugins/OHK-lhm2916o",
+    "readme": null,
+    "uses": [],
+    "used_by": [],
+    "plugin_type": "Remote Script",
+    "packages": [
+      "packages/PKG-93egd3on"
+    ]
   },
   {
     "id": "OHK-lvy5tj0y",
@@ -2615,6 +2731,21 @@
     "used_by": [
       "orchestration_actions/HPA-smbwmzj0",
       "orchestration_actions/HPA-i1x67v4h"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-o4tgygjs",
+    "type": "plugins",
+    "name": "Run Task",
+    "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",
+    "path": "plugins/OHK-o4tgygjs",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-571l7249"
+    ],
+    "used_by": [
+      "server_actions/SVA-4sin3s0q"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3921,6 +4052,23 @@
     "enabled": true
   },
   {
+    "id": "SVA-4sin3s0q",
+    "type": "server_actions",
+    "name": "Run Task",
+    "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",
+    "path": "server_actions/SVA-4sin3s0q",
+    "readme": "server_actions/SVA-4sin3s0q/README.md",
+    "uses": [
+      "forms/FRM-a5edrdj4",
+      "plugins/OHK-o4tgygjs"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-93egd3on"
+    ]
+  },
+  {
     "id": "SVA-mwbtjfr0",
     "type": "server_actions",
     "name": "Deploy AWS App Migration Agent",
@@ -3932,6 +4080,19 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "SHM-571l7249",
+    "type": "shared_modules",
+    "name": "server_tasks",
+    "description": "Finds the Remote Scripts that can run on a server, checks credentials and task inputs, and runs a chosen script for the Run Task server action and its form webhook.",
+    "path": "shared_modules/SHM-571l7249",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-o4tgygjs",
+      "plugins/OHK-bf3iyg9j"
+    ]
   },
   {
     "id": "SHM-5hjzm9e4",
@@ -4215,6 +4376,22 @@
       "plugins/OHK-htrxkps2",
       "plugins/OHK-w8exctx7",
       "plugins/OHK-o4qmnffy"
+    ]
+  },
+  {
+    "id": "IWH-cdf543g3",
+    "type": "webhooks",
+    "name": "Server Tasks",
+    "description": "Endpoint the Run Task form calls for the tasks that fit a server, a chosen task's inputs, and to save credentials on a server that has none.",
+    "path": "webhooks/IWH-cdf543g3",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-bf3iyg9j"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-93egd3on"
     ]
   },
   {
