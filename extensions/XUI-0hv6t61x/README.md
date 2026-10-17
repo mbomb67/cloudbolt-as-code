@@ -15,7 +15,7 @@ Scripts run through Run Task (`server_actions/SVA-4sin3s0q`), whose `server_task
 ## Setup
 1. Sync `extensions/XUI-0hv6t61x`, the Run Task server action (it brings `server_tasks` and `file_archives`), and the two Remote Scripts.
 2. Restart the web server (`systemctl restart httpd`): the extension adds URL paths, and the web process keeps shared modules it already loaded.
-3. Open the page. If it says the download base URL is not set, open **Settings** and enter the HTTPS address servers use to reach CloudBolt.
+3. Open the page. If it says the download base URL is not set, open **Settings** and enter the HTTPS address servers use to reach CloudBolt. Servers must resolve and reach that address themselves: where CloudBolt's DNS name does not resolve (another cloud network, for example), use a name or IP address they can reach; an IP address works while certificate verification is off.
 
 ## Files and versions
 - An archive is a named folder; a file in it is referenced as `archive/file`. Names use letters, digits, dots, dashes and underscores.
