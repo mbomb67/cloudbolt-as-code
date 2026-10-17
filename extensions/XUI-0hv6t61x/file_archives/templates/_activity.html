@@ -21,7 +21,7 @@
         <table id="{{ activity_id }}-table" class="cfa-table" data-cfa-page-size="15">
           <thead>
             <tr>
-              <th>{% trans "When (UTC)" %}</th>
+              <th>{% trans "When" %}</th>
               {% if show_file %}<th>{% trans "File" %}</th>{% endif %}
               <th>{% trans "Event" %}</th>
               <th>{% trans "Detail" %}</th>
@@ -30,7 +30,7 @@
           <tbody>
             {% for entry in activity %}
             <tr data-cfa-row>
-              <td class="cfa-mono">{{ entry.at }}</td>
+              <td class="cfa-nowrap">{{ entry.at_text }}</td>
               {% if show_file %}<td>{% if entry.file %}<a href="{% url 'file_archives_file' entry.archive entry.file %}">{{ entry.ref }}</a>{% else %}{{ entry.ref }}{% endif %}</td>{% endif %}
               <td><span class="cfa-tag{% if entry.event == 'refused' %} cfa-tag-bad{% elif entry.event == 'downloaded' %} cfa-tag-ok{% endif %}">{{ entry.event }}</span></td>
               <td>{{ entry.detail }}{% if entry.by %} <span class="cfa-hint">({{ entry.by }})</span>{% endif %}</td>

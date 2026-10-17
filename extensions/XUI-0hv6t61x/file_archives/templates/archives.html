@@ -113,9 +113,9 @@
                 <td>{{ row.file_count }}<div class="cfa-hint">{{ row.version_count }} {% trans "versions" %}</div></td>
                 <td>{{ row.stored }}</td>
                 <td>
-                  {% if row.last_upload %}{{ row.last_upload.uploaded_at }}<div class="cfa-hint">{{ row.last_upload.uploaded_by }}</div>{% else %}<span class="cfa-muted">&mdash;</span>{% endif %}
+                  {% if row.last_upload %}{{ row.last_upload_text }}<div class="cfa-hint">{{ row.last_upload.uploaded_by }}</div>{% else %}<span class="cfa-muted">&mdash;</span>{% endif %}
                 </td>
-                <td>{{ row.created_at }}<div class="cfa-hint">{{ row.created_by }}</div></td>
+                <td>{{ row.created_text }}<div class="cfa-hint">{{ row.created_by }}</div></td>
                 <td>
                   <div class="cfa-row-tools">
                     <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_upload' row.name %}" data-dialog-width="640px" title="{% trans 'Upload file' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
