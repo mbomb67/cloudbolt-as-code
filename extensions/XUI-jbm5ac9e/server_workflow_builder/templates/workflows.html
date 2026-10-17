@@ -6,6 +6,7 @@
 
 {% block content %}
 {% include "server_workflow_builder/templates/_assets.html" %}
+{% include "server_workflow_builder/templates/_tabs.html" with active="workflows" %}
 
 <div id="swfx-list" class="swfx" data-csrf="{{ csrf_token }}">
   <div class="swf-card">

@@ -430,7 +430,7 @@
     ],
     "used_by": [],
     "packages": [
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -473,7 +473,10 @@
     "readme": "extensions/XUI-0hv6t61x/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "XUI-0jdk7t6h",
@@ -562,14 +565,14 @@
     "id": "XUI-jbm5ac9e",
     "type": "extensions",
     "name": "Server Workflows",
-    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action.",
+    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action, and an Actions tab that creates Remote Scripts and plug-ins with no other action around them and shows where each base action is used.",
     "path": "extensions/XUI-jbm5ac9e",
     "readme": "extensions/XUI-jbm5ac9e/README.md",
     "uses": [],
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -1308,25 +1311,6 @@
     ]
   },
   {
-    "id": "PKG-93egd3on",
-    "type": "packages",
-    "name": "Server Tasks",
-    "description": "Adds one Run Task server action that lists the Remote Scripts that can run on a server and runs the chosen one with its own inputs, plus Windows and Linux base task scripts and two service-management examples.",
-    "path": "packages/PKG-93egd3on",
-    "readme": "packages/PKG-93egd3on/README.md",
-    "uses": [],
-    "used_by": [],
-    "version": "1.0.0",
-    "contents": [
-      "plugins/OHK-lhm2916o",
-      "plugins/OHK-iub9a2jg",
-      "plugins/OHK-01kmavro",
-      "plugins/OHK-5yh12jiq",
-      "webhooks/IWH-cdf543g3",
-      "server_actions/SVA-4sin3s0q"
-    ]
-  },
-  {
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
@@ -1362,19 +1346,26 @@
     ]
   },
   {
-    "id": "PKG-vfnycv8s",
+    "id": "PKG-v20qv308",
     "type": "packages",
-    "name": "Server Workflows",
-    "description": "Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, the Server Workflows admin page for building workflows, and an example blueprint that runs a workflow on the server it deploys.",
-    "path": "packages/PKG-vfnycv8s",
-    "readme": "packages/PKG-vfnycv8s/README.md",
+    "name": "Server Automation",
+    "description": "Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base and example task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow.",
+    "path": "packages/PKG-v20qv308",
+    "readme": "packages/PKG-v20qv308/README.md",
     "uses": [],
     "used_by": [],
     "version": "1.0.0",
     "contents": [
-      "server_actions/SVA-j7rbsh39",
+      "plugins/OHK-lhm2916o",
+      "plugins/OHK-iub9a2jg",
+      "plugins/OHK-01kmavro",
+      "plugins/OHK-5yh12jiq",
+      "webhooks/IWH-cdf543g3",
       "webhooks/IWH-xjlrmvc8",
+      "server_actions/SVA-4sin3s0q",
+      "server_actions/SVA-j7rbsh39",
       "extensions/XUI-jbm5ac9e",
+      "extensions/XUI-0hv6t61x",
       "blueprints/BP-vy9ytey6"
     ]
   },
@@ -1422,7 +1413,7 @@
     "used_by": [],
     "plugin_type": "Remote Script",
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -1770,7 +1761,7 @@
     "used_by": [],
     "plugin_type": "Remote Script",
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -2585,7 +2576,7 @@
     "used_by": [],
     "plugin_type": "Remote Script",
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -2678,7 +2669,7 @@
     "used_by": [],
     "plugin_type": "Remote Script",
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -4097,7 +4088,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -4114,7 +4105,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -4454,7 +4445,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-93egd3on"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -4483,7 +4474,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {

@@ -28,6 +28,9 @@ from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
+# The Actions tab's page. CloudBolt finds admin extensions only in views.py.
+from .action_views import actions  # noqa: F401
+
 logger = ThreadLogger(__name__)
 
 TEMPLATES = "server_workflow_builder/templates/"
