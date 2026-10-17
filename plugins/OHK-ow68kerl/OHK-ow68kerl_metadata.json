@@ -17,7 +17,8 @@
             "show_as_attribute": false,
             "show_on_servers": false,
             "type": "STR",
-            "value_pattern_string": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}(@(latest|[0-9]+))?$"
+            "value_pattern_string": null,
+            "regex_constraint": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}(@(latest|[0-9]+))?$"
         },
         {
             "allow_multiple": false,

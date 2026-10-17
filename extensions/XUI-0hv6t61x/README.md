@@ -32,7 +32,7 @@ Add a header line to a Remote Script for each file:
 ```
 Before the body runs, a small step at the top of the script downloads each file into a new directory, checks its SHA-256 against the stored value, and with `extract` unpacks a zip or tar file. The directory is the current directory and is in `CB_ARCHIVE_DIR` (`$env:CB_ARCHIVE_DIR` on Windows). A failed download or checksum prints an ERROR line and exits 1 before the body starts. Directories older than a day are removed on the next run.
 
-- A header can use an input, e.g. `# cb-archive: {{ archive_file }} extract` (give the input a pattern; see the Run Installer scripts).
+- A header can use an input, e.g. `# cb-archive: {{ archive_file }} extract` (give the input a regex constraint, `regex_constraint` in its metadata; see the Run Installer scripts).
 - `cb-archive-link:archive/file` anywhere in a script is replaced with a link, for a script that downloads the file itself.
 - A PowerShell script that declares files cannot start with `param()`, `[CmdletBinding()]` or `using`.
 - Run Task adds `CB_OUTPUT archive_<file>_version=<n>` to its output for each file (dots and dashes in the name become underscores), so the job's outputs record the version used.

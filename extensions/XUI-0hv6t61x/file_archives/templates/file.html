@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block title %}{{ ref }} &middot; {% trans "File Archives" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
-{% block breadcrumb-item %}<h1>{{ ref }}</h1>{% endblock breadcrumb-item %}
+{% block breadcrumb-item %}<h1>{{ name }}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
 {% include "file_archives/templates/_assets.html" %}
@@ -11,7 +11,7 @@
   <div class="cfa-card">
     <div class="cfa-hero-top">
       <div>
-        <div class="cfa-eyebrow">{% trans "Archive" %} <a href="{{ archive_url }}">{{ archive }}</a></div>
+        <div class="cfa-eyebrow">{% trans "Archive" %} <a class="cfa-name" href="{{ archive_url }}">{{ archive }}</a></div>
         <div class="cfa-title"><i class="bi bi-file-earmark-zip-fill" aria-hidden="true"></i> {{ name }}</div>
         <div class="cfa-sub">{% trans "Latest version" %} {{ latest.version }} &middot; {{ latest.size_text }}</div>
       </div>
@@ -26,7 +26,7 @@
     </div>
     <div class="cfa-meta">
       <div class="cell"><div class="k">{% trans "SHA-256" %}</div><div class="v cfa-mono">{{ latest.sha256 }}</div></div>
-      <div class="cell"><div class="k">{% trans "Uploaded" %}</div><div class="v">{{ latest.uploaded_at }}<div class="cfa-hint">{{ latest.uploaded_by }}</div></div></div>
+      <div class="cell"><div class="k">{% trans "Uploaded" %}</div><div class="v">{{ latest.uploaded_text }}<div class="cfa-hint">{{ latest.uploaded_by }}</div></div></div>
       {% if latest.note %}<div class="cell"><div class="k">{% trans "Note" %}</div><div class="v">{{ latest.note }}</div></div>{% endif %}
     </div>
   </div>
@@ -68,7 +68,7 @@ Get-ChildItem $env:CB_ARCHIVE_DIR           # PowerShell</pre>
               {% for meta in versions %}
               <tr data-cfa-row>
                 <td>v{{ meta.version }}{% if meta.version == latest.version %} <span class="cfa-tag cfa-tag-live">{% trans "latest" %}</span>{% endif %}</td>
-                <td>{{ meta.uploaded_at }}<div class="cfa-hint">{{ meta.uploaded_by }}</div></td>
+                <td>{{ meta.uploaded_text }}<div class="cfa-hint">{{ meta.uploaded_by }}</div></td>
                 <td>{{ meta.size_text }}</td>
                 <td class="cfa-mono" title="{{ meta.sha256 }}">{{ meta.sha256|truncatechars:17 }}</td>
                 <td>{{ meta.note|default:"&mdash;" }}</td>
