@@ -1,0 +1,12 @@
+{
+    "description": "Stores versioned files on the CloudBolt appliance, signs short-lived download links for them, and adds the download step to scripts that declare files with cb-archive header lines.",
+    "id": "SHM-v8llc736",
+    "label": "File Archives",
+    "max_retries": 0,
+    "module_name": "file_archives",
+    "name": "file_archives",
+    "resource_technologies": [],
+    "script_filename": "SHM-v8llc736_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

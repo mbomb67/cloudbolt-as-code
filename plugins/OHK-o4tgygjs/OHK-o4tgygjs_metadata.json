@@ -42,7 +42,8 @@
     "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-571l7249"
+            "shared_modules/SHM-571l7249",
+            "shared_modules/SHM-v8llc736"
         ]
     },
     "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",

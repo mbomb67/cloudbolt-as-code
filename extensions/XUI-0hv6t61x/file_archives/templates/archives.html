@@ -1,0 +1,142 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{% trans "File Archives" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{% trans "File Archives" %}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "file_archives/templates/_assets.html" %}
+
+<div id="cfax-list" class="cfax">
+  <div class="cfa-card">
+    <div class="cfa-hero-top">
+      <div>
+        <div class="cfa-eyebrow">{% trans "File archives" %}</div>
+        <div class="cfa-title"><i class="bi bi-archive-fill" aria-hidden="true"></i> {% trans "Files for server scripts" %}</div>
+        <div class="cfa-sub">{% trans "Versioned installers, tarballs and config bundles. A script names the files it needs; Run Task downloads them to the server through short-lived links before the script runs." %}</div>
+      </div>
+      {% if not denied %}
+      <div class="cfa-tools">
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_settings' %}" data-dialog-width="640px">
+          <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}
+        </a>
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_rotate_key' %}">
+          <i class="bi bi-shield-x" aria-hidden="true"></i> {% trans "Revoke all links" %}
+        </a>
+        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_archive_add' %}" data-dialog-width="640px">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add archive" %}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% if not denied %}
+    <div class="cfa-meta">
+      <div class="cell">
+        <div class="k">{% trans "Download base URL" %}</div>
+        <div class="v">
+          {% if base_url.effective %}
+          <span class="cfa-mono">{{ base_url.effective }}</span>
+          <div class="cfa-hint">{% if base_url.source == "setting" %}{% trans "From Settings" %}{% else %}{% trans "From the default portal's domain" %}{% endif %}</div>
+          {% else %}
+          <span class="cfa-tag cfa-tag-bad">{% trans "Not set" %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Link lifetime" %}</div>
+        <div class="v">{{ settings.link_minutes }} {% trans "minutes" %}<div class="cfa-hint">{% trans "Plus each attempt's timeout and Azure busy wait, at most 60" %}</div></div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Certificate check" %}</div>
+        <div class="v">{% if settings.verify_tls %}{% trans "Servers verify CloudBolt's certificate" %}{% else %}{% trans "Off; the SHA-256 check guards each file" %}{% endif %}</div>
+      </div>
+      <div class="cell">
+        <div class="k">{% trans "Versions kept" %}</div>
+        <div class="v">{{ settings.keep_versions }} {% trans "per file" %}<div class="cfa-hint">{% trans "Uploads up to" %} {{ settings.max_upload_mb }} MB</div></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if denied %}
+  <div class="cfa-card">
+    <div class="cfa-alert">
+      <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+      <div>{% trans "File archives are managed by CB Admins and Super Admins." %}</div>
+    </div>
+  </div>
+  {% else %}
+
+  {% if not base_url.effective %}
+  <div class="cfa-card">
+    <div class="cfa-alert cfa-alert-warn">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>
+        {% blocktrans with url=base_url.suggestion %}Servers need a URL to reach CloudBolt, and the default portal has no domain. Open Settings and set the download base URL, for example {{ url }}.{% endblocktrans %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="cfa-card cfa-card-fold">
+    <div class="cfa-card-h">
+      <button type="button" class="cfa-fold" data-bs-toggle="collapse" data-bs-target="#cfax-archives-body" aria-expanded="true" aria-controls="cfax-archives-body">
+        <i class="bi bi-chevron-right cfa-chev" aria-hidden="true"></i>
+        <span class="cfa-card-t">{% trans "File archives" %} &middot; {{ archives|length }}</span>
+      </button>
+      <div class="cfa-card-tools">
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter archives' %}" data-cfa-filter="#cfax-archives-table">
+      </div>
+    </div>
+    <div id="cfax-archives-body" class="collapse show">
+      <div class="cfa-card-b">
+        {% if archives %}
+        <div class="table-responsive">
+          <table id="cfax-archives-table" class="cfa-table" data-cfa-page-size="20">
+            <thead>
+              <tr>
+                <th>{% trans "Archive" %}</th>
+                <th>{% trans "Files" %}</th>
+                <th>{% trans "Stored" %}</th>
+                <th>{% trans "Last upload" %}</th>
+                <th>{% trans "Created" %}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in archives %}
+              <tr data-cfa-row>
+                <td>
+                  <a href="{{ row.url }}"><i class="bi bi-folder2" aria-hidden="true"></i> {{ row.name }}</a>
+                  {% if row.description %}<div class="cfa-desc">{{ row.description }}</div>{% endif %}
+                </td>
+                <td>{{ row.file_count }}<div class="cfa-hint">{{ row.version_count }} {% trans "versions" %}</div></td>
+                <td>{{ row.stored }}</td>
+                <td>
+                  {% if row.last_upload %}{{ row.last_upload_text }}<div class="cfa-hint">{{ row.last_upload.uploaded_by }}</div>{% else %}<span class="cfa-muted">&mdash;</span>{% endif %}
+                </td>
+                <td>{{ row.created_text }}<div class="cfa-hint">{{ row.created_by }}</div></td>
+                <td>
+                  <div class="cfa-row-tools">
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_upload' row.name %}" data-dialog-width="640px" title="{% trans 'Upload file' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_archive_edit' row.name %}" data-dialog-width="640px" title="{% trans 'Edit' %}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_archive_delete' row.name %}" title="{% trans 'Delete' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="cfa-empty">{% trans "No archives yet. Add one, then upload files to it." %}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% include "file_archives/templates/_activity.html" with activity_id="cfax-activity" show_file=True collapsed=True %}
+  {% endif %}
+</div>
+<script>window.cfaxInit("cfax-list");</script>
+{% endblock content %}

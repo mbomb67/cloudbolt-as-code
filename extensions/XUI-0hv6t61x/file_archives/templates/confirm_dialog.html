@@ -1,0 +1,15 @@
+{% extends "v5/dialogs/dialog.html" %}
+
+{% block non_form_content %}
+{% include "file_archives/templates/_assets.html" %}
+{% endblock non_form_content %}
+
+{% block form_content %}
+{% csrf_token %}
+<div class="cfax cfa-dialog">
+  {% if error %}
+  <div class="cfa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  {% endif %}
+  <p>{{ message }}</p>
+</div>
+{% endblock form_content %}
