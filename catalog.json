@@ -418,6 +418,21 @@
     ]
   },
   {
+    "id": "BP-vy9ytey6",
+    "type": "blueprints",
+    "name": "Server with Workflow",
+    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "path": "blueprints/BP-vy9ytey6",
+    "readme": "blueprints/BP-vy9ytey6/README.md",
+    "uses": [
+      "plugins/OHK-69gk5ne9"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-vfnycv8s"
+    ]
+  },
+  {
     "id": "BP-zmeot1ff",
     "type": "blueprints",
     "name": "Azure Resource Group",
@@ -1323,7 +1338,7 @@
     "id": "PKG-vfnycv8s",
     "type": "packages",
     "name": "Server Workflows",
-    "description": "Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, and the Server Workflows admin page for building workflows.",
+    "description": "Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, the Server Workflows admin page for building workflows, and an example blueprint that runs a workflow on the server it deploys.",
     "path": "packages/PKG-vfnycv8s",
     "readme": "packages/PKG-vfnycv8s/README.md",
     "uses": [],
@@ -1332,7 +1347,8 @@
     "contents": [
       "server_actions/SVA-j7rbsh39",
       "webhooks/IWH-xjlrmvc8",
-      "extensions/XUI-jbm5ac9e"
+      "extensions/XUI-jbm5ac9e",
+      "blueprints/BP-vy9ytey6"
     ]
   },
   {
@@ -1749,14 +1765,15 @@
     "id": "OHK-69gk5ne9",
     "type": "plugins",
     "name": "Run Workflow",
-    "description": "Runs the server workflow chosen in the Run Workflow server action on the selected servers, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
     "path": "plugins/OHK-69gk5ne9",
     "readme": null,
     "uses": [
       "shared_modules/SHM-nznzhpp0"
     ],
     "used_by": [
-      "server_actions/SVA-j7rbsh39"
+      "server_actions/SVA-j7rbsh39",
+      "blueprints/BP-vy9ytey6"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4060,7 +4077,7 @@
     "id": "SVA-j7rbsh39",
     "type": "server_actions",
     "name": "Run Workflow",
-    "description": "Runs the server workflow chosen in the Run Workflow server action on the selected servers, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
     "path": "server_actions/SVA-j7rbsh39",
     "readme": "server_actions/SVA-j7rbsh39/README.md",
     "uses": [

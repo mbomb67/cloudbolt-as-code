@@ -44,6 +44,13 @@ Password and object-type inputs (PWD, ETXT, networks, files, ...) can be neither
 - Remote Scripts run inside the workflow's job, with their own timeout, sudo and retry settings, so their output can be read; other actions run as child jobs.
 - With several servers selected, each server gets its own child job, all started at once.
 
+## From a blueprint
+The Run Workflow plug-in is also a blueprint build item: add it after the server tier, as [Server with Workflow](../../blueprints/BP-vy9ytey6/) does. It runs on the servers of the order's resource.
+- **Pinned**: give the item's Workflow input a default (the workflow's name), which hides it on the order form.
+- **User's choice**: leave it without a default and the order form lists every enabled workflow; Workflow inputs pre-fills with the chosen workflow's prompts.
+- A prompt left empty takes a same-named parameter of the resource, else of the server.
+- The item's outputs are the run's step outputs, for later build items.
+
 ## Notes
 - Workflows are stored on the appliance, one value each of the `server_workflow_store` parameter in the `server_workflows` namespace. They are not repository content; deleting that parameter deletes every workflow.
 - CloudBolt does not validate a custom-form submit, so the plug-in rechecks everything itself.

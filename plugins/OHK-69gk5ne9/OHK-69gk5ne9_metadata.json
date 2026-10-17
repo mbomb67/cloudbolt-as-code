@@ -3,11 +3,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "The workflow to run: one of the enabled workflows whose filters match this server.",
+            "description": "The workflow to run. On a server: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
             "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "workflow_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "workflow_inputs_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-loe7sk7z",
             "label": "Workflow",
             "name": "workflow",
@@ -22,11 +36,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values. The Run Workflow form fills this in for you. Plain text: never put a password here.",
-            "field_dependency_controlling_set": [],
+            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values; pre-filled with the chosen workflow's prompts. In a blueprint, a prompt left empty takes a same-named parameter of the resource or server. Plain text: never put a password here.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "workflow_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "workflow_inputs_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
             "field_dependency_dependent_set": [],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-mqma9m85",
             "label": "Workflow inputs (JSON)",
             "name": "workflow_inputs",
@@ -45,13 +73,13 @@
             "shared_modules/SHM-nznzhpp0"
         ]
     },
-    "description": "Runs the server workflow chosen in the Run Workflow server action on the selected servers, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
     "id": "OHK-69gk5ne9",
     "max_retries": 0,
     "name": "Run Workflow",
     "resource_technologies": [],
     "script_filename": "OHK-69gk5ne9_script.py",
-    "shared": false,
+    "shared": true,
     "target_os_families": [],
     "type": "CloudBolt Plug-in"
 }

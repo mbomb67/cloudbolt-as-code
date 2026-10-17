@@ -1204,8 +1204,12 @@ def _blank(value):
     return value is None or (isinstance(value, str) and not value.strip()) or value == []
 
 
-def parse_prompt_values(workflow, steps, payload):
-    """Validate the asked-for values and return {step key: {input name: value}}."""
+def parse_prompt_values(workflow, steps, payload, fallback=None):
+    """
+    Validate the asked-for values and return {step key: {input name: value}}.
+    fallback, when given, is called with an input name for each prompt left
+    blank (a blueprint item fills prompts from same-named order values).
+    """
     submitted, strict = _payload_values(payload)
     known = {step.key: step for step in steps}
     unknown = sorted(key for key in submitted if key not in known)
@@ -1223,6 +1227,8 @@ def parse_prompt_values(workflow, steps, payload):
         values[step.key] = {}
         for name, field in prompts.items():
             value = given.get(name)
+            if _blank(value) and fallback is not None:
+                value = fallback(name)
             if _blank(value):
                 if field.required:
                     raise WorkflowError(f"{step.label}: {server_tasks.input_label(field)} is required.")
@@ -1232,6 +1238,41 @@ def parse_prompt_values(workflow, steps, payload):
             except server_tasks.TaskError as err:
                 raise WorkflowError(f"{step.label}: {err}")
     return values
+
+
+def prompt_skeleton(workflow):
+    """
+    The workflow's prompts as a JSON object of step keys and empty input
+    values, for a blueprint order form to pre-fill; '' when it asks for nothing.
+    """
+    skeleton = OrderedDict()
+    for step in load_steps(workflow):
+        names = [field.simple_name for field in step.prompts()]
+        if names:
+            skeleton[step.key] = OrderedDict((name, "") for name in names)
+    return json.dumps(skeleton, indent=2) if skeleton else ""
+
+
+def order_values(resource=None, server=None):
+    """
+    A fallback for parse_prompt_values on a blueprint order: the value of a
+    same-named parameter on the deployed resource, else on the server (order
+    form fields land on one or the other).
+    """
+
+    def lookup(name):
+        for obj in (resource, server):
+            if obj is None:
+                continue
+            try:
+                value = obj.get_value_for_custom_field(name)
+            except Exception:
+                value = None
+            if not _blank(value):
+                return value
+        return None
+
+    return lookup
 
 
 # ---- run time: running ----------------------------------------------------

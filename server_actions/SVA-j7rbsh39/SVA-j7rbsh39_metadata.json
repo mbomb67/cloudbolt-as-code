@@ -4,11 +4,25 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "The workflow to run: one of the enabled workflows whose filters match this server.",
+            "description": "The workflow to run. On a server: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
             "field-dependency-controlling-set": [],
-            "field-dependency-dependent-set": [],
+            "field-dependency-dependent-set": [
+                {
+                    "controlling-field": {
+                        "name": "workflow_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "workflow_inputs_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
             "global-options": [],
-            "hide-if-default-value": false,
+            "hide-if-default-value": true,
             "id": "CF-loe7sk7z",
             "label": "Workflow",
             "name": "workflow",
@@ -23,11 +37,25 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values. The Run Workflow form fills this in for you. Plain text: never put a password here.",
-            "field-dependency-controlling-set": [],
+            "description": "Values for the step inputs the workflow asks for, as a JSON object of step keys and input values; pre-filled with the chosen workflow's prompts. In a blueprint, a prompt left empty takes a same-named parameter of the resource or server. Plain text: never put a password here.",
+            "field-dependency-controlling-set": [
+                {
+                    "controlling-field": {
+                        "name": "workflow_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "workflow_inputs_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
             "field-dependency-dependent-set": [],
             "global-options": [],
-            "hide-if-default-value": false,
+            "hide-if-default-value": true,
             "id": "CF-mqma9m85",
             "label": "Workflow inputs (JSON)",
             "name": "workflow_inputs",

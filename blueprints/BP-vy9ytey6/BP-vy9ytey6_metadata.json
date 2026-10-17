@@ -1,0 +1,72 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": true,
+            "allowed_os_families": [
+                "Oracle Enterprise Linux",
+                "Windows"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "wfl-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-8edh5z7o",
+            "name": "Server",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Run Workflow",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-69gk5ne9"
+            },
+            "deploy_seq": 2,
+            "description": "Runs a server workflow on the server this order built. Give the Workflow input a default to pin one; without it the user picks.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-l252miz4",
+            "name": "Run Workflow",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "favorited": false,
+    "icon": "server_workflow.png",
+    "id": "BP-vy9ytey6",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-16",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Server with Workflow",
+    "parameters": [],
+    "resource_name_template": "wfl-00X",
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "bi bi-diagram-3",
+        "id": "RT-trd0sml2",
+        "internal_only": false,
+        "label": "Server with Workflow",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "server_with_workflow",
+        "plural_label": "Servers with Workflow"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}
