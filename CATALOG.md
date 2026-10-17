@@ -17,8 +17,8 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Shared modules](#shared-modules) | 20 |
 | [UI extensions](#ui-extensions) | 12 |
 | [Parameters](#parameters) | 1 |
-| [Forms](#forms) | 14 |
-| [Form functions](#form-functions) | 6 |
+| [Forms](#forms) | 15 |
+| [Form functions](#form-functions) | 7 |
 
 ## Packages
 
@@ -411,6 +411,7 @@ Custom order forms. A form syncs only as a dependency of its parent blueprint; i
 | Run Task | [FRM-a5edrdj4](forms/FRM-a5edrdj4/) | Run one of the tasks that fit this server: pick a task, fill in its inputs, and submit. | orphan |
 | Run Workflow | [FRM-ecw50rd0](forms/FRM-ecw50rd0/) | Run one of the workflows that fit this server: pick a workflow, fill in what it asks for, and submit. | orphan |
 | Server with Data Disks | [FRM-58d5rxg8](forms/FRM-58d5rxg8/) | Deploys a Windows Server or Oracle Linux VM with the data disks you list, each prepared inside the guest. | [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) |
+| Server with Workflow | [FRM-j7w530h7](forms/FRM-j7w530h7/) | Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it. | [Server with Workflow](blueprints/BP-vy9ytey6/README.md) |
 | Terraform Update | [FRM-h4py5w3a](forms/FRM-h4py5w3a/) | Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values. | orphan |
 | Windows Server with Data Disks | [FRM-jqnr84d0](forms/FRM-jqnr84d0/) | Deploys a Windows Server 2025 VM with the data disks you list below, each initialized, lettered, labeled, and formatted inside the guest. | [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) |
 
@@ -425,4 +426,5 @@ Form JavaScript helpers. A function syncs only as a dependency of a form.
 | dataDiskMapForm | [FJS-1h4v6wx2](form_functions/FJS-1h4v6wx2/) | Async form function that turns an environment's disk_map parameter into a Data Disks table whose columns follow the selected OS build, writing the rows back to disk_map as a JSON list. | [Server with Data Disks](forms/FRM-58d5rxg8/) |
 | serverTaskForm | [FJS-m3awusu7](form_functions/FJS-m3awusu7/) | Async form function for the Run Task form: loads the chosen task's inputs into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form. | [Run Task](forms/FRM-a5edrdj4/) |
 | serverWorkflowForm | [FJS-kn5lr5am](form_functions/FJS-kn5lr5am/) | Async form function for the Run Workflow form: loads the chosen workflow's steps and prompts into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form. | [Run Workflow](forms/FRM-ecw50rd0/) |
+| serverWorkflowItems | [FJS-hufo9zd4](form_functions/FJS-hufo9zd4/) | Async form function for blueprint custom forms with Run Workflow build items: replaces each item's Workflow inputs box with a panel of the chosen or pinned workflow's prompts and writes the answers back as the item's input. | [Server with Workflow](forms/FRM-j7w530h7/) |
 | tfcBuildDay2Panel | [FJS-ylyi1tc0](form_functions/FJS-ylyi1tc0/) | Async form function for the shared Terraform Update form: fetches the resource's variables panel from the form-options webhook and installs it as the empty Dynamic Panel's template. | [Terraform Update](forms/FRM-h4py5w3a/) |

@@ -1,6 +1,9 @@
 {
     "any_group_can_deploy": true,
     "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-j7w530h7"
+    },
     "deployment_items": [
         {
             "all_environments_enabled": true,
@@ -44,6 +47,7 @@
     "deployment_permissions": [],
     "description": "Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
     "favorited": false,
+    "has_custom_form": true,
     "icon": "server_workflow.png",
     "id": "BP-vy9ytey6",
     "is_orderable": true,

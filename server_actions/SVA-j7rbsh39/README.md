@@ -47,7 +47,7 @@ Password and object-type inputs (PWD, ETXT, networks, files, ...) can be neither
 ## From a blueprint
 The Run Workflow plug-in is also a blueprint build item: add it after the server tier, as [Server with Workflow](../../blueprints/BP-vy9ytey6/) does. It runs on the servers of the order's resource.
 - **Pinned**: give the item's Workflow input a default (the workflow's name), which hides it on the order form.
-- **User's choice**: leave it without a default and the order form lists every enabled workflow; Workflow inputs pre-fills with the chosen workflow's prompts.
+- **User's choice**: leave it without a default and the order form lists every enabled workflow. On a custom form with the form function `serverWorkflowItems` (FJS-hufo9zd4), the chosen workflow's prompts appear as a panel of their own; on the native form, Workflow inputs pre-fills them as JSON.
 - A prompt left empty takes a same-named parameter of the resource, else of the server.
 - The item's outputs are the run's step outputs, for later build items.
 
