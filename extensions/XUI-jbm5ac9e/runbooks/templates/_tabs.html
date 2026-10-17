@@ -11,6 +11,6 @@
 </style>
 <nav class="swf-tabs" aria-label="{% trans 'Runbooks pages' %}">
   <a href="{% url 'render_admin_extension' package='runbooks' view_id='workflows' %}"{% if active == "workflows" %} class="active" aria-current="page"{% endif %}><i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Workflows" %}</a>
-  <a href="{% url 'render_admin_extension' package='runbooks' view_id='actions' %}"{% if active == "actions" %} class="active" aria-current="page"{% endif %}><i class="bi bi-terminal" aria-hidden="true"></i> {% trans "Actions" %}</a>
-  <a href="{% url 'render_admin_extension' package='runbooks' view_id='archives' %}"{% if active == "archives" %} class="active" aria-current="page"{% endif %}><i class="bi bi-archive" aria-hidden="true"></i> {% trans "File Archives" %}</a>
+  <a href="{% url 'runbooks_actions' %}"{% if active == "actions" %} class="active" aria-current="page"{% endif %}><i class="bi bi-terminal" aria-hidden="true"></i> {% trans "Actions" %}</a>
+  <a href="{% url 'runbooks_archives' %}"{% if active == "archives" %} class="active" aria-current="page"{% endif %}><i class="bi bi-archive" aria-hidden="true"></i> {% trans "File Archives" %}</a>
 </nav>

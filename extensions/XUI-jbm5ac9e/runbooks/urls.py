@@ -48,8 +48,9 @@ xui_urlpatterns = [
         views.api_action,
         name="runbooks_api_action",
     ),
-    # Actions tab: the page is the admin extension
-    # /extensions/admin/runbooks/actions.
+    # Actions tab. The Workflows tab is the extension's only admin page
+    # (/extensions/admin/runbooks/workflows), so Admin lists Runbooks once.
+    path("xui/runbooks/actions/", action_views.actions, name="runbooks_actions"),
     path(
         "xui/runbooks/actions/new/<str:kind>/",
         action_views.action_new,
@@ -60,8 +61,8 @@ xui_urlpatterns = [
         action_views.api_base_actions,
         name="runbooks_api_base_actions",
     ),
-    # File Archives tab: the page is the admin extension
-    # /extensions/admin/runbooks/archives.
+    # File Archives tab.
+    path("xui/runbooks/file-archives/", archive_views.archives, name="runbooks_archives"),
     # Signed, short-lived links that VMs download from (no login). The
     # file_archives shared module builds these links from the same path.
     path(

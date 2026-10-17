@@ -2,8 +2,8 @@
 File Archives tab of the Runbooks page: versioned files that scripts
 download, and the download view the VMs call.
 
-views.py imports the page function, because CloudBolt looks for admin
-extensions only in an extension's views.py.
+The tab is a page of the extension (xui/runbooks/file-archives/), not an
+admin extension of its own, so Admin lists Runbooks once.
 
 The store, the signing of links and the activity log live in the
 file_archives shared module (shared_modules/SHM-v8llc736), which Run Task also
@@ -25,7 +25,6 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_safe
 
-from extensions.views import admin_extension
 from infrastructure.models import Server
 from utilities.decorators import dialog_view
 from utilities.events import add_server_event
@@ -36,8 +35,6 @@ from utilities.permissions import cbadmin_required
 logger = ThreadLogger(__name__)
 
 TEMPLATES = "runbooks/templates/"
-XUI_PACKAGE = "runbooks"
-PAGE_VIEW = "archives"
 
 
 def _fa():
@@ -53,7 +50,7 @@ def _fa():
 
 
 def _page_url():
-    return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": PAGE_VIEW})
+    return reverse("runbooks_archives")
 
 
 def _file_url(archive, name):
@@ -127,11 +124,6 @@ def _archive_summary(archive):
     }
 
 
-@admin_extension(
-    title="File Archives",
-    description="Keep versioned installers, tarballs and config bundles on CloudBolt for scripts to "
-    "download onto VMs through short-lived links.",
-)
 def archives(request):
     """The File Archives page: one paginated table of archives, then recent activity."""
     profile = request.get_user_profile()

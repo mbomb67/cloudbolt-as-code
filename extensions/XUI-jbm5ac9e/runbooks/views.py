@@ -28,10 +28,6 @@ from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
-# The Actions and File Archives tabs' pages. CloudBolt finds admin extensions
-# only in views.py.
-from .action_views import actions  # noqa: F401
-from .archive_views import archives  # noqa: F401
 
 logger = ThreadLogger(__name__)
 
@@ -99,8 +95,8 @@ def _row(swf, workflow):
 # ---------------------------------------------------------------------------
 @admin_extension(
     title="Runbooks",
-    description="Build workflows that run several CloudBolt actions in order on a VM, with filters, "
-    "defaults and outputs passed between steps, for the Run Workflow action.",
+    description="Build workflows that run CloudBolt actions in order on a VM, create the Remote Scripts "
+    "and plug-ins that Run Task and workflow steps run, and keep versioned files that scripts download.",
 )
 def workflows(request):
     profile = request.get_user_profile()

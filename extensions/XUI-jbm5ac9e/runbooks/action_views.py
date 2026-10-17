@@ -8,8 +8,9 @@ and plug-ins with no server, resource or orchestration action around them.
 Editing and deleting stay on CloudBolt's own action pages, which the tab
 links to. The logic lives in action_library.py.
 
-views.py imports the page function, because CloudBolt looks for admin
-extensions only in an extension's views.py. Everything requires CB Admin.
+The tab is a page of the extension (xui/runbooks/actions/), not an admin
+extension of its own, so Admin lists Runbooks once. Everything requires CB
+Admin.
 """
 import functools
 import json
@@ -19,7 +20,6 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 
-from extensions.views import admin_extension
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
@@ -28,8 +28,6 @@ from . import action_library as library
 logger = ThreadLogger(__name__)
 
 TEMPLATES = "runbooks/templates/"
-XUI_PACKAGE = "runbooks"
-PAGE_VIEW = "actions"
 
 MISSING_MODULE = (
     "The runbook_tasks and runbook_workflows shared modules must be on this appliance. Sync the Runbooks "
@@ -54,7 +52,7 @@ def _modules():
 
 
 def page_url():
-    return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": PAGE_VIEW})
+    return reverse("runbooks_actions")
 
 
 def _new_urls():
@@ -64,12 +62,8 @@ def _new_urls():
 # ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
-@admin_extension(
-    title="Runbook Actions",
-    description="Create Remote Scripts and plug-ins with no other action around them, and see "
-    "each base action's filters, whether Run Task offers it, and what uses it.",
-)
 def actions(request):
+    """The Actions tab: create Remote Scripts and plug-ins, and see each base action's filters and uses."""
     profile = request.get_user_profile()
     modules = _modules()
     context = {
