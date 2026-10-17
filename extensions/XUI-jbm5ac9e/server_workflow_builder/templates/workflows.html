@@ -47,7 +47,7 @@
     <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
     {% if rows %}
     <div class="table-responsive">
-      <table id="swfx-workflows-table" class="swf-table">
+      <table id="swfx-workflows-table" class="swf-table" data-swf-page-size="10">
         <thead>
           <tr>
             <th>{% trans "Name" %}</th>
@@ -108,12 +108,42 @@
 (function () {
   "use strict";
   var $root = $("#swfx-list");
+  // Client-side pages of data-swf-page-size rows; rows the filter hides are
+  // left out of the count.
+  var $table = $root.find("table[data-swf-page-size]");
+  var size = parseInt($table.attr("data-swf-page-size"), 10) || 10;
+  var page = 0;
+  var $pager = $('<div class="swf-pager"></div>');
+  $table.closest(".table-responsive").after($pager);
+  function render(reset) {
+    if (reset) { page = 0; }
+    var $rows = $table.find("tbody tr[data-swf-row]");
+    var $match = $rows.filter(function () { return $(this).data("swf-match") !== false; });
+    var pages = Math.max(1, Math.ceil($match.length / size));
+    page = Math.max(0, Math.min(page, pages - 1));
+    $rows.hide();
+    $match.slice(page * size, page * size + size).show();
+    $pager.empty().toggle($match.length > size);
+    if ($match.length > size) {
+      var first = page * size + 1;
+      var last = Math.min($match.length, first + size - 1);
+      $pager.append($("<span>").text(first + "–" + last + " of " + $match.length));
+      $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-swf-step="-1" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>').prop("disabled", page === 0));
+      $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-swf-step="1" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>').prop("disabled", page >= pages - 1));
+    }
+  }
+  $pager.on("click", "[data-swf-step]", function () {
+    page += parseInt($(this).attr("data-swf-step"), 10);
+    render(false);
+  });
   $root.on("input", "input[data-swf-filter]", function () {
     var needle = this.value.toLowerCase();
-    $root.find($(this).attr("data-swf-filter")).find("tbody tr[data-swf-row]").each(function () {
-      $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+    $table.find("tbody tr[data-swf-row]").each(function () {
+      $(this).data("swf-match", this.textContent.toLowerCase().indexOf(needle) > -1);
     });
+    render(true);
   });
+  if ($table.length) { render(true); }
   $root.on("click", "[data-swf-copy]", function () {
     var $btn = $(this).prop("disabled", true);
     fetch($btn.attr("data-swf-copy"), {
