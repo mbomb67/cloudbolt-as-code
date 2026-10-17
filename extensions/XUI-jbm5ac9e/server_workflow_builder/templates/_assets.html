@@ -6,6 +6,10 @@
 {% endcomment %}
 <style>
   .swfx {
+    /* Contains absolutely positioned children (Bootstrap's .visually-hidden
+       labels): CloudBolt's scrolling <main> is position: static, so without
+       this they position against the page and add an outer scroll bar. */
+    position: relative;
     --swf-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
     --swf-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
     --swf-line: var(--neutral-250, #E2E8ED);

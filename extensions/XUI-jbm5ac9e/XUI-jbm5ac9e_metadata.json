@@ -1,5 +1,5 @@
 {
-    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action.",
+    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action, and an Actions tab that creates Remote Scripts and plug-ins with no other action around them and shows where each base action is used.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-jbm5ac9e",
@@ -12,9 +12,14 @@
         "__init__.py",
         "views.py",
         "urls.py",
+        "action_views.py",
+        "action_library.py",
         "templates/_assets.html",
+        "templates/_tabs.html",
         "templates/workflows.html",
-        "templates/editor.html"
+        "templates/editor.html",
+        "templates/actions.html",
+        "templates/action_editor.html"
     ],
     "version": ""
 }

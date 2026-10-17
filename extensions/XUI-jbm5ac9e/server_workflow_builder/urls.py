@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import action_views, views
 
 # The list page itself is the admin extension, served by CloudBolt at
 # /extensions/admin/server_workflow_builder/workflows.
@@ -47,5 +47,17 @@ xui_urlpatterns = [
         "xui/server_workflow_builder/api/actions/<str:action_id>/",
         views.api_action,
         name="server_workflow_builder_api_action",
+    ),
+    # Actions tab: the page is the admin extension
+    # /extensions/admin/server_workflow_builder/actions.
+    path(
+        "xui/server_workflow_builder/actions/new/<str:kind>/",
+        action_views.action_new,
+        name="server_workflow_builder_action_new",
+    ),
+    path(
+        "xui/server_workflow_builder/api/base-actions/",
+        action_views.api_base_actions,
+        name="server_workflow_builder_api_base_actions",
     ),
 ]

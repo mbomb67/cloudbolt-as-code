@@ -11,7 +11,7 @@ Deploys a Windows Server or Oracle Linux VM, then runs a server workflow on it w
 | Form function | FJS-hufo9zd4 | serverWorkflowItems |
 
 ## Setup
-Sync the Server Workflows package (`packages/PKG-vfnycv8s`), build a workflow on Admin > Custom Extensions > Server Workflows, and give the groups that should order this blueprint deploy permission.
+Sync the Server Automation package (`packages/PKG-v20qv308`), build a workflow on Admin > Custom Extensions > Server Workflows, and give the groups that should order this blueprint deploy permission.
 
 ## Choosing the workflow
 - **User's choice** (as shipped): the custom form lists every enabled workflow, and picking one shows a panel with just the inputs the workflow asks for. The form function `serverWorkflowItems` loads that panel from the Server Workflows webhook and submits the answers as the item's Workflow inputs.

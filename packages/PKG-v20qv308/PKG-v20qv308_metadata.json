@@ -1,0 +1,24 @@
+{
+    "contents": [
+        "plugins/OHK-lhm2916o",
+        "plugins/OHK-iub9a2jg",
+        "plugins/OHK-01kmavro",
+        "plugins/OHK-5yh12jiq",
+        "plugins/OHK-hgv6wp65",
+        "plugins/OHK-ow68kerl",
+        "webhooks/IWH-cdf543g3",
+        "webhooks/IWH-xjlrmvc8",
+        "server_actions/SVA-4sin3s0q",
+        "server_actions/SVA-j7rbsh39",
+        "extensions/XUI-jbm5ac9e",
+        "extensions/XUI-0hv6t61x",
+        "blueprints/BP-vy9ytey6"
+    ],
+    "description": "Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base, example and file-installer task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow.",
+    "id": "PKG-v20qv308",
+    "last_updated": "2026-10-16",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Server Automation",
+    "version": "1.0.0"
+}

@@ -1,0 +1,339 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{{ title }} &middot; {% trans "Server Workflows" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{{ title }}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "server_workflow_builder/templates/_assets.html" %}
+{% include "server_workflow_builder/templates/_tabs.html" with active="actions" %}
+<style>
+  .swfx .swf-code { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.45; tab-size: 4; }
+  .swfx textarea.swf-code { min-height: 320px; }
+  .swfx pre.swf-code { margin: 0; padding: 14px 18px; max-height: 520px; overflow: auto; background: var(--swf-surface-2); white-space: pre; }
+  .swfx .swf-inputs .form-control, .swfx .swf-inputs .form-select { font-size: 12.5px; }
+  .swfx .swf-inputs textarea { min-height: 34px; }
+  .swfx .swf-var { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--swf-primary); font-weight: 700; margin-top: 3px; }
+  .swfx .swf-warnings { margin: 0; padding: 10px 22px 10px 40px; font-size: 12.5px; font-weight: 600; color: var(--swf-warn-text); }
+</style>
+{% if data %}{{ data|json_script:"swf-action-data" }}{% endif %}
+
+<div id="swfx-action-editor" class="swfx" data-csrf="{{ csrf_token }}">
+  <div class="swf-card">
+    <div class="swf-hero-top">
+      <div>
+        <div class="swf-eyebrow">{% trans "Base action" %}</div>
+        <div class="swf-title"><i class="bi {% if data.kind == 'plugin' %}bi-plug-fill{% else %}bi-terminal-fill{% endif %}" aria-hidden="true"></i> {{ title }}</div>
+        <div class="swf-sub">
+          {% if data.defaults.template %}
+          {% trans "Built from" %} <a href="{{ data.defaults.template.url }}">{{ data.defaults.template.name }}</a>: {% trans "its helpers and error handling, one line per input, and your task body." %}
+          {% elif data %}
+          {% trans "A CloudBolt Plug-in that a workflow step can run on a server." %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="swf-tools">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All actions" %}</a>
+        {% if data %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-swf-preview><i class="bi bi-eye" aria-hidden="true"></i> {% trans "Preview" %}</button>
+        <button type="button" class="btn btn-sm btn-primary" data-swf-create><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Create" %}</button>
+        {% endif %}
+      </div>
+    </div>
+    {% if problem %}
+    <div class="swf-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ problem }}</div></div>
+    {% endif %}
+    <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
+    <ul class="swf-warnings d-none" data-swf-warnings></ul>
+  </div>
+
+  {% if data %}
+  <div class="swf-card">
+    <div class="swf-card-h"><button type="button" class="swf-fold" data-swf-fold="#swf-a-details" aria-expanded="true" aria-controls="swf-a-details"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Action details" %}</span></button></div>
+    <div class="swf-card-b" id="swf-a-details">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="swf-a-name">{% trans "Name" %}</label>
+          <input class="form-control" id="swf-a-name" maxlength="255" required>
+          <div class="form-text">{% if data.kind == "script" %}{% trans "What users pick in Run Task. Unique across every CloudBolt action." %}{% else %}{% trans "What admins pick for a workflow step. Unique across every CloudBolt action." %}{% endif %}</div>
+        </div>
+        {% if data.kind == "script" %}
+        <div class="col-md-3">
+          <label class="form-label" for="swf-a-timeout">{% trans "Timeout (seconds)" %}</label>
+          <input class="form-control" id="swf-a-timeout" type="number" min="{{ data.limits.timeout_min }}" max="{{ data.limits.timeout_max }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{% trans "Language" %}</label>
+          <div class="form-control-plaintext">{{ data.platform_label }}</div>
+        </div>
+        {% endif %}
+        <div class="col-12">
+          <label class="form-label" for="swf-a-description">{% trans "Description" %}</label>
+          <textarea class="form-control" id="swf-a-description" rows="2" maxlength="1000"></textarea>
+          <div class="form-text">{% trans "Shown in Run Task and the step picker, and written into the file's header comment. No template braces." %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swf-card">
+    <div class="swf-card-h">
+      <button type="button" class="swf-fold" data-swf-fold="#swf-a-filters" aria-expanded="true" aria-controls="swf-a-filters"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Filters" %}</span></button>
+      <span class="swf-muted">{% if data.kind == "script" %}{% trans "Run Task offers the script only on servers that pass every filter you set; leave Groups or Environments empty to allow any." %}{% else %}{% trans "CloudBolt runs the plug-in only on servers that pass every filter you set; leave a filter empty to allow any." %}{% endif %}</span>
+    </div>
+    <div class="swf-card-b" id="swf-a-filters">
+      <div class="swf-filters">
+        <div>
+          <label class="form-label" for="swf-a-families">{% trans "OS families" %}</label>
+          <select class="form-select" id="swf-a-families" multiple data-swf-multi="os_families"></select>
+          <div class="form-text">{% if data.kind == "script" %}{% trans "At least one. A family covers the families under it." %}{% else %}{% trans "A family covers the families under it." %}{% endif %}</div>
+        </div>
+        <div>
+          <label class="form-label" for="swf-a-groups">{% trans "Groups" %}</label>
+          <select class="form-select" id="swf-a-groups" multiple data-swf-multi="groups"></select>
+          <div class="form-text">{% trans "The server's own group; subgroups are not included." %}</div>
+        </div>
+        <div>
+          <label class="form-label" for="swf-a-environments">{% trans "Environments" %}</label>
+          <select class="form-select" id="swf-a-environments" multiple data-swf-multi="environments"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swf-card">
+    <div class="swf-card-h">
+      <button type="button" class="swf-fold" data-swf-fold="#swf-a-inputs" aria-expanded="true" aria-controls="swf-a-inputs"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Inputs" %}</span></button>
+      <span class="swf-muted">{% trans "Asked for when the task runs. Passwords cannot be inputs: CloudBolt logs Run Task's and Run Workflow's inputs in plain text." %}</span>
+      <div class="swf-card-tools">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-swf-add-input><i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add input" %}</button>
+      </div>
+    </div>
+    <div id="swf-a-inputs">
+    <div class="table-responsive">
+      <table class="swf-inputs">
+        <thead>
+          <tr>
+            <th style="width: 16%">{% trans "Name" %}</th>
+            <th style="width: 15%">{% trans "Label" %}</th>
+            <th style="width: 12%">{% trans "Type" %}</th>
+            <th>{% trans "Required" %}</th>
+            <th style="width: 17%">{% trans "Options, one per line" %}</th>
+            <th style="width: 14%" title="{% trans 'Matched from the start of the value; String and Multi-line text inputs only.' %}">{% trans "Pattern (regex)" %}</th>
+            <th>{% trans "Description" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody data-swf-inputs></tbody>
+      </table>
+    </div>
+    <div class="swf-empty d-none" data-swf-no-inputs>{% trans "No inputs." %}</div>
+    </div>
+  </div>
+
+  <div class="swf-card">
+    <div class="swf-card-h">
+      <button type="button" class="swf-fold" data-swf-fold="#swf-a-body-card" aria-expanded="true" aria-controls="swf-a-body-card"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Task body" %}</span></button>
+      <span class="swf-muted">
+        {% if data.platform == "windows" %}{% trans "PowerShell, inside the template's try block after the input lines. Read each input through the variable shown under its name. Log writes a line, Write-TaskOutput name value publishes an output, throw fails the task." %}
+        {% elif data.platform == "linux" %}{% trans "bash, inside the template's CB_TASK block after the input lines. Read each input through the variable shown under its name. log writes a line, task_output name value publishes an output, fail stops with an error; prefix privileged commands with $SUDO." %}
+        {% else %}{% trans "The body of run(job, server, servers, **kwargs). targets lists the servers it runs on, and each input is a local variable named after it. Return (status, output, errors) and, optionally, a dict of outputs for later steps." %}{% endif %}
+      </span>
+    </div>
+    <div class="swf-card-b" id="swf-a-body-card">
+      <textarea class="form-control swf-code" id="swf-a-body" spellcheck="false" aria-label="{% trans 'Task body' %}"></textarea>
+      <div class="form-text">{% trans "CloudBolt renders the whole file as a Django template before it runs: write no template braces here; use the input variables instead." %}</div>
+    </div>
+  </div>
+
+  <div class="swf-card d-none" data-swf-preview-card>
+    <div class="swf-card-h"><button type="button" class="swf-fold" data-swf-fold="#swf-a-preview" aria-expanded="true" aria-controls="swf-a-preview"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "File to be created" %}</span></button><span class="swf-muted" data-swf-preview-size></span></div>
+    <pre class="swf-code" id="swf-a-preview" data-swf-preview-source></pre>
+  </div>
+  {% endif %}
+</div>
+
+{% if data %}
+<script>
+(function () {
+  "use strict";
+  var data = JSON.parse(document.getElementById("swf-action-data").textContent);
+  var $root = $("#swfx-action-editor");
+  var csrf = $root.attr("data-csrf");
+  var OPTION_TYPES = data.option_types;
+  var PATTERN_TYPES = data.pattern_types;
+  var state = { inputs: (data.defaults.inputs || []).map(copyInput), busy: false };
+
+  function el(tag, attrs, children) {
+    var $e = $(document.createElement(tag));
+    $.each(attrs || {}, function (key, value) {
+      if (value === undefined || value === null || value === false) { return; }
+      if (key === "text") { $e.text(value); } else if (key === "cls") { $e.addClass(value); } else { $e.attr(key, value === true ? key : value); }
+    });
+    $.each(children || [], function (i, child) {
+      if (child === null || child === undefined || child === false) { return; }
+      $e.append(typeof child === "string" ? document.createTextNode(child) : child);
+    });
+    return $e;
+  }
+  function icon(name) { return el("i", { cls: "bi " + name, "aria-hidden": "true" }); }
+  function copyInput(spec) {
+    return {
+      name: spec.name || "", label: spec.label || "", type: spec.type || "STR", required: !!spec.required,
+      description: spec.description || "", options: (spec.options || []).join("\n"), pattern: spec.pattern || ""
+    };
+  }
+  // Mirrors action_library.variable_for.
+  function variableFor(name) {
+    if (!name) { return ""; }
+    if (data.kind === "plugin") { return name; }
+    if (data.platform === "windows") {
+      return "$" + name.split("_").filter(Boolean).map(function (part) { return part.charAt(0).toUpperCase() + part.slice(1); }).join("");
+    }
+    return name.toUpperCase();
+  }
+  function showError(message) {
+    var $alert = $root.find("[data-swf-error]");
+    $alert.toggleClass("d-none", !message).find("div").text(message || "");
+    if (message) { $alert[0].scrollIntoView({ behavior: "smooth", block: "center" }); }
+  }
+  function showWarnings(warnings) {
+    var $list = $root.find("[data-swf-warnings]").empty().toggleClass("d-none", !(warnings && warnings.length));
+    (warnings || []).forEach(function (text) { $list.append(el("li", { text: text })); });
+  }
+  function api(body) {
+    return fetch(data.urls.api, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRFToken": csrf },
+      body: JSON.stringify(body)
+    }).then(function (response) {
+      return response.text().then(function (text) {
+        var parsed;
+        try { parsed = JSON.parse(text); } catch (e) { parsed = { error: "Unexpected reply (HTTP " + response.status + ")." }; }
+        return { ok: response.ok, body: parsed || {} };
+      });
+    });
+  }
+
+  function fillMulti(key, options, selected) {
+    var $select = $root.find('[data-swf-multi="' + key + '"]');
+    var chosen = {};
+    (selected || []).forEach(function (value) { chosen[value] = true; });
+    options.forEach(function (option) {
+      $select.append(el("option", { value: option.value, text: option.label, selected: !!chosen[option.value] }));
+    });
+    $select.attr("size", Math.min(Math.max(options.length, 4), 8));
+  }
+
+  function renderInputs() {
+    var $body = $root.find("[data-swf-inputs]").empty();
+    state.inputs.forEach(function (spec, index) {
+      var $type = el("select", { cls: "form-select form-select-sm", "aria-label": "Type" }, data.input_types.map(function (t) {
+        return el("option", { value: t.value, text: t.label, selected: t.value === spec.type });
+      }));
+      var takesOptions = OPTION_TYPES.indexOf(spec.type) > -1;
+      var takesPattern = PATTERN_TYPES.indexOf(spec.type) > -1;
+      var $row = el("tr", {}, [
+        el("td", {}, [
+          el("input", { cls: "form-control form-control-sm swf-mono", value: spec.name, maxlength: 50, placeholder: "service_name", "aria-label": "Name", "data-k": "name" }),
+          el("div", { cls: "swf-var", "data-var": "", text: variableFor(spec.name) })
+        ]),
+        el("td", {}, [el("input", { cls: "form-control form-control-sm", value: spec.label, maxlength: 255, placeholder: "Service name", "aria-label": "Label", "data-k": "label" })]),
+        el("td", {}, [$type.attr("data-k", "type")]),
+        el("td", {}, [el("div", { cls: "form-check" }, [el("input", { cls: "form-check-input", type: "checkbox", checked: spec.required, "aria-label": "Required", "data-k": "required" })])]),
+        el("td", {}, [el("textarea", { cls: "form-control form-control-sm", rows: 2, disabled: !takesOptions, "aria-label": "Options", "data-k": "options" }).val(takesOptions ? spec.options : "")]),
+        el("td", {}, [el("input", { cls: "form-control form-control-sm swf-mono", value: takesPattern ? spec.pattern : "", disabled: !takesPattern, placeholder: "^[A-Za-z0-9_-]+$", "aria-label": "Pattern", "data-k": "pattern" })]),
+        el("td", {}, [el("textarea", { cls: "form-control form-control-sm", rows: 2, maxlength: 1000, "aria-label": "Description", "data-k": "description" }).val(spec.description)]),
+        el("td", {}, [el("button", { type: "button", cls: "btn btn-sm btn-outline-danger", title: "Remove input", "data-remove": index }, [icon("bi-trash"), el("span", { cls: "visually-hidden", text: "Remove" })])])
+      ]);
+      $row.attr("data-index", index);
+      $body.append($row);
+    });
+    $root.find("[data-swf-no-inputs]").toggleClass("d-none", state.inputs.length > 0);
+    $root.find("[data-swf-add-input]").prop("disabled", state.inputs.length >= data.limits.inputs);
+  }
+
+  function payload(preview) {
+    function multi(key) { return $root.find('[data-swf-multi="' + key + '"]').val() || []; }
+    return {
+      kind: data.kind,
+      platform: data.platform,
+      preview: !!preview,
+      name: $("#swf-a-name").val(),
+      description: $("#swf-a-description").val(),
+      timeout: data.kind === "script" ? $("#swf-a-timeout").val() : null,
+      os_families: multi("os_families"),
+      groups: multi("groups"),
+      environments: multi("environments"),
+      body: $("#swf-a-body").val(),
+      inputs: state.inputs.map(function (spec) {
+        return {
+          name: $.trim(spec.name), label: spec.label, type: spec.type, required: spec.required, description: spec.description,
+          pattern: PATTERN_TYPES.indexOf(spec.type) > -1 ? spec.pattern : "",
+          options: OPTION_TYPES.indexOf(spec.type) > -1 ? spec.options.split("\n") : []
+        };
+      })
+    };
+  }
+
+  function submit(preview) {
+    if (state.busy) { return; }
+    state.busy = true;
+    showError("");
+    var $button = $root.find(preview ? "[data-swf-preview]" : "[data-swf-create]").prop("disabled", true);
+    api(payload(preview)).then(function (reply) {
+      state.busy = false;
+      $button.prop("disabled", false);
+      if (!reply.ok) { showWarnings([]); showError(reply.body.error || "The request failed."); return; }
+      showWarnings(reply.body.warnings);
+      if (preview) {
+        $root.find("[data-swf-preview-card]").removeClass("d-none");
+        $root.find("[data-swf-preview-source]").text(reply.body.source);
+        $root.find("[data-swf-preview-size]").text(reply.body.source.length + " characters");
+        $root.find("[data-swf-preview-card]")[0].scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      window.location.href = reply.body.list_url;
+    }).catch(function (error) {
+      state.busy = false;
+      $button.prop("disabled", false);
+      showError(String(error.message || error));
+    });
+  }
+
+  $("#swf-a-timeout").val(data.defaults.timeout || "");
+  $("#swf-a-body").val(data.defaults.body || "");
+  fillMulti("os_families", data.os_families.options, data.os_families.selected);
+  fillMulti("groups", data.groups, []);
+  fillMulti("environments", data.environments, []);
+  renderInputs();
+
+  $root.on("input change", "[data-swf-inputs] [data-k]", function () {
+    var $row = $(this).closest("tr");
+    var spec = state.inputs[Number($row.attr("data-index"))];
+    var key = $(this).attr("data-k");
+    spec[key] = key === "required" ? this.checked : $(this).val();
+    if (key === "name") { $row.find("[data-var]").text(variableFor($.trim(spec.name))); }
+    if (key === "type") { renderInputs(); }
+  });
+  $root.on("click", "[data-remove]", function () {
+    state.inputs.splice(Number($(this).attr("data-remove")), 1);
+    renderInputs();
+  });
+  $root.on("click", "[data-swf-add-input]", function () {
+    state.inputs.push(copyInput({ type: "STR", required: true }));
+    renderInputs();
+    $root.find("[data-swf-inputs] tr:last [data-k=name]").trigger("focus");
+  });
+  $root.on("click", "[data-swf-fold]", function () {
+    var open = $(this).hasClass("collapsed");
+    $root.find($(this).attr("data-swf-fold")).toggleClass("d-none", !open);
+    $(this).toggleClass("collapsed", !open).attr("aria-expanded", open ? "true" : "false");
+  });
+  $root.on("click", "[data-swf-preview]", function () { submit(true); });
+  $root.on("click", "[data-swf-create]", function () { submit(false); });
+})();
+</script>
+{% endif %}
+{% endblock content %}

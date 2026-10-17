@@ -1,0 +1,319 @@
+{% extends "v5/default/body.html" %}
+{% load i18n %}
+{% block title %}{% trans "Actions" %} &middot; {% trans "Server Workflows" %}{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>{% trans "Server Workflows" %}</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+{% include "server_workflow_builder/templates/_assets.html" %}
+{% include "server_workflow_builder/templates/_tabs.html" with active="actions" %}
+<style>
+  .swfx .swf-used { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .swfx .swf-used li { margin-bottom: 2px; }
+  .swfx .swf-used .k { font-weight: 700; color: var(--swf-muted); }
+  .swfx .swf-check { display: flex; gap: 6px; align-items: center; }
+  .swfx .swf-check .form-control { width: 200px; }
+  .swfx .swf-created td { background: color-mix(in srgb, var(--swf-ok) 8%, transparent); }
+  .swfx .swf-col-name { min-width: 240px; }
+</style>
+
+<div id="swfx-actions" class="swfx" data-csrf="{{ csrf_token }}" data-api="{{ api_url }}" data-created="{{ created }}">
+  <div class="swf-card">
+    <div class="swf-hero-top">
+      <div>
+        <div class="swf-eyebrow">{% trans "Server workflows" %}</div>
+        <div class="swf-title"><i class="bi bi-terminal-fill" aria-hidden="true"></i> {% trans "Base actions" %}</div>
+        <div class="swf-sub">{% trans "Remote Scripts and plug-ins created here need no server, resource or orchestration action: Run Task offers a Remote Script on every server it fits, and any of them can be a workflow step. Edit or delete them on CloudBolt's own action pages." %}</div>
+      </div>
+      {% if not denied and not missing_module %}
+      <div class="swf-tools">
+        <div class="dropdown">
+          <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "New Remote Script" %}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ new_urls.windows }}"><i class="bi bi-windows" aria-hidden="true"></i> {% trans "Windows (PowerShell)" %}</a></li>
+            <li><a class="dropdown-item" href="{{ new_urls.linux }}"><i class="bi bi-ubuntu" aria-hidden="true"></i> {% trans "Linux (bash)" %}</a></li>
+          </ul>
+        </div>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ new_urls.plugin }}"><i class="bi bi-plug" aria-hidden="true"></i> {% trans "New plug-in" %}</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="swf-card">
+    {% if denied %}
+    <div class="swf-alert">
+      <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+      <div>{% trans "Base actions are managed here by CB Admins and Super Admins." %}</div>
+    </div>
+    {% elif missing_module %}
+    <div class="swf-alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>{{ missing_message }}</div>
+    </div>
+    {% else %}
+    <div class="swf-card-h">
+      <span class="swf-card-t">{% trans "Actions" %} &middot; <span data-swf-count>&hellip;</span></span>
+      <div class="swf-card-tools">
+        <select class="form-select form-select-sm w-auto" aria-label="{% trans 'Action type' %}" data-swf-type>
+          <option value="">{% trans "Every type" %}</option>
+        </select>
+        <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter actions' %}" data-swf-filter>
+        <form class="swf-check" data-swf-check>
+          <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Check a server' %}" aria-label="{% trans 'Hostname or SVR- id of a server to check' %}" data-swf-server>
+          <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% trans 'Show which actions can run on this server' %}"><i class="bi bi-hdd-network" aria-hidden="true"></i><span class="visually-hidden">{% trans "Check" %}</span></button>
+        </form>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch" id="swf-builtin" data-swf-builtin>
+          <label class="form-check-label swf-muted" for="swf-builtin" title="{% trans 'Also list the plug-ins, webhooks and emails CloudBolt ships with. Its Remote Scripts are always listed: Run Task offers them.' %}">{% trans "CloudBolt's own" %}</label>
+        </div>
+      </div>
+    </div>
+    {% if run_task_problem %}
+    <div class="swf-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ run_task_problem }}</div></div>
+    {% endif %}
+    <div class="swf-ok-note d-none" data-swf-note><i class="bi bi-check-circle-fill" aria-hidden="true"></i><div></div></div>
+    <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
+    <div class="swf-empty" data-swf-loading><i class="bi bi-arrow-repeat swf-spin" aria-hidden="true"></i> {% trans "Reading the actions and what uses them" %}</div>
+    <div class="table-responsive d-none" data-swf-table-wrap>
+      <table class="swf-table">
+        <thead>
+          <tr>
+            <th class="swf-col-name">{% trans "Action" %}</th>
+            <th>{% trans "Runs on" %}</th>
+            <th>{% trans "Run Task" %}</th>
+            <th data-swf-server-col class="d-none"></th>
+            <th>{% trans "Used by" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody data-swf-rows></tbody>
+      </table>
+    </div>
+    <div class="swf-pager d-none" data-swf-pager></div>
+    <div class="swf-empty d-none" data-swf-empty>{% trans "No actions match." %}</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if not denied and not missing_module %}
+<script>
+(function () {
+  "use strict";
+  var $root = $("#swfx-actions");
+  var api = $root.attr("data-api");
+  var created = $root.attr("data-created");
+  var USED_SHOWN = 4;
+  var PAGE_SIZE = 10;
+  var state = { rows: [], server: null, query: "", type: "", builtin: false, page: 0 };
+
+  function el(tag, attrs, children) {
+    var $e = $(document.createElement(tag));
+    $.each(attrs || {}, function (key, value) {
+      if (value === undefined || value === null || value === false) { return; }
+      if (key === "text") { $e.text(value); } else if (key === "cls") { $e.addClass(value); } else { $e.attr(key, value === true ? key : value); }
+    });
+    $.each(children || [], function (i, child) {
+      if (child === null || child === undefined || child === false) { return; }
+      $e.append(typeof child === "string" ? document.createTextNode(child) : child);
+    });
+    return $e;
+  }
+  function icon(name) { return el("i", { cls: "bi " + name, "aria-hidden": "true" }); }
+  function showError(message) {
+    $root.find("[data-swf-error]").toggleClass("d-none", !message).find("div").text(message || "");
+  }
+  function filterLine(label, values, anyText) {
+    return el("div", { cls: "swf-filter-line" }, [
+      el("span", { cls: "k", text: label + ": " }),
+      values.length ? values.join(", ") : el("span", { cls: "swf-muted", text: anyText })
+    ]);
+  }
+
+  function nameCell(row) {
+    var tags = [el("span", { cls: "swf-tag", text: row.type_label })];
+    if (row.builtin) { tags.push(el("span", { cls: "swf-tag", text: "{% trans 'Built-in' %}" })); }
+    if (!row.step) { tags.push(el("span", { cls: "swf-tag swf-tag-warn", title: row.step_reason || "", text: "{% trans 'Not a step' %}" })); }
+    return el("td", {}, [
+      el("div", {}, [icon(row.icon + " me-1"), row.urls.detail ? el("a", { href: row.urls.detail, text: row.name }) : row.name]),
+      el("div", {}, tags),
+      row.description ? el("div", { cls: "swf-hint", text: row.description }) : null,
+      el("div", { cls: "swf-hint swf-mono", text: row.id + (row.inputs ? " · " + row.inputs + (row.inputs === 1 ? " input" : " inputs") : "") })
+    ]);
+  }
+  function runsOnCell(row) {
+    var lines = [];
+    if (row.type === "script" || row.type === "plugin" || row.type === "copy") {
+      lines.push(filterLine("{% trans 'OS families' %}", row.os_families, "{% trans 'any' %}"));
+    }
+    lines.push(filterLine("{% trans 'Groups' %}", row.groups, "{% trans 'any' %}"));
+    lines.push(filterLine("{% trans 'Environments' %}", row.environments, "{% trans 'any' %}"));
+    if (row.technologies.length) { lines.push(filterLine("{% trans 'Technologies' %}", row.technologies, "")); }
+    if (row.configuration_managers.length) { lines.push(filterLine("{% trans 'Config managers' %}", row.configuration_managers, "")); }
+    return el("td", {}, lines);
+  }
+  function runTaskCell(row) {
+    var verdict = row.run_task;
+    if (verdict.offered === null) { return el("td", {}, [el("span", { cls: "swf-muted", text: verdict.text })]); }
+    return el("td", {}, [
+      el("span", { cls: "swf-pill " + (verdict.offered ? "swf-pill-ok" : "swf-pill-bad") }, [icon(verdict.offered ? "bi-check-circle-fill" : "bi-slash-circle"), verdict.text]),
+      verdict.reason ? el("div", { cls: "swf-hint", text: verdict.reason }) : null,
+      verdict.offered ? el("div", { cls: "swf-hint", text: "{% trans 'On every server its filters allow.' %}" }) : null
+    ]);
+  }
+  function serverCell(row) {
+    if (!state.server || !row.server_fit) { return null; }
+    var fit = row.server_fit;
+    return el("td", {}, [
+      el("span", { cls: "swf-pill " + (fit.fits ? "swf-pill-ok" : "swf-pill-bad") }, [icon(fit.fits ? "bi-check-lg" : "bi-x-lg"), fit.fits ? "{% trans 'Fits' %}" : "{% trans 'Does not fit' %}"]),
+      fit.reason ? el("div", { cls: "swf-hint", text: fit.reason }) : null
+    ]);
+  }
+  function usedItem(use) {
+    var note = [];
+    if (use.steps && use.steps.length) { note.push("step " + use.steps.join(", ")); }
+    if (use.note) { note.push(use.note); }
+    return el("li", {}, [
+      el("span", { cls: "k", text: use.kind + ": " }),
+      use.url ? el("a", { href: use.url, text: use.name }) : use.name,
+      note.length ? el("span", { cls: "swf-muted", text: " (" + note.join("; ") + ")" }) : null,
+      use.conflict ? el("div", { cls: "swf-hint text-danger", text: use.conflict }) : null
+    ]);
+  }
+  function usedCell(row) {
+    var pending = !row.dependents_loaded && !row.dependents_failed;
+    var $note = pending ? el("div", { cls: "swf-hint" }, [icon("bi-arrow-repeat swf-spin"), " {% trans 'Reading what uses it' %}"]) : null;
+    if (row.dependents_failed) { $note = el("div", { cls: "swf-hint text-danger", text: "{% trans 'Could not read what uses it.' %}" }); }
+    if (!row.used_by.length) { return el("td", {}, [$note || el("span", { cls: "swf-muted", text: "{% trans 'Nothing' %}" })]); }
+    var $list = el("ul", { cls: "swf-used" }, row.used_by.slice(0, USED_SHOWN).map(usedItem));
+    var rest = row.used_by.slice(USED_SHOWN);
+    var $more = null;
+    if (rest.length) {
+      $more = el("button", { type: "button", cls: "btn btn-link btn-sm p-0", text: "+" + rest.length + " {% trans 'more' %}" });
+      $more.on("click", function () { $list.append(rest.map(usedItem)); $more.remove(); });
+    }
+    return el("td", {}, [$list, $more, $note]);
+  }
+  // CloudBolt's dependents are slow to read for every action, so read them
+  // only for the rows on the page.
+  function loadUsedBy(rows) {
+    var want = rows.filter(function (row) { return !row.dependents_loaded && !row.dependents_failed && !row.reading; });
+    if (!want.length) { return; }
+    want.forEach(function (row) { row.reading = true; });
+    var params = ["used_by=1", "ids=" + encodeURIComponent(want.map(function (row) { return row.id; }).join(","))];
+    fetch(api + "?" + params.join("&"), { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+      .then(function (reply) {
+        if (!reply.ok) { throw new Error(reply.body.error || "{% trans 'What uses these actions could not be read.' %}"); }
+        var fresh = {};
+        (reply.body.actions || []).forEach(function (row) { fresh[row.id] = row; });
+        want.forEach(function (row) {
+          row.reading = false;
+          row.dependents_loaded = true;
+          if (fresh[row.id]) { row.used_by = fresh[row.id].used_by; }
+        });
+        render(false);
+      })
+      .catch(function (error) {
+        want.forEach(function (row) { row.reading = false; row.dependents_failed = true; });
+        render(false);
+        showError(String(error.message || error));
+      });
+  }
+  function toolsCell(row) {
+    return el("td", {}, [
+      el("div", { cls: "swf-row-tools" }, [
+        row.urls.detail ? el("a", { cls: "btn btn-sm btn-outline-secondary", href: row.urls.detail, title: "{% trans 'CloudBolt action page: code, inputs, history, delete' %}" }, [icon("bi-box-arrow-up-right"), el("span", { cls: "visually-hidden", text: "{% trans 'Open' %}" })]) : null,
+        el("a", { cls: "btn btn-sm btn-outline-secondary open-dialog", href: row.urls.edit, title: "{% trans 'Edit name, description and filters' %}" }, [icon("bi-pencil"), el("span", { cls: "visually-hidden", text: "{% trans 'Edit' %}" })])
+      ])
+    ]);
+  }
+
+  function matches(row) {
+    if (state.type && row.type !== state.type) { return false; }
+    if (!state.query) { return true; }
+    var text = [row.name, row.description, row.id, row.type_label].concat(row.os_families, row.groups, row.environments)
+      .concat(row.used_by.map(function (u) { return u.name; })).join(" ").toLowerCase();
+    return text.indexOf(state.query) > -1;
+  }
+  function render(reset) {
+    if (reset) { state.page = 0; }
+    var rows = state.rows.filter(matches);
+    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    state.page = Math.max(0, Math.min(state.page, pages - 1));
+    var $body = $root.find("[data-swf-rows]").empty();
+    var shown = rows.slice(state.page * PAGE_SIZE, state.page * PAGE_SIZE + PAGE_SIZE);
+    loadUsedBy(shown);
+    shown.forEach(function (row) {
+      var $tr = el("tr", { cls: row.id === created ? "swf-created" : "" }, [nameCell(row), runsOnCell(row), runTaskCell(row), serverCell(row), usedCell(row), toolsCell(row)]);
+      $body.append($tr);
+    });
+    $root.find("[data-swf-count]").text(rows.length === state.rows.length ? String(rows.length) : rows.length + " / " + state.rows.length);
+    $root.find("[data-swf-server-col]").toggleClass("d-none", !state.server).text(state.server ? state.server.hostname : "");
+    $root.find("[data-swf-table-wrap]").toggleClass("d-none", !rows.length);
+    $root.find("[data-swf-empty]").toggleClass("d-none", !!rows.length);
+    var $pager = $root.find("[data-swf-pager]").empty().toggleClass("d-none", rows.length <= PAGE_SIZE);
+    if (rows.length > PAGE_SIZE) {
+      var first = state.page * PAGE_SIZE + 1;
+      $pager.append(el("span", { text: first + "–" + Math.min(rows.length, first + PAGE_SIZE - 1) + " of " + rows.length }));
+      $pager.append(el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-page": -1, "aria-label": "Previous page", disabled: state.page === 0 }, [icon("bi-chevron-left")]));
+      $pager.append(el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-page": 1, "aria-label": "Next page", disabled: state.page >= pages - 1 }, [icon("bi-chevron-right")]));
+    }
+  }
+  function fillTypes() {
+    var seen = {};
+    var $select = $root.find("[data-swf-type]");
+    $select.find("option:not(:first)").remove();
+    state.rows.forEach(function (row) {
+      if (!seen[row.type]) { seen[row.type] = true; $select.append(el("option", { value: row.type, text: row.type_label })); }
+    });
+    $select.val(seen[state.type] ? state.type : "");
+  }
+  function load() {
+    var params = [];
+    if (state.server) { params.push("server=" + encodeURIComponent(state.server.query)); }
+    if (state.builtin) { params.push("builtin=1"); }
+    $root.find("[data-swf-loading]").removeClass("d-none");
+    showError("");
+    fetch(api + (params.length ? "?" + params.join("&") : ""), { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+      .then(function (reply) {
+        $root.find("[data-swf-loading]").addClass("d-none");
+        if (!reply.ok) { throw new Error(reply.body.error || "{% trans 'The actions could not be read.' %}"); }
+        state.rows = reply.body.actions || [];
+        if (state.server && reply.body.server) { state.server.hostname = reply.body.server.hostname; }
+        fillTypes();
+        var at = state.rows.filter(matches).map(function (row) { return row.id; }).indexOf(created);
+        state.page = at > -1 ? Math.floor(at / PAGE_SIZE) : 0;
+        render(false);
+        var made = state.rows.filter(function (row) { return row.id === created; })[0];
+        if (made) {
+          $root.find("[data-swf-note]").removeClass("d-none").find("div").text(
+            "{% trans 'Created' %} " + made.name + ". " + (made.run_task.offered ? "{% trans 'Run Task offers it on every server its filters allow.' %}" : "")
+          );
+        }
+      })
+      .catch(function (error) {
+        $root.find("[data-swf-loading]").addClass("d-none");
+        if (state.server && state.server.pending) { state.server = null; }
+        showError(String(error.message || error));
+      });
+  }
+
+  $root.on("input", "[data-swf-filter]", function () { state.query = this.value.toLowerCase(); render(true); });
+  $root.on("change", "[data-swf-type]", function () { state.type = this.value; render(true); });
+  $root.on("click", "[data-swf-page]", function () { state.page += Number($(this).attr("data-swf-page")); render(false); });
+  $root.on("change", "[data-swf-builtin]", function () { state.builtin = this.checked; load(); });
+  $root.on("submit", "[data-swf-check]", function (event) {
+    event.preventDefault();
+    var value = $.trim($root.find("[data-swf-server]").val());
+    state.server = value ? { query: value, hostname: value } : null;
+    load();
+  });
+  load();
+})();
+</script>
+{% endif %}
+{% endblock content %}
