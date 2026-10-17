@@ -55,6 +55,19 @@ def _file_url(archive, name):
     return reverse("file_archives_file", args=[archive, name])
 
 
+def _archive_url(archive):
+    return reverse("file_archives_archive", args=[archive])
+
+
+def _activity_rows(events):
+    """Activity entries with a link to each file that still exists."""
+    for entry in events:
+        archive, _, name = (entry.get("ref") or "").partition("/")
+        entry["archive"] = archive
+        entry["file"] = name
+    return events
+
+
 def _username(request):
     return request.user.username
 
@@ -81,13 +94,31 @@ def _base_url_info(request, fa):
 # ---------------------------------------------------------------- pages
 
 
+def _archive_summary(archive):
+    """Counts and dates for an archive row: files, versions, stored bytes, last upload."""
+    files = archive["files"]
+    stored = sum(meta["size"] for item in files for meta in item["versions"])
+    last = max((item["latest"] for item in files), key=lambda meta: meta["uploaded_at"], default=None)
+    return {
+        "name": archive["name"],
+        "url": _archive_url(archive["name"]),
+        "description": archive.get("description", ""),
+        "file_count": len(files),
+        "version_count": sum(len(item["versions"]) for item in files),
+        "stored": _human_size(stored),
+        "created_by": archive.get("created_by", ""),
+        "created_at": archive.get("created_at", ""),
+        "last_upload": last,
+    }
+
+
 @admin_extension(
     title="File Archives",
     description="Keep versioned installers, tarballs and config bundles on CloudBolt for scripts to "
     "download onto servers through short-lived links.",
 )
 def archives(request):
-    """The list of archives and their files."""
+    """The File Archives page: one paginated table of archives, then recent activity."""
     profile = request.get_user_profile()
     context = {
         "uplink": {"url": reverse("admin_home"), "label": "Admin"},
@@ -95,20 +126,35 @@ def archives(request):
     }
     if not context["denied"]:
         fa = _fa()
-        rows = fa.list_archives()
-        for archive in rows:
-            for item in archive["files"]:
-                item["url"] = _file_url(archive["name"], item["name"])
-                item["size"] = _human_size(item["latest"]["size"])
         context.update(
             {
-                "archives": rows,
+                "archives": [_archive_summary(archive) for archive in fa.list_archives()],
                 "settings": fa.get_settings(),
                 "base_url": _base_url_info(request, fa),
-                "activity": fa.activity(limit=15),
+                "activity": _activity_rows(fa.activity(limit=500)),
             }
         )
     return render(request, TEMPLATES + "archives.html", context)
+
+
+@cbadmin_required
+def archive_detail(request, archive):
+    """One archive: its files, its activity, and its tools."""
+    fa = _fa()
+    info = fa.archive_info(archive)
+    if info is None:
+        raise Http404
+    for item in info["files"]:
+        item["url"] = _file_url(archive, item["name"])
+        item["size"] = _human_size(item["latest"]["size"])
+        item["extractable"] = item["name"].lower().endswith(fa.EXTRACTABLE)
+    context = {
+        "uplink": {"url": _page_url(), "label": "File Archives"},
+        "archive": info,
+        "summary": _archive_summary(info),
+        "activity": _activity_rows(fa.activity(archive=archive, limit=500)),
+    }
+    return render(request, TEMPLATES + "archive.html", context)
 
 
 @cbadmin_required
@@ -126,13 +172,14 @@ def file_detail(request, archive, name):
         meta["download_url"] = reverse("file_archives_version_download", args=[archive, name, meta["version"]])
     latest = versions[-1]
     context = {
-        "uplink": {"url": _page_url(), "label": "File Archives"},
+        "uplink": {"url": _archive_url(archive), "label": archive},
+        "archive_url": _archive_url(archive),
         "archive": archive,
         "name": name,
         "ref": f"{archive}/{name}",
         "latest": latest,
         "versions": list(reversed(versions)),
-        "activity": fa.activity(ref=f"{archive}/{name}", limit=50),
+        "activity": _activity_rows(fa.activity(ref=f"{archive}/{name}", limit=200)),
         "extractable": name.lower().endswith(fa.EXTRACTABLE),
     }
     return render(request, TEMPLATES + "file.html", context)
@@ -164,7 +211,7 @@ def archive_edit(request, archive=None):
     fa = _fa()
     existing = None
     if archive:
-        existing = next((a for a in fa.list_archives() if a["name"] == archive), None)
+        existing = fa.archive_info(archive)
         if existing is None:
             raise Http404
     values = {"name": archive or "", "description": existing.get("description", "") if existing else ""}
@@ -179,7 +226,7 @@ def archive_edit(request, archive=None):
         except fa.ArchiveError as exc:
             error = str(exc)
         else:
-            return _done(request, f'Archive "{values["name"]}" {"saved" if existing else "added"}.')
+            return _done(request, f'Archive "{values["name"]}" {"saved" if existing else "added"}.', _archive_url(values["name"]))
     return {
         "title": f"Edit archive {archive}" if existing else "Add archive",
         "action_url": reverse("file_archives_archive_edit", args=[archive]) if existing else reverse("file_archives_archive_add"),
@@ -296,7 +343,7 @@ def upload(request, archive, name=None):
 @cbadmin_required
 def _upload(request, archive, name=None):
     fa = _fa()
-    if not any(a["name"] == archive for a in fa.list_archives()):
+    if fa.archive_info(archive) is None:
         raise Http404
     error = None
     note = ""
@@ -380,6 +427,7 @@ def file_delete(request, archive, name):
     def run():
         fa.delete_file(archive, name)
         fa.forget(f"{archive}/{name}")
+        return _archive_url(archive)
 
     return _confirm(
         request,
@@ -400,7 +448,7 @@ def version_delete(request, archive, name, version):
     def run():
         fa.delete_version(archive, name, version)
         fa.record(f"{archive}/{name}", "version deleted", f"version {version}", _username(request))
-        return _file_url(archive, name) if fa.versions(archive, name) else None
+        return _file_url(archive, name) if fa.versions(archive, name) else _archive_url(archive)
 
     return _confirm(
         request,

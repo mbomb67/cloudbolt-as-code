@@ -5,18 +5,18 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Packages](#packages) | 5 |
+| [Packages](#packages) | 6 |
 | [Blueprints](#blueprints) | 28 |
 | [Resource actions](#resource-actions) | 37 |
 | [Server actions](#server-actions) | 3 |
-| [Orchestration actions](#orchestration-actions) | 18 |
+| [Orchestration actions](#orchestration-actions) | 21 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 145 |
-| [Shared modules](#shared-modules) | 20 |
+| [Plugins](#plugins) | 148 |
+| [Shared modules](#shared-modules) | 21 |
 | [UI extensions](#ui-extensions) | 12 |
-| [Parameters](#parameters) | 1 |
+| [Parameters](#parameters) | 2 |
 | [Forms](#forms) | 15 |
 | [Form functions](#form-functions) | 7 |
 
@@ -31,6 +31,7 @@ Named sets of content that the Content Package Manager extension (`extensions/XU
 | Data Disks from a Disk Map | [PKG-zny1ynfs](packages/PKG-zny1ynfs/README.md) | Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest. | 1.0.0 | [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) (blueprint), [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Oracle Linux)](orchestration_actions/HPA-4ptcwgg4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Windows)](orchestration_actions/HPA-42uy9dyo/README.md) (orchestration action), [Data Disks](parameters/CF-q3bexgap/README.md) (parameter) |
 | HCP Terraform | [PKG-0bo7vlxp](packages/PKG-0bo7vlxp/README.md) | Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs. | 1.0.0 | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) (blueprint), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) (blueprint), [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) (blueprint), [Form Options](webhooks/IWH-yj93is5z/) (webhook), [HCP Terraform Workspace](extensions/XUI-ax1sluwi/README.md) (UI extension) |
 | Server Automation | [PKG-v20qv308](packages/PKG-v20qv308/README.md) | Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base and example task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow. | 1.0.0 | [Server Task Template (Windows)](plugins/OHK-lhm2916o/) (plugin), [Server Task Template (Linux)](plugins/OHK-iub9a2jg/) (plugin), [Manage Windows Service](plugins/OHK-01kmavro/) (plugin), [Manage Linux Service](plugins/OHK-5yh12jiq/) (plugin), [Server Tasks](webhooks/IWH-cdf543g3/) (webhook), [Server Workflows](webhooks/IWH-xjlrmvc8/) (webhook), [Run Task](server_actions/SVA-4sin3s0q/README.md) (server action), [Run Workflow](server_actions/SVA-j7rbsh39/README.md) (server action), [Server Workflows](extensions/XUI-jbm5ac9e/README.md) (UI extension), [File Archives](extensions/XUI-0hv6t61x/README.md) (UI extension), [Server with Workflow](blueprints/BP-vy9ytey6/README.md) (blueprint) |
+| Windows AD Domain Join | [PKG-nf407lm5](packages/PKG-nf407lm5/README.md) | Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission. | 1.0.0 | [Delete Windows Computer Object from AD](orchestration_actions/HPA-q181uofy/README.md) (orchestration action), [Join Windows Server to AD Domain](orchestration_actions/HPA-jjp1vlfi/README.md) (orchestration action), [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) (orchestration action), [Domain OU](parameters/CF-8pif9mbf/README.md) (parameter) |
 
 ## Blueprints
 
@@ -137,14 +138,17 @@ Lifecycle hooks. Actions marked disabled ship that way on purpose; read the READ
 | Azure Resource Manager Rate Hook | [HPA-t7hlyvyy](orchestration_actions/HPA-t7hlyvyy/README.md) | Computes Azure server rates from negotiated Price Sheet prices, falling back to public retail prices. | Compute Server Rate | yes | [Azure Resource Manager Rate Hook](plugins/OHK-vg0rmi7i/) |
 | Configure Data Disks from Disk Map (Oracle Linux) | [HPA-4ptcwgg4](orchestration_actions/HPA-4ptcwgg4/README.md) | At Post-Provision, turns the disks from each Oracle Linux server's disk_map into LVM volumes with XFS file systems mounted at their mount points inside the guest. | Post-Provision | yes | [Configure Data Disks from Disk Map (Oracle Linux)](plugins/OHK-9h9vphf5/) |
 | Configure Data Disks from Disk Map (Windows) | [HPA-42uy9dyo](orchestration_actions/HPA-42uy9dyo/README.md) | At Post-Provision, formats the disks from each Windows server's disk_map inside the guest with their drive letters and NTFS labels. | Post-Provision | yes | [Configure Data Disks from Disk Map (Windows)](plugins/OHK-pdwb3xso/) |
+| Delete Windows Computer Object from AD | [HPA-q181uofy](orchestration_actions/HPA-q181uofy/README.md) | Deletes the Active Directory computer object of each Windows server being deleted at Pre-Delete. | Pre-Delete | yes | [Delete Windows Computer Object from AD](plugins/OHK-bkoau0j8/) |
 | Generate options for 'Expiration Date' | [HPA-qb0w86mi](orchestration_actions/HPA-qb0w86mi/README.md) | Pre-fills the Expiration Date order-form parameter with a default of seven days from now. | Generated Parameter Options | yes | [Generate options for 'Expiration Date'](plugins/OHK-cfciy0fo/) |
 | Generate options for Ansible job template maps | [HPA-aualk6ei](orchestration_actions/HPA-aualk6ei/) | Lists the Variable Maps that are Ansible job template maps so an admin pins a blueprint's ansible_job_template_maps parameter from a dropdown. | Generated Parameter Options | yes | [Generate options for Ansible job template maps](plugins/OHK-7i1fk0l5/) |
 | Generate options for HCP Terraform coordinates | [HPA-swe1kifa](orchestration_actions/HPA-swe1kifa/) | Lists HCP Terraform connections, organizations, projects and no-code modules so an admin pins a no-code blueprint's coordinates from dropdowns. | Generated Parameter Options | yes | [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/) |
 | Join Linux Server to AD Domain | [HPA-o6ctckmt](orchestration_actions/HPA-o6ctckmt/README.md) | Joins newly provisioned Linux servers to their Active Directory domain at Post-Provision. | Post-Provision | yes | [Join Linux Server to AD Domain](plugins/OHK-exqmrl0e/) |
+| Join Windows Server to AD Domain | [HPA-jjp1vlfi](orchestration_actions/HPA-jjp1vlfi/README.md) | Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision. | Post-Provision | yes | [Join Windows Server to AD Domain](plugins/OHK-9oqn6pur/) |
 | ServiceNow Request: Close on Completion | [HPA-fxo5hujp](orchestration_actions/HPA-fxo5hujp/README.md) | Closes the order's ServiceNow RITM when every job of the order has finished and attaches the CIs of the servers it produced. | Post-Order Execution | no | [ServiceNow Request: Close](plugins/OHK-htrxkps2/) |
 | ServiceNow Request: Close on Denial | [HPA-i8r5x2kc](orchestration_actions/HPA-i8r5x2kc/README.md) | Closes the order's ServiceNow RITM as incomplete when a CloudBolt approver denies the order. | Post-Order Denied | no | [ServiceNow Request: Close on Denial](plugins/OHK-w8exctx7/) |
 | ServiceNow Request: Open on Approval | [HPA-smbwmzj0](orchestration_actions/HPA-smbwmzj0/README.md) | At Post-Order Approval, holds every order subject to ServiceNow until ServiceNow approves it, opening the REQ/RITM first for orders CloudBolt auto-approved; with the wait pin off, opens a record-only RITM instead. | Post-Order Approval | no | [ServiceNow Request: Open](plugins/OHK-o4qmnffy/) |
 | ServiceNow Request: Open on Submit | [HPA-i1x67v4h](orchestration_actions/HPA-i1x67v4h/README.md) | Opens the ServiceNow REQ/RITM when an order is submitted, making ServiceNow the approval system of record for that order. | Order Submitted for Approval | no | [ServiceNow Request: Open](plugins/OHK-o4qmnffy/) |
+| Suggest Domain OUs | [HPA-0zcrvpwu](orchestration_actions/HPA-0zcrvpwu/README.md) | Turns the domain_ou parameter into a type-ahead that lists Active Directory OUs matching the typed text anywhere in their path once the user types three characters. | Generated Parameter Options | yes | [Suggest Domain OUs](plugins/OHK-z9qrccyu/) |
 
 ## Recurring jobs
 
@@ -236,6 +240,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Delete AWS EKS Nodegroup | [OHK-39mebtxi](plugins/OHK-39mebtxi/) | Deletes a chosen managed node group from the EKS cluster, waits for AWS to finish, and removes its sub-resource. | CloudBolt Plug-in | [Delete AWS EKS Nodegroup](resource_actions/RSA-rrbh1ntm/) |
 | Delete Blob Container | [OHK-y1120h61](plugins/OHK-y1120h61/) | Deletes a blob container from the resource's Azure storage account. | CloudBolt Plug-in | [Delete Blob Container](resource_actions/RSA-zmi15uts/) |
 | Delete Cluster | [OHK-pgbigmd9](plugins/OHK-pgbigmd9/) | Deletes the EKS cluster's node groups, the cluster, its IAM cluster role, the CloudBolt container orchestrator, and the node group sub-resources, refusing while namespace landing zones remain on the cluster. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
+| Delete Windows Computer Object from AD | [OHK-bkoau0j8](plugins/OHK-bkoau0j8/) | Deletes a Windows server's Active Directory computer object over LDAP with the LDAP Utility for its domain, matching it by the objectGUID recorded at join or, failing that, by a name created after the server. | CloudBolt Plug-in | [Delete Windows Computer Object from AD](orchestration_actions/HPA-q181uofy/README.md) |
 | Deploy AWS App Migration Agent | [OHK-5wpzgw68](plugins/OHK-5wpzgw68/) | Installs the AWS Application Migration Service replication agent on a Linux server. | CloudBolt Plug-in | [Deploy AWS App Migration Agent](server_actions/SVA-mwbtjfr0/README.md) |
 | Deploy Bicep Template | [OHK-gqvi9kv4](plugins/OHK-gqvi9kv4/) | Deploys an Azure deployment stack from a GitHub-hosted Bicep template after a what-if preview and approval. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md), [Bicep Deployment](blueprints/BP-nibk4erf/README.md) |
 | Deploy EKS Cluster | [OHK-u4k6dg46](plugins/OHK-u4k6dg46/) | Creates an Amazon EKS cluster and its IAM cluster role in the chosen AWS environment, registers it as a CloudBolt Kubernetes container orchestrator, and stores the cluster details on the resource. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
@@ -269,6 +274,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Install Postgres | [OHK-29uent0x](plugins/OHK-29uent0x/) | Installs PostgreSQL on an Oracle Linux 8 server. | Remote Script | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Install Windows File Server | [OHK-up7829pv](plugins/OHK-up7829pv/) | Installs the File Server role on a Windows server. | Remote Script | [Windows File Server](blueprints/BP-psw7rclb/README.md) |
 | Join Linux Server to AD Domain | [OHK-exqmrl0e](plugins/OHK-exqmrl0e/) | Joins a Linux server to Active Directory with realmd, SSSD, and adcli using its LDAP utility's credentials. | CloudBolt Plug-in | [Join Linux Server to AD Domain](orchestration_actions/HPA-o6ctckmt/README.md) |
+| Join Windows Server to AD Domain | [OHK-9oqn6pur](plugins/OHK-9oqn6pur/) | Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, then waits for the restart and verifies the name and secure channel. | CloudBolt Plug-in | [Join Windows Server to AD Domain](orchestration_actions/HPA-jjp1vlfi/README.md) |
 | Launch Helm Chart (2) | [OHK-tb703wqx](plugins/OHK-tb703wqx/) | Runs helm install on the resource's server tagged controller. | CloudBolt Plug-in | [Launch Helm Chart](resource_actions/RSA-tqy61754/README.md) |
 | List AWS EKS Nodegroup | [OHK-prji4iqt](plugins/OHK-prji4iqt/) | Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has. | CloudBolt Plug-in | [List AWS EKS Nodegroup](resource_actions/RSA-0g4pfrde/) |
 | List Blob Containers | [OHK-3kp5czyb](plugins/OHK-3kp5czyb/) | Lists the blob containers in the resource's Azure storage account. | CloudBolt Plug-in | [List Blob Containers](resource_actions/RSA-h93k53ld/) |
@@ -320,6 +326,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Set Resource Name From Field | [OHK-yw0klpjg](plugins/OHK-yw0klpjg/) | Renames the resource from a chosen field value and the first server's hostname. | CloudBolt Plug-in | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Set URL Parameter | [OHK-1rel6s64](plugins/OHK-1rel6s64/) | Sets the website URL parameter on the web application resource. | CloudBolt Plug-in | [IIS Web Application](blueprints/BP-122nbdt5/README.md), [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
 | Set VPC Name | [OHK-50ntkska](plugins/OHK-50ntkska/) | Renames the resource to the VPC name returned by the Ansible playbook. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
+| Suggest Domain OUs | [OHK-z9qrccyu](plugins/OHK-z9qrccyu/) | Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain. | CloudBolt Plug-in | [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) |
 | Sync From Source Control Repo | [OHK-0wtrj2wb](plugins/OHK-0wtrj2wb/) | Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll. | CloudBolt Plug-in | [Sync From Source Control Repo](mcp_tool_actions/MTA-543b19sa/README.md) |
 | Teardown AWS EKS Namespace | [OHK-bnano0nc](plugins/OHK-bnano0nc/) | Deletes the EKS namespace and everything in it, waits for it to terminate, then removes the pinned CloudBolt environment. | CloudBolt Plug-in | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
 | Teardown Azure Resource Group | [OHK-4xqzbdtx](plugins/OHK-4xqzbdtx/) | Deletes the Azure resource group behind the resource, refusing while a management lock is present. | CloudBolt Plug-in | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
@@ -344,6 +351,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 
 | Module | ID | Description | Used by |
 |---|---|---|---|
+| `ad_domain` | [SHM-gcba1u31](shared_modules/SHM-gcba1u31/) | Finds the Active Directory domain and LDAP Utility for a server from its domain_ou or domain_to_join, binds with that utility, and finds and deletes computer objects. | [Delete Windows Computer Object from AD](plugins/OHK-bkoau0j8/), [Join Windows Server to AD Domain](plugins/OHK-9oqn6pur/), [Suggest Domain OUs](plugins/OHK-z9qrccyu/) |
 | `aria_connection` | [SHM-u2s2d40p](shared_modules/SHM-u2s2d40p/) | Aria Automation 8 and Aria Orchestrator REST clients built on a CloudBolt ConnectionInfo labeled vra8 or aria, with generate-options helpers for connection and project dropdowns. | [Aria Migration Form Options](plugins/OHK-xhpq1rn3/), [Migrate Aria Automation Deployments](plugins/OHK-7sq2hqrb/), [Migrate Aria Automation Projects](plugins/OHK-gyl8wlrq/), [Run Aria Orchestrator Workflow](plugins/OHK-3bgpjmlr/) |
 | `azure_disk_encryption` | [SHM-vjwmn6nq](shared_modules/SHM-vjwmn6nq/) | Per-VM customer-managed-key disk encryption helpers for Azure Key Vault and disk encryption sets. | [Azure CMK - Per-VM Disk Encryption Set](plugins/OHK-vklpnqhq/), [Azure CMK - Remove Per-VM Disk Encryption Set](plugins/OHK-2vpg4pff/) |
 | `azure_management_locks` | [SHM-i1oshqxg](shared_modules/SHM-i1oshqxg/) | REST helpers for Azure Resource Manager management locks, authenticated as a CloudBolt Azure resource handler. | [Discover Azure Resource Groups](plugins/OHK-e5a4m2bm/), [Manage Delete Lock](plugins/OHK-sf6w5pfn/), [Teardown Azure Resource Group](plugins/OHK-4xqzbdtx/) |
@@ -391,6 +399,7 @@ Standalone parameters that content packages list. Source Control Repos does not 
 | Parameter | ID | Description | Name | Type | Options generated by |
 |---|---|---|---|---|---|
 | Data Disks | [CF-q3bexgap](parameters/CF-q3bexgap/README.md) | Data disks to add to the server, as a JSON list: one entry per disk with drive_letter (Windows) or mount_point (Linux), size_gb, and volume_name. | `disk_map` | TXT |  |
+| Domain OU | [CF-8pif9mbf](parameters/CF-8pif9mbf/README.md) | Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified. | `domain_ou` | STR | [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) |
 
 ## Forms
 

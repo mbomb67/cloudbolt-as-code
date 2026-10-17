@@ -1,0 +1,34 @@
+{
+    "allow_multiple": false,
+    "available_all_servers": false,
+    "description": "Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified.",
+    "field_dependency_controlling_set": [],
+    "field_dependency_dependent_set": [],
+    "gen_options_hooks": [
+        {
+            "dependencies": {
+                "orchestration_hook": "orchestration_actions/HPA-0zcrvpwu"
+            },
+            "enabled": true,
+            "name": "Suggest Domain OUs"
+        }
+    ],
+    "global_constraints": {},
+    "global_defaults": [],
+    "global_options": [],
+    "id": "CF-8pif9mbf",
+    "label": "Domain OU",
+    "last_updated": "2026-10-17",
+    "name": "domain_ou",
+    "placeholder": null,
+    "relevant_osfamilies": [
+        {
+            "name": "Windows"
+        }
+    ],
+    "required": false,
+    "show_as_attribute": false,
+    "show_on_servers": false,
+    "type": "STR",
+    "value_pattern_string": null
+}

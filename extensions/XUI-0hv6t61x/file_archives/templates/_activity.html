@@ -1,0 +1,47 @@
+{% load i18n %}
+{% comment %}
+  A collapsible, filterable, paginated activity table. Include with
+  activity_id (unique on the page), show_file (add a File column) and
+  collapsed (start closed).
+{% endcomment %}
+<div class="cfa-card cfa-card-fold">
+  <div class="cfa-card-h">
+    <button type="button" class="cfa-fold{% if collapsed %} collapsed{% endif %}" data-bs-toggle="collapse" data-bs-target="#{{ activity_id }}-body" aria-expanded="{% if collapsed %}false{% else %}true{% endif %}" aria-controls="{{ activity_id }}-body">
+      <i class="bi bi-chevron-right cfa-chev" aria-hidden="true"></i>
+      <span class="cfa-card-t">{% trans "Recent activity" %} &middot; {{ activity|length }}</span>
+    </button>
+    <div class="cfa-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter activity' %}" data-cfa-filter="#{{ activity_id }}-table">
+    </div>
+  </div>
+  <div id="{{ activity_id }}-body" class="collapse{% if not collapsed %} show{% endif %}">
+    <div class="cfa-card-b">
+      {% if activity %}
+      <div class="table-responsive">
+        <table id="{{ activity_id }}-table" class="cfa-table" data-cfa-page-size="15">
+          <thead>
+            <tr>
+              <th>{% trans "When (UTC)" %}</th>
+              {% if show_file %}<th>{% trans "File" %}</th>{% endif %}
+              <th>{% trans "Event" %}</th>
+              <th>{% trans "Detail" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in activity %}
+            <tr data-cfa-row>
+              <td class="cfa-mono">{{ entry.at }}</td>
+              {% if show_file %}<td>{% if entry.file %}<a href="{% url 'file_archives_file' entry.archive entry.file %}">{{ entry.ref }}</a>{% else %}{{ entry.ref }}{% endif %}</td>{% endif %}
+              <td><span class="cfa-tag{% if entry.event == 'refused' %} cfa-tag-bad{% elif entry.event == 'downloaded' %} cfa-tag-ok{% endif %}">{{ entry.event }}</span></td>
+              <td>{{ entry.detail }}{% if entry.by %} <span class="cfa-hint">({{ entry.by }})</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cfa-empty">{% trans "Nothing yet." %}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

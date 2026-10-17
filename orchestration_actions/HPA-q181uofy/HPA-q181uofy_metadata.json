@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-bkoau0j8"
+    },
+    "description": "Deletes the Active Directory computer object of each Windows server being deleted at Pre-Delete.",
+    "enabled": true,
+    "hook_point": "Pre-Delete",
+    "id": "HPA-q181uofy",
+    "last_updated": null,
+    "name": "Delete Windows Computer Object from AD",
+    "run_on_statuses": "",
+    "run_seq": 100
+}

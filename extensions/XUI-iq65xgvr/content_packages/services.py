@@ -279,7 +279,24 @@ def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
+MEMBER_TABLE_HEADER = "| Type | Name | Folder |"
+
+
+def _member_rows(package, resolved):
+    """The README's member table: its header, separator, and one row per member."""
+    lines = [MEMBER_TABLE_HEADER, "|---|---|---|"]
+    for ref in package.get("contents") or []:
+        member_type, global_id = store.parse_ref(ref)
+        obj = resolved.get(ref)
+        name = member_type.name_of(obj) if obj is not None else global_id
+        lines.append("| {} | {} | [{}](../../{}/) |".format(
+            member_type.singular, name.replace("|", "\\|"), ref, ref
+        ))
+    return lines
+
+
 def _readme(package, resolved):
+    """The README a package's first export writes."""
     lines = [
         "# {}".format(package["name"]),
         "",
@@ -290,17 +307,34 @@ def _readme(package, resolved):
         "Content package `{}`, version {}. Sync it from the Content Packages admin page "
         "(Content Package Manager UI extension).".format(package["id"], package.get("version") or ""),
         "",
-        "| Type | Name | Folder |",
-        "|---|---|---|",
     ]
-    for ref in package.get("contents") or []:
-        member_type, global_id = store.parse_ref(ref)
-        obj = resolved.get(ref)
-        name = member_type.name_of(obj) if obj is not None else global_id
-        lines.append("| {} | {} | [{}](../../{}/) |".format(
-            member_type.singular, name.replace("|", "\\|"), ref, ref
-        ))
+    lines += _member_rows(package, resolved)
     return "\n".join(lines) + "\n"
+
+
+def refresh_readme(text, package, resolved):
+    """
+    An existing package README with its member table rebuilt from the current
+    members, so members added after the first export (a parameter, say) are
+    listed. The table is the block from the "| Type | Name | Folder |" header
+    through the last row after it; every other line, hand-written ones
+    included, is kept. A README without the table gets one at the end. The
+    file's own line endings are kept.
+    """
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    rows = _member_rows(package, resolved)
+    start = next((i for i, line in enumerate(lines) if line.strip() == MEMBER_TABLE_HEADER), None)
+    if start is None:
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines += ([""] if lines else []) + rows
+    else:
+        end = start + 1
+        while end < len(lines) and lines[end].lstrip().startswith("|"):
+            end += 1
+        lines[start:end] = rows
+    return newline.join(lines) + newline
 
 
 def _push_member(service, obj, branch, message):
@@ -408,7 +442,8 @@ def _parameter_files(cf, repo, global_id):
 
 def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
-    manifest (and a README the first time) to packages/<PKG-id>/, together
+    manifest and the README (written whole the first time, then with only its
+    member table rebuilt) to packages/<PKG-id>/, together
     with each parameter member's folder and the READMEs the pushes deleted.
     A parameter's generated-options actions are pushed with it unless the
     package lists them. A member that fails does not stop the others.
@@ -492,7 +527,6 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                     report("  restoring {}".format(path))
             files = [
                 (manifest_path, json.dumps(store.manifest(package), indent=4, sort_keys=True) + "\n", True),
-                ("{}/README.md".format(folder), _readme(package, resolved), False),
             ]
             for _row, parameter_files in written:
                 files.extend(parameter_files)
@@ -503,6 +537,21 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 with open(target, "w") as stream:
                     stream.write(text)
+            # The package README is written whole the first time. Afterwards only
+            # its member table is rebuilt, so new members appear and the text
+            # around the table is kept.
+            readme = os.path.join(clone.working_dir, folder, "README.md")
+            if os.path.exists(readme):
+                with open(readme, newline="") as stream:
+                    current = stream.read()
+                text = refresh_readme(current, package, resolved)
+                if text != current:
+                    report("Updating the member table in {}/README.md".format(folder))
+                    with open(readme, "w", newline="") as stream:
+                        stream.write(text)
+            else:
+                with open(readme, "w") as stream:
+                    stream.write(_readme(package, resolved))
             message = "{}\n\n{} manifest".format(commit_message, _commit_marker(package))
             if written:
                 message += "\n\nWrites the parameters:\n{}".format("\n".join(row["ref"] for row, _ in written))

@@ -89,9 +89,11 @@ Rules:
   every other global ID (cardinal rule 6). `PKG` is not a CloudBolt prefix;
   nothing on the appliance will collide with it.
 - `README.md` is generated on first export from the manifest (name,
-  description, one table row per member with its name and type). It is left
-  alone on later exports so hand edits survive, the same rule the rest of the
-  repo follows for content READMEs.
+  description, one table row per member with its name and type). Later exports
+  rebuild only its member table (the block from the `| Type | Name | Folder |`
+  header through its last row, `services.refresh_readme`), so members added
+  since, such as a parameter, are listed, and hand edits around the table
+  survive.
 - The directory name is fixed at `packages/`. `SourceCodeRepo` has a
   `path_to_*` field per OOB type but no field for this, and an XUI cannot add
   one. An XUI setting can override it per repo if a customer ever needs that.
@@ -228,7 +230,8 @@ Branch listing stays on the OOB endpoint (`json_branches_by_repo_id`).
    dependency closure and stamps the remote URLs. Collect `(status, msg)` per
    member; keep going on failure so one bad unit does not hide the rest.
 3. Write `packages/PKG-<id>/PKG-<id>_metadata.json` (manifest without
-   `local`) and `README.md` if absent into the same clone, then
+   `local`) and `README.md` (whole if absent, else its member table rebuilt)
+   into the same clone, then
    `repo.commit_and_push(branch, commit_message, profile, repo_dir=repo_dir)`.
 4. Update the package's `local` block: repo, branch, `remote_source_url` built
    with `get_repo_url_for_file(branch, <manifest path>)`, `last_exported`.
