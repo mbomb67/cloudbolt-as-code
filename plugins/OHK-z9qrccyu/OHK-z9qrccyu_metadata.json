@@ -1,0 +1,24 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-gcba1u31"
+        ]
+    },
+    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain.",
+    "id": "OHK-z9qrccyu",
+    "max_retries": 0,
+    "name": "Suggest Domain OUs",
+    "parameters": [
+        {
+            "description": "Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified.",
+            "label": "Domain OU",
+            "name": "domain_ou",
+            "type": "String"
+        }
+    ],
+    "resource_technologies": [],
+    "script_filename": "OHK-z9qrccyu_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
