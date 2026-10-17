@@ -780,7 +780,10 @@
       }
       state.dirty = false;
       if (!state.id) {
-        window.location.replace(data.urls.edit.replace("WORKFLOW_ID", reply.body.workflow.id) + "?saved=1");
+        // The API names the new workflow's page; follow it only as a path on this site.
+        var next = String(reply.body.edit_url || "");
+        if (!/^\/(?![\/\\])/.test(next)) { showError("The workflow was saved, but its page address was not returned."); return; }
+        window.location.replace(next + "?saved=1");
         return;
       }
       $root.find("[data-swf-saved]").removeClass("d-none");

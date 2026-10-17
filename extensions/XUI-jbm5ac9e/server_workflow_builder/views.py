@@ -127,7 +127,7 @@ def workflow_editor(request, workflow_id=None):
         try:
             workflow = swf.get_workflow(workflow_id)
         except swf.WorkflowNotFound as exc:
-            raise Http404(str(exc))
+            raise Http404(exc.public_message)
     data = {
         "workflow": workflow,
         "filters": swf.filter_choices(),
@@ -150,7 +150,6 @@ def workflow_editor(request, workflow_id=None):
             ),
             "actions": reverse("server_workflow_builder_api_actions"),
             "action": reverse("server_workflow_builder_api_action", args=["ACTION_ID"]),
-            "edit": reverse("server_workflow_builder_edit", args=["WORKFLOW_ID"]),
         },
     }
     context = {
@@ -171,7 +170,7 @@ def workflow_delete(request, workflow_id):
     try:
         workflow = swf.get_workflow(workflow_id)
     except swf.WorkflowNotFound as exc:
-        raise Http404(str(exc))
+        raise Http404(exc.public_message)
     if request.method == "POST":
         swf.delete_workflow(workflow["id"])
         messages.success(request, 'Workflow "{}" deleted.'.format(workflow["name"]))
@@ -209,9 +208,9 @@ def _api(view):
         except PermissionDenied:
             return JsonResponse({"error": "This requires CB Admin or Super Admin."}, status=403)
         except swf.WorkflowNotFound as exc:
-            return JsonResponse({"error": str(exc)}, status=404)
+            return JsonResponse({"error": exc.public_message}, status=404)
         except swf.WorkflowError as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
+            return JsonResponse({"error": exc.public_message}, status=400)
         except Exception:
             logger.exception("Server workflow API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
