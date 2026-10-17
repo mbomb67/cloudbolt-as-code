@@ -114,6 +114,8 @@ INPUT_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 NAME_MAX = 255
 DESCRIPTION_MAX = 1000
 LABEL_MAX = 255
+# CustomFieldMapping.regex_constraint is a 250-character column.
+PATTERN_MAX = 250
 MAX_INPUTS = 30
 MAX_OPTIONS = 100
 TIMEOUT_MIN, TIMEOUT_MAX = 30, 86400
@@ -149,7 +151,12 @@ TEMPLATE_SYNTAX = ("{{", "{%", "{#", "%}", "#}")
 
 
 class ActionError(Exception):
-    """A request the Actions tab refuses. The message is for the admin."""
+    """A request the Actions tab refuses. public_message is written for the
+    admin and holds no internal detail, so it is what responses show."""
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.public_message = message
 
 
 # ---- naming ---------------------------------------------------------------
@@ -374,6 +381,8 @@ def clean_inputs(kind, platform, specs):
             raise ActionError(f"{where}: type must be one of {', '.join(INPUT_TYPES)}.")
         pattern = str(spec.get("pattern") or "").strip()
         if pattern:
+            if len(pattern) > PATTERN_MAX:
+                raise ActionError(f"{where}: the pattern must be {PATTERN_MAX} characters or fewer.")
             if field_type not in PATTERN_TYPES:
                 raise ActionError(
                     f"{where}: CloudBolt checks a pattern only on String and Multi-line text inputs, not on "
