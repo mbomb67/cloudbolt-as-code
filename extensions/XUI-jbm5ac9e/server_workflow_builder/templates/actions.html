@@ -92,6 +92,7 @@
         <tbody data-swf-rows></tbody>
       </table>
     </div>
+    <div class="swf-pager d-none" data-swf-pager></div>
     <div class="swf-empty d-none" data-swf-empty>{% trans "No actions match." %}</div>
     {% endif %}
   </div>
@@ -105,7 +106,8 @@
   var api = $root.attr("data-api");
   var created = $root.attr("data-created");
   var USED_SHOWN = 4;
-  var state = { rows: [], server: null, query: "", type: "", builtin: false };
+  var PAGE_SIZE = 10;
+  var state = { rows: [], server: null, query: "", type: "", builtin: false, page: 0 };
 
   function el(tag, attrs, children) {
     var $e = $(document.createElement(tag));
@@ -207,10 +209,13 @@
       .concat(row.used_by.map(function (u) { return u.name; })).join(" ").toLowerCase();
     return text.indexOf(state.query) > -1;
   }
-  function render() {
+  function render(reset) {
+    if (reset) { state.page = 0; }
     var rows = state.rows.filter(matches);
+    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    state.page = Math.max(0, Math.min(state.page, pages - 1));
     var $body = $root.find("[data-swf-rows]").empty();
-    rows.forEach(function (row) {
+    rows.slice(state.page * PAGE_SIZE, state.page * PAGE_SIZE + PAGE_SIZE).forEach(function (row) {
       var $tr = el("tr", { cls: row.id === created ? "swf-created" : "" }, [nameCell(row), runsOnCell(row), runTaskCell(row), serverCell(row), usedCell(row), toolsCell(row)]);
       $body.append($tr);
     });
@@ -218,6 +223,13 @@
     $root.find("[data-swf-server-col]").toggleClass("d-none", !state.server).text(state.server ? state.server.hostname : "");
     $root.find("[data-swf-table-wrap]").toggleClass("d-none", !rows.length);
     $root.find("[data-swf-empty]").toggleClass("d-none", !!rows.length);
+    var $pager = $root.find("[data-swf-pager]").empty().toggleClass("d-none", rows.length <= PAGE_SIZE);
+    if (rows.length > PAGE_SIZE) {
+      var first = state.page * PAGE_SIZE + 1;
+      $pager.append(el("span", { text: first + "–" + Math.min(rows.length, first + PAGE_SIZE - 1) + " of " + rows.length }));
+      $pager.append(el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-page": -1, "aria-label": "Previous page", disabled: state.page === 0 }, [icon("bi-chevron-left")]));
+      $pager.append(el("button", { type: "button", cls: "btn btn-sm btn-outline-secondary", "data-swf-page": 1, "aria-label": "Next page", disabled: state.page >= pages - 1 }, [icon("bi-chevron-right")]));
+    }
   }
   function fillTypes() {
     var seen = {};
@@ -242,7 +254,9 @@
         state.rows = reply.body.actions || [];
         if (state.server && reply.body.server) { state.server.hostname = reply.body.server.hostname; }
         fillTypes();
-        render();
+        var at = state.rows.filter(matches).map(function (row) { return row.id; }).indexOf(created);
+        state.page = at > -1 ? Math.floor(at / PAGE_SIZE) : 0;
+        render(false);
         var made = state.rows.filter(function (row) { return row.id === created; })[0];
         if (made) {
           $root.find("[data-swf-note]").removeClass("d-none").find("div").text(
@@ -257,8 +271,9 @@
       });
   }
 
-  $root.on("input", "[data-swf-filter]", function () { state.query = this.value.toLowerCase(); render(); });
-  $root.on("change", "[data-swf-type]", function () { state.type = this.value; render(); });
+  $root.on("input", "[data-swf-filter]", function () { state.query = this.value.toLowerCase(); render(true); });
+  $root.on("change", "[data-swf-type]", function () { state.type = this.value; render(true); });
+  $root.on("click", "[data-swf-page]", function () { state.page += Number($(this).attr("data-swf-page")); render(false); });
   $root.on("change", "[data-swf-builtin]", function () { state.builtin = this.checked; load(); });
   $root.on("submit", "[data-swf-check]", function (event) {
     event.preventDefault();
