@@ -1,5 +1,5 @@
 """
-The base actions behind the Actions tab of the Server Workflows page.
+The base actions behind the Actions tab of the Runbooks page.
 
 CloudBolt's UI creates a Remote Script or a CloudBolt Plug-in only inside a
 server, resource or orchestration action, and deleting that action deletes
@@ -9,7 +9,7 @@ can be a workflow step with what CloudBolt's All Actions page leaves out:
 OS families, groups, environments, whether Run Task offers it, and what uses
 it (server, resource and orchestration actions, blueprints, workflows, ...).
 
-Remote Scripts are built from the Server Task Templates on this appliance
+Remote Scripts are built from the Runbook Task Templates on this appliance
 (plugins/OHK-lhm2916o for Windows PowerShell, plugins/OHK-iub9a2jg for Linux
 bash): the template's own helpers and error handling, one input line per
 declared input in the template's form, and the admin's task body.
@@ -56,7 +56,7 @@ logger = ThreadLogger(__name__)
 
 RUN_TASK_ACTION_ID = "SVA-4sin3s0q"
 
-# The Server Task Templates (Remote Scripts) a new script is built from.
+# The Runbook Task Templates (Remote Scripts) a new script is built from.
 PLATFORMS = OrderedDict(
     [
         (
@@ -64,7 +64,7 @@ PLATFORMS = OrderedDict(
             {
                 "label": "Windows (PowerShell)",
                 "template_id": "OHK-lhm2916o",
-                "template_name": "Server Task Template (Windows)",
+                "template_name": "Runbook Task Template (Windows)",
                 "root_family": "Windows",
                 "extension": "ps1",
                 "end_marker": "exit 0",
@@ -77,7 +77,7 @@ PLATFORMS = OrderedDict(
             {
                 "label": "Linux (bash)",
                 "template_id": "OHK-iub9a2jg",
-                "template_name": "Server Task Template (Linux)",
+                "template_name": "Runbook Task Template (Linux)",
                 "root_family": "Linux",
                 "extension": "sh",
                 "end_marker": "CB_TASK",
@@ -90,7 +90,7 @@ PLATFORMS = OrderedDict(
 INPUTS_MARKER = "# ---- inputs ----"
 BODY_MARKER = "# ---- task body ----"
 
-# Input types Run Task and Run Workflow can carry (server_tasks.PLAIN_TYPES).
+# Input types Run Task and Run Workflow can carry (runbook_tasks.PLAIN_TYPES).
 INPUT_TYPES = OrderedDict(
     [
         ("STR", "String"),
@@ -182,7 +182,7 @@ def variable_for(kind, platform, name):
 
 
 def template_hook(platform):
-    """The platform's Server Task Template on this appliance, or None."""
+    """The platform's Runbook Task Template on this appliance, or None."""
     info = PLATFORMS[platform]
     hooks = RemoteScriptHook.objects.all()
     return hooks.filter(global_id=info["template_id"]).first() or hooks.filter(name=info["template_name"]).first()
@@ -199,8 +199,8 @@ def _template_parts(platform):
     hook = template_hook(platform)
     if hook is None:
         raise ActionError(
-            f"{info['template_name']} ({info['template_id']}) is not on this CloudBolt. Sync the Server "
-            "Automation content package, or Run Task, first; it brings the templates."
+            f"{info['template_name']} ({info['template_id']}) is not on this CloudBolt. Sync the Runbooks "
+            "content package, or Run Task, first; it brings the templates."
         )
     try:
         lines = (hook.file_content() or "").splitlines()
@@ -260,9 +260,9 @@ def _input_spec(field):
 
 
 def _ordered_inputs(hook):
-    from shared_modules import server_tasks
+    from shared_modules import runbook_tasks
 
-    return server_tasks.task_fields(hook)
+    return runbook_tasks.task_fields(hook)
 
 
 PLUGIN_BODY = "\n".join(
@@ -436,7 +436,7 @@ def clean_request(data):
         outside = [f.name for f in families if root not in _lineage(f)]
         if outside:
             raise ActionError(
-                f"A {PLATFORMS[platform]['label']} script runs on {root.name} servers; {', '.join(outside)} "
+                f"A {PLATFORMS[platform]['label']} script runs on {root.name} VMs; {', '.join(outside)} "
                 f"is not under {root.name}."
             )
     timeout = None
@@ -486,10 +486,10 @@ def _header(request, template_name):
     if request["description"]:
         lines.append("#")
     if template_name:
-        lines.append(f"# Built on the Server Workflows Actions page from {template_name}. That")
+        lines.append(f"# Built on the Runbooks Actions tab from {template_name}. That")
         lines.append("# template's header lists the conventions this script follows.")
     else:
-        lines.append("# Built on the Server Workflows Actions page.")
+        lines.append("# Built on the Runbooks Actions tab.")
     return lines
 
 
@@ -528,7 +528,7 @@ def _plugin_source(request):
     lines += [
         "",
         "def _servers(job, server, servers):",
-        '    """The server action\'s server, else the servers CloudBolt passed, else the job\'s."""',
+        '    """The server action\'s server, else the VMs CloudBolt passed, else the job\'s."""',
         "    if server is not None:",
         "        return [server]",
         "    if servers:",
@@ -702,7 +702,7 @@ def create_action(request, source, profile=None):
             )
     origin = template_hook(request["platform"]).name if request["kind"] == "script" else "a blank plug-in"
     try:
-        hook.add_event("CREATION", f"Created on the Server Workflows Actions page from {origin}.", profile=profile)
+        hook.add_event("CREATION", f"Created on the Runbooks Actions tab from {origin}.", profile=profile)
     except Exception:
         logger.exception("Could not record the creation of '%s'", hook.name)
     return hook
@@ -775,7 +775,7 @@ def workflow_uses(swf, hook, workflows):
             {
                 "kind": "Workflow",
                 "name": workflow.get("name") or workflow["id"],
-                "url": reverse("server_workflow_builder_edit", args=[workflow["id"]]),
+                "url": reverse("runbooks_workflow_edit", args=[workflow["id"]]),
                 "note": "" if workflow.get("enabled", True) else "disabled",
                 "steps": [step.get("name") or step.get("key") for step in steps],
                 "conflict": " ".join(conflicts),
@@ -794,17 +794,17 @@ def run_task_state():
     return None
 
 
-def run_task_verdict(server_tasks, hook):
-    """Whether Run Task offers a Remote Script (on the servers its filters allow), and why not."""
+def run_task_verdict(runbook_tasks, hook):
+    """Whether Run Task offers a Remote Script (on the VMs its filters allow), and why not."""
     if not isinstance(hook, RemoteScriptHook):
         return {"offered": None, "text": "Remote Scripts only"}
     if hook.run_on_server_id:
         return {"offered": False, "text": "Not offered", "reason": "It always runs on its Run on Server."}
     # task_panel's rule, read from the prefetched inputs: a required input Run Task cannot carry.
     blocking = [
-        server_tasks.input_label(field)
+        runbook_tasks.input_label(field)
         for field in hook.input_fields.all()
-        if field.required and (field.type in server_tasks.SECRET_TYPES or field.type not in server_tasks.PLAIN_TYPES)
+        if field.required and (field.type in runbook_tasks.SECRET_TYPES or field.type not in runbook_tasks.PLAIN_TYPES)
     ]
     if blocking:
         return {
@@ -841,7 +841,7 @@ def _names(objects):
     return sorted(str(getattr(obj, "name", obj)) for obj in objects)
 
 
-def action_row(swf, server_tasks, hook, workflows, steppable, server=None, with_dependents=False):
+def action_row(swf, runbook_tasks, hook, workflows, steppable, server=None, with_dependents=False):
     """
     One action for the list. CloudBolt's dependents cost about 30 queries an
     action, so they come only with_dependents; the page asks for them for the
@@ -866,7 +866,7 @@ def action_row(swf, server_tasks, hook, workflows, steppable, server=None, with_
         "technologies": _names(hook.resource_technologies.all()),
         "configuration_managers": _names(hook.configuration_managers.all()),
         "inputs": len(hook.input_fields.all()),
-        "run_task": run_task_verdict(server_tasks, hook),
+        "run_task": run_task_verdict(runbook_tasks, hook),
         "step": hook.global_id in steppable,
         "used_by": used_by,
         "dependents_loaded": with_dependents,
@@ -880,15 +880,15 @@ def action_row(swf, server_tasks, hook, workflows, steppable, server=None, with_
         else:
             row["step_reason"] = "It serves another purpose (generated options, a condition, a build item, ...)."
     if server is not None:
-        reason = server_tasks.refusal(hook, server)
+        reason = runbook_tasks.refusal(hook, server)
         row["server_fit"] = {"fits": not reason, "reason": reason}
     return row
 
 
-def action_rows(swf, server_tasks, include_builtin=False, server=None, ids=None, with_dependents=False):
+def action_rows(swf, runbook_tasks, include_builtin=False, server=None, ids=None, with_dependents=False):
     workflows = swf.list_workflows()
     steppable = {hook.global_id for hook in swf.candidate_actions(include_all=False)}
     return [
-        action_row(swf, server_tasks, hook, workflows, steppable, server=server, with_dependents=with_dependents)
+        action_row(swf, runbook_tasks, hook, workflows, steppable, server=server, with_dependents=with_dependents)
         for hook in candidate_hooks(swf, include_builtin=include_builtin, ids=ids)
     ]

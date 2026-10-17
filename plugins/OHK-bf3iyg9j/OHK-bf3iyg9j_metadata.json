@@ -5,10 +5,10 @@
             "shared_modules/SHM-571l7249"
         ]
     },
-    "description": "Serves the Run Task form: the tasks that fit a server, a chosen task's inputs, and saving credentials on a server that has none.",
+    "description": "Serves the Run Task form: the tasks that fit a VM, a chosen task's inputs, and saving credentials on a VM that has none.",
     "id": "OHK-bf3iyg9j",
     "max_retries": 0,
-    "name": "Server Tasks",
+    "name": "Runbook Tasks",
     "resource_technologies": [],
     "script_filename": "OHK-bf3iyg9j_script.py",
     "shared": false,

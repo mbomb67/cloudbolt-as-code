@@ -1,12 +1,12 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{{ title }} &middot; {% trans "Server Workflows" %}{% endblock %}
+{% block title %}{{ title }} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
 {% block breadcrumb-item %}<h1>{{ title }}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "server_workflow_builder/templates/_assets.html" %}
-{% include "server_workflow_builder/templates/_tabs.html" with active="actions" %}
+{% include "runbooks/templates/_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="actions" %}
 <style>
   .swfx .swf-code { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.45; tab-size: 4; }
   .swfx textarea.swf-code { min-height: 320px; }
@@ -28,7 +28,7 @@
           {% if data.defaults.template %}
           {% trans "Built from" %} <a href="{{ data.defaults.template.url }}">{{ data.defaults.template.name }}</a>: {% trans "its helpers and error handling, one line per input, and your task body." %}
           {% elif data %}
-          {% trans "A CloudBolt Plug-in that a workflow step can run on a server." %}
+          {% trans "A CloudBolt Plug-in that a workflow step can run on a VM." %}
           {% endif %}
         </div>
       </div>
@@ -79,7 +79,7 @@
   <div class="swf-card">
     <div class="swf-card-h">
       <button type="button" class="swf-fold" data-swf-fold="#swf-a-filters" aria-expanded="true" aria-controls="swf-a-filters"><i class="bi bi-chevron-right swf-chev" aria-hidden="true"></i><span class="swf-card-t">{% trans "Filters" %}</span></button>
-      <span class="swf-muted">{% if data.kind == "script" %}{% trans "Run Task offers the script only on servers that pass every filter you set; leave Groups or Environments empty to allow any." %}{% else %}{% trans "CloudBolt runs the plug-in only on servers that pass every filter you set; leave a filter empty to allow any." %}{% endif %}</span>
+      <span class="swf-muted">{% if data.kind == "script" %}{% trans "Run Task offers the script only on VMs that pass every filter you set; leave Groups or Environments empty to allow any." %}{% else %}{% trans "CloudBolt runs the plug-in only on VMs that pass every filter you set; leave a filter empty to allow any." %}{% endif %}</span>
     </div>
     <div class="swf-card-b" id="swf-a-filters">
       <div class="swf-filters">
@@ -91,7 +91,7 @@
         <div>
           <label class="form-label" for="swf-a-groups">{% trans "Groups" %}</label>
           <select class="form-select" id="swf-a-groups" multiple data-swf-multi="groups"></select>
-          <div class="form-text">{% trans "The server's own group; subgroups are not included." %}</div>
+          <div class="form-text">{% trans "The VM's own group; subgroups are not included." %}</div>
         </div>
         <div>
           <label class="form-label" for="swf-a-environments">{% trans "Environments" %}</label>
@@ -137,7 +137,7 @@
       <span class="swf-muted">
         {% if data.platform == "windows" %}{% trans "PowerShell, inside the template's try block after the input lines. Read each input through the variable shown under its name. Log writes a line, Write-TaskOutput name value publishes an output, throw fails the task." %}
         {% elif data.platform == "linux" %}{% trans "bash, inside the template's CB_TASK block after the input lines. Read each input through the variable shown under its name. log writes a line, task_output name value publishes an output, fail stops with an error; prefix privileged commands with $SUDO." %}
-        {% else %}{% trans "The body of run(job, server, servers, **kwargs). targets lists the servers it runs on, and each input is a local variable named after it. Return (status, output, errors) and, optionally, a dict of outputs for later steps." %}{% endif %}
+        {% else %}{% trans "The body of run(job, server, servers, **kwargs). targets lists the VMs it runs on, and each input is a local variable named after it. Return (status, output, errors) and, optionally, a dict of outputs for later steps." %}{% endif %}
       </span>
     </div>
     <div class="swf-card-b" id="swf-a-body-card">

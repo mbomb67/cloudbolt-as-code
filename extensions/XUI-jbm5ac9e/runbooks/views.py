@@ -1,15 +1,15 @@
 """
-Server Workflows XUI
+Runbooks XUI
 
-An admin page (Admin > Custom Extensions > Server Workflows) for building
-server workflows: named, ordered lists of CloudBolt actions that the Run
-Workflow server action (server_actions/SVA-j7rbsh39) runs on a server. This
+An admin page (Admin > Custom Extensions > Runbooks) for building
+workflows: named, ordered lists of CloudBolt actions that the Run
+Workflow server action (server_actions/SVA-j7rbsh39) runs on a VM. This
 module renders the list page, the workflow editor, the Delete dialog, and the
-JSON API under xui/server_workflow_builder/api/ that the editor calls.
+JSON API under xui/runbooks/api/ that the editor calls.
 
 Workflows, their filters, the step picker and validation live in the
-server_workflows shared module (shared_modules/SHM-nznzhpp0), which arrives
-with the Run Workflow server action, so sync that action before using this
+runbook_workflows shared module (shared_modules/SHM-nznzhpp0), which arrives
+with the Run Workflow action, so sync that action before using this
 page. Everything here requires CB Admin: the admin page itself is also open to
 Global Viewers, so every view checks.
 """
@@ -28,35 +28,37 @@ from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
-# The Actions tab's page. CloudBolt finds admin extensions only in views.py.
+# The Actions and File Archives tabs' pages. CloudBolt finds admin extensions
+# only in views.py.
 from .action_views import actions  # noqa: F401
+from .archive_views import archives  # noqa: F401
 
 logger = ThreadLogger(__name__)
 
-TEMPLATES = "server_workflow_builder/templates/"
+TEMPLATES = "runbooks/templates/"
 
 # Folder name of this XUI and the admin view's function name; together they
 # form the list page URL /extensions/admin/<package>/<view>.
-XUI_PACKAGE = "server_workflow_builder"
+XUI_PACKAGE = "runbooks"
 PAGE_VIEW = "workflows"
 
 # Steps listed in a Steps cell before "+N more".
 STEPS_SHOWN = 4
 
 MISSING_MODULE = (
-    "The server_workflows shared module is not on this appliance. Sync the Run Workflow server action "
-    "(server_actions/SVA-j7rbsh39) or the Server Workflows content package first; it brings the module."
+    "The runbook_workflows shared module is not on this appliance. Sync the Run Workflow action "
+    "(server_actions/SVA-j7rbsh39) or the Runbooks content package first; it brings the module."
 )
 
 
 def _swf():
     """The shared module, imported on use so the page can explain when it is missing."""
     try:
-        from shared_modules import server_workflows
+        from shared_modules import runbook_workflows
     except ImportError:
-        logger.exception("Could not import shared_modules.server_workflows")
+        logger.exception("Could not import shared_modules.runbook_workflows")
         return None
-    return server_workflows
+    return runbook_workflows
 
 
 def _page_url():
@@ -86,9 +88,9 @@ def _row(swf, workflow):
         "missing_steps": sum(1 for step in steps if not step["exists"]),
         "updated": _when(workflow.get("updated_at")),
         "updated_by": workflow.get("updated_by") or "",
-        "edit_url": reverse("server_workflow_builder_edit", args=[workflow["id"]]),
-        "delete_url": reverse("server_workflow_builder_delete", args=[workflow["id"]]),
-        "copy_url": reverse("server_workflow_builder_api_copy", args=[workflow["id"]]),
+        "edit_url": reverse("runbooks_workflow_edit", args=[workflow["id"]]),
+        "delete_url": reverse("runbooks_workflow_delete", args=[workflow["id"]]),
+        "copy_url": reverse("runbooks_api_workflow_copy", args=[workflow["id"]]),
     }
 
 
@@ -96,9 +98,9 @@ def _row(swf, workflow):
 # Pages
 # ---------------------------------------------------------------------------
 @admin_extension(
-    title="Server Workflows",
-    description="Build workflows that run several CloudBolt actions in order on a server, with filters, "
-    "defaults and outputs passed between steps, for the Run Workflow server action.",
+    title="Runbooks",
+    description="Build workflows that run several CloudBolt actions in order on a VM, with filters, "
+    "defaults and outputs passed between steps, for the Run Workflow action.",
 )
 def workflows(request):
     profile = request.get_user_profile()
@@ -108,7 +110,7 @@ def workflows(request):
         "missing_module": swf is None,
         "missing_message": MISSING_MODULE,
         "rows": [],
-        "add_url": reverse("server_workflow_builder_add"),
+        "add_url": reverse("runbooks_workflow_add"),
     }
     if not context["denied"] and swf is not None:
         context["rows"] = [_row(swf, workflow) for workflow in swf.list_workflows()]
@@ -147,12 +149,12 @@ def workflow_editor(request, workflow_id=None):
         },
         "urls": {
             "list": _page_url(),
-            "workflows": reverse("server_workflow_builder_api_workflows"),
+            "workflows": reverse("runbooks_api_workflows"),
             "workflow": (
-                reverse("server_workflow_builder_api_workflow", args=[workflow["id"]]) if workflow else ""
+                reverse("runbooks_api_workflow", args=[workflow["id"]]) if workflow else ""
             ),
-            "actions": reverse("server_workflow_builder_api_actions"),
-            "action": reverse("server_workflow_builder_api_action", args=["ACTION_ID"]),
+            "actions": reverse("runbooks_api_actions"),
+            "action": reverse("runbooks_api_action", args=["ACTION_ID"]),
         },
     }
     context = {
@@ -188,7 +190,7 @@ def workflow_delete(request, workflow_id):
     return {
         "title": "Delete workflow",
         "content": content,
-        "action_url": reverse("server_workflow_builder_delete", args=[workflow["id"]]),
+        "action_url": reverse("runbooks_workflow_delete", args=[workflow["id"]]),
         "use_ajax": True,
         "submit": "Delete",
         "theme": "danger",
@@ -215,7 +217,7 @@ def _api(view):
         except swf.WorkflowError as exc:
             return JsonResponse({"error": exc.public_message}, status=400)
         except Exception:
-            logger.exception("Server workflow API call failed: %s %s", request.method, request.path)
+            logger.exception("Runbook workflow API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
 
     return wrapper
@@ -261,7 +263,7 @@ def api_workflows(request, swf):
     if request.method == "POST":
         workflow = swf.create_workflow(_body(request, swf), profile=request.get_user_profile())
         return JsonResponse(
-            {"workflow": workflow, "edit_url": reverse("server_workflow_builder_edit", args=[workflow["id"]])},
+            {"workflow": workflow, "edit_url": reverse("runbooks_workflow_edit", args=[workflow["id"]])},
             status=201,
         )
     return _method_not_allowed(["GET", "POST"])
@@ -290,7 +292,7 @@ def api_workflow_copy(request, swf, workflow_id):
         return _method_not_allowed(["POST"])
     workflow = swf.copy_workflow(workflow_id, profile=request.get_user_profile())
     return JsonResponse(
-        {"workflow": workflow, "edit_url": reverse("server_workflow_builder_edit", args=[workflow["id"]])},
+        {"workflow": workflow, "edit_url": reverse("runbooks_workflow_edit", args=[workflow["id"]])},
         status=201,
     )
 

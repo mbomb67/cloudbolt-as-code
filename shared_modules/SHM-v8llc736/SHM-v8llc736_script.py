@@ -1,9 +1,9 @@
 """
 File archives: versioned files kept on the CloudBolt appliance that scripts
-running on servers declare and download.
+running on VMs declare and download.
 
-Admins manage the files on the File Archives admin page
-(extensions/XUI-0hv6t61x). A script names the files it needs in header
+Admins manage the files on the File Archives tab of the Runbooks admin page
+(extensions/XUI-jbm5ac9e). A script names the files it needs in header
 comment lines:
 
     # cb-archive: installers/app.tar.gz extract
@@ -16,13 +16,13 @@ file after the download.
 Run Task (shared_modules/SHM-571l7249, run_task) calls prepare() on the
 rendered script. prepare() issues one short-lived signed link per file and
 puts a small download step at the top of the script (after a shebang line).
-On the server the step downloads each file into a fresh working directory,
+On the VM the step downloads each file into a fresh working directory,
 checks its SHA-256 against the store, extracts it if asked, exports
 CB_ARCHIVE_DIR and changes into that directory before the script body runs.
 Any failure prints an ERROR line and exits 1 before the body starts.
 
 The links point at the extension's download view,
-/xui/file_archives/dl/<token>/<file name>, which needs no CloudBolt login: the
+/xui/runbooks/file-archives/dl/<token>/<file name>, which needs no CloudBolt login: the
 token is an HMAC-SHA256 signature over the archive, file, version, server and
 expiry, made with a random key kept in the store. CloudBolt's own SECRET_KEY
 is a constant in its source, so it is not used. Rotating the key revokes every
@@ -43,7 +43,7 @@ until the retention count prunes it. Writes go to a temporary directory and
 are renamed into place, so a download never sees a partial file.
 
 Other content depends on these names; keep their signatures stable:
-prepare, output_lines and link_lifetime (server_tasks.run_task), and
+prepare, output_lines and link_lifetime (runbook_tasks.run_task), and
 validate_entry, file_choices and ArchiveError (the workflow builder).
 
 The activity log (links issued, downloads, refusals, uploads) is kept in the
@@ -100,7 +100,7 @@ HEADER = re.compile(r"^[ \t]*#[ \t]*cb-archive:[ \t]*(\S+)[ \t]*(.*?)[ \t]*$", r
 INLINE = re.compile(r"cb-archive-link:([A-Za-z0-9._@/-]+)")
 OPTIONS = {"extract"}
 EXTRACTABLE = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz")
-DOWNLOAD_PATH = "xui/file_archives/dl"
+DOWNLOAD_PATH = "xui/runbooks/file-archives/dl"
 
 
 class ArchiveError(Exception):
@@ -188,7 +188,7 @@ def base_url():
     url = get_settings()["base_url"] or default_base_url()
     if not url:
         raise ArchiveError(
-            "CloudBolt does not know the URL servers use to reach it. Set the download "
+            "CloudBolt does not know the URL VMs use to reach it. Set the download "
             "base URL on the File Archives admin page, or the default portal's domain."
         )
     return url
@@ -720,7 +720,7 @@ def _insert(script, step, windows):
 def download_step(windows, items, tag, verify_tls=False):
     """
     The shell text that fetches items, a list of (url, resolved, extract), on
-    the server. URLs, names and digests only use characters that need no
+    the VM. URLs, names and digests only use characters that need no
     quoting beyond single quotes. Kept small: Azure Run Command passes Windows
     scripts on the command line (about 9,000 characters for the whole script).
     """

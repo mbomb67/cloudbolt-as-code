@@ -420,8 +420,8 @@
   {
     "id": "BP-vy9ytey6",
     "type": "blueprints",
-    "name": "Server with Workflow",
-    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a server workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "name": "VM with Workflow",
+    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
     "path": "blueprints/BP-vy9ytey6",
     "readme": "blueprints/BP-vy9ytey6/README.md",
     "uses": [
@@ -463,20 +463,6 @@
       "plugins/OHK-7sq2hqrb"
     ],
     "used_by": []
-  },
-  {
-    "id": "XUI-0hv6t61x",
-    "type": "extensions",
-    "name": "File Archives",
-    "description": "Adds a File Archives admin page for versioned files that server scripts declare and download, and the signed short-lived link that servers download them through.",
-    "path": "extensions/XUI-0hv6t61x",
-    "readme": "extensions/XUI-0hv6t61x/README.md",
-    "uses": [],
-    "used_by": [],
-    "enabled": true,
-    "packages": [
-      "packages/PKG-v20qv308"
-    ]
   },
   {
     "id": "XUI-0jdk7t6h",
@@ -564,8 +550,8 @@
   {
     "id": "XUI-jbm5ac9e",
     "type": "extensions",
-    "name": "Server Workflows",
-    "description": "Adds a Server Workflows admin page for building workflows that run several CloudBolt actions in order on a server, with filters, fixed or prompted inputs, and outputs passed between steps, for the Run Workflow server action, and an Actions tab that creates Remote Scripts and plug-ins with no other action around them and shows where each base action is used.",
+    "name": "Runbooks",
+    "description": "Adds a Runbooks admin page with three tabs: Workflows, for building ordered runs of CloudBolt actions with filters, fixed or prompted inputs and outputs passed between steps; Actions, for creating Remote Scripts and plug-ins and seeing where each base action is used; and File Archives, for versioned files that scripts download through short-lived signed links.",
     "path": "extensions/XUI-jbm5ac9e",
     "readme": "extensions/XUI-jbm5ac9e/README.md",
     "uses": [],
@@ -623,7 +609,7 @@
   {
     "id": "FJS-hufo9zd4",
     "type": "form_functions",
-    "name": "serverWorkflowItems",
+    "name": "runbookWorkflowItems",
     "description": "Async form function for blueprint custom forms with Run Workflow build items: replaces each item's Workflow inputs box with a panel of the chosen or pinned workflow's prompts and writes the answers back as the item's input.",
     "path": "form_functions/FJS-hufo9zd4",
     "readme": null,
@@ -635,8 +621,8 @@
   {
     "id": "FJS-kn5lr5am",
     "type": "form_functions",
-    "name": "serverWorkflowForm",
-    "description": "Async form function for the Run Workflow form: loads the chosen workflow's steps and prompts into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form.",
+    "name": "runbookWorkflowForm",
+    "description": "Async form function for the Run Workflow form: loads the chosen workflow's steps and prompts into the Dynamic Panel and offers to save credentials on a VM that has none, without putting the password in the submitted form.",
     "path": "form_functions/FJS-kn5lr5am",
     "readme": null,
     "uses": [],
@@ -647,8 +633,8 @@
   {
     "id": "FJS-m3awusu7",
     "type": "form_functions",
-    "name": "serverTaskForm",
-    "description": "Async form function for the Run Task form: loads the chosen task's inputs into the Dynamic Panel and offers to save credentials on a server that has none, without putting the password in the submitted form.",
+    "name": "runbookTaskForm",
+    "description": "Async form function for the Run Task form: loads the chosen task's inputs into the Dynamic Panel and offers to save credentials on a VM that has none, without putting the password in the submitted form.",
     "path": "form_functions/FJS-m3awusu7",
     "readme": null,
     "uses": [],
@@ -747,7 +733,7 @@
     "id": "FRM-a5edrdj4",
     "type": "forms",
     "name": "Run Task",
-    "description": "Run one of the tasks that fit this server: pick a task, fill in its inputs, and submit.",
+    "description": "Run one of the tasks that fit this VM: pick a task, fill in its inputs, and submit.",
     "path": "forms/FRM-a5edrdj4",
     "readme": null,
     "uses": [
@@ -773,7 +759,7 @@
     "id": "FRM-ecw50rd0",
     "type": "forms",
     "name": "Run Workflow",
-    "description": "Run one of the workflows that fit this server: pick a workflow, fill in what it asks for, and submit.",
+    "description": "Run one of the workflows that fit this VM: pick a workflow, fill in what it asks for, and submit.",
     "path": "forms/FRM-ecw50rd0",
     "readme": null,
     "uses": [
@@ -824,7 +810,7 @@
   {
     "id": "FRM-j7w530h7",
     "type": "forms",
-    "name": "Server with Workflow",
+    "name": "VM with Workflow",
     "description": "Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it.",
     "path": "forms/FRM-j7w530h7",
     "readme": null,
@@ -1418,8 +1404,8 @@
   {
     "id": "PKG-v20qv308",
     "type": "packages",
-    "name": "Server Automation",
-    "description": "Adds Run Task and Run Workflow, server actions that run any Remote Script that fits a server and ordered workflows of CloudBolt actions on it, with base, example and file-installer task scripts, the Server Workflows page for building workflows and base actions, the File Archives page, and an example blueprint that runs a workflow.",
+    "name": "Runbooks",
+    "description": "Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, and an example blueprint that runs a workflow.",
     "path": "packages/PKG-v20qv308",
     "readme": "packages/PKG-v20qv308/README.md",
     "uses": [],
@@ -1437,7 +1423,6 @@
       "server_actions/SVA-4sin3s0q",
       "server_actions/SVA-j7rbsh39",
       "extensions/XUI-jbm5ac9e",
-      "extensions/XUI-0hv6t61x",
       "blueprints/BP-vy9ytey6"
     ]
   },
@@ -1872,7 +1857,7 @@
     "id": "OHK-69gk5ne9",
     "type": "plugins",
     "name": "Run Workflow",
-    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM.",
     "path": "plugins/OHK-69gk5ne9",
     "readme": null,
     "uses": [
@@ -2017,8 +2002,8 @@
   {
     "id": "OHK-9ewh41dg",
     "type": "plugins",
-    "name": "Server Workflows",
-    "description": "Serves the Run Workflow form: the workflows that fit a server, a chosen workflow's steps and prompts, and saving credentials on a server that has none.",
+    "name": "Runbook Workflows",
+    "description": "Serves the Run Workflow form: the workflows that fit a VM, a chosen workflow's steps and prompts, and saving credentials on a VM that has none.",
     "path": "plugins/OHK-9ewh41dg",
     "readme": null,
     "uses": [
@@ -2247,8 +2232,8 @@
   {
     "id": "OHK-bf3iyg9j",
     "type": "plugins",
-    "name": "Server Tasks",
-    "description": "Serves the Run Task form: the tasks that fit a server, a chosen task's inputs, and saving credentials on a server that has none.",
+    "name": "Runbook Tasks",
+    "description": "Serves the Run Task form: the tasks that fit a VM, a chosen task's inputs, and saving credentials on a VM that has none.",
     "path": "plugins/OHK-bf3iyg9j",
     "readme": null,
     "uses": [
@@ -2649,7 +2634,7 @@
     "id": "OHK-hgv6wp65",
     "type": "plugins",
     "name": "Run Installer from File Archive (Linux)",
-    "description": "Downloads a file from File Archives to a Linux server, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable).",
+    "description": "Downloads a file from File Archives to a Linux VM, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable).",
     "path": "plugins/OHK-hgv6wp65",
     "readme": null,
     "uses": [],
@@ -2690,8 +2675,8 @@
   {
     "id": "OHK-iub9a2jg",
     "type": "plugins",
-    "name": "Server Task Template (Linux)",
-    "description": "Base bash script for Run Task server tasks: prints a summary of the Linux server and an optional message, and shows the input, logging and error conventions to copy.",
+    "name": "Runbook Task Template (Linux)",
+    "description": "Base bash script for Run Task: prints a summary of the Linux VM and an optional message, and shows the input, logging and error conventions to copy.",
     "path": "plugins/OHK-iub9a2jg",
     "readme": null,
     "uses": [],
@@ -2783,8 +2768,8 @@
   {
     "id": "OHK-lhm2916o",
     "type": "plugins",
-    "name": "Server Task Template (Windows)",
-    "description": "Base PowerShell script for Run Task server tasks: prints a summary of the Windows server and an optional message, and shows the input, logging and error conventions to copy.",
+    "name": "Runbook Task Template (Windows)",
+    "description": "Base PowerShell script for Run Task: prints a summary of the Windows VM and an optional message, and shows the input, logging and error conventions to copy.",
     "path": "plugins/OHK-lhm2916o",
     "readme": null,
     "uses": [],
@@ -2886,7 +2871,7 @@
     "id": "OHK-o4tgygjs",
     "type": "plugins",
     "name": "Run Task",
-    "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",
+    "description": "Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid.",
     "path": "plugins/OHK-o4tgygjs",
     "readme": null,
     "uses": [
@@ -2947,7 +2932,7 @@
     "id": "OHK-ow68kerl",
     "type": "plugins",
     "name": "Run Installer from File Archive (Windows)",
-    "description": "Downloads a file from File Archives to a Windows server, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe).",
+    "description": "Downloads a file from File Archives to a Windows VM, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe).",
     "path": "plugins/OHK-ow68kerl",
     "readme": null,
     "uses": [],
@@ -4218,7 +4203,7 @@
     "id": "SVA-4sin3s0q",
     "type": "server_actions",
     "name": "Run Task",
-    "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",
+    "description": "Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid.",
     "path": "server_actions/SVA-4sin3s0q",
     "readme": "server_actions/SVA-4sin3s0q/README.md",
     "uses": [
@@ -4235,7 +4220,7 @@
     "id": "SVA-j7rbsh39",
     "type": "server_actions",
     "name": "Run Workflow",
-    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM.",
     "path": "server_actions/SVA-j7rbsh39",
     "readme": "server_actions/SVA-j7rbsh39/README.md",
     "uses": [
@@ -4264,8 +4249,8 @@
   {
     "id": "SHM-571l7249",
     "type": "shared_modules",
-    "name": "server_tasks",
-    "description": "Finds the Remote Scripts that can run on a server, checks credentials and task inputs, and runs a chosen script for the Run Task server action and its form webhook.",
+    "name": "runbook_tasks",
+    "description": "Finds the Remote Scripts that can run on a VM, checks credentials and task inputs, and runs a chosen script for the Run Task action and its form webhook.",
     "path": "shared_modules/SHM-571l7249",
     "readme": null,
     "uses": [],
@@ -4462,8 +4447,8 @@
   {
     "id": "SHM-nznzhpp0",
     "type": "shared_modules",
-    "name": "server_workflows",
-    "description": "Stores server workflows, works out which workflows and step actions fit a server or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "name": "runbook_workflows",
+    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
     "path": "shared_modules/SHM-nznzhpp0",
     "readme": null,
     "uses": [
@@ -4589,8 +4574,8 @@
   {
     "id": "IWH-cdf543g3",
     "type": "webhooks",
-    "name": "Server Tasks",
-    "description": "Endpoint the Run Task form calls for the tasks that fit a server, a chosen task's inputs, and to save credentials on a server that has none.",
+    "name": "Runbook Tasks",
+    "description": "Endpoint the Run Task form calls for the tasks that fit a VM, a chosen task's inputs, and to save credentials on a VM that has none.",
     "path": "webhooks/IWH-cdf543g3",
     "readme": null,
     "uses": [
@@ -4618,8 +4603,8 @@
   {
     "id": "IWH-xjlrmvc8",
     "type": "webhooks",
-    "name": "Server Workflows",
-    "description": "Endpoint the Run Workflow form calls for the workflows that fit a server, a chosen workflow's steps and prompts, and to save credentials on a server that has none.",
+    "name": "Runbook Workflows",
+    "description": "Endpoint the Run Workflow form calls for the workflows that fit a VM, a chosen workflow's steps and prompts, and to save credentials on a VM that has none.",
     "path": "webhooks/IWH-xjlrmvc8",
     "readme": null,
     "uses": [

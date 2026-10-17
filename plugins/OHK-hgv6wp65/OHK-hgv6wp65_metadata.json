@@ -61,7 +61,7 @@
     ],
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Downloads a file from File Archives to a Linux server, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable).",
+    "description": "Downloads a file from File Archives to a Linux VM, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable).",
     "execution_timeout": 1800,
     "id": "OHK-hgv6wp65",
     "max_retries": 0,

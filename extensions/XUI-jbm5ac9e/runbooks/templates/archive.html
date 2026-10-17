@@ -1,11 +1,12 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{{ archive.name }} &middot; {% trans "File Archives" %}{% endblock %}
+{% block title %}{{ archive.name }} &middot; {% trans "File Archives" %} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
 {% block breadcrumb-item %}<h1>{{ archive.name }}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "file_archives/templates/_assets.html" %}
+{% include "runbooks/templates/_archive_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="archives" %}
 
 <div id="cfax-archive" class="cfax">
   <div class="cfa-card">
@@ -16,13 +17,13 @@
         <div class="cfa-sub">{{ archive.description|default:"" }}</div>
       </div>
       <div class="cfa-tools">
-        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_upload' archive.name %}" data-dialog-width="640px">
+        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'runbooks_archive_upload' archive.name %}" data-dialog-width="640px">
           <i class="bi bi-upload" aria-hidden="true"></i> {% trans "Upload file" %}
         </a>
-        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_archive_edit' archive.name %}" data-dialog-width="640px">
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_edit' archive.name %}" data-dialog-width="640px">
           <i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}
         </a>
-        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_archive_delete' archive.name %}">
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_delete' archive.name %}">
           <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete archive" %}
         </a>
       </div>
@@ -76,9 +77,9 @@
                 <td><span class="cfa-mono"># cb-archive: {{ archive.name }}/{{ item.name }}{% if item.extractable %} extract{% endif %}</span></td>
                 <td>
                   <div class="cfa-row-tools">
-                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_upload_version' archive.name item.name %}" data-dialog-width="640px" title="{% trans 'Upload new version' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
-                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'file_archives_version_download' archive.name item.name item.latest.version %}" title="{% trans 'Download latest' %}"><i class="bi bi-download" aria-hidden="true"></i></a>
-                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_file_delete' archive.name item.name %}" title="{% trans 'Delete file' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_upload_version' archive.name item.name %}" data-dialog-width="640px" title="{% trans 'Upload new version' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'runbooks_archive_version_download' archive.name item.name item.latest.version %}" title="{% trans 'Download latest' %}"><i class="bi bi-download" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_file_delete' archive.name item.name %}" title="{% trans 'Delete file' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
                   </div>
                 </td>
               </tr>
@@ -93,7 +94,7 @@
     </div>
   </div>
 
-  {% include "file_archives/templates/_activity.html" with activity_id="cfax-archive-activity" show_file=True collapsed=True %}
+  {% include "runbooks/templates/_archive_activity.html" with activity_id="cfax-archive-activity" show_file=True collapsed=True %}
 </div>
 <script>window.cfaxInit("cfax-archive");</script>
 {% endblock content %}

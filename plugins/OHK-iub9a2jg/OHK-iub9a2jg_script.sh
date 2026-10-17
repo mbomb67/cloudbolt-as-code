@@ -1,12 +1,12 @@
 #!/bin/sh
 #
-# Server Task Template (Linux)
+# Runbook Task Template (Linux)
 #
-# Base script for Linux server tasks. Run Task (server_actions/SVA-4sin3s0q)
-# lists every Remote Script that fits the server, so a copy of this script with
+# Base script for Linux tasks. Run Task (server_actions/SVA-4sin3s0q)
+# lists every Remote Script that fits the VM, so a copy of this script with
 # the Linux OS family set shows up there without a new button. Copy it, rename
 # it, declare your inputs, and replace the task body between the CB_TASK
-# markers. This copy prints a short summary of the server and an optional
+# markers. This copy prints a short summary of the VM and an optional
 # message.
 #
 # Conventions:

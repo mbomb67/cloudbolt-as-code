@@ -1,29 +1,29 @@
 """
-Server tasks: the shared logic behind the Run Task server action.
+Runbook tasks: the shared logic behind the Run Task action.
 
-Run Task (server_actions/SVA-4sin3s0q) is one button on a server. Its dropdown
-lists the Remote Scripts that can run on that server, and it runs the chosen
+Run Task (server_actions/SVA-4sin3s0q) is one button on a VM. Its dropdown
+lists the Remote Scripts that can run on that VM, and it runs the chosen
 one there with CloudBolt's own Remote Script rendering and transport (VMware
 Tools, WinRM, SSH, Azure Run Command or AWS SSM). Its custom form
-(forms/FRM-a5edrdj4) calls the Server Tasks webhook (webhooks/IWH-cdf543g3)
+(forms/FRM-a5edrdj4) calls the Runbook Tasks webhook (webhooks/IWH-cdf543g3)
 for the task list, for the chosen task's inputs, and to save credentials on a
 server that has none.
 
-A Remote Script is offered on a server when it passes the checks CloudBolt
-makes before it runs a Remote Script on a server:
+A Remote Script is offered on a VM when it passes the checks CloudBolt
+makes before it runs a Remote Script on a VM:
   - no Run on Server is set (such a script always runs on that one host);
-  - the server's resource handler can run scripts on servers;
-  - its OS families are empty, or include the server's OS family or a parent
+  - the VM's resource handler can run scripts on servers;
+  - its OS families are empty, or include the VM's OS family or a parent
     of it;
   - its resource technologies, environments, groups and configuration
-    managers are empty, or include the server's.
-A bulk run offers only the tasks that pass on every selected server.
+    managers are empty, or include the VM's.
+A bulk run offers only the tasks that pass on every selected VM.
 
 Credentials, in CloudBolt's order: the Remote Script's saved credentials, then
-the server's. A server whose handler runs scripts without guest credentials
-(tech-specific execution on Azure or AWS) needs none. Any other server with no
+the VM's. A VM whose handler runs scripts without guest credentials
+(tech-specific execution on Azure or AWS) needs none. Any other VM with no
 usable username and password (or SSH key, for Linux over SSH) needs
-credentials, and the form offers to save them on the server, as CloudBolt's
+credentials, and the form offers to save them on the VM, as CloudBolt's
 own "save credentials" option does.
 
 Secrets: CloudBolt writes a server action's custom-form payload and its
@@ -71,7 +71,7 @@ class TaskError(Exception):
 def resolve_server(value, profile=None):
     """
     Return the active Server that value names (numeric id or SVR- global ID).
-    With a profile, the profile must be allowed to see the server.
+    With a profile, the profile must be allowed to see the VM.
     """
     text = str(value or "").strip()
     servers = Server.objects.exclude(status="HISTORICAL")
@@ -83,7 +83,7 @@ def resolve_server(value, profile=None):
         servers = servers.filter(id__in=Server.objects_for_profile(profile).values("id"))
     server = servers.first()
     if server is None:
-        raise TaskError(f"There is no server '{text}' that you can see.")
+        raise TaskError(f"There is no VM '{text}' that you can see.")
     return server
 
 
@@ -92,7 +92,7 @@ def can_manage_credentials(profile, server):
     return "server.manage_credentials" in get_cb_permissions(profile, server)
 
 
-# ---- which Remote Scripts fit a server, or a filter set ---------------------
+# ---- which Remote Scripts fit a VM, or a filter set ---------------------
 
 
 def _lineage(os_family):
@@ -110,12 +110,12 @@ def _names(objects):
 
 class _Facts:
     """
-    What the fit check compares, read once: one server, or a filter set (the
+    What the fit check compares, read once: one VM, or a filter set (the
     OS families, technologies, environments, groups and configuration
     managers a set of servers may have, such as a workflow's filters; an
     empty kind allows any value).
 
-    An action fits a filter set only when it can run on every server the set
+    An action fits a filter set only when it can run on every VM the set
     allows: a script restricted to Windows does not fit a set that allows any
     OS family.
     """
@@ -143,7 +143,7 @@ class _Facts:
 
     @property
     def managers(self):
-        """The server's environment's configuration managers, or the filter set's."""
+        """The VM's environment's configuration managers, or the filter set's."""
         if self._managers is None:
             env = self.server.environment if self.server is not None else None
             self._managers = set(env.get_connector_confs()) if env else set()
@@ -169,7 +169,7 @@ def _concrete(hook):
 
 def refusal(hook, server=None, facts=None):
     """
-    Why the action cannot run on server (or on every server a filter set's
+    Why the action cannot run on server (or on every VM a filter set's
     facts allow), or '' when it can. Works for any action type: the OS family
     and Run on Server checks apply to the types that have them, and the
     can-run-scripts check to Remote Scripts and Copy File actions.
@@ -177,14 +177,14 @@ def refusal(hook, server=None, facts=None):
     hook = _concrete(hook)
     facts = facts or _Facts(server=server)
     if getattr(hook, "run_on_server_id", None):
-        return f"'{hook.name}' always runs on its Run on Server, not on the server it is started from."
+        return f"'{hook.name}' always runs on its Run on Server, not on the VM it is started from."
     if facts.server is not None and isinstance(hook, (RemoteScriptHook, CopyFileAction)):
         if not facts.handler or not facts.handler.can_run_scripts_on_servers:
             return f"The resource handler of {facts.server.hostname} cannot run scripts on servers."
     families = set(hook.os_families.all()) if hasattr(hook, "os_families") else set()
     if families and not (facts.os_lineages and all(lineage & families for lineage in facts.os_lineages)):
         return (
-            f"'{hook.name}' runs on {_names(families)} servers only, and "
+            f"'{hook.name}' runs on {_names(families)} VMs only, and "
             f"{facts.describe(facts.os_families, 'OS family')}."
         )
     technologies = set(hook.resource_technologies.all())
@@ -198,11 +198,11 @@ def refusal(hook, server=None, facts=None):
         return f"'{hook.name}' runs for {_names(groups)} only, and {facts.describe(facts.groups, 'group')}."
     managers = set(hook.configuration_managers.all())
     if managers:
-        # A server needs any one of the action's managers (CloudBolt's own rule);
+        # A VM needs any one of the action's managers (CloudBolt's own rule);
         # a filter set must allow only managers the action accepts.
         fits = facts.managers.intersection(managers) if facts.server is not None else _allows(managers, list(facts.managers))
         if not fits:
-            return f"'{hook.name}' runs on servers managed by {_names(managers)} only."
+            return f"'{hook.name}' runs on VMs managed by {_names(managers)} only."
     return ""
 
 
@@ -215,7 +215,7 @@ def _remote_scripts():
 
 
 def tasks_for_servers(servers):
-    """The Remote Scripts that can run on every one of servers, by name."""
+    """The Remote Scripts that can run on every one of VMs, by name."""
     facts = [_Facts(server=server) for server in servers]
     if not facts:
         return []
@@ -228,12 +228,12 @@ def task_options(servers):
 
 
 def filters_refusal(hook, os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()):
-    """Why the action cannot run on every server a filter set allows, or '' when it can."""
+    """Why the action cannot run on every VM a filter set allows, or '' when it can."""
     return refusal(hook, facts=_Facts(os_families, technologies, environments, groups, configuration_managers))
 
 
 def tasks_for_filters(os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()):
-    """The Remote Scripts that can run on every server a filter set allows, by name."""
+    """The Remote Scripts that can run on every VM a filter set allows, by name."""
     facts = _Facts(os_families, technologies, environments, groups, configuration_managers)
     return [hook for hook in _remote_scripts() if not refusal(hook, facts=facts)]
 
@@ -241,7 +241,7 @@ def tasks_for_filters(os_families=(), technologies=(), environments=(), groups=(
 def server_fits_filters(
     server, os_families=(), technologies=(), environments=(), groups=(), configuration_managers=()
 ):
-    """Whether server is one of the servers a filter set allows (an empty kind allows any)."""
+    """Whether server is one of the VMs a filter set allows (an empty kind allows any)."""
     facts = _Facts(server=server)
     if os_families and not facts.os_lineages[0].intersection(os_families):
         return False
@@ -271,7 +271,7 @@ def resolve_task(value):
 
 
 def check_task(hook, servers):
-    """Raise TaskError unless hook can run on every one of servers."""
+    """Raise TaskError unless hook can run on every one of VMs."""
     reasons = [reason for reason in (refusal(hook, server) for server in servers) if reason]
     if reasons:
         raise TaskError(" ".join(reasons))
@@ -590,12 +590,12 @@ def run_task(hook, server, inputs, job=None, archive_refs=None):
     The script is rendered by the Remote Script itself, with the inputs
     marked untrusted, and runs through Server.execute_script with the Remote
     Script's timeout, sudo and clean-up settings and its saved credentials
-    (else the server's). execute_script raises when the script fails or
+    (else the VM's). execute_script raises when the script fails or
     exits non-zero. Retries follow the Remote Script's max_retries.
 
     Files the script declares in cb-archive header lines, plus archive_refs
     (files a workflow step attached, "archive/file[@version] [extract]"),
-    are downloaded onto the server before the script body runs; see the
+    are downloaded onto the VM before the script body runs; see the
     file_archives shared module (SHM-v8llc736).
     """
     if server.power_status != "POWERON":

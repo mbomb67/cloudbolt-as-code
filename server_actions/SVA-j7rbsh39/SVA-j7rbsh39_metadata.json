@@ -4,7 +4,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "The workflow to run. On a server: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
+            "description": "The workflow to run. On a VM: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [
                 {

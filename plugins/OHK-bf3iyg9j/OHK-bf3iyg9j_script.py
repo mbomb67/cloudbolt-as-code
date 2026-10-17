@@ -1,14 +1,14 @@
 """
-CloudBolt inbound webhook plug-in: Server Tasks (webhooks/IWH-cdf543g3).
+CloudBolt inbound webhook plug-in: Runbook Tasks (webhooks/IWH-cdf543g3).
 
 Serves the Run Task custom form (forms/FRM-a5edrdj4) of the Run Task server
-action (server_actions/SVA-4sin3s0q). Logic lives in the server_tasks shared
+action (server_actions/SVA-4sin3s0q). Logic lives in the runbook_tasks shared
 module (shared_modules/SHM-571l7249).
 
-URL (trailing slash required): /api/v3/cmp/inboundWebHooks/server-tasks/run/
+URL (trailing slash required): /api/v3/cmp/inboundWebHooks/runbook-tasks/run/
 
 GET ?source=tasks&server=<id>[&servers=<ids>]
-    The tasks that fit the server, or every server of a bulk run:
+    The tasks that fit the VM, or every VM of a bulk run:
     {"options": [{"value": "<OHK- global ID>", "title": "<name>"}, ...]}.
 GET ?source=inputs&server=<id>[&servers=<ids>]&task=<value>
     The chosen task's inputs as a Dynamic Panel template, and whether a
@@ -16,12 +16,12 @@ GET ?source=inputs&server=<id>[&servers=<ids>]&task=<value>
     {"panel": {title, description, elements, omitted, blocking},
      "credentials": {"needed": [hostnames], "can_save": bool}}.
 POST {"source": "credentials", "server": <id>, "username": ..., "password": ...}
-    Saves a username and password on the server, as CloudBolt's own
-    credential prompt does (needs Manage Credentials on that server):
+    Saves a username and password on the VM, as CloudBolt's own
+    credential prompt does (needs Manage Credentials on that VM):
     {"saved": true}. This is how the form keeps the password out of the
     action's payload, which CloudBolt writes to the job log.
 
-server is the form's object_id (the server's numeric id; an SVR- global ID
+server is the form's object_id (the VM's numeric id; an SVR- global ID
 also works). servers is the form's object_ids (a JSON list of ids, or a
 comma-separated list). Errors answer 400 or 403 with {"error": "..."} plus an
 empty "options" list, so a failure shows in the form without breaking it.
@@ -29,15 +29,15 @@ empty "options" list, so a failure shows in the form without breaking it.
 Authentication: 'normal' mode, so the form's same-origin request carries the
 user's session (and, for POST, the page's CSRF token) and this plug-in gets the
 caller's UserProfile. The webhook endpoint itself checks no permissions, so
-this plug-in does: every server must be one the caller can see, and saving
-credentials needs Manage Credentials on the server.
+this plug-in does: every VM must be one the caller can see, and saving
+credentials needs Manage Credentials on the VM.
 """
 import json
 import re
 
 from utilities.logger import ThreadLogger
 
-from shared_modules import server_tasks
+from shared_modules import runbook_tasks
 
 logger = ThreadLogger(__name__)
 
@@ -54,7 +54,7 @@ def _param(parameters, name):
 
 
 def _servers(parameters, profile):
-    """The server in context plus any others of a bulk run, each visible to profile."""
+    """The VM in context plus any others of a bulk run, each visible to profile."""
     values = []
     first = _param(parameters, "server") or _param(parameters, "object_id")
     if first:
@@ -68,10 +68,10 @@ def _servers(parameters, profile):
             items = re.split(r"[\s,]+", many)
         values.extend(str(item).strip() for item in items if str(item).strip())
     if not values:
-        raise server_tasks.TaskError("The form did not send the server's id (object_id).")
+        raise runbook_tasks.TaskError("The form did not send the VM's id (object_id).")
     servers, seen = [], set()
     for value in values:
-        server = server_tasks.resolve_server(value, profile)
+        server = runbook_tasks.resolve_server(value, profile)
         if server.id not in seen:
             seen.add(server.id)
             servers.append(server)
@@ -85,21 +85,21 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
     try:
         servers = _servers(parameters, profile)
         if source == "tasks":
-            options = server_tasks.task_options(servers)
+            options = runbook_tasks.task_options(servers)
             return {"options": [{"value": value, "title": title} for value, title in options]}
         if source == "inputs":
             task = _param(parameters, "task")
             if not task:
                 return {"panel": None, "credentials": {"needed": [], "can_save": False}}
-            hook = server_tasks.resolve_task(task)
-            server_tasks.check_task(hook, servers)
-            needed = [server for server in servers if server_tasks.needs_credentials(hook, server)]
-            can_save = len(servers) == 1 and bool(needed) and server_tasks.can_manage_credentials(profile, servers[0])
+            hook = runbook_tasks.resolve_task(task)
+            runbook_tasks.check_task(hook, servers)
+            needed = [server for server in servers if runbook_tasks.needs_credentials(hook, server)]
+            can_save = len(servers) == 1 and bool(needed) and runbook_tasks.can_manage_credentials(profile, servers[0])
             return {
-                "panel": server_tasks.task_panel(hook),
+                "panel": runbook_tasks.task_panel(hook),
                 "credentials": {"needed": [server.hostname for server in needed], "can_save": can_save},
             }
-    except server_tasks.TaskError as err:
+    except runbook_tasks.TaskError as err:
         return _error(400, str(err))
     return _error(400, "source must be tasks or inputs.")
 
@@ -110,13 +110,13 @@ def inbound_web_hook_post(*args, parameters=None, profile=None, **kwargs):
     if _param(parameters, "source") != "credentials":
         return _error(400, "source must be credentials.")
     try:
-        server = server_tasks.resolve_server(_param(parameters, "server"), profile)
-        if not server_tasks.can_manage_credentials(profile, server):
+        server = runbook_tasks.resolve_server(_param(parameters, "server"), profile)
+        if not runbook_tasks.can_manage_credentials(profile, server):
             return _error(403, f"You do not have permission to manage the credentials of {server.hostname}.")
-        server_tasks.save_credentials(
+        runbook_tasks.save_credentials(
             server, profile, parameters.get("username"), parameters.get("password")
         )
-    except server_tasks.TaskError as err:
+    except runbook_tasks.TaskError as err:
         return _error(400, str(err))
     logger.info("Run Task saved credentials on %s for %s", server.hostname, profile)
     return {"saved": True, "server": server.hostname}

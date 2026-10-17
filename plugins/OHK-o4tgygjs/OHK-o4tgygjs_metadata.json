@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "The Remote Script to run: one of the scripts that can run on this server.",
+            "description": "The Remote Script to run: one of the scripts that can run on this VM.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -46,7 +46,7 @@
             "shared_modules/SHM-v8llc736"
         ]
     },
-    "description": "Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid.",
+    "description": "Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid.",
     "id": "OHK-o4tgygjs",
     "max_retries": 0,
     "name": "Run Task",

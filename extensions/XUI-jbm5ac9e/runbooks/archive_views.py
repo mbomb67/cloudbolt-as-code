@@ -1,13 +1,16 @@
 """
-File Archives: the admin page for versioned files that server scripts
-download, and the download view the servers call.
+File Archives tab of the Runbooks page: versioned files that scripts
+download, and the download view the VMs call.
+
+views.py imports the page function, because CloudBolt looks for admin
+extensions only in an extension's views.py.
 
 The store, the signing of links and the activity log live in the
 file_archives shared module (shared_modules/SHM-v8llc736), which Run Task also
 uses to put the download step into a script. Every view here except the
 download is for CB Admins and Super Admins.
 
-The download view (/xui/file_archives/dl/<token>/<file name>) needs no
+The download view (/xui/runbooks/file-archives/dl/<token>/<file name>) needs no
 CloudBolt login: CloudBolt's own login_not_required decorator exempts it from
 the login middleware, and the view serves only the exact file version a valid,
 unexpired token names. Anything else is a 404.
@@ -32,8 +35,8 @@ from utilities.permissions import cbadmin_required
 
 logger = ThreadLogger(__name__)
 
-TEMPLATES = "file_archives/templates/"
-XUI_PACKAGE = "file_archives"
+TEMPLATES = "runbooks/templates/"
+XUI_PACKAGE = "runbooks"
 PAGE_VIEW = "archives"
 
 
@@ -54,11 +57,11 @@ def _page_url():
 
 
 def _file_url(archive, name):
-    return reverse("file_archives_file", args=[archive, name])
+    return reverse("runbooks_archive_file", args=[archive, name])
 
 
 def _archive_url(archive):
-    return reverse("file_archives_archive", args=[archive])
+    return reverse("runbooks_archive", args=[archive])
 
 
 def _activity_rows(events):
@@ -127,7 +130,7 @@ def _archive_summary(archive):
 @admin_extension(
     title="File Archives",
     description="Keep versioned installers, tarballs and config bundles on CloudBolt for scripts to "
-    "download onto servers through short-lived links.",
+    "download onto VMs through short-lived links.",
 )
 def archives(request):
     """The File Archives page: one paginated table of archives, then recent activity."""
@@ -183,7 +186,7 @@ def file_detail(request, archive, name):
     for meta in versions:
         meta["size_text"] = _human_size(meta["size"])
         meta["uploaded_text"] = _when(meta["uploaded_at"])
-        meta["download_url"] = reverse("file_archives_version_download", args=[archive, name, meta["version"]])
+        meta["download_url"] = reverse("runbooks_archive_version_download", args=[archive, name, meta["version"]])
     latest = versions[-1]
     context = {
         "uplink": {"url": _archive_url(archive), "label": archive},
@@ -196,7 +199,7 @@ def file_detail(request, archive, name):
         "activity": _activity_rows(fa.activity(ref=f"{archive}/{name}", limit=200)),
         "extractable": name.lower().endswith(fa.EXTRACTABLE),
     }
-    return render(request, TEMPLATES + "file.html", context)
+    return render(request, TEMPLATES + "archive_file.html", context)
 
 
 @cbadmin_required
@@ -243,7 +246,7 @@ def archive_edit(request, archive=None):
             return _done(request, f'Archive "{values["name"]}" {"saved" if existing else "added"}.', _archive_url(values["name"]))
     return {
         "title": f"Edit archive {archive}" if existing else "Add archive",
-        "action_url": reverse("file_archives_archive_edit", args=[archive]) if existing else reverse("file_archives_archive_add"),
+        "action_url": reverse("runbooks_archive_edit", args=[archive]) if existing else reverse("runbooks_archive_add"),
         "use_ajax": True,
         "submit": "Save" if existing else "Add",
         "values": values,
@@ -352,7 +355,7 @@ def upload(request, archive, name=None):
     return _upload(request, archive, name)
 
 
-@dialog_view(template_name=TEMPLATES + "upload_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_upload_dialog.html")
 @csrf_protect
 @cbadmin_required
 def _upload(request, archive, name=None):
@@ -381,7 +384,7 @@ def _upload(request, archive, name=None):
                 )
     return {
         "title": f"Upload a new version of {archive}/{name}" if name else f"Upload a file to {archive}",
-        "action_url": reverse("file_archives_upload_version", args=[archive, name]) if name else reverse("file_archives_upload", args=[archive]),
+        "action_url": reverse("runbooks_archive_upload_version", args=[archive, name]) if name else reverse("runbooks_archive_upload", args=[archive]),
         "use_ajax": True,
         "submit": "Upload",
         "archive": archive,
@@ -413,7 +416,7 @@ def _confirm(request, title, message, action_url, submit, run, success, theme="d
     }
 
 
-@dialog_view(template_name=TEMPLATES + "confirm_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_confirm_dialog.html")
 @cbadmin_required
 def archive_delete(request, archive):
     fa = _fa()
@@ -426,14 +429,14 @@ def archive_delete(request, archive):
         request,
         f"Delete archive {archive}",
         f"Delete the archive {archive} and every file and version in it? Scripts that declare its files will fail.",
-        reverse("file_archives_archive_delete", args=[archive]),
+        reverse("runbooks_archive_delete", args=[archive]),
         "Delete",
         run,
         f'Archive "{archive}" deleted.',
     )
 
 
-@dialog_view(template_name=TEMPLATES + "confirm_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_confirm_dialog.html")
 @cbadmin_required
 def file_delete(request, archive, name):
     fa = _fa()
@@ -447,14 +450,14 @@ def file_delete(request, archive, name):
         request,
         f"Delete {archive}/{name}",
         f"Delete {archive}/{name} and all of its versions? Scripts that declare it will fail.",
-        reverse("file_archives_file_delete", args=[archive, name]),
+        reverse("runbooks_archive_file_delete", args=[archive, name]),
         "Delete",
         run,
         f"Deleted {archive}/{name}.",
     )
 
 
-@dialog_view(template_name=TEMPLATES + "confirm_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_confirm_dialog.html")
 @cbadmin_required
 def version_delete(request, archive, name, version):
     fa = _fa()
@@ -469,14 +472,14 @@ def version_delete(request, archive, name, version):
         f"Delete version {version}",
         f"Delete version {version} of {archive}/{name}? Scripts pinned to @{version} will fail; links already "
         "issued for it stop working.",
-        reverse("file_archives_version_delete", args=[archive, name, version]),
+        reverse("runbooks_archive_version_delete", args=[archive, name, version]),
         "Delete",
         run,
         f"Deleted version {version} of {archive}/{name}.",
     )
 
 
-@dialog_view(template_name=TEMPLATES + "confirm_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_confirm_dialog.html")
 @cbadmin_required
 def version_restore(request, archive, name, version):
     fa = _fa()
@@ -491,7 +494,7 @@ def version_restore(request, archive, name, version):
         f"Restore version {version}",
         f"Copy version {version} of {archive}/{name} to a new latest version? Scripts that use the latest "
         "version get it on their next run.",
-        reverse("file_archives_version_restore", args=[archive, name, version]),
+        reverse("runbooks_archive_version_restore", args=[archive, name, version]),
         "Restore",
         run,
         f"Restored version {version} of {archive}/{name} as the latest version.",
@@ -499,7 +502,7 @@ def version_restore(request, archive, name, version):
     )
 
 
-@dialog_view(template_name=TEMPLATES + "confirm_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_confirm_dialog.html")
 @cbadmin_required
 def rotate_key(request):
     fa = _fa()
@@ -512,14 +515,14 @@ def rotate_key(request):
         "Revoke all links",
         "Replace the signing key? Every download link issued so far stops working, including links for "
         "scripts that are running now.",
-        reverse("file_archives_rotate_key"),
+        reverse("runbooks_archive_rotate_key"),
         "Revoke all links",
         run,
         "Signing key replaced: every earlier link is revoked.",
     )
 
 
-@dialog_view(template_name=TEMPLATES + "settings_dialog.html")
+@dialog_view(template_name=TEMPLATES + "archive_settings_dialog.html")
 @cbadmin_required
 def settings_edit(request):
     fa = _fa()
@@ -541,7 +544,7 @@ def settings_edit(request):
             return _done(request, "File Archives settings saved.")
     return {
         "title": "File Archives settings",
-        "action_url": reverse("file_archives_settings"),
+        "action_url": reverse("runbooks_archive_settings"),
         "use_ajax": True,
         "submit": "Save",
         "values": values,
@@ -578,7 +581,7 @@ def download(request, token, name):
         fa.record(ref, "refused", f"version {payload.get('v')} no longer exists, from {client}")
         raise Http404
     server = Server.objects.filter(global_id=payload.get("s")).first() if payload.get("s") else None
-    who = server.hostname if server else "no server"
+    who = server.hostname if server else "no VM"
     fa.record(ref, "downloaded", f"version {resolved['version']} by {who} from {client}")
     if server is not None:
         try:

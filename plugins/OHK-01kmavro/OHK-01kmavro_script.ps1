@@ -1,6 +1,6 @@
 # Manage Windows Service
 #
-# Server task for Run Task (server_actions/SVA-4sin3s0q), built on the Server
+# Task for Run Task (server_actions/SVA-4sin3s0q), built on the Server
 # Task Template (Windows): shows, starts, stops or restarts one Windows service
 # by its service name (not its display name) and prints the service's state
 # afterwards. Starting a running service or stopping a stopped one changes

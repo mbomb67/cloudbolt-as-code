@@ -1,27 +1,27 @@
 """
-CloudBolt plug-in: Run Workflow, the plug-in of the Run Workflow server action
+CloudBolt plug-in: Run Workflow, the plug-in of the Run Workflow action
 (server_actions/SVA-j7rbsh39) and a blueprint build item.
 
-Runs a server workflow, a named, ordered list of CloudBolt actions built on
-the Server Workflows admin page (extensions/XUI-jbm5ac9e), against the
-selected server. The workflows, their filters, the prompts and the step
-runner live in the server_workflows shared module
+Runs a workflow, a named, ordered list of CloudBolt actions built on
+the Runbooks admin page (extensions/XUI-jbm5ac9e), against the
+selected VM. The workflows, their filters, the prompts and the step
+runner live in the runbook_workflows shared module
 (shared_modules/SHM-nznzhpp0).
 
-As a blueprint build item (after the server tier, for example
-blueprints/BP-vy9ytey6) it runs on the servers of the resource the order
+As a blueprint build item (after the VM item, for example
+blueprints/BP-vy9ytey6) it runs on the VMs of the resource the order
 deployed. An admin pins the workflow by giving the item's Workflow input a
 default (the workflow's name or SWF- id), which hides it on the order form;
 without a default the user picks one. A prompt the order does not answer in
 Workflow inputs takes the value of a parameter with the same name on the
-resource, else on the server, so order-form fields can feed the workflow.
+resource, else on the VM, so order-form fields can feed the workflow.
 The run's outputs become the item's outputs for later build items.
 
 Inputs (declared in OHK-69gk5ne9_metadata.json):
   workflow         (STR, required)  the workflow's SWF- id (its exact name also
                                     works). generate_options_for_workflow lists
                                     the enabled workflows whose filters match
-                                    the server.
+                                    the VM.
   workflow_inputs  (TXT, optional)  the values of the step inputs the workflow
                                     asks for. The custom form
                                     (forms/FRM-ecw50rd0) sends them as a
@@ -33,10 +33,10 @@ Inputs (declared in OHK-69gk5ne9_metadata.json):
                                     parameters and log, so never a password.
 
 A custom-form submit is not validated by CloudBolt, so this plug-in checks the
-workflow against the server, every step's action against the server, and
+workflow against the VM, every step's action against the VM, and
 every value against its input before the first step runs. With several
-servers selected, each server gets its own child job, which runs this
-plug-in for that one server, so each server's step outputs stay apart.
+servers selected, each VM gets its own child job, which runs this
+plug-in for that one VM, so each VM's step outputs stay apart.
 """
 import json
 
@@ -44,7 +44,7 @@ from common.methods import set_progress
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
-from shared_modules import server_workflows as swf
+from shared_modules import runbook_workflows as swf
 
 logger = ThreadLogger(__name__)
 
@@ -64,8 +64,8 @@ def _targets(server=None, servers=None):
 
 def generate_options_for_workflow(field=None, server=None, servers=None, **kwargs):
     """
-    The enabled workflows offered on the server, or on every server of a bulk
-    run; every enabled one on a blueprint order form, where no server exists yet.
+    The enabled workflows offered on the VM, or on every VM of a bulk
+    run; every enabled one on a blueprint order form, where no VM exists yet.
     """
     return swf.workflow_options(_targets(server, servers))
 
@@ -92,9 +92,9 @@ def _runner_hook(job):
 
 def _run_per_server(job, workflow, targets, values):
     """
-    One child job per server, all started at once; returns the combined
-    result, with each server's step outputs under its host name. values maps
-    each server's id to its prompt values.
+    One child job per VM, all started at once; returns the combined
+    result, with each VM's step outputs under its host name. values maps
+    each VM's id to its prompt values.
     """
     hook = _runner_hook(job)
     if hook is None:
@@ -110,7 +110,7 @@ def _run_per_server(job, workflow, targets, values):
         if not jobs:
             return "FAILURE", "", f"CloudBolt did not start the workflow on {target.hostname}."
         children.append((target, jobs[0]))
-    set_progress(f"Workflow '{workflow['name']}' started on {len(children)} servers, one job each.")
+    set_progress(f"Workflow '{workflow['name']}' started on {len(children)} VMs, one job each.")
     Job.wait_for_jobs([child for _, child in children])
     lines, failures, warnings, outputs = [], [], [], {}
     for target, child in children:
@@ -144,11 +144,11 @@ def run(job=None, server=None, servers=None, resource=None, workflow=None, workf
             return (
                 "FAILURE",
                 "",
-                f"Run Workflow found no active servers on {resource.name}; put this build item after the "
-                "blueprint's server tier.",
+                f"Run Workflow found no active VMs on {resource.name}; put this build item after the "
+                "blueprint's VM item.",
             )
     if not targets:
-        return "FAILURE", "", "Run Workflow needs at least one server."
+        return "FAILURE", "", "Run Workflow needs at least one VM."
 
     try:
         chosen = swf.resolve_workflow(workflow)

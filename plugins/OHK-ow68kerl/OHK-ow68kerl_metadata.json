@@ -61,7 +61,7 @@
     ],
     "commandline_args": null,
     "credentials": "YOUR_CREDENTIALS",
-    "description": "Downloads a file from File Archives to a Windows server, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe).",
+    "description": "Downloads a file from File Archives to a Windows VM, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe).",
     "execution_timeout": 1800,
     "id": "OHK-ow68kerl",
     "max_retries": 0,

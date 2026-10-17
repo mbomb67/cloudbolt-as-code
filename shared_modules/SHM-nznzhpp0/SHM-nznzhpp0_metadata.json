@@ -4,12 +4,12 @@
             "shared_modules/SHM-571l7249"
         ]
     },
-    "description": "Stores server workflows, works out which workflows and step actions fit a server or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
     "id": "SHM-nznzhpp0",
-    "label": "Server Workflows",
+    "label": "Runbook Workflows",
     "max_retries": 0,
-    "module_name": "server_workflows",
-    "name": "server_workflows",
+    "module_name": "runbook_workflows",
+    "name": "runbook_workflows",
     "resource_technologies": [],
     "script_filename": "SHM-nznzhpp0_script.py",
     "shared": true,

@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block non_form_content %}
-{% include "file_archives/templates/_assets.html" %}
+{% include "runbooks/templates/_archive_assets.html" %}
 {% endblock non_form_content %}
 
 {% block form_content %}
@@ -15,7 +15,7 @@
     <div class="col-12">
       <label class="form-label" for="cfa-base-url">{% trans "Download base URL" %}</label>
       <input class="form-control" id="cfa-base-url" name="base_url" value="{{ values.base_url }}" placeholder="{{ base_url.effective|default:base_url.suggestion }}">
-      <div class="form-text">{% trans "The address servers use to reach CloudBolt over HTTPS. Leave it empty to use the default portal's domain." %}</div>
+      <div class="form-text">{% trans "The address VMs use to reach CloudBolt over HTTPS. Leave it empty to use the default portal's domain." %}</div>
     </div>
     <div class="col-md-6">
       <label class="form-label" for="cfa-minutes">{% trans "Link lifetime (minutes)" %}</label>
@@ -35,9 +35,9 @@
     <div class="col-12">
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="cfa-verify" name="verify_tls" {% if values.verify_tls %}checked{% endif %}>
-        <label class="form-check-label" for="cfa-verify">{% trans "Servers verify CloudBolt's TLS certificate" %}</label>
+        <label class="form-check-label" for="cfa-verify">{% trans "VMs verify CloudBolt's TLS certificate" %}</label>
       </div>
-      <div class="form-text">{% trans "Turn this on when servers trust the certificate CloudBolt serves. With it off, the SHA-256 check still rejects a changed file." %}</div>
+      <div class="form-text">{% trans "Turn this on when VMs trust the certificate CloudBolt serves. With it off, the SHA-256 check still rejects a changed file." %}</div>
     </div>
   </div>
 </div>

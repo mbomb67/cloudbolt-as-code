@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "The workflow to run. On a server: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
+            "description": "The workflow to run. On a VM: the enabled workflows whose filters match it. In a blueprint, give the build item a default (the workflow's name) to pin it and hide this field.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [
                 {
@@ -73,7 +73,7 @@
             "shared_modules/SHM-nznzhpp0"
         ]
     },
-    "description": "Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server.",
+    "description": "Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM.",
     "id": "OHK-69gk5ne9",
     "max_retries": 0,
     "name": "Run Workflow",

@@ -1,24 +1,24 @@
 """
-Server workflows: the shared logic behind the Run Workflow server action, its
-form webhook, and the Server Workflows admin page.
+Workflows: the shared logic behind the Run Workflow action, its
+form webhook, and the Runbooks admin page.
 
 A workflow is a named, ordered list of steps that run one after another
-against a server. Each step is an existing CloudBolt action: a Remote Script,
+against a VM. Each step is an existing CloudBolt action: a Remote Script,
 a CloudBolt plug-in, a webhook, an email or a copy-file action. Each of a
 step's inputs is set one of three ways:
   - fixed: the value saved with the workflow; the user is never asked;
   - prompt: asked for when the workflow runs (the default);
   - output: an output of an earlier step of the same run.
-Admins build workflows on the Server Workflows admin page
-(extensions/XUI-jbm5ac9e); users run them with the Run Workflow server action
+Admins build workflows on the Runbooks admin page
+(extensions/XUI-jbm5ac9e); users run them with the Run Workflow action
 (server_actions/SVA-j7rbsh39) and its form (forms/FRM-ecw50rd0), which calls
-the Server Workflows webhook (webhooks/IWH-xjlrmvc8). Script steps run through
-the server_tasks shared module of Run Task (shared_modules/SHM-571l7249).
+the Runbook Workflows webhook (webhooks/IWH-xjlrmvc8). Script steps run through
+the runbook_tasks shared module of Run Task (shared_modules/SHM-571l7249).
 
 Storage
   One CustomFieldValue per workflow, holding the workflow's JSON, on the
-  server_workflow_store parameter (Multi-line Text, created on first write)
-  in the server_workflows Namespace, which keeps it off the Parameters list
+  runbook_workflow_store parameter (Multi-line Text, created on first write)
+  in the runbook_workflows Namespace, which keeps it off the Parameters list
   and every parameter picker. The SWF- id inside the JSON is the key. Actions
   are stored by global ID and their inputs by name, never by database id,
   because CloudBolt recreates a plug-in's inputs whenever its code is saved.
@@ -26,17 +26,17 @@ Storage
 
 Filters
   groups, environments, resource technologies, OS families, OS builds and
-  configuration managers. A workflow is offered on a server when the server
+  configuration managers. A workflow is offered on a VM when the VM
   passes every filter that is set, with the checks CloudBolt makes for
-  actions: the server's own group (no parent groups), its environment, its
+  actions: the VM's own group (no parent groups), its environment, its
   resource handler's technology, its OS family or a parent of it, its OS
   build (actions have no OS build filter; workflows add one), and any of its
   environment's configuration managers.
 
-  The admin page offers a step only when the action can run on every server
+  The admin page offers a step only when the action can run on every VM
   the workflow's filters allow: an action restricted on a filter needs the
   workflow restricted on that filter to values the action allows. Both
-  checks are Run Task's (server_tasks.server_fits_filters, filters_refusal
+  checks are Run Task's (runbook_tasks.server_fits_filters, filters_refusal
   and refusal), which handle every action type; OS builds are checked here,
   because only workflows have them. Workflow
   environments stand in for resource technologies, and OS builds for OS
@@ -45,9 +45,9 @@ Filters
   before it can hold one.
 
 Running
-  Every step and input is checked against the server before the first step
+  Every step and input is checked against the VM before the first step
   starts. Remote Scripts run inside the workflow's job through
-  server_tasks.run_task, which returns the script's output; the other
+  runbook_tasks.run_task, which returns the script's output; the other
   action types run as child jobs of the workflow's job. A step that fails
   stops the run, unless it continues on error, in which case the run ends
   with WARNING. Cancelling the job stops it before the next step.
@@ -57,7 +57,7 @@ Outputs
       CB_OUTPUT name=value
   printed by the base templates' Write-TaskOutput (PowerShell) or task_output
   (bash) helper, last and before exit 0, and read by
-  server_tasks.parse_outputs. Files attached to a step report their resolved
+  runbook_tasks.parse_outputs. Files attached to a step report their resolved
   versions the same way (archive_<file stem>_version). Every script step also
   publishes "stdout", the end of its output. A plug-in step publishes the
   "outputs" dict it returns. Each step's outputs are saved on the workflow's
@@ -66,9 +66,9 @@ Outputs
 
 Files
   A script step can list archive files for the File Archives content to stage
-  on the server before the script runs, as its entries
+  on the VM before the script runs, as its entries
   "archive/file[@latest|@N] [extract]" (for example installers/agent.msi or
-  configs/app.conf@4). They go to server_tasks.run_task as archive_refs. The
+  configs/app.conf@4). They go to runbook_tasks.run_task as archive_refs. The
   file_archives shared module checks each entry and lists the files; without
   it a step cannot have files.
 
@@ -119,15 +119,15 @@ from servicecatalog.models import RunCloudBoltHookServiceItem, ServiceBlueprint,
 from utilities.events import add_server_event
 from utilities.logger import ThreadLogger
 
-from shared_modules import server_tasks
+from shared_modules import runbook_tasks
 
 logger = ThreadLogger(__name__)
 
-STORE_NAMESPACE = "server_workflows"
-STORE_FIELD = "server_workflow_store"
-STORE_FIELD_LABEL = "Server workflow store"
+STORE_NAMESPACE = "runbook_workflows"
+STORE_FIELD = "runbook_workflow_store"
+STORE_FIELD_LABEL = "Runbook workflow store"
 STORE_FIELD_DESCRIPTION = (
-    "Managed by the Server Workflows admin page: one value per workflow. "
+    "Managed by the Runbooks admin page: one value per workflow. "
     "Do not delete; deleting it deletes every workflow on this appliance."
 )
 STORE_FIELD_TYPES = ("TXT", "CODE")
@@ -135,7 +135,7 @@ STORE_FIELD_TYPES = ("TXT", "CODE")
 ID_PREFIX = "SWF"
 WORKFLOW_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
 STEP_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
-# server_tasks.parse_outputs reads names of letters, digits and underscores.
+# runbook_tasks.parse_outputs reads names of letters, digits and underscores.
 OUTPUT_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,64}$")
 MAX_ARCHIVES = 20
 NAME_MAX = 255
@@ -217,18 +217,18 @@ FILTERS = OrderedDict(
     for f in (
         FilterType(
             "os_families", "OS families", "OS family", OSFamily,
-            "Servers of these OS families, or of a family under one of them.",
+            "VMs of these OS families, or of a family under one of them.",
         ),
         FilterType(
             "resource_technologies", "Resource technologies", "Resource technology", ResourceTechnology,
-            "Servers whose resource handler uses one of these technologies.", keyed_by_pk=True,
+            "VMs whose resource handler uses one of these technologies.", keyed_by_pk=True,
         ),
-        FilterType("environments", "Environments", "Environment", Environment, "Servers in these environments."),
-        FilterType("groups", "Groups", "Group", Group, "Servers in these groups (not their subgroups)."),
-        FilterType("os_builds", "OS builds", "OS build", OSBuild, "Servers built from these OS builds."),
+        FilterType("environments", "Environments", "Environment", Environment, "VMs in these environments."),
+        FilterType("groups", "Groups", "Group", Group, "VMs in these groups (not their subgroups)."),
+        FilterType("os_builds", "OS builds", "OS build", OSBuild, "VMs built from these OS builds."),
         FilterType(
             "configuration_managers", "Configuration managers", "Configuration manager", ConnectorConf,
-            "Servers whose environment uses one of these configuration managers.",
+            "VMs whose environment uses one of these configuration managers.",
         ),
     )
 )
@@ -284,12 +284,12 @@ def _names(objects):
 def workflow_refusal(workflow, server, resolved=None):
     """
     Why workflow is not offered on server, or '' when it is: Run Task's fit
-    check (server_tasks.server_fits_filters) for every filter actions have,
+    check (runbook_tasks.server_fits_filters) for every filter actions have,
     then the OS build filter, which only workflows have.
     """
     resolved = resolved if resolved is not None else resolve_filters(workflow.get("filters"))
     name = workflow.get("name") or workflow.get("id")
-    fits = server_tasks.server_fits_filters(
+    fits = runbook_tasks.server_fits_filters(
         server,
         os_families=resolved["os_families"],
         technologies=resolved["resource_technologies"],
@@ -306,12 +306,12 @@ def workflow_refusal(workflow, server, resolved=None):
         return f"{server.hostname} is outside the filters of '{name}' ({described})."
     builds = resolved["os_builds"]
     if builds and server.os_build not in builds:
-        return f"'{name}' runs on servers built from {_names(builds)} only."
+        return f"'{name}' runs on VMs built from {_names(builds)} only."
     return ""
 
 
 def workflows_for_servers(servers):
-    """The enabled workflows offered on every one of servers; every enabled one when servers is empty."""
+    """The enabled workflows offered on every one of VMs; every enabled one when VMs is empty."""
     workflows = [wf for wf in list_workflows() if wf.get("enabled", True)]
     if not servers:
         return workflows
@@ -390,7 +390,7 @@ def candidate_actions(include_all=False):
         model = info["model"]
         queryset = model.objects.filter(real_type=ContentType.objects.get_for_model(model))
         if model is RemoteScriptHook:
-            # Such a script always runs on its Run on Server host (server_tasks.refusal).
+            # Such a script always runs on its Run on Server host (runbook_tasks.refusal).
             queryset = queryset.filter(run_on_server__isnull=True)
         if model is CloudBoltHook and not include_all:
             queryset = queryset.exclude(is_ootb=True).exclude(id__in=special)
@@ -446,14 +446,14 @@ def _effective(resolved):
 
 def step_conflicts(hook, resolved):
     """
-    Why hook cannot run on every server resolved (a workflow's resolved
+    Why hook cannot run on every VM resolved (a workflow's resolved
     filters) allows, as a list of sentences; empty when it can. This is Run
-    Task's fit check (server_tasks.filters_refusal), which covers every
+    Task's fit check (runbook_tasks.filters_refusal), which covers every
     action type: an action restricted on a filter needs the workflow
     restricted on it to values the action allows.
     """
     technologies, families = _effective(resolved)
-    reason = server_tasks.filters_refusal(
+    reason = runbook_tasks.filters_refusal(
         hook,
         os_families=list(families),
         technologies=list(technologies),
@@ -466,11 +466,11 @@ def step_conflicts(hook, resolved):
 
 def action_refusal(hook, server):
     """Why hook cannot run on server, or '' when it can: Run Task's fit check."""
-    return server_tasks.refusal(hook, server)
+    return runbook_tasks.refusal(hook, server)
 
 
 def _supported(field):
-    return field.type in server_tasks.PLAIN_TYPES and field.type not in server_tasks.SECRET_TYPES
+    return field.type in runbook_tasks.PLAIN_TYPES and field.type not in runbook_tasks.SECRET_TYPES
 
 
 def _source(hook):
@@ -506,14 +506,14 @@ def input_info(field, generated=()):
     """An action input as the admin page and the run form show it."""
     return {
         "name": field.simple_name,
-        "label": server_tasks.input_label(field),
+        "label": runbook_tasks.input_label(field),
         "type": field.type,
         "type_label": field.get_type_display(),
         "required": bool(field.required),
         "multiple": bool(field.allow_multiple),
         "description": field.description or "",
         "placeholder": field.placeholder or "",
-        "options": server_tasks.input_options(field),
+        "options": runbook_tasks.input_options(field),
         "generated": field.simple_name in generated,
         "supported": _supported(field),
     }
@@ -524,8 +524,8 @@ def action_summary(hook):
     kind = step_type(hook)
     families = list(hook.os_families.all()) if hasattr(hook, "os_families") else []
     blocking = [
-        server_tasks.input_label(field)
-        for field in server_tasks.task_fields(hook)
+        runbook_tasks.input_label(field)
+        for field in runbook_tasks.task_fields(hook)
         if field.required and not _supported(field)
     ]
     return {
@@ -545,7 +545,7 @@ def action_detail(hook):
     source = _source(hook)
     generated = _generated_inputs(hook, source)
     detail = action_summary(hook)
-    detail["inputs"] = [input_info(field, generated) for field in server_tasks.task_fields(hook)]
+    detail["inputs"] = [input_info(field, generated) for field in runbook_tasks.task_fields(hook)]
     detail["outputs"] = output_suggestions(hook, source)
     try:
         detail["url"] = hook.get_absolute_url()
@@ -612,7 +612,7 @@ def _locked():
 def _parse(text):
     workflow = json.loads(text or "", object_pairs_hook=OrderedDict)
     if not isinstance(workflow, dict) or not WORKFLOW_ID_RE.match(str(workflow.get("id") or "")):
-        raise ValueError("not a server workflow")
+        raise ValueError("not a workflow")
     workflow.setdefault("filters", {})
     workflow.setdefault("steps", [])
     workflow.setdefault("enabled", True)
@@ -628,10 +628,10 @@ def _rows(field):
         try:
             workflow = _parse(cfv.txt_value)
         except ValueError:
-            logger.warning("Skipping unreadable server workflow value %s", cfv.id)
+            logger.warning("Skipping unreadable workflow value %s", cfv.id)
             continue
         if workflow["id"] in seen:
-            logger.warning("Ignoring duplicate server workflow %s in value %s", workflow["id"], cfv.id)
+            logger.warning("Ignoring duplicate workflow %s in value %s", workflow["id"], cfv.id)
             continue
         seen.add(workflow["id"])
         rows.append((cfv, workflow))
@@ -817,7 +817,7 @@ def suggest_step_key(name, taken):
 
 def _clean_input(step_label, field, config, earlier):
     """One input's configuration, checked against the input; None leaves it to be asked for."""
-    label = f"{step_label}: {server_tasks.input_label(field)}"
+    label = f"{step_label}: {runbook_tasks.input_label(field)}"
     if config in (None, ""):
         config = {}
     if not isinstance(config, dict):
@@ -849,8 +849,8 @@ def _clean_input(step_label, field, config, earlier):
             raise WorkflowError(f"{label} is required: give it a value or ask for it when the workflow runs.")
         return OrderedDict([("mode", "fixed"), ("value", "")])
     try:
-        value = server_tasks.coerce_input(field, value)
-    except server_tasks.TaskError as err:
+        value = runbook_tasks.coerce_input(field, value)
+    except runbook_tasks.TaskError as err:
         raise WorkflowError(f"{step_label}: {err}")
     return OrderedDict([("mode", "fixed"), ("value", value)])
 
@@ -876,7 +876,7 @@ def _clean_step(index, step, resolved, earlier, taken):
     configs = step.get("inputs") or {}
     if not isinstance(configs, dict):
         raise WorkflowError(f"{label}: inputs must be an object of input names and settings.")
-    fields = {field.simple_name: field for field in server_tasks.task_fields(hook)}
+    fields = {field.simple_name: field for field in runbook_tasks.task_fields(hook)}
     unknown = sorted(name for name in configs if name not in fields)
     if unknown:
         raise WorkflowError(f"{label}: '{hook.name}' has no input named {', '.join(unknown)}.")
@@ -958,9 +958,9 @@ def _clean_archives(label, hook, archives):
 
 
 def _run_task_takes_archives():
-    """Whether this appliance's server_tasks.run_task accepts archive_refs (added by the File Archives content)."""
+    """Whether this appliance's runbook_tasks.run_task accepts archive_refs (added by the File Archives content)."""
     try:
-        return "archive_refs" in inspect.signature(server_tasks.run_task).parameters
+        return "archive_refs" in inspect.signature(runbook_tasks.run_task).parameters
     except (TypeError, ValueError):
         return False
 
@@ -1035,7 +1035,7 @@ class Step(object):
         self.name = data.get("name") or self.key
         self.hook = resolve_action(data.get("action"))
         self.kind = step_type(self.hook)
-        self.fields = OrderedDict((field.simple_name, field) for field in server_tasks.task_fields(self.hook))
+        self.fields = OrderedDict((field.simple_name, field) for field in runbook_tasks.task_fields(self.hook))
         self.configs = data.get("inputs") or {}
 
     @property
@@ -1055,7 +1055,7 @@ class Step(object):
 
     def blocking(self):
         """Required inputs a workflow cannot carry (added to the action after the workflow was saved)."""
-        return [server_tasks.input_label(f) for f in self.fields.values() if f.required and not _supported(f)]
+        return [runbook_tasks.input_label(f) for f in self.fields.values() if f.required and not _supported(f)]
 
 
 def load_steps(workflow):
@@ -1073,7 +1073,7 @@ def load_steps(workflow):
 
 def _choices(step, field, server, profile):
     """Dropdown values for a prompt: the input's own options, or a plug-in's generated ones for server."""
-    options = server_tasks.input_options(field)
+    options = runbook_tasks.input_options(field)
     if options or server is None or not isinstance(step.hook, CloudBoltHook):
         return [{"value": option, "text": option} for option in options]
     if field.simple_name not in _generated_inputs(step.hook):
@@ -1113,7 +1113,7 @@ def prompt_name(step, field):
 def prompt_panel(workflow, servers, profile=None):
     """
     The run form's Dynamic Panel template for a workflow: one panel per step
-    with something to ask, plus what blocks the run on these servers.
+    with something to ask, plus what blocks the run on these VMs.
     """
     steps = load_steps(workflow)
     server = servers[0] if servers else None
@@ -1128,7 +1128,7 @@ def prompt_panel(workflow, servers, profile=None):
             blocking.append(f"{step.label} requires {', '.join(step.blocking())}, which a workflow cannot carry.")
         questions = []
         for field in step.prompts():
-            element = server_tasks.input_element(field)
+            element = runbook_tasks.input_element(field)
             element["name"] = prompt_name(step, field)
             choices = _choices(step, field, server, profile)
             if choices and element.get("type") not in ("dropdown", "tagbox"):
@@ -1237,11 +1237,11 @@ def parse_prompt_values(workflow, steps, payload, fallback=None):
                 value = fallback(name)
             if _blank(value):
                 if field.required:
-                    raise WorkflowError(f"{step.label}: {server_tasks.input_label(field)} is required.")
+                    raise WorkflowError(f"{step.label}: {runbook_tasks.input_label(field)} is required.")
                 continue
             try:
-                values[step.key][name] = server_tasks.coerce_input(field, value)
-            except server_tasks.TaskError as err:
+                values[step.key][name] = runbook_tasks.coerce_input(field, value)
+            except runbook_tasks.TaskError as err:
                 raise WorkflowError(f"{step.label}: {err}")
     return values
 
@@ -1262,7 +1262,7 @@ def prompt_skeleton(workflow):
 def order_values(resource=None, server=None):
     """
     A fallback for parse_prompt_values on a blueprint order: the value of a
-    same-named parameter on the deployed resource, else on the server (order
+    same-named parameter on the deployed resource, else on the VM (order
     form fields land on one or the other).
     """
 
@@ -1306,7 +1306,7 @@ def _step_inputs(step, prompted, outputs):
             if _blank(value):
                 if field.required:
                     raise WorkflowError(
-                        f"{step.label}: {server_tasks.input_label(field)} takes output "
+                        f"{step.label}: {runbook_tasks.input_label(field)} takes output "
                         f"'{config.get('output')}' of step '{config.get('step')}', which did not publish it."
                     )
                 continue
@@ -1314,11 +1314,11 @@ def _step_inputs(step, prompted, outputs):
             value = prompted.get(name)
             if _blank(value):
                 if field.required:
-                    raise WorkflowError(f"{step.label}: {server_tasks.input_label(field)} is required.")
+                    raise WorkflowError(f"{step.label}: {runbook_tasks.input_label(field)} is required.")
                 continue
         try:
-            values[name] = server_tasks.coerce_input(field, value)
-        except server_tasks.TaskError as err:
+            values[name] = runbook_tasks.coerce_input(field, value)
+        except runbook_tasks.TaskError as err:
             raise WorkflowError(f"{step.label}: {err}")
     return values
 
@@ -1326,14 +1326,14 @@ def _step_inputs(step, prompted, outputs):
 def _run_script(step, server, inputs, job):
     archives = step.data.get("archives") or []
     if archives:
-        output = server_tasks.run_task(step.hook, server, inputs, job=job, archive_refs=archives)
+        output = runbook_tasks.run_task(step.hook, server, inputs, job=job, archive_refs=archives)
     else:
-        output = server_tasks.run_task(step.hook, server, inputs, job=job)
+        output = runbook_tasks.run_task(step.hook, server, inputs, job=job)
     # WinRM returns the output without adding it to the job, unlike the other transports.
     if job is not None and server.is_windows() and not server.use_tech_specific_script_execution():
-        job.set_progress(f"Output of '{step.name}' on {server.hostname}", detailed_message=server_tasks.tail(output))
-    outputs = OrderedDict(server_tasks.parse_outputs(output))
-    outputs["stdout"] = server_tasks.tail(output, STDOUT_LIMIT)
+        job.set_progress(f"Output of '{step.name}' on {server.hostname}", detailed_message=runbook_tasks.tail(output))
+    outputs = OrderedDict(runbook_tasks.parse_outputs(output))
+    outputs["stdout"] = runbook_tasks.tail(output, STDOUT_LIMIT)
     return "SUCCESS", outputs, ""
 
 
@@ -1355,7 +1355,7 @@ def _run_child(step, server, inputs, job):
         return child.status, outputs, ""
     detail = (child.errors or child.output or "").strip()
     message = f"Job {getattr(child, 'global_id', None) or child.id} ended {child.status}"
-    return "FAILURE", outputs, f"{message}: {server_tasks.tail(detail, 1500)}" if detail else message
+    return "FAILURE", outputs, f"{message}: {runbook_tasks.tail(detail, 1500)}" if detail else message
 
 
 def _attempt(step, server, inputs, job):
@@ -1365,11 +1365,11 @@ def _attempt(step, server, inputs, job):
         return _run_child(step, server, inputs, job)
     except WorkflowError as err:
         return "FAILURE", {}, str(err)
-    except server_tasks.TaskError as err:
+    except runbook_tasks.TaskError as err:
         return "FAILURE", {}, str(err)
     except Exception as err:
         logger.exception("Workflow step '%s' failed on %s", step.name, server.hostname)
-        return "FAILURE", {}, server_tasks.failure_text(err)
+        return "FAILURE", {}, runbook_tasks.failure_text(err)
 
 
 def _save_outputs(job, outputs, summary):
@@ -1394,17 +1394,17 @@ def preflight(workflow, steps, servers, prompted):
             reason = action_refusal(step.hook, server)
             if reason:
                 problems.append(f"{server.hostname}: {step.label}: {reason}")
-            elif step.kind == "script" and server_tasks.needs_credentials(step.hook, server):
+            elif step.kind == "script" and runbook_tasks.needs_credentials(step.hook, server):
                 problems.append(
                     f"{server.hostname}: CloudBolt has no credentials for {step.label}. Save them from the "
-                    "Run Workflow form, or set them on the server or on the Remote Script."
+                    "Run Workflow form, or set them on the VM or on the Remote Script."
                 )
     for step in steps:
         if step.blocking():
             problems.append(f"{step.label} requires {', '.join(step.blocking())}, which a workflow cannot carry.")
         if step.data.get("archives") and not _run_task_takes_archives():
             problems.append(
-                f"{step.label} has files attached, but this appliance's server_tasks module cannot stage files "
+                f"{step.label} has files attached, but this appliance's runbook_tasks module cannot stage files "
                 "yet; sync the File Archives content, or remove the files from the step."
             )
         for name, field in step.fields.items():
@@ -1412,7 +1412,7 @@ def preflight(workflow, steps, servers, prompted):
             if not _supported(field) or config.get("mode") != "fixed":
                 continue
             if _blank(config.get("value")) and field.required:
-                problems.append(f"{step.label}: {server_tasks.input_label(field)} is required and has no value.")
+                problems.append(f"{step.label}: {runbook_tasks.input_label(field)} is required and has no value.")
     return list(dict.fromkeys(problems))
 
 
@@ -1471,7 +1471,7 @@ def run_workflow(workflow, server, prompted, job=None):
         outputs[step.key] = step_outputs
         if status == "FAILURE":
             record["status"] = "FAILED"
-            record["error"] = server_tasks.tail(error, 1500)
+            record["error"] = runbook_tasks.tail(error, 1500)
             if step.data.get("continue_on_error"):
                 record["status"] = "FAILED (continued)"
                 warnings.append(f"{step.label} failed and the workflow continued: {error}")
