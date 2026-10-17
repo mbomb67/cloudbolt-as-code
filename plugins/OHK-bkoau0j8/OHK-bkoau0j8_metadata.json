@@ -1,0 +1,18 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-gcba1u31"
+        ]
+    },
+    "description": "Deletes a Windows server's Active Directory computer object over LDAP with the LDAP Utility for its domain, matching it by the objectGUID recorded at join or, failing that, by a name created after the server.",
+    "id": "OHK-bkoau0j8",
+    "max_retries": 0,
+    "name": "Delete Windows Computer Object from AD",
+    "resource_technologies": [],
+    "script_filename": "OHK-bkoau0j8_script.py",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "CloudBolt Plug-in"
+}

@@ -894,6 +894,25 @@
     "mcp_tool_name": "run_recurring_job"
   },
   {
+    "id": "HPA-0zcrvpwu",
+    "type": "orchestration_actions",
+    "name": "Suggest Domain OUs",
+    "description": "Turns the domain_ou parameter into a type-ahead that lists Active Directory OUs matching the typed text anywhere in their path once the user types three characters.",
+    "path": "orchestration_actions/HPA-0zcrvpwu",
+    "readme": "orchestration_actions/HPA-0zcrvpwu/README.md",
+    "uses": [
+      "plugins/OHK-z9qrccyu"
+    ],
+    "used_by": [
+      "parameters/CF-8pif9mbf"
+    ],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-nf407lm5"
+    ]
+  },
+  {
     "id": "HPA-1lp8xqo3",
     "type": "orchestration_actions",
     "name": "Add Parent Blueprints to Group",
@@ -1044,6 +1063,23 @@
     "enabled": false
   },
   {
+    "id": "HPA-jjp1vlfi",
+    "type": "orchestration_actions",
+    "name": "Join Windows Server to AD Domain",
+    "description": "Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision.",
+    "path": "orchestration_actions/HPA-jjp1vlfi",
+    "readme": "orchestration_actions/HPA-jjp1vlfi/README.md",
+    "uses": [
+      "plugins/OHK-9oqn6pur"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-nf407lm5"
+    ]
+  },
+  {
     "id": "HPA-n67skws4",
     "type": "orchestration_actions",
     "name": "Attach Data Disks from Disk Map",
@@ -1074,6 +1110,23 @@
     "used_by": [],
     "hook_point": "Post-Provision",
     "enabled": true
+  },
+  {
+    "id": "HPA-q181uofy",
+    "type": "orchestration_actions",
+    "name": "Delete Windows Computer Object from AD",
+    "description": "Deletes the Active Directory computer object of each Windows server being deleted at Pre-Delete.",
+    "path": "orchestration_actions/HPA-q181uofy",
+    "readme": "orchestration_actions/HPA-q181uofy/README.md",
+    "uses": [
+      "plugins/OHK-bkoau0j8"
+    ],
+    "used_by": [],
+    "hook_point": "Pre-Delete",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-nf407lm5"
+    ]
   },
   {
     "id": "HPA-qb0w86mi",
@@ -1205,6 +1258,23 @@
     ]
   },
   {
+    "id": "PKG-nf407lm5",
+    "type": "packages",
+    "name": "Windows AD Domain Join",
+    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission.",
+    "path": "packages/PKG-nf407lm5",
+    "readme": "packages/PKG-nf407lm5/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "orchestration_actions/HPA-q181uofy",
+      "orchestration_actions/HPA-jjp1vlfi",
+      "orchestration_actions/HPA-0zcrvpwu",
+      "parameters/CF-8pif9mbf"
+    ]
+  },
+  {
     "id": "PKG-t1k7drin",
     "type": "packages",
     "name": "Data Disk Blueprints",
@@ -1239,6 +1309,23 @@
       "orchestration_actions/HPA-4ptcwgg4",
       "orchestration_actions/HPA-42uy9dyo",
       "parameters/CF-q3bexgap"
+    ]
+  },
+  {
+    "id": "CF-8pif9mbf",
+    "type": "parameters",
+    "name": "Domain OU",
+    "description": "Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified.",
+    "path": "parameters/CF-8pif9mbf",
+    "readme": "parameters/CF-8pif9mbf/README.md",
+    "uses": [
+      "orchestration_actions/HPA-0zcrvpwu"
+    ],
+    "used_by": [],
+    "parameter_name": "domain_ou",
+    "parameter_type": "STR",
+    "packages": [
+      "packages/PKG-nf407lm5"
     ]
   },
   {
@@ -1796,6 +1883,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-9oqn6pur",
+    "type": "plugins",
+    "name": "Join Windows Server to AD Domain",
+    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, then waits for the restart and verifies the name and secure channel.",
+    "path": "plugins/OHK-9oqn6pur",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-gcba1u31"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-jjp1vlfi"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-9xffkz53",
     "type": "plugins",
     "name": "Resize",
@@ -1960,6 +2062,21 @@
     ],
     "used_by": [
       "recurring_jobs/RJB-reblryol"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-bkoau0j8",
+    "type": "plugins",
+    "name": "Delete Windows Computer Object from AD",
+    "description": "Deletes a Windows server's Active Directory computer object over LDAP with the LDAP Utility for its domain, matching it by the objectGUID recorded at join or, failing that, by a name created after the server.",
+    "path": "plugins/OHK-bkoau0j8",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-gcba1u31"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-q181uofy"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3160,6 +3277,21 @@
     "plugin_type": "Remote Script"
   },
   {
+    "id": "OHK-z9qrccyu",
+    "type": "plugins",
+    "name": "Suggest Domain OUs",
+    "description": "Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain.",
+    "path": "plugins/OHK-z9qrccyu",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-gcba1u31"
+    ],
+    "used_by": [
+      "orchestration_actions/HPA-0zcrvpwu"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "RJB-do33f7f3",
     "type": "recurring_jobs",
     "name": "ServiceNow Request Approval Sync",
@@ -3907,6 +4039,20 @@
       "plugins/OHK-gqvi9kv4",
       "plugins/OHK-9n4wfasa",
       "plugins/OHK-9f45ede7"
+    ]
+  },
+  {
+    "id": "SHM-gcba1u31",
+    "type": "shared_modules",
+    "name": "ad_domain",
+    "description": "Finds the Active Directory domain and LDAP Utility for a server from its domain_ou or domain_to_join, binds with that utility, and finds and deletes computer objects.",
+    "path": "shared_modules/SHM-gcba1u31",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-bkoau0j8",
+      "plugins/OHK-9oqn6pur",
+      "plugins/OHK-z9qrccyu"
     ]
   },
   {

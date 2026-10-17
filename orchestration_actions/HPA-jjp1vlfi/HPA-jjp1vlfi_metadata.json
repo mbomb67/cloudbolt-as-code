@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-9oqn6pur"
+    },
+    "description": "Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-jjp1vlfi",
+    "last_updated": null,
+    "name": "Join Windows Server to AD Domain",
+    "run_on_statuses": "",
+    "run_seq": 100
+}
