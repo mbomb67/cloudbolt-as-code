@@ -6,6 +6,7 @@ Content package `PKG-nf407lm5`, version 1.0.0. Sync it from the Content Packages
 
 | Type | Name | Folder |
 |---|---|---|
-| Orchestration action | Suggest Domain OUs | [orchestration_actions/HPA-0zcrvpwu](../../orchestration_actions/HPA-0zcrvpwu/) |
-| Orchestration action | Join Windows Server to AD Domain | [orchestration_actions/HPA-jjp1vlfi](../../orchestration_actions/HPA-jjp1vlfi/) |
 | Orchestration action | Delete Windows Computer Object from AD | [orchestration_actions/HPA-q181uofy](../../orchestration_actions/HPA-q181uofy/) |
+| Orchestration action | Join Windows Server to AD Domain | [orchestration_actions/HPA-jjp1vlfi](../../orchestration_actions/HPA-jjp1vlfi/) |
+| Orchestration action | Suggest Domain OUs | [orchestration_actions/HPA-0zcrvpwu](../../orchestration_actions/HPA-0zcrvpwu/) |
+| Parameter | Domain OU | [parameters/CF-8pif9mbf](../../parameters/CF-8pif9mbf/) |
