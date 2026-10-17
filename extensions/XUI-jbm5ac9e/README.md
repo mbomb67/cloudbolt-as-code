@@ -10,8 +10,8 @@ CloudBolt's UI creates a Remote Script or plug-in only inside a server, resource
 
 - **New Remote Script** (Windows or Linux) builds the script from Server Task Template (Windows) or (Linux) on the appliance: the template's helpers and error handling, one input line per declared input, and your task body. Run Task then offers it on every server its OS families, groups and environments allow.
 - **New plug-in** builds a CloudBolt Plug-in a workflow step can run on a server.
-- Inputs take a type, required, options and a regex pattern. Password inputs are not offered, because CloudBolt logs Run Task's and Run Workflow's inputs in plain text.
+- Inputs take a type, required, options and a regex pattern, saved as CloudBolt's regex constraint (matched from the start, on string and multi-line text inputs). Password inputs are not offered, because CloudBolt logs Run Task's and Run Workflow's inputs in plain text.
 
-The list shows each Remote Script, plug-in, webhook, email and copy-file action with its filters, whether Run Task offers it, and what uses it (workflows, server, resource and orchestration actions, blueprints and the rest of CloudBolt's dependents). **Check a server** shows which actions can run on one server. Edit and delete on CloudBolt's own action page, linked from each row.
+The list shows each Remote Script (CloudBolt's own included), plug-in, webhook, email and copy-file action with its filters, whether Run Task offers it, and what uses it (workflows, server, resource and orchestration actions, blueprints and the rest of CloudBolt's dependents). **Check a server** shows which actions can run on one server. Edit and delete on CloudBolt's own action page, linked from each row.
 
 The same list and create calls are at `/xui/server_workflow_builder/api/base-actions/` (GET; POST with `"preview": true` returns the file without creating it).
