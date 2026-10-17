@@ -16,7 +16,7 @@ One server action for every Remote Script that fits a server. Its form lists the
 | Remote Script | OHK-5yh12jiq | Manage Linux Service |
 
 ## Setup
-1. Sync the Server Tasks package (`packages/PKG-93egd3on`), or sync `server_actions/`, `webhooks/` and the four Remote Scripts. A server action sync does not bring the webhook or the Remote Scripts.
+1. Sync the Server Automation package (`packages/PKG-v20qv308`), or sync `server_actions/`, `webhooks/` and the four Remote Scripts. A server action sync does not bring the webhook or the Remote Scripts.
 2. Restart the CloudBolt web service after the first sync and after any change to `server_tasks`: the form's webhook and the task list run in the web process, which keeps the old shared module until it restarts.
 3. Give the groups that should run tasks permission to run this server action.
 

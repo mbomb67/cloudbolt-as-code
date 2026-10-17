@@ -1,0 +1,15 @@
+{% load i18n %}
+{% comment %}
+  Tabs across the Server Workflows pages. Include with active="workflows" or
+  active="actions". Tokens follow _assets.html, so Branded Themes re-theme it.
+{% endcomment %}
+<style>
+  .swf-tabs { display: flex; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid var(--neutral-250, #E2E8ED); flex-wrap: wrap; }
+  .swf-tabs a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; font-size: 13px; font-weight: 700; text-decoration: none; color: color-mix(in srgb, var(--bs-body-color, #212529) 62%, transparent); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .swf-tabs a:hover { color: var(--bs-body-color, #212529); }
+  .swf-tabs a.active { color: var(--bs-primary, #0d6efd); border-bottom-color: var(--bs-primary, #0d6efd); }
+</style>
+<nav class="swf-tabs" aria-label="{% trans 'Server Workflows pages' %}">
+  <a href="{% url 'render_admin_extension' package='server_workflow_builder' view_id='workflows' %}"{% if active == "workflows" %} class="active" aria-current="page"{% endif %}><i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Workflows" %}</a>
+  <a href="{% url 'render_admin_extension' package='server_workflow_builder' view_id='actions' %}"{% if active == "actions" %} class="active" aria-current="page"{% endif %}><i class="bi bi-terminal" aria-hidden="true"></i> {% trans "Actions" %}</a>
+</nav>

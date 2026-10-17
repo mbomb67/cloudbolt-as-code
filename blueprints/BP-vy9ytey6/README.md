@@ -9,7 +9,7 @@ Deploys a Windows Server or Oracle Linux VM, then runs a server workflow on it w
 | Build item | BDI-l252miz4 | Run Workflow (plugin OHK-69gk5ne9, the plug-in of the [Run Workflow](../../server_actions/SVA-j7rbsh39/) server action) |
 
 ## Setup
-Sync the Server Workflows package (`packages/PKG-vfnycv8s`), build a workflow on Admin > Custom Extensions > Server Workflows, and give the groups that should order this blueprint deploy permission.
+Sync the Server Automation package (`packages/PKG-v20qv308`), build a workflow on Admin > Custom Extensions > Server Workflows, and give the groups that should order this blueprint deploy permission.
 
 ## Choosing the workflow
 - **User's choice** (as shipped): the order form lists every enabled workflow. Picking one pre-fills Workflow inputs with what it asks for, as JSON.

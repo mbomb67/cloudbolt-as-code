@@ -14,7 +14,7 @@ Runs a server workflow on a server: a named, ordered list of existing CloudBolt 
 | UI extension | XUI-jbm5ac9e | Server Workflows admin page |
 
 ## Setup
-1. Sync the Server Workflows package (`packages/PKG-vfnycv8s`), or sync this action, `webhooks/IWH-xjlrmvc8` and `extensions/XUI-jbm5ac9e`. A server action sync does not bring the webhook or the extension.
+1. Sync the Server Automation package (`packages/PKG-v20qv308`), or sync this action, `webhooks/IWH-xjlrmvc8` and `extensions/XUI-jbm5ac9e`. A server action sync does not bring the webhook or the extension.
 2. Restart the web service (`systemctl restart httpd`) after the first sync and after any change to `server_workflows` or `server_tasks`: the admin page, the form's webhook and the workflow list run in the web process, which keeps the old shared modules until it restarts, and the extension adds URL paths.
 3. Give the groups that should run workflows permission to run this server action. Approval, scheduling and bulk runs are this action's own settings.
 
