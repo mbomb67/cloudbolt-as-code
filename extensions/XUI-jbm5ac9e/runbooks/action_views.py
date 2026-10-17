@@ -67,6 +67,7 @@ def actions(request):
     profile = request.get_user_profile()
     modules = _modules()
     context = {
+        "uplink": {"url": reverse("admin_home"), "label": "Admin"},
         "denied": not profile.is_cbadmin,
         "missing_module": modules is None,
         "missing_message": MISSING_MODULE,

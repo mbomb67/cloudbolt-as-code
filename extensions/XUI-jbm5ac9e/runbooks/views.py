@@ -102,6 +102,7 @@ def workflows(request):
     profile = request.get_user_profile()
     swf = _swf()
     context = {
+        "uplink": {"url": reverse("admin_home"), "label": "Admin"},
         "denied": not profile.is_cbadmin,
         "missing_module": swf is None,
         "missing_message": MISSING_MODULE,
