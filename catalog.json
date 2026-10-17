@@ -430,8 +430,7 @@
     ],
     "used_by": [],
     "packages": [
-      "packages/PKG-v20qv308",
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -573,8 +572,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-v20qv308",
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -1440,23 +1438,6 @@
       "server_actions/SVA-j7rbsh39",
       "extensions/XUI-jbm5ac9e",
       "extensions/XUI-0hv6t61x",
-      "blueprints/BP-vy9ytey6"
-    ]
-  },
-  {
-    "id": "PKG-vfnycv8s",
-    "type": "packages",
-    "name": "Server Workflows",
-    "description": "Adds a Run Workflow server action that runs a chosen workflow of CloudBolt actions in order on a server, the webhook its form calls, the Server Workflows admin page for building workflows, and an example blueprint that runs a workflow on the server it deploys.",
-    "path": "packages/PKG-vfnycv8s",
-    "readme": "packages/PKG-vfnycv8s/README.md",
-    "uses": [],
-    "used_by": [],
-    "version": "1.0.0",
-    "contents": [
-      "server_actions/SVA-j7rbsh39",
-      "webhooks/IWH-xjlrmvc8",
-      "extensions/XUI-jbm5ac9e",
       "blueprints/BP-vy9ytey6"
     ]
   },
@@ -4264,8 +4245,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-v20qv308",
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
@@ -4648,8 +4628,7 @@
     "used_by": [],
     "enabled": true,
     "packages": [
-      "packages/PKG-v20qv308",
-      "packages/PKG-vfnycv8s"
+      "packages/PKG-v20qv308"
     ]
   },
   {
