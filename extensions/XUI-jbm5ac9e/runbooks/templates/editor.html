@@ -6,6 +6,7 @@
 
 {% block content %}
 {% include "runbooks/templates/_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="workflows" %}
 {{ data|json_script:"swf-data" }}
 
 <div id="swfx-editor" class="swfx" data-csrf="{{ csrf_token }}">
