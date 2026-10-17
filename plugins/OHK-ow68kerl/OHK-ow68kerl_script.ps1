@@ -1,9 +1,9 @@
 # Run Installer from File Archive (Windows)
 #
-# Runs an installer that File Archives (extensions/XUI-0hv6t61x) keeps on
+# Runs an installer that File Archives (extensions/XUI-jbm5ac9e) keeps on
 # CloudBolt. The archive header line at the end of this comment names the
 # file. Run Task (server_actions/SVA-4sin3s0q) reads it and, before the task
-# body starts, downloads the file to the server, checks its SHA-256 and
+# body starts, downloads the file to the VM, checks its SHA-256 and
 # unpacks a zip or tar file. The body runs in that directory, which is also in
 # $env:CB_ARCHIVE_DIR.
 #
@@ -14,7 +14,7 @@
 # Installer arguments are split on spaces and passed after those. Exit codes 0
 # and 3010 (restart needed) count as success.
 #
-# Built from Server Task Template (Windows), plugins/OHK-lhm2916o: read its
+# Built from Runbook Task Template (Windows), plugins/OHK-lhm2916o: read its
 # conventions before changing this script.
 #
 # cb-archive: {{ archive_file }} extract

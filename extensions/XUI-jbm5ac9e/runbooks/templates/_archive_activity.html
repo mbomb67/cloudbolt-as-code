@@ -31,7 +31,7 @@
             {% for entry in activity %}
             <tr data-cfa-row>
               <td class="cfa-nowrap">{{ entry.at_text }}</td>
-              {% if show_file %}<td>{% if entry.file %}<a href="{% url 'file_archives_file' entry.archive entry.file %}">{{ entry.ref }}</a>{% else %}{{ entry.ref }}{% endif %}</td>{% endif %}
+              {% if show_file %}<td>{% if entry.file %}<a href="{% url 'runbooks_archive_file' entry.archive entry.file %}">{{ entry.ref }}</a>{% else %}{{ entry.ref }}{% endif %}</td>{% endif %}
               <td><span class="cfa-tag{% if entry.event == 'refused' %} cfa-tag-bad{% elif entry.event == 'downloaded' %} cfa-tag-ok{% endif %}">{{ entry.event }}</span></td>
               <td>{{ entry.detail }}{% if entry.by %} <span class="cfa-hint">({{ entry.by }})</span>{% endif %}</td>
             </tr>

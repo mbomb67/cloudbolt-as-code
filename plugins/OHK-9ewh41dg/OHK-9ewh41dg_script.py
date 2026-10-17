@@ -1,33 +1,33 @@
 """
-CloudBolt inbound webhook plug-in: Server Workflows (webhooks/IWH-xjlrmvc8).
+CloudBolt inbound webhook plug-in: Runbook Workflows (webhooks/IWH-xjlrmvc8).
 
 Serves the Run Workflow custom form (forms/FRM-ecw50rd0) of the Run Workflow
 server action (server_actions/SVA-j7rbsh39). Logic lives in the
-server_workflows shared module (shared_modules/SHM-nznzhpp0).
+runbook_workflows shared module (shared_modules/SHM-nznzhpp0).
 
-URL (trailing slash required): /api/v3/cmp/inboundWebHooks/server-workflows/run/
+URL (trailing slash required): /api/v3/cmp/inboundWebHooks/runbook-workflows/run/
 
 GET ?source=workflows&server=<id>[&servers=<ids>]
-    The enabled workflows offered on the server, or on every server of a
+    The enabled workflows offered on the VM, or on every VM of a
     bulk run: {"options": [{"value": "<SWF- id>", "title": "<name>"}, ...]}.
 GET ?source=prompts&server=<id>[&servers=<ids>]&workflow=<value>
     The chosen workflow's steps and the inputs it asks for, as a Dynamic Panel
-    template, plus what blocks it on these servers and whether a server needs
+    template, plus what blocks it on these VMs and whether a VM needs
     credentials for a script step:
     {"panel": {title, description, elements, steps, blocking},
      "credentials": {"needed": [hostnames], "can_save": bool}}.
-GET ?source=workflows  or  ?source=prompts&workflow=<value>, with no server
-    The same for a blueprint order form, where no server exists yet: every
+GET ?source=workflows  or  ?source=prompts&workflow=<value>, with no VM
+    The same for a blueprint order form, where no VM exists yet: every
     enabled workflow, or the workflow's prompts without the checks that need
-    a server. The Run Workflow build item's form function
-    (form_functions/FJS-hufo9zd4, serverWorkflowItems) calls this.
+    a VM. The Run Workflow build item's form function
+    (form_functions/FJS-hufo9zd4, runbookWorkflowItems) calls this.
 POST {"source": "credentials", "server": <id>, "username": ..., "password": ...}
-    Saves a username and password on the server, as CloudBolt's own
-    credential prompt does (needs Manage Credentials on that server):
+    Saves a username and password on the VM, as CloudBolt's own
+    credential prompt does (needs Manage Credentials on that VM):
     {"saved": true}. This keeps the password out of the action's payload,
     which CloudBolt writes to the job log.
 
-server is the form's object_id (the server's numeric id; an SVR- global ID
+server is the form's object_id (the VM's numeric id; an SVR- global ID
 also works). servers is the form's object_ids (a JSON list of ids, or a
 comma-separated list). Errors answer 400 or 403 with {"error": "..."} plus an
 empty "options" list, so a failure shows in the form without breaking it.
@@ -35,16 +35,16 @@ empty "options" list, so a failure shows in the form without breaking it.
 Authentication: 'normal' mode, so the form's same-origin request carries the
 user's session (and, for POST, the page's CSRF token) and this plug-in gets the
 caller's UserProfile. The webhook endpoint itself checks no permissions, so
-this plug-in does: every server must be one the caller can see, and saving
-credentials needs Manage Credentials on the server.
+this plug-in does: every VM must be one the caller can see, and saving
+credentials needs Manage Credentials on the VM.
 """
 import json
 import re
 
 from utilities.logger import ThreadLogger
 
-from shared_modules import server_tasks
-from shared_modules import server_workflows as swf
+from shared_modules import runbook_tasks
+from shared_modules import runbook_workflows as swf
 
 logger = ThreadLogger(__name__)
 
@@ -61,7 +61,7 @@ def _param(parameters, name):
 
 
 def _servers(parameters, profile):
-    """The server in context plus any others of a bulk run, each visible to profile."""
+    """The VM in context plus any others of a bulk run, each visible to profile."""
     values = []
     first = _param(parameters, "server") or _param(parameters, "object_id")
     if first:
@@ -75,10 +75,10 @@ def _servers(parameters, profile):
             items = re.split(r"[\s,]+", many)
         values.extend(str(item).strip() for item in items if str(item).strip())
     if not values:
-        raise server_tasks.TaskError("The form did not send the server's id (object_id).")
+        raise runbook_tasks.TaskError("The form did not send the VM's id (object_id).")
     servers, seen = [], set()
     for value in values:
-        server = server_tasks.resolve_server(value, profile)
+        server = runbook_tasks.resolve_server(value, profile)
         if server.id not in seen:
             seen.add(server.id)
             servers.append(server)
@@ -86,17 +86,17 @@ def _servers(parameters, profile):
 
 
 def _credentials(workflow, servers, profile):
-    """Which servers CloudBolt cannot log in to for a script step, and whether the caller can fix that here."""
+    """Which VMs CloudBolt cannot log in to for a script step, and whether the caller can fix that here."""
     hooks = [step.hook for step in swf.load_steps(workflow) if step.kind == "script"]
-    needed = [server for server in servers if any(server_tasks.needs_credentials(hook, server) for hook in hooks)]
-    can_save = len(servers) == 1 and bool(needed) and server_tasks.can_manage_credentials(profile, servers[0])
+    needed = [server for server in servers if any(runbook_tasks.needs_credentials(hook, server) for hook in hooks)]
+    can_save = len(servers) == 1 and bool(needed) and runbook_tasks.can_manage_credentials(profile, servers[0])
     return {"needed": [server.hostname for server in needed], "can_save": can_save}
 
 
 def _order_form(source, parameters, profile):
     """
-    A blueprint order form (no server yet): every enabled workflow, or a
-    workflow's prompts without the checks that need a server.
+    A blueprint order form (no VM yet): every enabled workflow, or a
+    workflow's prompts without the checks that need a VM.
     """
     if source == "workflows":
         return {"options": [{"value": value, "title": title} for value, title in swf.workflow_options([])]}
@@ -136,7 +136,7 @@ def inbound_web_hook_get(*args, parameters=None, profile=None, **kwargs):
                 "panel": swf.prompt_panel(workflow, servers, profile=profile),
                 "credentials": _credentials(workflow, servers, profile),
             }
-    except (server_tasks.TaskError, swf.WorkflowError) as err:
+    except (runbook_tasks.TaskError, swf.WorkflowError) as err:
         return _error(400, str(err))
     return _error(400, "source must be workflows or prompts.")
 
@@ -147,11 +147,11 @@ def inbound_web_hook_post(*args, parameters=None, profile=None, **kwargs):
     if _param(parameters, "source") != "credentials":
         return _error(400, "source must be credentials.")
     try:
-        server = server_tasks.resolve_server(_param(parameters, "server"), profile)
-        if not server_tasks.can_manage_credentials(profile, server):
+        server = runbook_tasks.resolve_server(_param(parameters, "server"), profile)
+        if not runbook_tasks.can_manage_credentials(profile, server):
             return _error(403, f"You do not have permission to manage the credentials of {server.hostname}.")
-        server_tasks.save_credentials(server, profile, parameters.get("username"), parameters.get("password"))
-    except server_tasks.TaskError as err:
+        runbook_tasks.save_credentials(server, profile, parameters.get("username"), parameters.get("password"))
+    except runbook_tasks.TaskError as err:
         return _error(400, str(err))
     logger.info("Run Workflow saved credentials on %s for %s", server.hostname, profile)
     return {"saved": True, "server": server.hostname}

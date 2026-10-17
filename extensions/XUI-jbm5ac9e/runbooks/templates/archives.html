@@ -1,29 +1,30 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{% trans "File Archives" %}{% endblock %}
+{% block title %}{% trans "File Archives" %} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
-{% block breadcrumb-item %}<h1>{% trans "File Archives" %}</h1>{% endblock breadcrumb-item %}
+{% block breadcrumb-item %}<h1>{% trans "Runbooks" %}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "file_archives/templates/_assets.html" %}
+{% include "runbooks/templates/_archive_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="archives" %}
 
 <div id="cfax-list" class="cfax">
   <div class="cfa-card">
     <div class="cfa-hero-top">
       <div>
         <div class="cfa-eyebrow">{% trans "File archives" %}</div>
-        <div class="cfa-title"><i class="bi bi-archive-fill" aria-hidden="true"></i> {% trans "Files for server scripts" %}</div>
-        <div class="cfa-sub">{% trans "Versioned installers, tarballs and config bundles. A script names the files it needs; Run Task downloads them to the server through short-lived links before the script runs." %}</div>
+        <div class="cfa-title"><i class="bi bi-archive-fill" aria-hidden="true"></i> {% trans "Files for scripts" %}</div>
+        <div class="cfa-sub">{% trans "Versioned installers, tarballs and config bundles. A script names the files it needs; Run Task downloads them to the VM through short-lived links before the script runs." %}</div>
       </div>
       {% if not denied %}
       <div class="cfa-tools">
-        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_settings' %}" data-dialog-width="640px">
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_settings' %}" data-dialog-width="640px">
           <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}
         </a>
-        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_rotate_key' %}">
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_rotate_key' %}">
           <i class="bi bi-shield-x" aria-hidden="true"></i> {% trans "Revoke all links" %}
         </a>
-        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_archive_add' %}" data-dialog-width="640px">
+        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'runbooks_archive_add' %}" data-dialog-width="640px">
           <i class="bi bi-plus-lg" aria-hidden="true"></i> {% trans "Add archive" %}
         </a>
       </div>
@@ -48,7 +49,7 @@
       </div>
       <div class="cell">
         <div class="k">{% trans "Certificate check" %}</div>
-        <div class="v">{% if settings.verify_tls %}{% trans "Servers verify CloudBolt's certificate" %}{% else %}{% trans "Off; the SHA-256 check guards each file" %}{% endif %}</div>
+        <div class="v">{% if settings.verify_tls %}{% trans "VMs verify CloudBolt's certificate" %}{% else %}{% trans "Off; the SHA-256 check guards each file" %}{% endif %}</div>
       </div>
       <div class="cell">
         <div class="k">{% trans "Versions kept" %}</div>
@@ -72,7 +73,7 @@
     <div class="cfa-alert cfa-alert-warn">
       <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
       <div>
-        {% blocktrans with url=base_url.suggestion %}Servers need a URL to reach CloudBolt, and the default portal has no domain. Open Settings and set the download base URL, for example {{ url }}.{% endblocktrans %}
+        {% blocktrans with url=base_url.suggestion %}VMs need a URL to reach CloudBolt, and the default portal has no domain. Open Settings and set the download base URL, for example {{ url }}.{% endblocktrans %}
       </div>
     </div>
   </div>
@@ -118,9 +119,9 @@
                 <td>{{ row.created_text }}<div class="cfa-hint">{{ row.created_by }}</div></td>
                 <td>
                   <div class="cfa-row-tools">
-                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_upload' row.name %}" data-dialog-width="640px" title="{% trans 'Upload file' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
-                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_archive_edit' row.name %}" data-dialog-width="640px" title="{% trans 'Edit' %}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_archive_delete' row.name %}" title="{% trans 'Delete' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_upload' row.name %}" data-dialog-width="640px" title="{% trans 'Upload file' %}"><i class="bi bi-upload" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_edit' row.name %}" data-dialog-width="640px" title="{% trans 'Edit' %}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_delete' row.name %}" title="{% trans 'Delete' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
                   </div>
                 </td>
               </tr>
@@ -135,7 +136,7 @@
     </div>
   </div>
 
-  {% include "file_archives/templates/_activity.html" with activity_id="cfax-activity" show_file=True collapsed=True %}
+  {% include "runbooks/templates/_archive_activity.html" with activity_id="cfax-activity" show_file=True collapsed=True %}
   {% endif %}
 </div>
 <script>window.cfaxInit("cfax-list");</script>

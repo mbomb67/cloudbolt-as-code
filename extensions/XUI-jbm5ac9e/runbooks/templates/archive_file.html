@@ -1,11 +1,12 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{{ ref }} &middot; {% trans "File Archives" %}{% endblock %}
+{% block title %}{{ ref }} &middot; {% trans "File Archives" %} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
 {% block breadcrumb-item %}<h1>{{ name }}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "file_archives/templates/_assets.html" %}
+{% include "runbooks/templates/_archive_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="archives" %}
 
 <div id="cfax-file" class="cfax">
   <div class="cfa-card">
@@ -16,10 +17,10 @@
         <div class="cfa-sub">{% trans "Latest version" %} {{ latest.version }} &middot; {{ latest.size_text }}</div>
       </div>
       <div class="cfa-tools">
-        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'file_archives_upload_version' archive name %}" data-dialog-width="640px">
+        <a class="btn btn-sm btn-primary open-dialog" href="{% url 'runbooks_archive_upload_version' archive name %}" data-dialog-width="640px">
           <i class="bi bi-upload" aria-hidden="true"></i> {% trans "Upload new version" %}
         </a>
-        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_file_delete' archive name %}">
+        <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_file_delete' archive name %}">
           <i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete file" %}
         </a>
       </div>
@@ -76,9 +77,9 @@ Get-ChildItem $env:CB_ARCHIVE_DIR           # PowerShell</pre>
                   <div class="cfa-row-tools">
                     <a class="btn btn-sm btn-outline-secondary" href="{{ meta.download_url }}" title="{% trans 'Download' %}"><i class="bi bi-download" aria-hidden="true"></i></a>
                     {% if meta.version != latest.version %}
-                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'file_archives_version_restore' archive name meta.version %}" title="{% trans 'Restore as latest' %}"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{% url 'runbooks_archive_version_restore' archive name meta.version %}" title="{% trans 'Restore as latest' %}"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></a>
                     {% endif %}
-                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'file_archives_version_delete' archive name meta.version %}" title="{% trans 'Delete version' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                    <a class="btn btn-sm btn-outline-danger open-dialog" href="{% url 'runbooks_archive_version_delete' archive name meta.version %}" title="{% trans 'Delete version' %}"><i class="bi bi-trash" aria-hidden="true"></i></a>
                   </div>
                 </td>
               </tr>
@@ -90,7 +91,7 @@ Get-ChildItem $env:CB_ARCHIVE_DIR           # PowerShell</pre>
     </div>
   </div>
 
-  {% include "file_archives/templates/_activity.html" with activity_id="cfax-file-activity" show_file=False collapsed=True %}
+  {% include "runbooks/templates/_archive_activity.html" with activity_id="cfax-file-activity" show_file=False collapsed=True %}
 </div>
 <script>window.cfaxInit("cfax-file");</script>
 {% endblock content %}

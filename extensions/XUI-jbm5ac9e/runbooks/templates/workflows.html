@@ -1,20 +1,20 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{% trans "Server Workflows" %}{% endblock %}
+{% block title %}{% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
-{% block breadcrumb-item %}<h1>{% trans "Server Workflows" %}</h1>{% endblock breadcrumb-item %}
+{% block breadcrumb-item %}<h1>{% trans "Runbooks" %}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "server_workflow_builder/templates/_assets.html" %}
-{% include "server_workflow_builder/templates/_tabs.html" with active="workflows" %}
+{% include "runbooks/templates/_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="workflows" %}
 
 <div id="swfx-list" class="swfx" data-csrf="{{ csrf_token }}">
   <div class="swf-card">
     <div class="swf-hero-top">
       <div>
-        <div class="swf-eyebrow">{% trans "Server workflows" %}</div>
+        <div class="swf-eyebrow">{% trans "Runbooks" %}</div>
         <div class="swf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> {% trans "Chain actions into one run" %}</div>
-        <div class="swf-sub">{% trans "Each workflow runs its steps in order on a server, from the Run Workflow server action. Its filters decide which servers offer it and which actions it can use." %}</div>
+        <div class="swf-sub">{% trans "Each workflow runs its steps in order on a VM, from the Run Workflow action. Its filters decide which VMs offer it and which actions it can use." %}</div>
       </div>
       {% if not denied and not missing_module %}
       <div class="swf-tools">
@@ -30,7 +30,7 @@
     {% if denied %}
     <div class="swf-alert">
       <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
-      <div>{% trans "Server workflows are managed by CB Admins and Super Admins." %}</div>
+      <div>{% trans "Runbooks are managed by CB Admins and Super Admins." %}</div>
     </div>
     {% elif missing_module %}
     <div class="swf-alert">
@@ -70,7 +70,7 @@
               {% for f in row.filters %}
               <div class="swf-filter-line"><span class="k">{{ f.label }}:</span> {{ f.values|join:", " }}{% if f.missing %} <span class="swf-tag swf-tag-bad">{% trans "missing" %} {{ f.missing|length }}</span>{% endif %}</div>
               {% empty %}
-              <span class="swf-muted">{% trans "Every server" %}</span>
+              <span class="swf-muted">{% trans "Every VM" %}</span>
               {% endfor %}
             </td>
             <td>

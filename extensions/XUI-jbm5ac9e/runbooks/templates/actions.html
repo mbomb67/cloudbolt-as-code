@@ -1,12 +1,12 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{% trans "Actions" %} &middot; {% trans "Server Workflows" %}{% endblock %}
+{% block title %}{% trans "Actions" %} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
-{% block breadcrumb-item %}<h1>{% trans "Server Workflows" %}</h1>{% endblock breadcrumb-item %}
+{% block breadcrumb-item %}<h1>{% trans "Runbooks" %}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "server_workflow_builder/templates/_assets.html" %}
-{% include "server_workflow_builder/templates/_tabs.html" with active="actions" %}
+{% include "runbooks/templates/_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="actions" %}
 <style>
   .swfx .swf-used { margin: 0; padding: 0; list-style: none; font-size: 12px; }
   .swfx .swf-used li { margin-bottom: 2px; }
@@ -21,9 +21,9 @@
   <div class="swf-card">
     <div class="swf-hero-top">
       <div>
-        <div class="swf-eyebrow">{% trans "Server workflows" %}</div>
+        <div class="swf-eyebrow">{% trans "Runbooks" %}</div>
         <div class="swf-title"><i class="bi bi-terminal-fill" aria-hidden="true"></i> {% trans "Base actions" %}</div>
-        <div class="swf-sub">{% trans "Remote Scripts and plug-ins created here need no server, resource or orchestration action: Run Task offers a Remote Script on every server it fits, and any of them can be a workflow step. Edit or delete them on CloudBolt's own action pages." %}</div>
+        <div class="swf-sub">{% trans "Remote Scripts and plug-ins created here need no other action around them: Run Task offers a Remote Script on every VM it fits, and any of them can be a workflow step. Edit or delete them on CloudBolt's own action pages." %}</div>
       </div>
       {% if not denied and not missing_module %}
       <div class="swf-tools">
@@ -62,8 +62,8 @@
         </select>
         <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter actions' %}" data-swf-filter>
         <form class="swf-check" data-swf-check>
-          <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Check a server' %}" aria-label="{% trans 'Hostname or SVR- id of a server to check' %}" data-swf-server>
-          <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% trans 'Show which actions can run on this server' %}"><i class="bi bi-hdd-network" aria-hidden="true"></i><span class="visually-hidden">{% trans "Check" %}</span></button>
+          <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Check a VM' %}" aria-label="{% trans 'Hostname or SVR- id of a VM to check' %}" data-swf-server>
+          <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% trans 'Show which actions can run on this VM' %}"><i class="bi bi-hdd-network" aria-hidden="true"></i><span class="visually-hidden">{% trans "Check" %}</span></button>
         </form>
         <div class="form-check form-switch mb-0">
           <input class="form-check-input" type="checkbox" role="switch" id="swf-builtin" data-swf-builtin>
@@ -160,7 +160,7 @@
     return el("td", {}, [
       el("span", { cls: "swf-pill " + (verdict.offered ? "swf-pill-ok" : "swf-pill-bad") }, [icon(verdict.offered ? "bi-check-circle-fill" : "bi-slash-circle"), verdict.text]),
       verdict.reason ? el("div", { cls: "swf-hint", text: verdict.reason }) : null,
-      verdict.offered ? el("div", { cls: "swf-hint", text: "{% trans 'On every server its filters allow.' %}" }) : null
+      verdict.offered ? el("div", { cls: "swf-hint", text: "{% trans 'On every VM its filters allow.' %}" }) : null
     ]);
   }
   function serverCell(row) {
@@ -291,7 +291,7 @@
         var made = state.rows.filter(function (row) { return row.id === created; })[0];
         if (made) {
           $root.find("[data-swf-note]").removeClass("d-none").find("div").text(
-            "{% trans 'Created' %} " + made.name + ". " + (made.run_task.offered ? "{% trans 'Run Task offers it on every server its filters allow.' %}" : "")
+            "{% trans 'Created' %} " + made.name + ". " + (made.run_task.offered ? "{% trans 'Run Task offers it on every VM its filters allow.' %}" : "")
           );
         }
       })

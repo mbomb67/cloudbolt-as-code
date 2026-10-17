@@ -2,7 +2,7 @@
 #
 # Manage Linux Service
 #
-# Server task for Run Task (server_actions/SVA-4sin3s0q), built on the Server
+# Task for Run Task (server_actions/SVA-4sin3s0q), built on the Server
 # Task Template (Linux): shows, starts, stops or restarts one systemd unit and
 # prints its state afterwards. A name without a suffix means NAME.service.
 # Starting an active unit or stopping an inactive one changes nothing. Needs

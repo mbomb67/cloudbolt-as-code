@@ -5,10 +5,10 @@
             "shared_modules/SHM-nznzhpp0"
         ]
     },
-    "description": "Serves the Run Workflow form: the workflows that fit a server, a chosen workflow's steps and prompts, and saving credentials on a server that has none.",
+    "description": "Serves the Run Workflow form: the workflows that fit a VM, a chosen workflow's steps and prompts, and saving credentials on a VM that has none.",
     "id": "OHK-9ewh41dg",
     "max_retries": 0,
-    "name": "Server Workflows",
+    "name": "Runbook Workflows",
     "resource_technologies": [],
     "script_filename": "OHK-9ewh41dg_script.py",
     "shared": false,

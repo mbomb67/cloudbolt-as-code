@@ -6,5 +6,5 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](../plugins/OHK-5wpzgw68/) |
-| Run Task | [SVA-4sin3s0q](SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task server action on the selected servers, after checking that it fits each server and that its inputs are valid. | [Run Task](../plugins/OHK-o4tgygjs/) |
-| Run Workflow | [SVA-j7rbsh39](SVA-j7rbsh39/README.md) | Runs a server workflow in order on the selected servers, for the Run Workflow server action or as a blueprint build item on the servers an order deployed, after checking the workflow, every step and every input against each server. | [Run Workflow](../plugins/OHK-69gk5ne9/) |
+| Run Task | [SVA-4sin3s0q](SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid. | [Run Task](../plugins/OHK-o4tgygjs/) |
+| Run Workflow | [SVA-j7rbsh39](SVA-j7rbsh39/README.md) | Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM. | [Run Workflow](../plugins/OHK-69gk5ne9/) |

@@ -1,10 +1,10 @@
-# Server Task Template (Windows)
+# Runbook Task Template (Windows)
 #
-# Base script for Windows server tasks. Run Task (server_actions/SVA-4sin3s0q)
-# lists every Remote Script that fits the server, so a copy of this script with
+# Base script for Windows tasks. Run Task (server_actions/SVA-4sin3s0q)
+# lists every Remote Script that fits the VM, so a copy of this script with
 # the Windows OS family set shows up there without a new button. Copy it, rename
 # it, declare your inputs, and replace the task body. This copy prints a short
-# summary of the server and an optional message.
+# summary of the VM and an optional message.
 #
 # Conventions:
 #   Inputs   Each declared input is read once, under "inputs", inside single
@@ -32,7 +32,7 @@
 #            command line. Keep the rendered script under about 9,000
 #            characters.
 #   Account  Azure Run Command and AWS SSM run as SYSTEM. WinRM and VMware Tools
-#            run as the Remote Script's credentials, else the server's, else the
+#            run as the Remote Script's credentials, else the VM's, else the
 #            username and password Run Task asks for.
 
 $ErrorActionPreference = 'Stop'

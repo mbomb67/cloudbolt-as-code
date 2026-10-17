@@ -1,28 +1,31 @@
 {% extends "v5/default/body.html" %}
 {% load i18n %}
-{% block title %}{{ title }} &middot; {% trans "Server Workflows" %}{% endblock %}
+{% block title %}{{ title }} &middot; {% trans "Runbooks" %}{% endblock %}
 {% block topnav %}admin{% endblock %}
 {% block breadcrumb-item %}<h1>{{ title }}</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
-{% include "server_workflow_builder/templates/_assets.html" %}
+{% include "runbooks/templates/_assets.html" %}
+{% include "runbooks/templates/_tabs.html" with active="workflows" %}
 {{ data|json_script:"swf-data" }}
 
 <div id="swfx-editor" class="swfx" data-csrf="{{ csrf_token }}">
   <div class="swf-card">
     <div class="swf-hero-top">
       <div>
-        <div class="swf-eyebrow">{% trans "Server workflow" %}</div>
+        <div class="swf-eyebrow">{% trans "Workflow" %}</div>
         <div class="swf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> <span data-swf-heading>{{ title }}</span></div>
         <div class="swf-sub">{% if workflow %}<span class="swf-mono">{{ workflow.id }}</span>{% else %}{% trans "Not saved yet" %}{% endif %}</div>
-        <div class="form-check form-switch swf-enabled">
+      </div>
+      <div class="swf-side">
+        <div class="swf-tools">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All workflows" %}</a>
+          <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
+        </div>
+        <div class="form-check form-switch form-check-reverse swf-enabled">
           <input class="form-check-input" type="checkbox" role="switch" id="swf-enabled">
           <label class="form-check-label" for="swf-enabled">{% trans "Enabled: offered in Run Workflow" %}</label>
         </div>
-      </div>
-      <div class="swf-tools">
-        <a class="btn btn-sm btn-outline-secondary" href="{{ list_url }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> {% trans "All workflows" %}</a>
-        <button type="button" class="btn btn-sm btn-primary" data-swf-save><i class="bi bi-check-lg" aria-hidden="true"></i> {% trans "Save" %}</button>
       </div>
     </div>
     <div class="swf-alert d-none" data-swf-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>
@@ -60,7 +63,7 @@
       <span class="swf-muted" data-swf-filter-summary></span>
     </div>
     <div class="swf-card-b{% if workflow %} d-none{% endif %}" id="swf-filters-body">
-      <div class="swf-muted mb-3">{% trans "Run Workflow offers this workflow only on servers that pass every filter you set; leave a filter empty to allow any server. The step picker offers only actions that can run on all of those servers." %}</div>
+      <div class="swf-muted mb-3">{% trans "Run Workflow offers this workflow only on VMs that pass every filter you set; leave a filter empty to allow any VM. The step picker offers only actions that can run on all of those VMs." %}</div>
       <div class="swf-filters" data-swf-filters></div>
     </div>
   </div>
@@ -228,7 +231,7 @@
       var labels = $select.find("option:selected").map(function () { return $(this).text(); }).get();
       if (labels.length) { parts.push(filter.label + ": " + labels.join(", ")); }
     });
-    $root.find("[data-swf-filter-summary]").text(parts.length ? parts.join(" \u00b7 ") : "Every server");
+    $root.find("[data-swf-filter-summary]").text(parts.length ? parts.join(" \u00b7 ") : "Every VM");
   }
   function currentFilters() {
     var filters = {};
@@ -448,11 +451,11 @@
     }
     return el("div", {}, [
       $widget,
-      input.generated ? el("div", { cls: "swf-hint", text: "The plug-in generates this input's options for each server; enter one of them exactly." }) : null
+      input.generated ? el("div", { cls: "swf-hint", text: "The plug-in generates this input's options for each VM; enter one of them exactly." }) : null
     ]);
   }
 
-  // Files a script step stages on the server before it runs, picked from the
+  // Files a script step stages on the VM before it runs, picked from the
   // File Archives content (data.archives is null when it is not installed).
   function filesBlock(step, index) {
     var entries = step.archives || [];
@@ -468,7 +471,7 @@
       })));
     }
     if (data.archives === null) {
-      $block.append(el("div", { cls: "swf-hint", text: "Install the File Archives content to stage files on the server before this script runs." }));
+      $block.append(el("div", { cls: "swf-hint", text: "Install the File Archives content to stage files on the VM before this script runs." }));
       return $block;
     }
     if (!data.archives.length) {
@@ -494,7 +497,7 @@
       el("div", { cls: "form-check mb-0" }, [$extract, el("label", { cls: "form-check-label", "for": "swf-extract-" + index, text: "Extract" })]),
       el("button", { type: "button", cls: "btn btn-sm btn-outline-primary", "data-swf-archive-add": index }, [icon("bi-plus-lg"), " Add file"])
     ]));
-    $block.append(el("div", { cls: "swf-hint", text: "Staged on the server before the script runs; each reports its version as the output archive_<file stem>_version." }));
+    $block.append(el("div", { cls: "swf-hint", text: "Staged on the VM before the script runs; each reports its version as the output archive_<file stem>_version." }));
     return $block;
   }
 

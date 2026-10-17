@@ -4,7 +4,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "The Remote Script to run: one of the scripts that can run on this server.",
+            "description": "The Remote Script to run: one of the scripts that can run on this VM.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],

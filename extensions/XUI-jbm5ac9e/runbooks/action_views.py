@@ -1,5 +1,5 @@
 """
-The Actions tab of the Server Workflows page.
+The Actions tab of the Runbooks page.
 
 Lists the base actions a workflow step or Run Task can use (Remote Scripts,
 CloudBolt plug-ins, webhooks, emails, copy-file actions) with their filters,
@@ -8,8 +8,9 @@ and plug-ins with no server, resource or orchestration action around them.
 Editing and deleting stay on CloudBolt's own action pages, which the tab
 links to. The logic lives in action_library.py.
 
-views.py imports the page function, because CloudBolt looks for admin
-extensions only in an extension's views.py. Everything requires CB Admin.
+The tab is a page of the extension (xui/runbooks/actions/), not an admin
+extension of its own, so Admin lists Runbooks once. Everything requires CB
+Admin.
 """
 import functools
 import json
@@ -19,7 +20,6 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 
-from extensions.views import admin_extension
 from utilities.logger import ThreadLogger
 from utilities.permissions import cbadmin_required
 
@@ -27,13 +27,11 @@ from . import action_library as library
 
 logger = ThreadLogger(__name__)
 
-TEMPLATES = "server_workflow_builder/templates/"
-XUI_PACKAGE = "server_workflow_builder"
-PAGE_VIEW = "actions"
+TEMPLATES = "runbooks/templates/"
 
 MISSING_MODULE = (
-    "The server_tasks and server_workflows shared modules must be on this appliance. Sync the Server "
-    "Automation content package (or the Run Task and Run Workflow server actions) first; they bring them."
+    "The runbook_tasks and runbook_workflows shared modules must be on this appliance. Sync the Runbooks "
+    "content package (or the Run Task and Run Workflow actions) first; they bring them."
 )
 
 NEW_KINDS = {
@@ -44,40 +42,37 @@ NEW_KINDS = {
 
 
 def _modules():
-    """(server_tasks, server_workflows), or None when either is missing."""
+    """(runbook_tasks, runbook_workflows), or None when either is missing."""
     try:
-        from shared_modules import server_tasks, server_workflows
+        from shared_modules import runbook_tasks, runbook_workflows
     except ImportError:
-        logger.exception("Could not import the server_tasks or server_workflows shared module")
+        logger.exception("Could not import the runbook_tasks or runbook_workflows shared module")
         return None
-    return server_tasks, server_workflows
+    return runbook_tasks, runbook_workflows
 
 
 def page_url():
-    return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": PAGE_VIEW})
+    return reverse("runbooks_actions")
 
 
 def _new_urls():
-    return {key: reverse("server_workflow_builder_action_new", args=[key]) for key in NEW_KINDS}
+    return {key: reverse("runbooks_action_new", args=[key]) for key in NEW_KINDS}
 
 
 # ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
-@admin_extension(
-    title="Server Workflow Actions",
-    description="Create Remote Scripts and plug-ins with no server, resource or orchestration action, and see "
-    "each base action's filters, whether Run Task offers it, and what uses it.",
-)
 def actions(request):
+    """The Actions tab: create Remote Scripts and plug-ins, and see each base action's filters and uses."""
     profile = request.get_user_profile()
     modules = _modules()
     context = {
+        "uplink": {"url": reverse("admin_home"), "label": "Admin"},
         "denied": not profile.is_cbadmin,
         "missing_module": modules is None,
         "missing_message": MISSING_MODULE,
         "new_urls": _new_urls(),
-        "api_url": reverse("server_workflow_builder_api_base_actions"),
+        "api_url": reverse("runbooks_api_base_actions"),
         "created": request.GET.get("created", ""),
         "run_task_problem": None,
     }
@@ -128,7 +123,7 @@ def action_new(request, kind):
             "timeout_max": library.TIMEOUT_MAX,
             "windows_budget": library.WINDOWS_SCRIPT_BUDGET,
         },
-        "urls": {"list": page_url(), "api": reverse("server_workflow_builder_api_base_actions")},
+        "urls": {"list": page_url(), "api": reverse("runbooks_api_base_actions")},
     }
     return render(request, TEMPLATES + "action_editor.html", context)
 
@@ -144,20 +139,20 @@ def _api(view):
         modules = _modules()
         if modules is None:
             return JsonResponse({"error": MISSING_MODULE}, status=503)
-        server_tasks, swf = modules
+        runbook_tasks, swf = modules
         try:
             if not request.get_user_profile().is_cbadmin:
                 raise PermissionDenied
-            return view(request, server_tasks, swf, *args, **kwargs)
+            return view(request, runbook_tasks, swf, *args, **kwargs)
         except PermissionDenied:
             return JsonResponse({"error": "This requires CB Admin or Super Admin."}, status=403)
         except library.ActionError as exc:
-            # A TaskError from server_tasks.resolve_server becomes an ActionError in _server.
+            # A TaskError from runbook_tasks.resolve_server becomes an ActionError in _server.
             return JsonResponse({"error": exc.public_message}, status=400)
         except swf.WorkflowError as exc:
             return JsonResponse({"error": getattr(exc, "public_message", "The workflow request was refused.")}, status=400)
         except Exception:
-            logger.exception("Server workflow actions API call failed: %s %s", request.method, request.path)
+            logger.exception("Runbook actions API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
 
     return wrapper
@@ -182,11 +177,11 @@ def _method_not_allowed(allowed):
 
 
 @_api
-def api_base_actions(request, server_tasks, swf):
+def api_base_actions(request, runbook_tasks, swf):
     """
     GET: every base action a workflow step or Run Task can use, with filters,
     Run Task availability and the workflows that use it. ?server=<hostname, id
-    or SVR- id> adds whether each fits that server; ?builtin=1 adds CloudBolt's
+    or SVR- id> adds whether each fits that VM; ?builtin=1 adds CloudBolt's
     own; ?ids=<OHK-,...>&used_by=1 returns just those, with everything else
     that uses them (CloudBolt's dependents, slow on many actions).
     POST {kind, platform, name, ...}: create a Remote Script or plug-in;
@@ -196,11 +191,11 @@ def api_base_actions(request, server_tasks, swf):
         server = None
         wanted = (request.GET.get("server") or "").strip()
         if wanted:
-            server = _server(server_tasks, wanted, request.get_user_profile())
+            server = _server(runbook_tasks, wanted, request.get_user_profile())
         ids = [part.strip() for part in (request.GET.get("ids") or "").split(",") if part.strip()] or None
         rows = library.action_rows(
             swf,
-            server_tasks,
+            runbook_tasks,
             include_builtin=request.GET.get("builtin") == "1",
             server=server,
             ids=ids,
@@ -231,17 +226,17 @@ def api_base_actions(request, server_tasks, swf):
     return _method_not_allowed(["GET", "POST"])
 
 
-def _server(server_tasks, value, profile):
+def _server(runbook_tasks, value, profile):
     from infrastructure.models import Server
 
     try:
-        return server_tasks.resolve_server(value, profile)
-    except server_tasks.TaskError:
+        return runbook_tasks.resolve_server(value, profile)
+    except runbook_tasks.TaskError:
         server = (
             Server.objects.exclude(status="HISTORICAL")
             .filter(hostname__iexact=value, id__in=Server.objects_for_profile(profile).values("id"))
             .first()
         )
         if server is None:
-            raise library.ActionError(f"There is no active server '{value}'.")
+            raise library.ActionError(f"There is no active VM '{value}'.")
         return server

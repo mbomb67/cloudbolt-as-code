@@ -1,5 +1,5 @@
 {% comment %}
-  Shared styles for the Server Workflows pages. Same visual language as the
+  Shared styles for the Runbooks pages. Same visual language as the
   Content Packages and HCP Terraform Workspace extensions: tokens derive from
   --bs-primary / --bs-body-color / --surface / --neutral-* so Branded Themes
   re-theme the pages without an asset build.
@@ -104,7 +104,11 @@
   .swfx .swf-step-fold { font-size: 15px; padding: 2px 4px; }
   .swfx .swf-step-closed .swf-step-h { border-bottom: 0; }
   .swfx .swf-step-badges { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .swfx .swf-enabled { margin-top: 12px; font-size: 13.5px; font-weight: 600; }
+  .swfx .swf-side { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .swfx .swf-enabled { margin: 0; font-size: 13.5px; font-weight: 600; }
+  /* Switch after its label, as Bootstrap 5.3's .form-check-reverse does, for pages on an older Bootstrap. */
+  .swfx .swf-enabled.form-check-reverse { padding-left: 0; padding-right: 2.5em; text-align: right; }
+  .swfx .swf-enabled.form-check-reverse .form-check-input { float: right; margin-left: 0; margin-right: -2.5em; }
   .swfx .swf-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--swf-line); font-size: 12.5px; font-weight: 600; color: var(--swf-muted); }
   @keyframes swf-spin { to { transform: rotate(360deg); } }
 </style>
