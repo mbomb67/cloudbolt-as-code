@@ -183,7 +183,10 @@
     ]);
   }
   function usedCell(row) {
-    if (!row.used_by.length) { return el("td", {}, [el("span", { cls: "swf-muted", text: "{% trans 'Nothing' %}" })]); }
+    var pending = !row.dependents_loaded && !row.dependents_failed;
+    var $note = pending ? el("div", { cls: "swf-hint" }, [icon("bi-arrow-repeat swf-spin"), " {% trans 'Reading what uses it' %}"]) : null;
+    if (row.dependents_failed) { $note = el("div", { cls: "swf-hint text-danger", text: "{% trans 'Could not read what uses it.' %}" }); }
+    if (!row.used_by.length) { return el("td", {}, [$note || el("span", { cls: "swf-muted", text: "{% trans 'Nothing' %}" })]); }
     var $list = el("ul", { cls: "swf-used" }, row.used_by.slice(0, USED_SHOWN).map(usedItem));
     var rest = row.used_by.slice(USED_SHOWN);
     var $more = null;
@@ -191,7 +194,33 @@
       $more = el("button", { type: "button", cls: "btn btn-link btn-sm p-0", text: "+" + rest.length + " {% trans 'more' %}" });
       $more.on("click", function () { $list.append(rest.map(usedItem)); $more.remove(); });
     }
-    return el("td", {}, [$list, $more]);
+    return el("td", {}, [$list, $more, $note]);
+  }
+  // CloudBolt's dependents are slow to read for every action, so read them
+  // only for the rows on the page.
+  function loadUsedBy(rows) {
+    var want = rows.filter(function (row) { return !row.dependents_loaded && !row.dependents_failed && !row.reading; });
+    if (!want.length) { return; }
+    want.forEach(function (row) { row.reading = true; });
+    var params = ["used_by=1", "ids=" + encodeURIComponent(want.map(function (row) { return row.id; }).join(","))];
+    fetch(api + "?" + params.join("&"), { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+      .then(function (reply) {
+        if (!reply.ok) { throw new Error(reply.body.error || "{% trans 'What uses these actions could not be read.' %}"); }
+        var fresh = {};
+        (reply.body.actions || []).forEach(function (row) { fresh[row.id] = row; });
+        want.forEach(function (row) {
+          row.reading = false;
+          row.dependents_loaded = true;
+          if (fresh[row.id]) { row.used_by = fresh[row.id].used_by; }
+        });
+        render(false);
+      })
+      .catch(function (error) {
+        want.forEach(function (row) { row.reading = false; row.dependents_failed = true; });
+        render(false);
+        showError(String(error.message || error));
+      });
   }
   function toolsCell(row) {
     return el("td", {}, [
@@ -215,7 +244,9 @@
     var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
     state.page = Math.max(0, Math.min(state.page, pages - 1));
     var $body = $root.find("[data-swf-rows]").empty();
-    rows.slice(state.page * PAGE_SIZE, state.page * PAGE_SIZE + PAGE_SIZE).forEach(function (row) {
+    var shown = rows.slice(state.page * PAGE_SIZE, state.page * PAGE_SIZE + PAGE_SIZE);
+    loadUsedBy(shown);
+    shown.forEach(function (row) {
       var $tr = el("tr", { cls: row.id === created ? "swf-created" : "" }, [nameCell(row), runsOnCell(row), runTaskCell(row), serverCell(row), usedCell(row), toolsCell(row)]);
       $body.append($tr);
     });

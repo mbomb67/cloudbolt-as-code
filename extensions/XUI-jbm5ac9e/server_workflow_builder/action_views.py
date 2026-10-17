@@ -181,8 +181,10 @@ def _method_not_allowed(allowed):
 def api_base_actions(request, server_tasks, swf):
     """
     GET: every base action a workflow step or Run Task can use, with filters,
-    Run Task availability and what uses it. ?server=<hostname, id or SVR- id>
-    adds whether each fits that server; ?builtin=1 adds CloudBolt's own.
+    Run Task availability and the workflows that use it. ?server=<hostname, id
+    or SVR- id> adds whether each fits that server; ?builtin=1 adds CloudBolt's
+    own; ?ids=<OHK-,...>&used_by=1 returns just those, with everything else
+    that uses them (CloudBolt's dependents, slow on many actions).
     POST {kind, platform, name, ...}: create a Remote Script or plug-in;
     with "preview": true, return the file it would write instead.
     """
@@ -191,7 +193,15 @@ def api_base_actions(request, server_tasks, swf):
         wanted = (request.GET.get("server") or "").strip()
         if wanted:
             server = _server(server_tasks, wanted, request.get_user_profile())
-        rows = library.action_rows(swf, server_tasks, include_builtin=request.GET.get("builtin") == "1", server=server)
+        ids = [part.strip() for part in (request.GET.get("ids") or "").split(",") if part.strip()] or None
+        rows = library.action_rows(
+            swf,
+            server_tasks,
+            include_builtin=request.GET.get("builtin") == "1",
+            server=server,
+            ids=ids,
+            with_dependents=request.GET.get("used_by") == "1",
+        )
         return JsonResponse(
             {
                 "actions": rows,

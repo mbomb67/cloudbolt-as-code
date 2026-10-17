@@ -706,14 +706,17 @@ def dependents(hook):
     except Exception:
         logger.exception("Could not read the dependents of '%s'", hook.name)
         return [{"kind": "Unknown", "name": "Could not read what uses this action", "url": None}]
-    rows = []
+    rows = OrderedDict()
     for key, kind in DEPENDENT_KINDS.items():
         for obj in found.get(key) or []:
             row = {"kind": kind, "name": _label(obj), "url": _url(obj)}
             if hasattr(obj, "enabled") and not obj.enabled:
                 row["note"] = "disabled"
-            rows.append(row)
-    return rows
+            # A blueprint with two items running the action is listed once per item.
+            seen = rows.setdefault((kind, row["name"], row["url"]), dict(row, uses=0))
+            seen["uses"] += 1
+    return [dict(row, note="; ".join(filter(None, [row.get("note"), f"{row['uses']} uses" if row["uses"] > 1 else ""])))
+            for row in rows.values()]
 
 
 def workflow_uses(swf, hook, workflows):
@@ -763,15 +766,17 @@ def run_task_verdict(server_tasks, hook):
     return {"offered": True, "text": "Offered"}
 
 
-def candidate_hooks(swf, include_builtin=False):
-    """Every Remote Script, plug-in, webhook, email and copy-file action, cast, by name."""
+def candidate_hooks(swf, include_builtin=False, ids=None):
+    """Every Remote Script, plug-in, webhook, email and copy-file action (or those ids), cast, by name."""
     hooks = []
     for info in swf.STEP_TYPES.values():
         model = info["model"]
         queryset = model.objects.filter(real_type=ContentType.objects.get_for_model(model))
-        if not include_builtin:
+        if ids is not None:
+            queryset = queryset.filter(global_id__in=ids)
+        elif not include_builtin:
             queryset = queryset.exclude(is_ootb=True)
-        names = ["groups", "environments", "resource_technologies", "configuration_managers"]
+        names = ["groups", "environments", "resource_technologies", "configuration_managers", "input_fields"]
         if hasattr(model, "os_families"):
             names.append("os_families")
         hooks.extend(queryset.prefetch_related(*names))
@@ -782,11 +787,16 @@ def _names(objects):
     return sorted(str(getattr(obj, "name", obj)) for obj in objects)
 
 
-def action_row(swf, server_tasks, hook, workflows, steppable, server=None):
+def action_row(swf, server_tasks, hook, workflows, steppable, server=None, with_dependents=False):
+    """
+    One action for the list. CloudBolt's dependents cost about 30 queries an
+    action, so they come only with_dependents; the page asks for them for the
+    rows it shows. Workflow uses are always there: they come from the store.
+    """
     kind = swf.step_type(hook)
     info = swf.STEP_TYPES.get(kind, {})
     families = list(hook.os_families.all()) if hasattr(hook, "os_families") else []
-    used_by = workflow_uses(swf, hook, workflows) + dependents(hook)
+    used_by = workflow_uses(swf, hook, workflows) + (dependents(hook) if with_dependents else [])
     row = {
         "id": hook.global_id,
         "pk": hook.id,
@@ -801,10 +811,11 @@ def action_row(swf, server_tasks, hook, workflows, steppable, server=None):
         "environments": _names(hook.environments.all()),
         "technologies": _names(hook.resource_technologies.all()),
         "configuration_managers": _names(hook.configuration_managers.all()),
-        "inputs": hook.input_fields.count() if hasattr(hook, "input_fields") else 0,
+        "inputs": len(hook.input_fields.all()),
         "run_task": run_task_verdict(server_tasks, hook),
         "step": hook.global_id in steppable,
         "used_by": used_by,
+        "dependents_loaded": with_dependents,
         "urls": {"detail": _url(hook), "edit": reverse("action_edit", args=[hook.id])},
     }
     if not row["step"]:
@@ -820,10 +831,10 @@ def action_row(swf, server_tasks, hook, workflows, steppable, server=None):
     return row
 
 
-def action_rows(swf, server_tasks, include_builtin=False, server=None):
+def action_rows(swf, server_tasks, include_builtin=False, server=None, ids=None, with_dependents=False):
     workflows = swf.list_workflows()
     steppable = {hook.global_id for hook in swf.candidate_actions(include_all=False)}
     return [
-        action_row(swf, server_tasks, hook, workflows, steppable, server=server)
-        for hook in candidate_hooks(swf, include_builtin=include_builtin)
+        action_row(swf, server_tasks, hook, workflows, steppable, server=server, with_dependents=with_dependents)
+        for hook in candidate_hooks(swf, include_builtin=include_builtin, ids=ids)
     ]
