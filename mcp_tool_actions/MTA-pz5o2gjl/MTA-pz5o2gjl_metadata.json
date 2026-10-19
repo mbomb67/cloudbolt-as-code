@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "The environment, by global id or name.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-y593kq80",
+            "label": "Environment (ENV- id or name)",
+            "name": "onb_environment",
+            "placeholder": "ENV-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-1wmzl7sp"
+    },
+    "enabled": true,
+    "id": "MTA-pz5o2gjl",
+    "is_synchronous": true,
+    "label": "POC Onboarding: Remove Environment",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Delete an environment that was imported by mistake (wrong region, wrong cluster, a duplicate). Refuses while any active server lives in it. Echo the environment's name and id to the user and get explicit confirmation before calling: this cannot be undone. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_remove_environment",
+    "mcp_tool_title": ""
+}

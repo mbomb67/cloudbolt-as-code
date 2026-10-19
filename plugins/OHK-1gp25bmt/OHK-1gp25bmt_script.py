@@ -92,7 +92,7 @@ PAGES = {
     "ssl_certificates": ("/admin/ssl_certificates/", "Trusted SSL certificates"),
     "parameters": ("/admin/customfields/", "Parameters (custom fields)"),
     "new_parameter": ("/admin/customfields/add/", "Add a parameter"),
-    "os_builds": ("/admin/osbuilds/", "OS builds"),
+    "os_builds": ("/externalcontent/osbuilds/", "OS builds"),
     "groups": ("/groups/", "Groups (add a group from here)"),
     "group_quotas:{arg}": ("/groups/{pk}/quotas/edit/", "Edit a group's quotas (GRP- id)"),
     "users": ("/users/", "Users"),
