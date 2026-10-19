@@ -876,6 +876,23 @@
     ]
   },
   {
+    "id": "MTA-1985b88g",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Status",
+    "description": "Reports the appliance's POC readiness in one read: licence, portal, SMTP, proxy, Content Library, Setup Wizard, resource handlers with environments and last verify result, the Custom Server blueprint, groups, users, LDAP, SSO, installed onboarding tools, recorded POC items, and the next steps with UI links.",
+    "path": "mcp_tool_actions/MTA-1985b88g",
+    "readme": "mcp_tool_actions/MTA-1985b88g/README.md",
+    "uses": [
+      "plugins/OHK-5zg1dkcr"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_status",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-543b19sa",
     "type": "mcp_tool_actions",
     "name": "Sync From Source Control Repo",
@@ -887,7 +904,27 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "sync_from_source_control_repo"
+    "mcp_tool_name": "sync_from_source_control_repo",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-6zxrhdls",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Install",
+    "description": "Finishes the toolkit install after a sync or package import: sets Synchronous Action on the inline tools, enables every tool, checks outbound access to the Content Library and GitHub, and records the toolkit version.",
+    "path": "mcp_tool_actions/MTA-6zxrhdls",
+    "readme": "mcp_tool_actions/MTA-6zxrhdls/README.md",
+    "uses": [
+      "plugins/OHK-j60flmb3"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_install",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-8j9c0tb0",
@@ -901,7 +938,27 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "fetch_job_log"
+    "mcp_tool_name": "fetch_job_log",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-92b836jb",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Playbook",
+    "description": "Returns a section of the POC onboarding skill text from the public cloudbolt-as-code repository, so MCP clients without skill support follow the same procedure.",
+    "path": "mcp_tool_actions/MTA-92b836jb",
+    "readme": "mcp_tool_actions/MTA-92b836jb/README.md",
+    "uses": [
+      "plugins/OHK-1am7i73s"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_playbook",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-9oihpumd",
@@ -946,6 +1003,23 @@
     "mcp_tool_name": "run_cit_tests"
   },
   {
+    "id": "MTA-hwg74btd",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Recent Errors",
+    "description": "Reads the tail of a CloudBolt log and returns the recent WARNING-and-above entries grouped by exception and message, secrets redacted, each group with a hint for the failures a new appliance hits most.",
+    "path": "mcp_tool_actions/MTA-hwg74btd",
+    "readme": "mcp_tool_actions/MTA-hwg74btd/README.md",
+    "uses": [
+      "plugins/OHK-4vwq70dg"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_recent_errors",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-js655cf3",
     "type": "mcp_tool_actions",
     "name": "Cancel Jobs",
@@ -958,6 +1032,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "cancel_jobs"
+  },
+  {
+    "id": "MTA-jzscq0mk",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Failure Trace",
+    "description": "Walks an order or job down to the jobs that actually failed and returns their errors, output, progress tail, failed children and a hint for the common provisioning failures, naming the job id to pass to fetch_job_log for the traceback.",
+    "path": "mcp_tool_actions/MTA-jzscq0mk",
+    "readme": "mcp_tool_actions/MTA-jzscq0mk/README.md",
+    "uses": [
+      "plugins/OHK-y95w8ai0"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_failure_trace",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-lp8lgi7e",
@@ -985,7 +1076,44 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "manage_blueprint_permissions"
+    "mcp_tool_name": "manage_blueprint_permissions",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-p72v9y76",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Set Item Status",
+    "description": "Records a POC test plan item or prerequisite as done, skipped, not applicable or pending with a reason, in a namespaced CustomField store that onb_status and the scorecard read.",
+    "path": "mcp_tool_actions/MTA-p72v9y76",
+    "readme": "mcp_tool_actions/MTA-p72v9y76/README.md",
+    "uses": [
+      "plugins/OHK-5885tete"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_set_item_status",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-r5v1eblg",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Verify Resource Handler",
+    "description": "Runs a resource handler's Verify Connection and returns the real exception text with a technology-specific hint, the minimum-permissions document and the handler's edit and verify links, recording the result for the status tool.",
+    "path": "mcp_tool_actions/MTA-r5v1eblg",
+    "readme": "mcp_tool_actions/MTA-r5v1eblg/README.md",
+    "uses": [
+      "plugins/OHK-s7cdvkpr"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_verify_resource_handler",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-thkvyt0v",
@@ -1000,6 +1128,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "run_recurring_job"
+  },
+  {
+    "id": "MTA-zpohocjt",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: UI Link",
+    "description": "Turns a CloudBolt global id or a named admin page (new resource handler per technology, LDAP, SMTP, user edit, environment parameters, group quotas, and more) into an absolute UI link so the agent can send the user to the exact page where a secret is entered or an object is edited.",
+    "path": "mcp_tool_actions/MTA-zpohocjt",
+    "readme": "mcp_tool_actions/MTA-zpohocjt/README.md",
+    "uses": [
+      "plugins/OHK-1gp25bmt"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_ui_link",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "HPA-0zcrvpwu",
@@ -1350,6 +1495,30 @@
     ]
   },
   {
+    "id": "PKG-8aaadefz",
+    "type": "packages",
+    "name": "POC Onboarding Toolkit",
+    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
+    "path": "packages/PKG-8aaadefz",
+    "readme": "packages/PKG-8aaadefz/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "0.1.0",
+    "contents": [
+      "mcp_tool_actions/MTA-6zxrhdls",
+      "mcp_tool_actions/MTA-1985b88g",
+      "mcp_tool_actions/MTA-zpohocjt",
+      "mcp_tool_actions/MTA-hwg74btd",
+      "mcp_tool_actions/MTA-jzscq0mk",
+      "mcp_tool_actions/MTA-r5v1eblg",
+      "mcp_tool_actions/MTA-92b836jb",
+      "mcp_tool_actions/MTA-p72v9y76",
+      "mcp_tool_actions/MTA-543b19sa",
+      "mcp_tool_actions/MTA-8j9c0tb0",
+      "mcp_tool_actions/MTA-ntmcnvv7"
+    ]
+  },
+  {
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
@@ -1513,6 +1682,32 @@
     "uses": [],
     "used_by": [
       "mcp_tool_actions/MTA-543b19sa"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-1am7i73s",
+    "type": "plugins",
+    "name": "POC Onboarding: Playbook",
+    "description": "Returns a section of the POC onboarding skill text from the public cloudbolt-as-code repository, so MCP clients without skill support follow the same procedure.",
+    "path": "plugins/OHK-1am7i73s",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-92b836jb"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-1gp25bmt",
+    "type": "plugins",
+    "name": "POC Onboarding: UI Link",
+    "description": "Turns a CloudBolt global id or a named admin page (new resource handler per technology, LDAP, SMTP, user edit, environment parameters, group quotas, and more) into an absolute UI link so the agent can send the user to the exact page where a secret is entered or an object is edited.",
+    "path": "plugins/OHK-1gp25bmt",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-zpohocjt"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1713,6 +1908,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-4vwq70dg",
+    "type": "plugins",
+    "name": "POC Onboarding: Recent Errors",
+    "description": "Reads the tail of a CloudBolt log and returns the recent WARNING-and-above entries grouped by exception and message, secrets redacted, each group with a hint for the failures a new appliance hits most.",
+    "path": "plugins/OHK-4vwq70dg",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-hwg74btd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-4w05hdd3",
     "type": "plugins",
     "name": "Run SQL Command",
@@ -1786,6 +1994,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-5885tete",
+    "type": "plugins",
+    "name": "POC Onboarding: Set Item Status",
+    "description": "Records a POC test plan item or prerequisite as done, skipped, not applicable or pending with a reason, in a namespaced CustomField store that onb_status and the scorecard read.",
+    "path": "plugins/OHK-5885tete",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-p72v9y76"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-597w4hvq",
     "type": "plugins",
     "name": "Teardown Azure Subscription",
@@ -1837,6 +2058,19 @@
     "packages": [
       "packages/PKG-v20qv308"
     ]
+  },
+  {
+    "id": "OHK-5zg1dkcr",
+    "type": "plugins",
+    "name": "POC Onboarding: Status",
+    "description": "Reports the appliance's POC readiness in one read: licence, portal, SMTP, proxy, Content Library, Setup Wizard, resource handlers with environments and last verify result, the Custom Server blueprint, groups, users, LDAP, SSO, installed onboarding tools, recorded POC items, and the next steps with UI links.",
+    "path": "plugins/OHK-5zg1dkcr",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-1985b88g"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-67bw7wgu",
@@ -2700,6 +2934,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-j60flmb3",
+    "type": "plugins",
+    "name": "POC Onboarding: Install",
+    "description": "Finishes the toolkit install after a sync or package import: sets Synchronous Action on the inline tools, enables every tool, checks outbound access to the Content Library and GitHub, and records the toolkit version.",
+    "path": "plugins/OHK-j60flmb3",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-6zxrhdls"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-jzkblrv7",
     "type": "plugins",
     "name": "Attach Data Disks from Disk Map",
@@ -3169,6 +3416,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-s7cdvkpr",
+    "type": "plugins",
+    "name": "POC Onboarding: Verify Resource Handler",
+    "description": "Runs a resource handler's Verify Connection and returns the real exception text with a technology-specific hint, the minimum-permissions document and the handler's edit and verify links, recording the result for the status tool.",
+    "path": "plugins/OHK-s7cdvkpr",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-r5v1eblg"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-sf6w5pfn",
     "type": "plugins",
     "name": "Manage Delete Lock",
@@ -3483,6 +3743,19 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-zmi15uts"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-y95w8ai0",
+    "type": "plugins",
+    "name": "POC Onboarding: Failure Trace",
+    "description": "Walks an order or job down to the jobs that actually failed and returns their errors, output, progress tail, failed children and a hint for the common provisioning failures, naming the job id to pass to fetch_job_log for the traceback.",
+    "path": "plugins/OHK-y95w8ai0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-jzscq0mk"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

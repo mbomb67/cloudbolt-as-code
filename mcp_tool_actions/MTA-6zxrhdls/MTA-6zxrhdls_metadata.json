@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "install applies the flags; status only reports.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-1gtvntvk",
+            "label": "Action: install (default) or status",
+            "name": "onb_action",
+            "placeholder": "install",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-j60flmb3"
+    },
+    "enabled": true,
+    "id": "MTA-6zxrhdls",
+    "is_synchronous": false,
+    "label": "POC Onboarding: Install",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Finish installing the POC onboarding toolkit after its folders were synced or its content package imported: turn Synchronous Action on for the tools that answer inline (the importer leaves it off and the API cannot set it), enable every tool, check outbound access to the Content Library and to GitHub, and record the toolkit version. Idempotent; run it after every toolkit sync, then reconnect the MCP client because tool lists are cached per session. Runs as a job: poll the returned id with fetch_job. onb_action=status reports without changing anything. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_install",
+    "mcp_tool_title": ""
+}

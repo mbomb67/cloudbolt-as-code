@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "index, bootstrap, resource-handlers, phases, troubleshooting or test-plan-map.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-hd5n4peq",
+            "label": "Section (default index)",
+            "name": "onb_section",
+            "placeholder": "index",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_section"
+    ],
+    "description": "Returns a section of the POC onboarding skill text from the public cloudbolt-as-code repository, so MCP clients without skill support follow the same procedure.",
+    "id": "OHK-1am7i73s",
+    "max_retries": 0,
+    "name": "POC Onboarding: Playbook",
+    "resource_technologies": [],
+    "script_filename": "OHK-1am7i73s_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
