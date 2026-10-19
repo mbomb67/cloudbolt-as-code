@@ -189,7 +189,12 @@ def _import_aws(handler, line, prefix, base, job):
     existing = _find_env(handler, "aws_region", region, vpc_id=vpc["id"])
     if existing is not None:
         return _env_row(existing, base, "existing", location=region, vpc=vpc["id"])
-    env_name = "{} {} {}".format(prefix, region, vpc["name"] or vpc["id"]).strip() if prefix else ""
+    vpc_label = vpc["name"] or vpc["id"]
+    env_name = ""
+    if prefix:
+        env_name = "{} {}".format(prefix, region)
+        if vpc_label.lower() != region.lower():
+            env_name += " " + vpc_label
     _progress(job, "Creating AWS environment for {} / {}".format(region, vpc["id"]))
     env = handler.create_location_specific_env(region, env_name=env_name, vpc_id=vpc["id"], vpc_name=vpc["name"] or "")
     return _env_row(env, base, "created", location=region, vpc=vpc["id"])

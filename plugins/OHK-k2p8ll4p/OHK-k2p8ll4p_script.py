@@ -142,9 +142,23 @@ def _existing_os_build(name):
     return OSBuild.objects.filter(name__iexact=name).order_by("id").first()
 
 
+def _add_template(handler, image_dict, os_build_name, existing_osb):
+    """What ResourceHandlerBaseService.create_osbuild_and_attributes does, without the abstract service."""
+    from c2_wrapper import guess_os_family
+
+    image = dict(image_dict)
+    if not image.get("os_family"):
+        image["os_family"] = guess_os_family(image)
+    image["reported_os"] = image.get("guest_os")
+    image.pop("os_build_name", None)
+    if existing_osb is not None:
+        image.pop("os_build", None)
+        return handler.add_template(os_build=existing_osb, **image)
+    return handler.add_template(os_build_name=os_build_name, **image)
+
+
 def _import_aws(handler, image, region, os_build_name, existing_osb, job):
     from resourcehandlers.aws.models import AmazonMachineImage
-    from resourcehandlers.services import ResourceHandlerBaseService
 
     _progress(job, "Looking up image {} in {}".format(image, region))
     if image.lower().startswith("ami-"):
@@ -161,7 +175,7 @@ def _import_aws(handler, image, region, os_build_name, existing_osb, job):
     if already is not None and already.os_build is not None:
         return already.os_build, None
     image_dict.setdefault("region", region)
-    ResourceHandlerBaseService(handler).create_osbuild_and_attributes(image_dict, os_build_name=os_build_name, os_build=existing_osb)
+    _add_template(handler, image_dict, os_build_name, existing_osb)
     osba = AmazonMachineImage.objects.filter(resourcehandler=handler, ami_id=ami_id).order_by("-id").first()
     if osba is None or osba.os_build is None:
         return None, "The image was imported but no OS build attribute for {} was found afterwards.".format(ami_id)
@@ -220,7 +234,6 @@ def _import_azure(handler, image, location, os_build_name, existing_osb, job):
 
 
 def _import_vmware(handler, image, os_build_name, existing_osb, job):
-    from resourcehandlers.services import ResourceHandlerBaseService
     from resourcehandlers.vmware.models import VsphereOSBuildAttribute
 
     _progress(job, "Looking up template {}".format(image))
@@ -238,7 +251,7 @@ def _import_vmware(handler, image, os_build_name, existing_osb, job):
     already = VsphereOSBuildAttribute.objects.filter(resourcehandler=handler, template_name=match["name"]).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
-    ResourceHandlerBaseService(handler).create_osbuild_and_attributes(dict(match), os_build_name=os_build_name, os_build=existing_osb)
+    _add_template(handler, match, os_build_name, existing_osb)
     osba = VsphereOSBuildAttribute.objects.filter(resourcehandler=handler, template_name=match["name"]).order_by("-id").first()
     if osba is None or osba.os_build is None:
         return None, "The template was imported but no OS build attribute for {} was found afterwards.".format(match["name"])
@@ -246,8 +259,6 @@ def _import_vmware(handler, image, os_build_name, existing_osb, job):
 
 
 def _import_generic(handler, image, os_build_name, existing_osb, job):
-    from resourcehandlers.services import ResourceHandlerBaseService
-
     _progress(job, "Looking up image {}".format(image))
     discovered, not_in_cb, _only = handler.discover_templates()
     discovered = list(discovered or [])
@@ -258,7 +269,7 @@ def _import_generic(handler, image, os_build_name, existing_osb, job):
     if match is None:
         sample = ", ".join(str(d.get("name")) for d in discovered[:20] if isinstance(d, dict))
         return None, "No image named '{}'. Some available: {}.".format(image, sample or "none discovered")
-    ResourceHandlerBaseService(handler).create_osbuild_and_attributes(dict(match), os_build_name=os_build_name, os_build=existing_osb)
+    _add_template(handler, match, os_build_name, existing_osb)
     osba = handler.os_build_attributes.filter(template_name=match.get("name")).order_by("-id").first()
     if osba is None or osba.os_build is None:
         return None, "The image was imported but no OS build attribute was found afterwards."
