@@ -34,7 +34,15 @@
     "icon": "aws_eks_bp_logo_HB1E9Je.png",
     "id": "BP-e4c0q58z",
     "is_orderable": true,
-    "labels": [],
+    "labels": [
+        {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        }
+    ],
     "last_updated": "2026-10-15",
     "management_actions": [
         {
