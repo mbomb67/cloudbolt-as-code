@@ -665,7 +665,11 @@ def managed_namespace_kubeconfig(cluster, namespace):
         details = user.get("user") or {}
         if any(details.get(key) for key in ("client-key-data", "client-key", "token", "password")):
             return ""
-    return text
+    # Point the context at the namespace, as az aks namespace get-credentials does.
+    # https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+    for context in config.get("contexts") or []:
+        context.setdefault("context", {})["namespace"] = namespace
+    return yaml.safe_dump(config, default_flow_style=False, sort_keys=False)
 
 
 def adoptable_namespace(item):
@@ -875,7 +879,10 @@ def environment_namespace(env):
 
 
 def find_environment_for_namespace(orchestrator, namespace):
-    for env in Environment.objects.filter(container_orchestrator_id=orchestrator.id):
+    # Filter on the foreign key itself: Environment's manager reads a keyword that
+    # matches a custom field name (container_orchestrator_id is one) as a
+    # parameter lookup, so container_orchestrator_id=... matches nothing.
+    for env in Environment.objects.filter(container_orchestrator=orchestrator).order_by("id"):
         if environment_namespace(env) == namespace:
             return env
     return None
@@ -898,7 +905,7 @@ def cluster_region(cluster, orchestrator):
     region = str(cluster.get_cf_values_as_dict().get("aks_location") or "").strip()
     if region:
         return region
-    for env in Environment.objects.filter(container_orchestrator_id=orchestrator.id).order_by("name"):
+    for env in Environment.objects.filter(container_orchestrator=orchestrator).order_by("name"):
         if "#" in env.name:
             return env.name.rsplit("#", 1)[1].strip()
     return ""
