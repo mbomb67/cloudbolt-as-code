@@ -166,6 +166,15 @@ def _pin_environment(orchestrator, cluster_name, namespace, region, group, tier)
         return None
     # TEMP diagnostics
     from infrastructure.models import Environment as _Env
+    _o = orchestrator
+    _q = _Env.objects
+    set_progress(f"DEBUG2 id={_o.id!r} {type(_o.id).__name__} pk={_o.pk!r} ptr={getattr(_o, 'containerorchestrator_ptr_id', None)!r} "
+                 f"c1={_q.filter(container_orchestrator_id=_o.id).count()} "
+                 f"c2={_q.filter(container_orchestrator=_o).count()} "
+                 f"c3={_q.filter(container_orchestrator__id=_o.id).count()} "
+                 f"c4={_q.filter(container_orchestrator_id=7).count()} "
+                 f"c5={_Env._default_manager.filter(container_orchestrator_id=_o.id).count()} "
+                 f"mgr={type(_q).__name__} qs={str(_q.filter(container_orchestrator_id=_o.id).query)[:400]}")
     set_progress(f"DEBUG pin {namespace!r} orchestrator={orchestrator.id} {type(orchestrator).__name__} "
                  f"envs={_Env.objects.filter(container_orchestrator_id=orchestrator.id).count()} "
                  f"named={list(_Env.objects.filter(name__contains=namespace).values_list('id', 'container_orchestrator_id'))}")
