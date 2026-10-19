@@ -45,12 +45,15 @@ def _existing(resource_id, name, resource_group):
     """The Kubernetes Cluster resource recorded for this AKS cluster, or None.
 
     Matched by Azure resource ID, or by cluster name and resource group, which
-    the build records before it asks Azure for the cluster; a resource still
-    PROVISIONING is returned too, so a cluster being built is never adopted twice.
+    the build records before it asks Azure for the cluster. Resources whose
+    build is running (PROV) or failed (PROVFAILED) are returned too
+    (jobengine/jobmodules/deploy_blueprint_job.py sets those lifecycles), so a
+    cluster being built is never adopted twice and a cluster whose build
+    failed after Azure created it is recovered instead of duplicated.
     """
     wanted = str(resource_id).lower()
     for resource in Resource.objects.filter(
-        resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle__in=("ACTIVE", "PROVISIONING")
+        resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle__in=("ACTIVE", "PROV", "PROVFAILED")
     ):
         values = resource.get_cf_values_as_dict()
         if str(values.get("aks_resource_id") or "").lower() == wanted:
@@ -100,9 +103,13 @@ def discover_resources(**kwargs):
             _, resource_group, name = parse_resource_id(resource_id)
 
             resource = _existing(resource_id, name, resource_group)
-            if resource is not None and resource.lifecycle == "PROVISIONING":
+            if resource is not None and resource.lifecycle == "PROV":
                 set_progress(f"Skipping '{name}': its CloudBolt build is still running.")
                 continue
+            if resource is not None and resource.lifecycle == "PROVFAILED":
+                resource.lifecycle = "ACTIVE"
+                resource.save()
+                set_progress(f"Recovering '{name}': its CloudBolt build failed after Azure created it.")
             if resource is None:
                 resource = Resource.objects.create(
                     name=name,
