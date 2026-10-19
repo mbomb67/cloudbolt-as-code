@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Which LDAP utility; optional when only one exists.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-8sxx5xbq",
+            "label": "LDAP utility (IDD- id, pk or name; optional)",
+            "name": "onb_ldap",
+            "placeholder": "IDD-abc12345",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-j82f4ibp"
+    },
+    "enabled": true,
+    "id": "MTA-kw8krevn",
+    "is_synchronous": false,
+    "label": "POC Onboarding: Verify LDAP",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": true,
+    "mcp_tool_description": "Run Verify Connection (bind and search) on an LDAP utility (onb_ldap: IDD- id, pk or name; omit when one exists) and return the real error text with a hint (bad bind credentials, unreachable host or port, LDAPS certificate, wrong base DN) plus the edit link. Call it after the user creates the utility in the UI. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_verify_ldap",
+    "mcp_tool_title": ""
+}
