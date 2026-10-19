@@ -18,7 +18,7 @@ from datetime import date, datetime, timezone
 
 from django.conf import settings
 
-TOOLKIT_VERSION = "0.1.0"
+TOOLKIT_VERSION = "1.0.0"
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 TOOLKIT_TOOLS = [

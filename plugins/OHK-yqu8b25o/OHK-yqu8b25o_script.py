@@ -169,17 +169,10 @@ def _ev_1_1_2():
 
 
 def _ev_1_1_3():
-    from servicecatalog.models import ServiceBlueprint, ServiceItem
+    from servicecatalog.models import RunRemoteScriptHookServiceItem, ServiceBlueprint
 
-    items = ServiceItem.objects.filter(blueprint__status="ACTIVE")
-    scripts = 0
-    for item in items:
-        try:
-            if type(item.cast()).__name__.lower().startswith("remotescript"):
-                scripts += 1
-        except Exception:
-            pass
-    bps = ServiceBlueprint.objects.filter(status="ACTIVE", name__in=["POC Server"]).count()
+    scripts = RunRemoteScriptHookServiceItem.objects.filter(blueprint__status="ACTIVE").count()
+    bps = ServiceBlueprint.objects.filter(status="ACTIVE", name="POC Server").count()
     return _ev(scripts, "{} remote-script build item(s) on active blueprints; POC Server blueprint present: {}".format(scripts, bool(bps)))
 
 
@@ -383,10 +376,17 @@ def _ev_3_2_2():
 
 
 def _ev_3_2_3():
-    from jobs.models import Job
+    # Power operations run inline and are recorded in server history, not as jobs.
+    from history.models import ServerHistory
 
-    count = Job.objects.filter(type__in=["poweron", "poweroff", "reboot", "restart", "power_on", "power_off"], status="SUCCESS").count()
-    return _ev(count, "{} successful power job(s)".format(count))
+    count = 0
+    for field in ("event_message", "message", "description"):
+        try:
+            count = ServerHistory.objects.filter(**{field + "__iregex": r"power(ed)? (on|off)|reboot"}).count()
+            break
+        except Exception:
+            continue
+    return _ev(count, "{} power on/off/reboot event(s) in server history".format(count))
 
 
 def _ev_4_1_2():
@@ -450,16 +450,9 @@ def _ev_4_3_1():
 
 
 def _ev_scripts(os_family):
-    from cbhooks.models import OrchestrationHook
+    from cbhooks.models import RemoteScriptHook
 
-    rows = []
-    for hook in OrchestrationHook.objects.all():
-        try:
-            casted = hook.cast()
-            if type(casted).__name__.lower().startswith("remotescript") and casted.target_os_families.filter(name__icontains=os_family).exists():
-                rows.append(casted.name)
-        except Exception:
-            continue
+    rows = list(RemoteScriptHook.objects.filter(target_os_families__name__icontains=os_family).distinct().values_list("name", flat=True))
     return _ev(rows, "{} remote scripts: {}".format(os_family, ", ".join(rows[:8]) or "none"))
 
 
