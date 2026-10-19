@@ -50,6 +50,7 @@ TOOLS = {
     "onb_install_content_library_item": False,
     "onb_cit_from_order": True,
     "onb_scorecard": True,
+    "onb_sync_images": False,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,

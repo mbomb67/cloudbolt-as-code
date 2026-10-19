@@ -48,6 +48,7 @@ TOOLKIT_TOOLS = [
     "onb_install_content_library_item",
     "onb_cit_from_order",
     "onb_scorecard",
+    "onb_sync_images",
     "sync_from_source_control_repo",
     "fetch_job_log",
     "manage_blueprint_permissions",
@@ -235,6 +236,26 @@ def _environment_row(env, base):
     }
 
 
+def _cached_images(handler, slug):
+    """How many images the handler's cache holds; None when the technology keeps none."""
+    try:
+        if (slug or "").startswith("aws"):
+            from resourcehandlers.aws.models import AwsCachedAMI
+
+            return AwsCachedAMI.objects.for_resource_handler(resource_handler=handler).distinct().count()
+        if slug == "azure_arm":
+            from resourcehandlers.azure_arm.models import AzureARMAvailableImage
+
+            return AzureARMAvailableImage.objects.for_resource_handler(handler).distinct().count()
+        if slug == "vmware":
+            from resourcehandlers.vmware.models import VMWareAvailableImage
+
+            return VMWareAvailableImage.objects.filter(resource_handler=handler).count()
+    except Exception:
+        return None
+    return None
+
+
 def _handlers(base, state):
     from resourcehandlers.models import ResourceHandler
 
@@ -246,6 +267,7 @@ def _handlers(base, state):
         except Exception:
             pass
         tech = handler.resource_technology
+        slug = tech.slug if tech else None
         envs = [_environment_row(env, base) for env in handler.environment_set.all().order_by("id")]
         rows.append(
             {
@@ -253,9 +275,10 @@ def _handlers(base, state):
                 "pk": handler.id,
                 "name": handler.name,
                 "technology": tech.name if tech else None,
-                "technologySlug": tech.slug if tech else None,
+                "technologySlug": slug,
                 "endpoint": handler.ip,
                 "environments": envs,
+                "cachedImages": _cached_images(handler, slug),
                 "lastVerify": (verify_state.get(handler.global_id) or {}).get("lastVerify"),
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
                 "verifyUrl": base + "/admin/resourcehandlers/{}/verify_connection/".format(handler.id),
@@ -427,10 +450,21 @@ def _next_steps(report, base):
                     "url": handler["url"],
                 }
             )
+        if verify.get("ok") and handler.get("cachedImages") == 0:
+            steps.append(
+                {
+                    "step": "Fill the image cache of '{}' with onb_sync_images (no whitelist; also enables the cache jobs); it runs for a while.".format(
+                        handler["name"]
+                    ),
+                    "item": "P4",
+                    "handler": handler["id"],
+                    "url": handler["url"],
+                }
+            )
         if not handler["environments"]:
             steps.append(
                 {
-                    "step": "Import one or two environments for '{}' (Import locations on the handler page).".format(
+                    "step": "Import one or two environments for '{}' with onb_handler_locations and onb_import_environments.".format(
                         handler["name"]
                     ),
                     "item": "P3",
@@ -442,7 +476,7 @@ def _next_steps(report, base):
             if env["osBuilds"] == 0:
                 steps.append(
                     {
-                        "step": "Add an OS build with an image for environment '{}'.".format(env["name"]),
+                        "step": "Add an OS build with an image for environment '{}' (onb_import_os_build; empty onb_image lists the cache).".format(env["name"]),
                         "item": "P4",
                         "environment": env["id"],
                         "url": handler["url"],

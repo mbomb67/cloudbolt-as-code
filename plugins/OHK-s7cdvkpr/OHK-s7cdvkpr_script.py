@@ -269,8 +269,8 @@ def run(job, *args, **kwargs):
         outputs.update({"verified": True, "checkedAt": when})
         message = "Connection to '{}' verified.".format(handler.name)
         outputs["next"] = (
-            "Import one or two environments for this handler (Import locations on the handler page), "
-            "then add an OS build with an image for each environment."
+            "Start onb_sync_images for this handler now (it fills the image cache without the whitelist and enables the "
+            "cache jobs; it runs for a while), then onb_handler_locations and onb_import_environments while it runs."
         )
     except Exception as exc:  # the cloud wrapper raises its own exception types
         error_text = "{}: {}".format(type(exc).__name__, str(exc))[:3000]

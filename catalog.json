@@ -913,7 +913,7 @@
     "id": "MTA-0dr8xi4i",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: Import OS Build",
-    "description": "Imports one image (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing an existing build of the same name so one build spans handlers, and attaches the build to the handler's environments.",
+    "description": "Lists a handler's cached images for a location or imports one (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing a build of the same name so one build spans handlers, refreshing an empty cache without the whitelist, and attaching the build to the environments.",
     "path": "mcp_tool_actions/MTA-0dr8xi4i",
     "readme": "mcp_tool_actions/MTA-0dr8xi4i/README.md",
     "uses": [
@@ -1335,6 +1335,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "onb_set_item_status",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-po1gmnou",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Sync Images",
+    "description": "Fills a resource handler's image cache now without the image whitelist and enables the recurring job and rule that keep it fresh, so the image pickers and onb_import_os_build see every image the credentials can.",
+    "path": "mcp_tool_actions/MTA-po1gmnou",
+    "readme": "mcp_tool_actions/MTA-po1gmnou/README.md",
+    "uses": [
+      "plugins/OHK-bbhlwspa"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_sync_images",
     "packages": [
       "packages/PKG-8aaadefz"
     ]
@@ -1843,12 +1860,12 @@
     "id": "PKG-8aaadefz",
     "type": "packages",
     "name": "POC Onboarding Toolkit",
-    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
+    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
     "path": "packages/PKG-8aaadefz",
     "readme": "packages/PKG-8aaadefz/README.md",
     "uses": [],
     "used_by": [],
-    "version": "0.4.0",
+    "version": "0.5.0",
     "contents": [
       "mcp_tool_actions/MTA-6zxrhdls",
       "mcp_tool_actions/MTA-1985b88g",
@@ -1858,6 +1875,7 @@
       "mcp_tool_actions/MTA-r5v1eblg",
       "mcp_tool_actions/MTA-92b836jb",
       "mcp_tool_actions/MTA-p72v9y76",
+      "mcp_tool_actions/MTA-po1gmnou",
       "mcp_tool_actions/MTA-89dxppus",
       "mcp_tool_actions/MTA-i6p4j2l7",
       "mcp_tool_actions/MTA-iyknuxox",
@@ -2909,6 +2927,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-bbhlwspa",
+    "type": "plugins",
+    "name": "POC Onboarding: Sync Images",
+    "description": "Fills a resource handler's image cache now without the image whitelist and enables the recurring job and rule that keep it fresh, so the image pickers and onb_import_os_build see every image the credentials can.",
+    "path": "plugins/OHK-bbhlwspa",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-po1gmnou"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-be18kqal",
     "type": "plugins",
     "name": "POC Onboarding: SMTP Settings",
@@ -3502,7 +3533,7 @@
     "id": "OHK-k2p8ll4p",
     "type": "plugins",
     "name": "POC Onboarding: Import OS Build",
-    "description": "Imports one image (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing an existing build of the same name so one build spans handlers, and attaches the build to the handler's environments.",
+    "description": "Lists a handler's cached images for a location or imports one (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing a build of the same name so one build spans handlers, refreshing an empty cache without the whitelist, and attaching the build to the environments.",
     "path": "plugins/OHK-k2p8ll4p",
     "readme": null,
     "uses": [],
