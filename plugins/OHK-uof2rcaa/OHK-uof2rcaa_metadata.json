@@ -12,6 +12,7 @@
     "resource_technologies": [],
     "script_filename": "OHK-uof2rcaa_script.py",
     "shared": false,
+    "source_code_url": "",
     "target_os_families": [],
     "type": "CloudBolt Plug-in"
 }
