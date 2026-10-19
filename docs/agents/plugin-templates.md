@@ -277,11 +277,13 @@ def run(job, **kwargs):
 
 **Location:** `plugins/OHK-<id>/OHK-<id>_script.py`. Wired into a blueprint via `blueprints/BP-<id>/BP-<id>_metadata.json.discovery_plugin.dependencies.hook = "plugins/OHK-<id>"`.
 
-**Entry Point:** `discover_resources(**kwargs)`. CloudBolt calls it as `discover_resources(blueprint=<ServiceBlueprint>)` (`servicecatalog/models.py`, `_get_resource_dicts`), so a plugin can read the blueprint's pinned parameters (`blueprint.custom_field_options`), its deployment items and its existing `blueprint.resource_set`. Raise to fail the sync with no changes; returning a list commits every dictionary in it.
+**Entry Point:** `discover_resources(**kwargs)`. CloudBolt calls it as `discover_resources(blueprint=<ServiceBlueprint>)` (`servicecatalog/models.py`, `_get_resource_dicts`), so a plugin can read the blueprint's pinned parameters (`blueprint.custom_field_options`), its deployment items and its existing `blueprint.resource_set`. Raise to fail the sync with no changes. Returning a list commits every dictionary in it and, when the blueprint's `auto_historical_resources` is on, marks every active resource it leaves out Historical, so an empty list retires them all.
 
 **Return Format:** List of dictionaries, each representing a resource.
 
-**Required Module-Level Variable:** `RESOURCE_IDENTIFIER` (namespaced field containing the cloud-native unique ID).
+**Return dictionaries; the sync does the rest.** `ServiceBlueprint.sync_resources` (`servicecatalog/models.py`) matches each dictionary to one of the blueprint's resources by `RESOURCE_IDENTIFIER`, creates the resource when none matches (`_create_discovered_resource`), creates a parameter for any key that is not one yet (`_create_new_cf`), sets every key on the resource, and sets a matched Historical resource back to Active. Never create `Resource` or `CustomField` objects, or set resource attributes, in a discovery plugin: the sync still marks any resource missing from the returned list Historical, however the plugin touched it. An object the sync cannot create, such as a container orchestrator, may be created idempotently in the plugin and its ID returned as a key (`plugins/OHK-e9qppbei`).
+
+**Required Module-Level Variable:** `RESOURCE_IDENTIFIER`, a parameter name or a list of names holding the cloud-native unique ID. It is matched against the blueprint's own resources only (set `GLOBAL_RESOURCE_MATCHING = True` to match any resource), and a dictionary missing it is skipped.
 
 ### Discovery Plugin Template
 
@@ -331,31 +333,51 @@ def _get_s3_client(handler) -> Any:
     return session.client("s3")
 
 
+def _unchanged(blueprint, handler):
+    """
+    The identifier alone for each of the blueprint's active buckets on a
+    handler that could not be listed. The sync matches them and changes
+    nothing, instead of marking them Historical.
+    """
+    if blueprint is None:
+        return []
+    found = []
+    for resource in blueprint.resource_set.filter(lifecycle="ACTIVE"):
+        values = resource.get_cf_values_as_dict()
+        if values.get("aws_s3_bucket_rh_id") == handler.id and values.get(RESOURCE_IDENTIFIER):
+            found.append({RESOURCE_IDENTIFIER: values[RESOURCE_IDENTIFIER]})
+    return found
+
+
 def discover_resources(**kwargs):
     """
-    Discover existing S3 buckets across all AWS handlers.
+    Discover existing S3 buckets across all AWS handlers. CloudBolt's sync
+    creates, updates or reactivates the resources from the returned list.
 
     Returns:
         list[dict]: Each dict describes a potential CloudBolt Resource and MUST include:
-          - "name": Display name for the resource (REQUIRED)
+          - "name": Display name for the resource
           - "aws_s3_bucket_name": Unique identifier (RESOURCE_IDENTIFIER)
           - "aws_s3_bucket_rh_id": ID of the AWS Resource Handler for the bucket
           - All other keys should be namespaced custom fields
     """
+    blueprint = kwargs.get("blueprint")
     discovered = []
 
     for handler in _get_all_aws_handlers():
         try:
             client = _get_s3_client(handler)
         except Exception as exc:
-            logger.warning("Skipping AWS handler %s due to client error: %s", handler, exc)
+            logger.info("Skipping AWS handler %s due to client error: %s", handler, exc)
+            discovered.extend(_unchanged(blueprint, handler))
             continue
 
         logger.info("Discovering S3 buckets for AWS handler %s", handler)
         try:
             resp = client.list_buckets()
         except ClientError as exc:
-            logger.warning("Error listing buckets for handler %s: %s", handler, exc)
+            logger.info("Skipping AWS handler %s, buckets could not be listed: %s", handler, exc)
+            discovered.extend(_unchanged(blueprint, handler))
             continue
 
         for bucket in resp.get("Buckets", []):
@@ -372,7 +394,7 @@ def discover_resources(**kwargs):
                 region = "us-east-1"
 
             discovered.append({
-                "name": name,  # REQUIRED
+                "name": name,
                 "aws_s3_bucket_name": name,  # RESOURCE_IDENTIFIER
                 "aws_s3_bucket_region": region,
                 "aws_s3_bucket_rh_id": handler.id,
@@ -384,14 +406,15 @@ def discover_resources(**kwargs):
 ### Discovery Best Practices
 
 1. **Global Discovery:** Loop through ALL resource handlers, not just one.
-2. **Mandatory `name`:** Every dict must include a `name` key.
+2. **`name`:** Include a `name` key; without one the sync names a new resource after its first identifier value.
 3. **Namespace Fields:** All keys except `name` should be namespaced (e.g., `aws_s3_bucket_*`).
 4. **Cloud IDs:** Use cloud-native unique IDs (ARN, Azure Resource ID) as `RESOURCE_IDENTIFIER`.
 5. **Hydration:** If `list()` returns "thin" objects, call `get()` for each to fetch full properties.
 6. **Auto-Creation:** Discovery auto-creates custom fields from returned dictionaries.
 7. **`RESOURCE_IDENTIFIER`:** Must match a custom field name that contains the unique cloud ID.
-8. **Existing resources:** a dictionary whose identifier matches a resource of the blueprint updates it; every key is set as an attribute (`name`, `group` (a `Group`), `owner`, `lifecycle` and custom fields), so omit `name` / `group` for resources you do not want renamed or regrouped. Values must be `str`, `int`, `float`, `Decimal`, `datetime`, `date`, `bool` or `list` (`VALID_RESOURCE_DICT_VALUE_TYPES`); a `dict` is skipped.
-9. **Historical marking:** with the blueprint's `auto_historical_resources` on, every ACTIVE resource the plugin did not return is marked Historical, including deployments still provisioning. Prefer leaving it off and returning `{"<identifier>": ..., "lifecycle": "HISTORICAL"}` for a resource whose cloud object is confirmed gone (e.g. a 404).
+8. **Existing resources:** a dictionary whose identifier matches a resource of the blueprint updates it; every key is set as an attribute (`name`, `group` (a `Group`), `owner`, `lifecycle` and custom fields), so omit `name` / `group` for resources you do not want renamed or regrouped. Values must be `str`, `int`, `float`, `Decimal`, `datetime`, `date`, `bool` or `list` (`VALID_RESOURCE_DICT_VALUE_TYPES`); a `dict` is skipped. A new resource goes to the group named exactly `Unassigned` unless the dictionary has a `group`. Return the value types the build plugin stores: a `list` turns the parameter into a multi-value one (`allow_multiple`), so return a list as text when other content reads it as a string.
+9. **Historical marking:** with the blueprint's `auto_historical_resources` on, every ACTIVE resource of the blueprint that no returned dictionary matches is marked Historical, including deployments still provisioning. An empty list, or one missing a handler that failed, therefore retires real resources. Prefer leaving it off and returning `{"<identifier>": ..., "lifecycle": "HISTORICAL"}` for a resource whose cloud object is confirmed gone (e.g. a 404).
+10. **A handler that fails:** log it and return the identifier alone for each of that handler's active resources (`_unchanged` above), which the sync matches without changing anything, or raise to fail the whole sync. Never just `continue` past it.
 
 ## 3. Teardown Plugins
 
