@@ -255,6 +255,8 @@ def discover_resources(**kwargs):
                     continue
         except Exception as e:
             set_progress(f"Error discovering vaults for handler {rh.name}: {str(e)}")
+            # Return this handler's tracked vaults by identifier here, or the
+            # sync can mark them Historical: plugin-templates.md §2, rule 10
             continue
 
     return discovered_vaults
@@ -557,6 +559,7 @@ When implementing a new blueprint, also ensure:
 - [ ] Handle both `ResourceNotFoundError` and generic `HttpResponseError` for Azure
 - [ ] Check specific error codes for AWS `ClientError` (`NoSuchBucket`, `BucketNotEmpty`, etc.)
 - [ ] Use `isinstance()` checks before casting handlers to specific types
-- [ ] Log and continue (don't fail) when individual items error during discovery
+- [ ] Log and continue (don't fail) when an item or handler errors during discovery, and return the identifiers of a skipped handler's tracked resources so the sync does not mark them Historical ([plugin-templates.md](plugin-templates.md#2-discovery-plugins))
+- [ ] Discovery returns dictionaries only; the sync creates the resources and parameters (never `Resource.objects.create` or `CustomField` in a discovery plugin)
 - [ ] Call `server.refresh_info()` and `server.refresh_from_db()` after provider API changes
 - [ ] When calling any external vendor API, reference the vendor's current documentation — see [external-apis.md](external-apis.md). Do not extrapolate endpoint shapes from memory.
