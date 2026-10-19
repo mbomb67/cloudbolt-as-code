@@ -59,7 +59,9 @@ def run(job, *args, **kwargs):
         set_progress(f"AKS cluster '{cluster.name}' {'deleted' if existed else 'was already gone'}.")
 
     set_progress(delete_orchestrator(resource))
-    removed = pool_sub_resources(resource).delete()[0]
+    pools = pool_sub_resources(resource)
+    removed = pools.count()  # delete() would also count the rows it cascades to
+    pools.delete()
     if removed:
         set_progress(f"Removed {removed} AKS Node Pool sub-resource(s).")
 

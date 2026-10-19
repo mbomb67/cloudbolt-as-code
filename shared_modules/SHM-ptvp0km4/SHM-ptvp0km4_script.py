@@ -950,13 +950,19 @@ def upsert_pool_sub_resource(resource, pool_json):
 
 def remove_pool_sub_resource(resource, pool_name):
     """Delete the sub-resource of a pool that no longer exists. Returns how many were removed."""
-    return pool_sub_resources(resource).filter(name=pool_name).delete()[0]
+    # Count first: delete() also counts the rows it cascades to.
+    stale = pool_sub_resources(resource).filter(name=pool_name)
+    removed = stale.count()
+    stale.delete()
+    return removed
 
 
 def sync_pool_sub_resources(resource, pools):
     """Make the AKS Node Pool sub-resources match ``pools``. Returns (created, updated, removed)."""
     names = {p.get("name") for p in pools}
-    removed = pool_sub_resources(resource).exclude(name__in=names).delete()[0]
+    stale = pool_sub_resources(resource).exclude(name__in=names)
+    removed = stale.count()
+    stale.delete()
     created = updated = 0
     for pool in pools:
         _, was_created = upsert_pool_sub_resource(resource, pool)
@@ -1078,9 +1084,11 @@ def delete_orchestrator(resource):
     orchestrator = Kubernetes.objects.filter(id=int(orchestrator_id)).first()
     if orchestrator is None:
         return "The container orchestrator was already gone."
-    removed = Environment.objects.filter(
+    environments = Environment.objects.filter(
         container_orchestrator=orchestrator, resource_handler__isnull=True
-    ).delete()[0]
+    )
+    removed = environments.count()
+    environments.delete()
     name = orchestrator.name
     orchestrator.delete()
     return f"Removed container orchestrator {name} and {removed} environment(s)."
