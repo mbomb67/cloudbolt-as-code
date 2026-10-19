@@ -570,14 +570,19 @@ def orchestrator_id_for_cluster(cluster_resource):
 
 
 def cluster_resources():
-    """Every active Kubernetes Cluster resource that has an orchestrator, with its id.
+    """Every active EKS cluster resource that has an orchestrator, with its id.
 
+    The Kubernetes Cluster resource type is shared with the Azure Kubernetes
+    Service blueprint, so only resources carrying the eks_cluster_name the
+    AWS EKS build and discovery stamp count.
     Returns [(resource, orchestrator_id), ...] sorted by resource name.
     """
     clusters = []
     for resource in Resource.objects.filter(
         resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle="ACTIVE"
     ).order_by("name"):
+        if not resource.get_cf_values_as_dict().get("eks_cluster_name"):
+            continue
         orchestrator_id = orchestrator_id_for_cluster(resource)
         if orchestrator_id is not None:
             clusters.append((resource, orchestrator_id))

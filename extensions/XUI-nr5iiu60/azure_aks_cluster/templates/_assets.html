@@ -1,0 +1,171 @@
+{% comment %}
+  Shared styles and panel loader for the Azure AKS Cluster tabs.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tabs without an asset build.
+  Class names carry an aks- prefix so they never meet the AWS EKS extension's.
+{% endcomment %}
+<style>
+  .aksx {
+    --aks-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --aks-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --aks-line: var(--neutral-250, #E2E8ED);
+    --aks-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --aks-primary: var(--bs-primary, #0d6efd);
+    --aks-ok: var(--bs-success, #198754);
+    --aks-warn: var(--bs-warning, #ffc107);
+    --aks-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --aks-bad: var(--bs-danger, #dc3545);
+  }
+  .aksx .aks-card { background: var(--surface, #fff); border: 1px solid var(--aks-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .aksx .aks-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .aksx .aks-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--aks-muted); }
+  .aksx .aks-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .aksx .aks-title .bi { color: var(--aks-primary); }
+  .aksx .aks-sub { font-size: 12.5px; font-weight: 600; color: var(--aks-muted); margin-top: 2px; }
+  .aksx .aks-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .aksx .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--aks-muted); margin-bottom: 3px; }
+  .aksx .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .aksx .aks-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--aks-line); flex-wrap: wrap; }
+  .aksx .aks-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--aks-muted); }
+  .aksx .aks-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .aksx .aks-card-tools .form-control { width: 220px; max-width: 100%; }
+  .aksx .aks-sub-h { padding: 10px 18px; border-top: 1px solid var(--aks-line); border-bottom: 1px solid var(--aks-line); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--aks-muted); background: var(--aks-surface-2); }
+  {# Essentials: two columns of label / value rows, like the portal's Overview #}
+  .aksx .aks-ess { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 40px; padding: 12px 22px 14px; }
+  .aksx .aks-ess dl { margin: 0; }
+  .aksx .aks-kv { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; padding: 6px 0; font-size: 13px; align-items: baseline; }
+  .aksx .aks-kv dt { font-weight: 600; color: var(--aks-muted); margin: 0; }
+  .aksx .aks-kv dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .aksx .aks-props { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .aksx .aks-props .aks-card { margin-bottom: 0; }
+  .aksx .aks-props dl { margin: 0; padding: 8px 18px 12px; }
+  .aksx .aks-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .aksx .aks-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--aks-muted); padding: 10px 18px; border-bottom: 1px solid var(--aks-line); text-align: left; white-space: nowrap; }
+  .aksx .aks-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .aksx .aks-table tbody tr:last-child td { border-bottom: 0; }
+  .aksx .aks-table tbody tr:hover td { background: var(--aks-surface-2); }
+  .aksx .aks-table tfoot td { padding: 10px 18px; border-top: 1px solid var(--aks-line); font-weight: 700; color: var(--aks-soft); }
+  .aksx .aks-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--aks-soft); }
+  .aksx .aks-pill-ok { background: color-mix(in srgb, var(--aks-ok) 14%, transparent); color: var(--aks-ok); }
+  .aksx .aks-pill-warn { background: color-mix(in srgb, var(--aks-warn) 22%, transparent); color: var(--aks-warn-text); }
+  .aksx .aks-pill-bad { background: color-mix(in srgb, var(--aks-bad) 12%, transparent); color: var(--aks-bad); }
+  .aksx .aks-pill-live { background: color-mix(in srgb, var(--aks-primary) 13%, transparent); color: var(--aks-primary); }
+  .aksx .aks-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--aks-soft); vertical-align: middle; white-space: nowrap; }
+  .aksx .aks-tag-warn { background: color-mix(in srgb, var(--aks-warn) 22%, transparent); color: var(--aks-warn-text); }
+  .aksx .aks-tag-bad { background: color-mix(in srgb, var(--aks-bad) 12%, transparent); color: var(--aks-bad); }
+  .aksx .aks-tag-ok { background: color-mix(in srgb, var(--aks-ok) 14%, transparent); color: var(--aks-ok); }
+  .aksx .aks-tag-info { background: color-mix(in srgb, var(--aks-primary) 13%, transparent); color: var(--aks-primary); }
+  .aksx .aks-muted { color: var(--aks-muted); font-weight: 600; }
+  .aksx .aks-hint { font-size: 11.5px; color: var(--aks-muted); font-weight: 600; margin-top: 3px; }
+  .aksx .aks-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .aksx .aks-nowrap { white-space: nowrap; }
+  .aksx .aks-empty { color: var(--aks-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .aksx .aks-banner { display: flex; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--aks-line); background: color-mix(in srgb, var(--aks-warn) 12%, var(--surface, #fff)); }
+  .aksx .aks-banner > .bi { font-size: 18px; color: var(--aks-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .aksx .aks-banner-info { background: color-mix(in srgb, var(--aks-primary) 9%, var(--surface, #fff)); }
+  .aksx .aks-banner-info > .bi { color: var(--aks-primary); }
+  .aksx .aks-banner-bad { background: color-mix(in srgb, var(--aks-bad) 9%, var(--surface, #fff)); }
+  .aksx .aks-banner-bad > .bi { color: var(--aks-bad); }
+  .aksx .aks-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
+  .aksx .aks-banner-body { flex: 1; min-width: 0; }
+  .aksx .aks-banner-t { font-size: 13.5px; font-weight: 700; }
+  .aksx .aks-banner-s { font-size: 12.5px; color: var(--aks-muted); font-weight: 600; }
+  .aksx .aks-issues { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .aksx .aks-issues li { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; }
+  .aksx .aks-issues li .bi { color: var(--aks-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .aksx .aks-issues li .aks-mono { font-size: 11.5px; color: var(--aks-muted); }
+  .aksx .aks-versions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .aksx .aks-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--aks-bad); overflow-wrap: anywhere; }
+  .aksx .aks-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .aksx .aks-note { padding: 8px 22px 12px; font-size: 12px; color: var(--aks-muted); font-weight: 600; }
+  .aksx .aks-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--aks-muted); display: flex; align-items: center; gap: 8px; }
+  .aksx .aks-spin { display: inline-block; animation: aks-spin 1s linear infinite; }
+  .aksx .aks-meter { height: 6px; max-width: 150px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 9%, transparent); overflow: hidden; margin-top: 5px; }
+  .aksx .aks-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--aks-ok); }
+  .aksx .aks-meter-warn > span { background: var(--aks-warn); }
+  .aksx .aks-meter-bad > span { background: var(--aks-bad); }
+  .aksx .aks-cond { display: inline-flex; align-items: center; gap: 4px; color: var(--aks-warn-text); font-size: 12px; font-weight: 700; margin-right: 8px; white-space: nowrap; }
+  .aksx .aks-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .aksx .aks-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--aks-line); }
+  .aksx .aks-stat .k { margin-bottom: 1px; }
+  .aksx .aks-stat .v { font-size: 16px; }
+  .aksx .aks-steps { margin: 0; padding: 12px 22px 4px 40px; }
+  .aksx .aks-steps li { margin-bottom: 8px; }
+  .aksx .aks-steps code { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--aks-surface-2); color: var(--bs-body-color, #212529); overflow-wrap: anywhere; margin-right: 6px; }
+  .aksx .aks-pre { margin: 0; padding: 14px 22px; max-height: 420px; overflow: auto; background: var(--aks-surface-2); white-space: pre; }
+  .aksx details.aks-fold > summary { list-style: none; cursor: pointer; user-select: none; }
+  .aksx details.aks-fold > summary::-webkit-details-marker { display: none; }
+  .aksx details.aks-fold > summary .aks-chevron { color: var(--aks-muted); transition: transform .15s ease; }
+  .aksx details.aks-fold[open] > summary .aks-chevron { transform: rotate(90deg); }
+  .aksx details.aks-fold:not([open]) > summary { border-bottom: 0; }
+  .aksx details.aks-fold > summary:focus-visible { outline: 2px solid var(--aks-primary); outline-offset: -2px; }
+  .aksx .aks-quota { display: flex; flex-wrap: wrap; gap: 14px 24px; padding: 14px 22px 16px; }
+  .aksx .aks-quota-item { flex: 1 1 130px; min-width: 130px; cursor: default; }
+  .aksx .aks-quota-item:focus-visible { outline: 2px solid var(--aks-primary); outline-offset: 4px; border-radius: 4px; }
+  .aksx .aks-quota-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .aksx .aks-quota-top .k { margin-bottom: 0; }
+  .aksx .aks-quota-top .aks-hint { margin-top: 0; }
+  .aksx .aks-quota-item .aks-meter { max-width: none; height: 8px; margin-top: 6px; }
+  @keyframes aks-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-aks-panel] inside a tab root from its data-aks-src URL
+  // and wires client-side filters (data-aks-filter), the reload button
+  // (data-aks-refresh), and copy and download buttons (data-aks-copy and
+  // data-aks-download name the element whose text they take; the download
+  // file name comes from data-aks-filename). A panel may name its source in
+  // data-aks-loading.
+  window.aksxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("aksx-ready")) { return; }
+    $root.data("aksx-ready", true);
+
+    function load($panel, url) {
+      var source = $panel.data("aks-loading") || "Azure";
+      $panel.html('<div class="aks-loading"><i class="bi bi-arrow-repeat aks-spin" aria-hidden="true"></i> Loading from ' + source + '…</div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="aks-card"><div class="aks-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-aks-panel]").each(function () { load($(this), $(this).data("aks-src")); });
+    }
+    $root.on("input", "input[data-aks-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("aks-filter")).find("tbody tr[data-aks-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-aks-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    $root.on("click", "[data-aks-copy]", function (e) {
+      e.preventDefault();
+      var $button = $(this);
+      var text = $($button.data("aks-copy")).text();
+      if (!navigator.clipboard) { return; }
+      navigator.clipboard.writeText(text).then(function () {
+        var $icon = $button.find("i.bi");
+        $icon.removeClass("bi-clipboard").addClass("bi-check2");
+        setTimeout(function () { $icon.removeClass("bi-check2").addClass("bi-clipboard"); }, 1500);
+      });
+    });
+    $root.on("click", "[data-aks-download]", function (e) {
+      e.preventDefault();
+      var text = $($(this).data("aks-download")).text();
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      link.download = $(this).data("aks-filename") || "kubeconfig.yaml";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 0);
+    });
+    loadAll();
+  };
+})();
+</script>

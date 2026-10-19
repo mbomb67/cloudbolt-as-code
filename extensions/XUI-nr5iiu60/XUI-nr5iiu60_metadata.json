@@ -1,0 +1,31 @@
+{
+    "description": "Adds Cluster, Node pools, and Workloads tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-nr5iiu60",
+    "label": "Azure AKS Cluster",
+    "last_updated": "2026-10-19",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "azure_aks_cluster",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "forms.py",
+        "templates/_assets.html",
+        "templates/_alert.html",
+        "templates/_pill.html",
+        "templates/cluster_tab.html",
+        "templates/cluster_panel.html",
+        "templates/node_pools_tab.html",
+        "templates/node_pools_panel.html",
+        "templates/workloads_tab.html",
+        "templates/workloads_panel.html",
+        "templates/connect_tab.html",
+        "templates/connect_panel.html",
+        "templates/namespace_workloads_tab.html",
+        "templates/namespace_workloads_panel.html"
+    ],
+    "version": ""
+}

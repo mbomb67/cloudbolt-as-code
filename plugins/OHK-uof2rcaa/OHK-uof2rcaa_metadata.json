@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4"
+        ]
+    },
+    "description": "Adopts every AKS cluster in each Azure handler's subscription as a Kubernetes Cluster resource and refreshes its details, node pools, and container orchestrator.",
+    "id": "OHK-uof2rcaa",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "AKS Cluster Discovery",
+    "resource_technologies": [],
+    "script_filename": "OHK-uof2rcaa_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

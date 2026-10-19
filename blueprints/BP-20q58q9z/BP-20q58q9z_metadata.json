@@ -1,0 +1,189 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "AKS Cluster Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-x13tmam0"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the AKS cluster and registers it with CloudBolt.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-zqkasrvz",
+            "name": "AKS Cluster Build",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, and create namespace landing zones.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-uof2rcaa"
+        },
+        "href": "/api/v3/cmp/actions/OHK-uof2rcaa/",
+        "title": "AKS Cluster Discovery"
+    },
+    "favorited": false,
+    "icon": "azure_aks_logo.png",
+    "id": "BP-20q58q9z",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": null,
+            "icon": "azure2.png",
+            "id": "TAG-0r4q7b80",
+            "image": "/static/uploads/tags/azure2.png",
+            "name": "Azure",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "icon": "cloud.png",
+                "id": "TAG-cvblowou",
+                "image": "/static/uploads/tags/cloud.png",
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        },
+        {
+            "color": "rgba(134,219,78,1)",
+            "id": "TAG-pfq0or1t",
+            "image": null,
+            "name": "XaaS",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-19",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-gp2aywcz"
+            },
+            "enabled": true,
+            "label": "Upgrade AKS Version"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-wxd1o7s8"
+            },
+            "enabled": true,
+            "label": "Add AKS Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-j4f98ti1"
+            },
+            "enabled": true,
+            "label": "Delete AKS Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-v9717mtc"
+            },
+            "enabled": true,
+            "label": "List AKS Node Pools"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-ehxck39g"
+            },
+            "enabled": true,
+            "label": "Scale AKS Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-wsre115s"
+            },
+            "enabled": true,
+            "label": "Upgrade AKS Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-jttbwkm5"
+            },
+            "enabled": true,
+            "label": "Create AKS Namespace"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Azure Kubernetes Service",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-dharmachakra",
+        "id": "RT-kjlvj97y",
+        "internal_only": false,
+        "label": "Kubernetes Cluster",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "kubernetes_cluster",
+        "plural_label": "Kubernetes Clusters"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "AKS Cluster Teardown",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-27oemiwb"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the AKS cluster, refusing while namespace landing zones remain.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-ndykjlo3",
+            "name": "AKS Cluster Teardown",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}
