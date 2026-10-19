@@ -109,11 +109,13 @@ def run(job, *args, **kwargs):
 
     base = _portal_url()
     password_set = bool(gp.smtp_password)
+    user = gp.smtp_user or ""
+    masked_user = (user[:3] + "***" + user[-2:]) if len(user) > 6 else ("***" if user else None)
     outputs = {
         "settings": {
             "host": gp.smtp_host or None,
             "port": gp.smtp_port or None,
-            "user": gp.smtp_user or None,
+            "user": masked_user,
             "useTls": bool(gp.smtp_use_tls),
             "fromAddress": gp.email_default_from_address or None,
             "adminEmail": gp.cbadmin_email or None,

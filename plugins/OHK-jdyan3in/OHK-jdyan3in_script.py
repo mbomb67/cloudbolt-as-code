@@ -71,7 +71,7 @@ def run(job, *args, **kwargs):
     base = _portal_url()
     outputs = {
         "recipient": recipient or None,
-        "settings": {"host": gp.smtp_host or None, "port": gp.smtp_port or None, "user": gp.smtp_user or None, "useTls": bool(gp.smtp_use_tls), "passwordSet": bool(gp.smtp_password)},
+        "settings": {"host": gp.smtp_host or None, "port": gp.smtp_port or None, "userSet": bool(gp.smtp_user), "useTls": bool(gp.smtp_use_tls), "passwordSet": bool(gp.smtp_password)},
         "editUrl": base + "/admin/email_settings/edit/",
     }
     if not gp.smtp_host:
