@@ -50,6 +50,13 @@
             "sequence": 0
         },
         {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        },
+        {
             "color": "rgba(134,219,78,1)",
             "id": "TAG-pfq0or1t",
             "image": null,
