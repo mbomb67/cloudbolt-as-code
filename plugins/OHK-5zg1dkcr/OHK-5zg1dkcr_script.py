@@ -45,9 +45,14 @@ TOOLKIT_TOOLS = [
     "onb_verify_ldap",
     "onb_smtp",
     "onb_smtp_test",
+    "onb_install_content_library_item",
+    "onb_cit_from_order",
+    "onb_scorecard",
     "sync_from_source_control_repo",
     "fetch_job_log",
     "manage_blueprint_permissions",
+    "run_recurring_job",
+    "run_cit_tests",
 ]
 ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25

@@ -23,15 +23,22 @@
         "mcp_tool_actions/MTA-kw8krevn",
         "mcp_tool_actions/MTA-89w58iux",
         "mcp_tool_actions/MTA-qab6r2gk",
+        "mcp_tool_actions/MTA-znqpide5",
+        "mcp_tool_actions/MTA-ckumouj0",
+        "mcp_tool_actions/MTA-zfoxwh12",
         "mcp_tool_actions/MTA-543b19sa",
         "mcp_tool_actions/MTA-8j9c0tb0",
-        "mcp_tool_actions/MTA-ntmcnvv7"
+        "mcp_tool_actions/MTA-ntmcnvv7",
+        "mcp_tool_actions/MTA-thkvyt0v",
+        "mcp_tool_actions/MTA-gnx1ckno",
+        "blueprints/BP-x78p48gz",
+        "webhooks/IWH-f16qxnhm"
     ],
-    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
+    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
     "id": "PKG-8aaadefz",
     "last_updated": "2026-10-19",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "POC Onboarding Toolkit",
-    "version": "0.3.0"
+    "version": "0.4.0"
 }

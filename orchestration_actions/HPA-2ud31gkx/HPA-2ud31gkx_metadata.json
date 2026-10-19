@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-f1ol9j5k"
+    },
+    "description": "Fills the POC Application Tier order-form parameter from Python with web, app and db, dropping db for production groups.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-2ud31gkx",
+    "last_updated": null,
+    "name": "Generate options for 'POC Application Tier'",
+    "run_on_statuses": "",
+    "run_seq": 1
+}

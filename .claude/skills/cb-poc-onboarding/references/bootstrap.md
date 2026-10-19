@@ -13,31 +13,15 @@ Goal: the agent is connected to the appliance as a CloudBolt admin with write sc
 
 Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not installed. The sync tool cannot install itself, so the user does one of these in the UI, once:
 
-**A. Content Package Manager** (when the extension is installed): Admin > Content Packages > Import from repository > repository `https://github.com/mbomb67/cloudbolt-as-code.git`, branch `main`, package **POC Onboarding Toolkit** (`PKG-8aaadefz`) > Sync. One step; every tool and its plugin arrives together.
+**A. Content Package Manager** (when that extension is installed): Admin > Content Packages > Import from repository > repository `https://github.com/mbomb67/cloudbolt-as-code.git`, branch `main`, package **POC Onboarding Toolkit** (`PKG-8aaadefz`) > Sync. One step; every tool, the POC Server blueprint and the echo webhook arrive together.
 
-**B. Source Control Repository**: Admin > All Admin > CloudBolt > Source Code Repositories > Add: label of their choice, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, auth method none (public repository), leave the path fields at their defaults. Then Actions > MCP Tool Actions > Create from Repository, branch `main`, and pick each metadata file under `mcp_tool_actions/`:
-
-| Tool | Folder |
-|---|---|
-| `onb_install` | `mcp_tool_actions/MTA-6zxrhdls` |
-| `onb_status` | `mcp_tool_actions/MTA-1985b88g` |
-| `onb_ui_link` | `mcp_tool_actions/MTA-zpohocjt` |
-| `onb_recent_errors` | `mcp_tool_actions/MTA-hwg74btd` |
-| `onb_failure_trace` | `mcp_tool_actions/MTA-jzscq0mk` |
-| `onb_verify_resource_handler` | `mcp_tool_actions/MTA-r5v1eblg` |
-| `onb_playbook` | `mcp_tool_actions/MTA-92b836jb` |
-| `onb_set_item_status` | `mcp_tool_actions/MTA-p72v9y76` |
-| `sync_from_source_control_repo` | `mcp_tool_actions/MTA-543b19sa` |
-| `fetch_job_log` | `mcp_tool_actions/MTA-8j9c0tb0` |
-| `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` |
-
-The dialog takes one item at a time; the one-call REST alternative is in [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md).
+**B. Source Control Repository**: Admin > All Admin > CloudBolt > Source Code Repositories > Add: a label, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, no authentication (public repository), default paths. Then import the tools with the one API call in [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md) §3, or in the UI (Actions > MCP Tool Actions > Create from Repository, one folder at a time) using the folders listed in [packages/PKG-8aaadefz/README.md](../../../../packages/PKG-8aaadefz/README.md).
 
 **C. No internet from the appliance**: build one zip per tool with `python tools/package_zip.py mcp_tool_actions/MTA-...` from a clone and upload each at Actions > MCP Tool Actions > Import.
 
-After the import, the tools exist but every one is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (it is asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Then tell the user to reconnect the MCP client (tool lists are cached per session) and call `fetch_mcp_tool_actions` again: all eleven names must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
+After the import every tool is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Tell the user to reconnect the MCP client (tool lists are cached per session), then call `fetch_mcp_tool_actions` again: every `onb_` name from [SKILL.md](../SKILL.md) must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
 
-Later toolkit updates: `sync_from_source_control_repo` with `sync_branch: main` and the folders above as `sync_paths`, then `onb_install`, then reconnect.
+Later toolkit updates: `sync_from_source_control_repo` with `sync_branch: main` and the package's `mcp_tool_actions/` folders as `sync_paths` (or Sync on the package), then `onb_install`, then reconnect.
 
 ## 3. First status
 
@@ -50,12 +34,12 @@ Walk the prerequisites with the user and record each with `onb_set_item_status` 
 | Id | Prerequisite | Evidence or skip |
 |---|---|---|
 | P1 | CMP license key installed | `onb_status.license.installed` and `daysLeft` |
-| P2 | Appliance deployed and initial configuration done | `fetch_identity` works; `setupWizard.hasResourceHandler` is not required yet |
+| P2 | Appliance deployed and initial configuration done | `fetch_identity` works |
 | P3 | Up to two resource handlers, one or two environments each | Phases 1 and 2 |
 | P4 | Custom Server deployed once in each environment | Phase 3 |
-| P5 | Outbound 443 to content.cloudbolt.app | `onb_status.contentLibrary.reachable`; if false, `onb_install.egress` and the proxy link; skip only if the customer accepts no Content Library items (Phase 8 shrinks) |
+| P5 | Outbound 443 to content.cloudbolt.app | `onb_status.contentLibrary.reachable`; if false, `onb_install.egress` and the proxy link (`onb_ui_link proxy`); skip only if the customer accepts no Content Library items (Phase 8 shrinks) |
 | P6 | Web proxy configured if required | `preferences.proxy.configured`; not applicable when no proxy is needed |
-| P7 | SMTP configured | `preferences.smtp.configured`; link `email_settings` (password entered there), test with link `email_test`; not applicable when the POC has no relay, which also makes 2.4.1 email notification and 4.2.3, 4.2.6 partial |
+| P7 | SMTP configured | `onb_smtp` reports the settings; set the non-secret ones with it, the password on its `editUrl`, then `onb_smtp_test`. Not applicable when the POC has no relay, which also makes 2.4.1 email notification and 4.2.3, 4.2.6 partial |
 | P8 | DNS A record for the portal | Needed for 2.2.1 only; not applicable otherwise |
 | P9 | SSO application and an SSO SME on the call | Needed for 2.1.3 only |
 | P10 | AD or LDAP service account and the DN of a mapping group | Needed for 2.1.1 and 2.1.2 |

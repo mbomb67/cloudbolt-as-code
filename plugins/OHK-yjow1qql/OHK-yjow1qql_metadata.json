@@ -1,0 +1,55 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the CIT test; defaults to the order's name.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-frgip09z",
+            "label": "Test name (optional)",
+            "name": "onb_cit_name",
+            "placeholder": "POC: Custom Server in AWS",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The finished blueprint order to replay.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-an75eqvs",
+            "label": "Order (ORD- global id)",
+            "name": "onb_cit_order",
+            "placeholder": "ORD-abc12345",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_cit_order",
+        "onb_cit_name"
+    ],
+    "description": "Turns a finished blueprint order into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action.",
+    "id": "OHK-yjow1qql",
+    "max_retries": 0,
+    "name": "POC Onboarding: CIT Test from Order",
+    "resource_technologies": [],
+    "script_filename": "OHK-yjow1qql_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

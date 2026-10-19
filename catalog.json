@@ -434,6 +434,23 @@
     ]
   },
   {
+    "id": "BP-x78p48gz",
+    "type": "blueprints",
+    "name": "POC Server",
+    "description": "Deploys one server into any environment, runs a Hello World script inside the guest (Bash on Linux, PowerShell on Windows) and asks for an application tier whose options come from Python, covering the POC test plan's post-provisioning, in-guest scripting and generated-options items.",
+    "path": "blueprints/BP-x78p48gz",
+    "readme": "blueprints/BP-x78p48gz/README.md",
+    "uses": [
+      "orchestration_actions/HPA-2ud31gkx",
+      "plugins/OHK-818zw61m",
+      "plugins/OHK-u7j8o0vm"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "BP-zmeot1ff",
     "type": "blueprints",
     "name": "Azure Resource Group",
@@ -1091,6 +1108,23 @@
     ]
   },
   {
+    "id": "MTA-ckumouj0",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: CIT Test from Order",
+    "description": "Turns a finished blueprint order into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action.",
+    "path": "mcp_tool_actions/MTA-ckumouj0",
+    "readme": "mcp_tool_actions/MTA-ckumouj0/README.md",
+    "uses": [
+      "plugins/OHK-yjow1qql"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_cit_from_order",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-cpq7bvz4",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: Group",
@@ -1136,7 +1170,10 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "run_cit_tests"
+    "mcp_tool_name": "run_cit_tests",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-hwg74btd",
@@ -1365,7 +1402,10 @@
     ],
     "used_by": [],
     "enabled": true,
-    "mcp_tool_name": "run_recurring_job"
+    "mcp_tool_name": "run_recurring_job",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
   },
   {
     "id": "MTA-tuzkb8h4",
@@ -1380,6 +1420,40 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "onb_user",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-zfoxwh12",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Scorecard",
+    "description": "Builds the POC test plan scorecard from the recorded item statuses and live evidence on the appliance (orders, handlers, environments, groups, mappings, actions, jobs), per category with weights.",
+    "path": "mcp_tool_actions/MTA-zfoxwh12",
+    "readme": "mcp_tool_actions/MTA-zfoxwh12/README.md",
+    "uses": [
+      "plugins/OHK-yqu8b25o"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_scorecard",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-znqpide5",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Install Content Library Item",
+    "description": "Lists a Content Library collection or downloads one item from content.cloudbolt.app and imports it the way the library page does, for UI extensions, recurring jobs, server and resource actions, rules and blueprints.",
+    "path": "mcp_tool_actions/MTA-znqpide5",
+    "readme": "mcp_tool_actions/MTA-znqpide5/README.md",
+    "uses": [
+      "plugins/OHK-kst5rkhi"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_install_content_library_item",
     "packages": [
       "packages/PKG-8aaadefz"
     ]
@@ -1432,6 +1506,22 @@
     ],
     "used_by": [],
     "hook_point": "Post Group Creation",
+    "enabled": true
+  },
+  {
+    "id": "HPA-2ud31gkx",
+    "type": "orchestration_actions",
+    "name": "Generate options for 'POC Application Tier'",
+    "description": "Fills the POC Application Tier order-form parameter from Python with web, app and db, dropping db for production groups.",
+    "path": "orchestration_actions/HPA-2ud31gkx",
+    "readme": "orchestration_actions/HPA-2ud31gkx/README.md",
+    "uses": [
+      "plugins/OHK-f1ol9j5k"
+    ],
+    "used_by": [
+      "blueprints/BP-x78p48gz"
+    ],
+    "hook_point": "Generated Parameter Options",
     "enabled": true
   },
   {
@@ -1753,12 +1843,12 @@
     "id": "PKG-8aaadefz",
     "type": "packages",
     "name": "POC Onboarding Toolkit",
-    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
+    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
     "path": "packages/PKG-8aaadefz",
     "readme": "packages/PKG-8aaadefz/README.md",
     "uses": [],
     "used_by": [],
-    "version": "0.3.0",
+    "version": "0.4.0",
     "contents": [
       "mcp_tool_actions/MTA-6zxrhdls",
       "mcp_tool_actions/MTA-1985b88g",
@@ -1783,9 +1873,16 @@
       "mcp_tool_actions/MTA-kw8krevn",
       "mcp_tool_actions/MTA-89w58iux",
       "mcp_tool_actions/MTA-qab6r2gk",
+      "mcp_tool_actions/MTA-znqpide5",
+      "mcp_tool_actions/MTA-ckumouj0",
+      "mcp_tool_actions/MTA-zfoxwh12",
       "mcp_tool_actions/MTA-543b19sa",
       "mcp_tool_actions/MTA-8j9c0tb0",
-      "mcp_tool_actions/MTA-ntmcnvv7"
+      "mcp_tool_actions/MTA-ntmcnvv7",
+      "mcp_tool_actions/MTA-thkvyt0v",
+      "mcp_tool_actions/MTA-gnx1ckno",
+      "blueprints/BP-x78p48gz",
+      "webhooks/IWH-f16qxnhm"
     ]
   },
   {
@@ -2482,6 +2579,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-818zw61m",
+    "type": "plugins",
+    "name": "POC Hello World (Linux)",
+    "description": "Prints a hello message, the host name and the user inside a Linux guest to prove agentless script execution.",
+    "path": "plugins/OHK-818zw61m",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-x78p48gz"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-8in52yhn",
     "type": "plugins",
     "name": "POC Onboarding: User",
@@ -3137,6 +3247,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-f1ol9j5k",
+    "type": "plugins",
+    "name": "Generate options for 'POC Application Tier'",
+    "description": "Fills the POC Application Tier dropdown from Python (web, app, db), dropping the database tier for production groups, to show Python-backed parameter options.",
+    "path": "plugins/OHK-f1ol9j5k",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-2ud31gkx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-f6kqrklx",
     "type": "plugins",
     "name": "POC Onboarding: Parameter",
@@ -3398,6 +3521,19 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-3fdhnw54"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-kst5rkhi",
+    "type": "plugins",
+    "name": "POC Onboarding: Install Content Library Item",
+    "description": "Lists a Content Library collection or downloads one item from content.cloudbolt.app and imports it the way the library page does, for UI extensions, recurring jobs, server and resource actions, rules and blueprints.",
+    "path": "plugins/OHK-kst5rkhi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-znqpide5"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4005,6 +4141,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-u7j8o0vm",
+    "type": "plugins",
+    "name": "POC Hello World (Windows)",
+    "description": "Prints a hello message, the computer name and the user inside a Windows guest to prove agentless script execution.",
+    "path": "plugins/OHK-u7j8o0vm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-x78p48gz"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-u9jm7p8h",
     "type": "plugins",
     "name": "AWS EKS Namespace",
@@ -4114,6 +4263,19 @@
     "readme": null,
     "uses": [],
     "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-w78lalkx",
+    "type": "plugins",
+    "name": "POC Echo",
+    "description": "Returns the posted JSON or query fields with the calling user and the time, proving a synchronous authenticated call into CloudBolt.",
+    "path": "plugins/OHK-w78lalkx",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "webhooks/IWH-f16qxnhm"
+    ],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -4264,6 +4426,32 @@
     "uses": [],
     "used_by": [
       "mcp_tool_actions/MTA-lp8lgi7e"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yjow1qql",
+    "type": "plugins",
+    "name": "POC Onboarding: CIT Test from Order",
+    "description": "Turns a finished blueprint order into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action.",
+    "path": "plugins/OHK-yjow1qql",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-ckumouj0"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yqu8b25o",
+    "type": "plugins",
+    "name": "POC Onboarding: Scorecard",
+    "description": "Builds the POC test plan scorecard from the recorded item statuses and live evidence on the appliance (orders, handlers, environments, groups, mappings, actions, jobs), per category with weights.",
+    "path": "plugins/OHK-yqu8b25o",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-zfoxwh12"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -5323,6 +5511,22 @@
     "enabled": true,
     "packages": [
       "packages/PKG-v20qv308"
+    ]
+  },
+  {
+    "id": "IWH-f16qxnhm",
+    "type": "webhooks",
+    "name": "POC Echo",
+    "description": "Endpoint that returns the posted JSON with the calling user and the time, so an external system can prove a synchronous authenticated call into CloudBolt.",
+    "path": "webhooks/IWH-f16qxnhm",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-w78lalkx"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-8aaadefz"
     ]
   },
   {

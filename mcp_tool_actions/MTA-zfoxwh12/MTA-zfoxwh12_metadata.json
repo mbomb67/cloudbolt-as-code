@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "all (default), self-service, rbac, resource-management or extensibility.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-k29swycy",
+            "label": "Section (optional): all, self-service, rbac, ...",
+            "name": "onb_score_section",
+            "placeholder": "all",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-yqu8b25o"
+    },
+    "enabled": true,
+    "id": "MTA-zfoxwh12",
+    "is_synchronous": true,
+    "label": "POC Onboarding: Scorecard",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": true,
+    "mcp_tool_description": "Build the POC Test Plan scorecard: every item (1.1.1 to 4.3.5) with its weight, the status recorded with onb_set_item_status, and the live evidence found on the appliance (successful orders, handlers and environments, parameters, tag and LDAP mappings, roles, approvals, quotas, lifecycle parameters, recurring jobs, rules, CIT tests, webhooks, extensions), grouped by category with the points possible. A recorded status wins; evidence suggests done or pending for the rest. onb_score_section limits the report to self-service, rbac, resource-management or extensibility. Call it in the wrap-up phase and whenever the user asks how the POC stands. Read-only; requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_scorecard",
+    "mcp_tool_title": ""
+}

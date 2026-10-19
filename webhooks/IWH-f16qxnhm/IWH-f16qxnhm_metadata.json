@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "POC Echo",
+    "dependencies": {
+        "hook": "plugins/OHK-w78lalkx"
+    },
+    "description": "Endpoint that returns the posted JSON with the calling user and the time, so an external system can prove a synchronous authenticated call into CloudBolt.",
+    "enabled": true,
+    "id": "IWH-f16qxnhm",
+    "label": "POC Echo",
+    "last_updated": null,
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "poc-echo"
+}
