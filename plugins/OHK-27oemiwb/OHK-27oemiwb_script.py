@@ -65,4 +65,6 @@ def run(job, *args, **kwargs):
     if removed:
         set_progress(f"Removed {removed} AKS Node Pool sub-resource(s).")
 
+    if cluster is None:
+        return "SUCCESS", f"Removed '{resource.name}' from CloudBolt; it recorded no AKS cluster to delete.", ""
     return "SUCCESS", f"AKS cluster '{resource.name}' deleted.", ""
