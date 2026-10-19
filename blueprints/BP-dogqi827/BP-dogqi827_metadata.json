@@ -37,15 +37,13 @@
     "labels": [
         {
             "color": null,
-            "icon": "azure2.png",
-            "id": "TAG-0r4q7b80",
-            "image": "/static/uploads/tags/azure2.png",
+            "id": "TAG-rvep5iv0",
+            "image": null,
             "name": "Azure",
             "parent": {
                 "color": "rgba(25,171,188,1)",
-                "icon": "cloud.png",
                 "id": "TAG-cvblowou",
-                "image": "/static/uploads/tags/cloud.png",
+                "image": null,
                 "name": "Clouds",
                 "sequence": 0
             },
