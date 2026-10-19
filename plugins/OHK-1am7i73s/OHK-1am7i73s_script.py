@@ -14,6 +14,7 @@ _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
 """
 import html
+import re
 
 PLAYBOOK_REPO = "mbomb67/cloudbolt-as-code"
 PLAYBOOK_REF = "main"
@@ -54,17 +55,26 @@ def _caller(job, kwargs):
     return profile
 
 
+REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+
+
 def _read_inputs():
-    raw = {"onb_section": """{{ onb_section }}"""}
-    return {"section": (_text(raw["onb_section"]) or "index").lower()}
+    raw = {
+        "onb_section": """{{ onb_section }}""",
+        "onb_ref": """{{ onb_ref }}""",
+    }
+    return {
+        "section": (_text(raw["onb_section"]) or "index").lower(),
+        "ref": _text(raw["onb_ref"]) or PLAYBOOK_REF,
+    }
 
 
-def _url(path):
-    return "https://raw.githubusercontent.com/{}/{}/{}/{}".format(PLAYBOOK_REPO, PLAYBOOK_REF, PLAYBOOK_DIR, path)
+def _url(path, ref):
+    return "https://raw.githubusercontent.com/{}/{}/{}/{}".format(PLAYBOOK_REPO, ref, PLAYBOOK_DIR, path)
 
 
-def _browser_url(path):
-    return "https://github.com/{}/blob/{}/{}/{}".format(PLAYBOOK_REPO, PLAYBOOK_REF, PLAYBOOK_DIR, path)
+def _browser_url(path, ref):
+    return "https://github.com/{}/blob/{}/{}/{}".format(PLAYBOOK_REPO, ref, PLAYBOOK_DIR, path)
 
 
 def run(job, *args, **kwargs):
@@ -72,21 +82,25 @@ def run(job, *args, **kwargs):
     if profile is None:
         return _failure("No calling user profile was supplied. Run this tool through the MCP server as an authenticated user.")
 
-    section = _read_inputs()["section"]
+    inputs = _read_inputs()
+    section = inputs["section"]
+    ref = inputs["ref"]
     if section not in SECTIONS:
         return _failure(
             "Unknown section '{}'. Sections: {}.".format(
                 section, "; ".join("{} ({})".format(k, v[1]) for k, v in SECTIONS.items())
             )
         )
+    if not REF_RE.match(ref) or "/" in ref:
+        return _failure("onb_ref must be a branch or tag name without a slash, got '{}'.".format(ref))
     path, meaning = SECTIONS[section]
-    url = _url(path)
+    url = _url(path, ref)
     outputs = {
         "section": section,
         "meaning": meaning,
         "source": url,
-        "browserUrl": _browser_url(path),
-        "ref": PLAYBOOK_REF,
+        "browserUrl": _browser_url(path, ref),
+        "ref": ref,
         "sections": [{"section": k, "meaning": v[1]} for k, v in SECTIONS.items()],
     }
     try:
@@ -100,6 +114,12 @@ def run(job, *args, **kwargs):
             "Open browserUrl in a browser and paste the text, or clone the repository and read the file."
         )
         return _failure("Could not fetch the playbook section '{}': {}".format(section, str(exc)[:300]))
+    if response.status_code == 404:
+        outputs["httpStatus"] = 404
+        return _failure(
+            "The playbook section '{}' is not published on ref '{}' of {} (HTTP 404). Pass onb_ref with the branch "
+            "or tag that carries the skill, or read it from the repository.".format(section, ref, PLAYBOOK_REPO)
+        )
     if response.status_code != 200:
         outputs["httpStatus"] = response.status_code
         return _failure("GitHub answered HTTP {} for {}.".format(response.status_code, url))

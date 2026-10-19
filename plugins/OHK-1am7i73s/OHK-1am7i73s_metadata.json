@@ -3,6 +3,25 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
+            "description": "Git branch or tag of cloudbolt-as-code to read the skill from; a release tag pins the playbook version.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-99exixzx",
+            "label": "Branch or tag (default main)",
+            "name": "onb_ref",
+            "placeholder": "main",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
             "description": "index, bootstrap, resource-handlers, phases, troubleshooting or test-plan-map.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -21,7 +40,8 @@
         }
     ],
     "action_inputs_sequence": [
-        "onb_section"
+        "onb_section",
+        "onb_ref"
     ],
     "description": "Returns a section of the POC onboarding skill text from the public cloudbolt-as-code repository, so MCP clients without skill support follow the same procedure.",
     "id": "OHK-1am7i73s",

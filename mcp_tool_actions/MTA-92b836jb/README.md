@@ -13,11 +13,13 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | Input | Type | Meaning |
 |---|---|---|
 | `onb_section` | string | index, bootstrap, resource-handlers, phases, troubleshooting or test-plan-map. |
+| `onb_ref` | string | Git branch or tag of cloudbolt-as-code to read the skill from; a release tag pins the playbook version. |
 
 ## Output
-text (Markdown), source, browserUrl, sections[].
+text (Markdown), source, browserUrl, ref, sections[].
 
 ## Notes
 - Any authenticated caller; the text is public.
 - Synchronous: the result comes back inline.
 - Needs outbound HTTPS to raw.githubusercontent.com; onb_install checks it.
+- Until the skill is on main, pass onb_ref with the branch that carries it.

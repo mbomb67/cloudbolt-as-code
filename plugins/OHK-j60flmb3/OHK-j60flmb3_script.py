@@ -157,7 +157,13 @@ def _egress():
         checks["contentLibrary"] = {"reachable": None, "error": str(exc)[:300]}
     try:
         response = cb_request("HEAD", PLAYBOOK_URL, timeout=8)
-        checks["playbook"] = {"reachable": response.status_code == 200, "url": PLAYBOOK_URL, "httpStatus": response.status_code}
+        row = {"reachable": True, "url": PLAYBOOK_URL, "httpStatus": response.status_code}
+        if response.status_code == 404:
+            row["published"] = False
+            row["note"] = "GitHub is reachable but the skill is not published on the main branch yet; onb_playbook needs onb_ref until it is."
+        else:
+            row["published"] = response.status_code == 200
+        checks["playbook"] = row
     except Exception as exc:
         checks["playbook"] = {"reachable": False, "url": PLAYBOOK_URL, "error": str(exc)[:300]}
     return checks
