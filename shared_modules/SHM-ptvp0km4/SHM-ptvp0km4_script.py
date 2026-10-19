@@ -916,8 +916,9 @@ def pool_label(pool_json):
 
 
 def stamp_pool(sub_resource, pool_json):
+    """Write the pool's values onto its sub-resource; a value AKS no longer reports is cleared."""
     for key, value in pool_values(pool_json).items():
-        sub_resource.set_value_for_custom_field(key, value if value is not None else "")
+        sub_resource.set_value_for_custom_field(key, None if value in (None, "") else value, ignore_none_value=True)
     sub_resource.save()
 
 
