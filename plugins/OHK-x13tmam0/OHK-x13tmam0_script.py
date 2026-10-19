@@ -39,6 +39,7 @@ from shared_modules.azure_aks import (
     ArmClient,
     CLUSTER_NAME_RE,
     azure_environments_for_group,
+    ensure_cluster_fields,
     environment_node_sizes,
     environment_resource_groups,
     guid_or_none,
@@ -133,6 +134,10 @@ def generate_options_for_aks_kubernetes_version(field, control_value=None, **kwa
         if v["is_preview"]:
             continue
         label = f"{v['version']} (latest patch {v['latest_patch']})"
+        if v["support_plans"] and "KubernetesOfficial" not in v["support_plans"]:
+            # Past community support: AKS offers it only on the long-term support plan.
+            # https://learn.microsoft.com/en-us/azure/aks/long-term-support
+            label += " - long-term support only (Premium tier)"
         if v["is_default"]:
             label += " - default"
             initial = v["version"]
@@ -221,25 +226,32 @@ def cluster_body(resource, env, name, version, tier, node_size, node_count, max_
     }
 
 
+def _text(value):
+    """A rendered input as plain text; an input left empty renders as 'None'."""
+    text = str(value or "").strip()
+    return "" if text == "None" else text
+
+
 def _int(text, default):
     try:
-        return int(str(text).strip())
+        return int(_text(text))
     except (TypeError, ValueError):
         return default
 
 
 def run(job, resource, **kwargs):
-    name = "{{ aks_cluster_name }}".strip()
-    env_id = "{{ aks_env_id }}".strip()
-    resource_group = "{{ aks_resource_group }}".strip()
-    version = "{{ aks_kubernetes_version }}".strip()
-    node_size = "{{ aks_node_size }}".strip()
+    ensure_cluster_fields()
+    name = _text("{{ aks_cluster_name }}")
+    env_id = _text("{{ aks_env_id }}")
+    resource_group = _text("{{ aks_resource_group }}")
+    version = _text("{{ aks_kubernetes_version }}")
+    node_size = _text("{{ aks_node_size }}")
     node_count = _int("{{ aks_node_count }}", 2)
     max_count = _int("{{ aks_max_node_count }}", 0)
-    tier = "{{ aks_sku_tier }}".strip() or "Free"
-    private = "{{ aks_private_cluster }}".strip().lower() in ("true", "1", "yes", "on")
-    channel = "{{ aks_upgrade_channel }}".strip() or "patch"
-    admin_groups_text = """{{ aks_admin_group_ids }}"""
+    tier = _text("{{ aks_sku_tier }}") or "Free"
+    private = _text("{{ aks_private_cluster }}").lower() in ("true", "1", "yes", "on")
+    channel = _text("{{ aks_upgrade_channel }}") or "patch"
+    admin_groups_text = _text("""{{ aks_admin_group_ids }}""")
 
     # ---- Validate ----------------------------------------------------------
     if not CLUSTER_NAME_RE.match(name):
