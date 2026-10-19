@@ -339,6 +339,15 @@ def package_detail(request, pkg_id):
 
 
 @cbadmin_required
+def sync_panel(request, pkg_id):
+    """HTML fragment the Last sync card's Refresh loads: the card, open, and
+    the Last synced cell, so neither needs a page reload."""
+    item = _describe([_get_or_404(pkg_id)])[0]
+    row = _row(item, _jobs_for([item]))
+    return render(request, TEMPLATES + "sync_panel.html", {"row": row, "open": True})
+
+
+@cbadmin_required
 def dependencies_panel(request, pkg_id):
     """HTML fragment the details page loads: the export's dependency closure."""
     package = _get_or_404(pkg_id)

@@ -56,9 +56,7 @@
       </div>
       <div class="cell">
         <div class="k">{% trans "Last synced" %}</div>
-        <div class="v">
-          {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}<div class="cpk-hint">{{ row.synced_at|date:"Y-m-d H:i T" }}</div>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
-        </div>
+        {% include "content_packages/templates/_last_synced.html" %}
       </div>
       <div class="cell">
         <div class="k">{% trans "Last updated" %}</div>
@@ -204,44 +202,7 @@
   {% endwith %}
   {% endif %}
 
-  {% if row.sync_jobs %}
-  <div class="cpk-card cpk-card-fold">
-    <div class="cpk-card-h">
-      <button type="button" class="cpk-fold collapsed" data-bs-toggle="collapse" data-bs-target="#cpkx-sync-body" aria-expanded="false" aria-controls="cpkx-sync-body">
-        <i class="bi bi-chevron-right cpk-chev" aria-hidden="true"></i>
-        <span class="cpk-card-t">{% trans "Last sync" %} &middot; {{ row.local.branch }}</span>
-      </button>
-      {% if row.sync_state %}<span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}
-      {% if row.synced_at %}<span class="cpk-muted" title="{{ row.synced_at|date:'Y-m-d H:i T' }}">{% blocktrans with ago=row.synced_at|timesince %}started {{ ago }} ago{% endblocktrans %}</span>{% endif %}
-      <div class="cpk-card-tools">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-cpk-reload>
-          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
-        </button>
-      </div>
-    </div>
-    <div id="cpkx-sync-body" class="collapse">
-      <div class="cpk-card-b">
-        <div class="table-responsive">
-          <table class="cpk-table">
-            <thead><tr><th>{% trans "Member" %}</th><th>{% trans "Job" %}</th><th>{% trans "Status" %}</th></tr></thead>
-            <tbody>
-              {% for j in row.sync_jobs %}
-              <tr>
-                <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div>{% if j.via %}<div class="cpk-hint">{% blocktrans with via=j.via_name %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
-                <td>{% if j.url %}<a href="{{ j.url }}">{% trans "Job" %} {{ j.job_id }}</a>{% else %}<span class="cpk-muted">{{ j.job_id }}</span>{% endif %}</td>
-                <td><span class="cpk-pill{% if j.pill %} cpk-pill-{{ j.pill }}{% endif %}">{{ j.text }}</span></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% if row.sync_state and row.sync_state.0 == "bad" %}
-        <div class="cpk-note pb-3">{% trans "A job failed and the ones after it are waiting. Open it, fix the content in the repository and push, then use Rerun on the job page: the waiting jobs continue once the rerun succeeds. Or cancel them." %}</div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
+  {% include "content_packages/templates/_sync_card.html" %}
 
   <div class="cpk-card cpk-card-fold">
     <div class="cpk-card-h">

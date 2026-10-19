@@ -117,7 +117,8 @@
   "use strict";
   // Wires a page root: loads every [data-cpk-panel] from its data-cpk-src,
   // client-side row filters (data-cpk-filter="#table"), Refresh buttons
-  // (data-cpk-refresh) and the "+N more" toggles in Contents cells.
+  // (data-cpk-refresh, data-cpk-swap-src) and the "+N more" toggles in
+  // Contents cells.
   window.cpkxInit = function (rootId) {
     var $root = $("#" + rootId);
     if (!$root.length || $root.data("cpkx-ready")) { return; }
@@ -216,6 +217,30 @@
       var open = $btn.attr("aria-expanded") === "true";
       $btn.closest(".cpk-stack").find(".cpk-extra").toggleClass("d-none", open);
       $btn.attr("aria-expanded", open ? "false" : "true").text(open ? $btn.data("cpk-more") : "Show fewer");
+    });
+    // A swap Refresh (data-cpk-swap-src="<fragment url>") replaces each
+    // element of the page whose id matches a top-level element of the
+    // fragment, so a card updates without a page reload.
+    $root.on("click", "[data-cpk-swap-src]", function (e) {
+      e.preventDefault();
+      var $btn = $(this);
+      var $card = $btn.closest(".cpk-card");
+      function idle() { $btn.prop("disabled", false).find(".bi").removeClass("cpk-spin"); }
+      $btn.prop("disabled", true).find(".bi").addClass("cpk-spin");
+      $card.find("[data-cpk-swap-error]").remove();
+      $.get($btn.attr("data-cpk-swap-src")).done(function (html) {
+        $($.parseHTML(html)).filter("[id]").each(function () {
+          $root.find('[id="' + this.id + '"]').replaceWith(this);
+        });
+        idle();
+      }).fail(function (xhr) {
+        idle();
+        $card.find(".cpk-card-b").first().prepend(
+          $('<div class="cpk-alert" data-cpk-swap-error><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></div>')
+            .append($("<div>").text("Could not refresh this card (HTTP " + Number(xhr.status) + ")."))
+        );
+        showCollapse($card.find(".collapse").first());
+      });
     });
     $root.on("click", "[data-cpk-reload]", function (e) {
       e.preventDefault();
