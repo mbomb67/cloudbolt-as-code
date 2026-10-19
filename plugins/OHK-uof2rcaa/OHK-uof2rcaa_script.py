@@ -41,11 +41,22 @@ logger = ThreadLogger(__name__)
 RESOURCE_IDENTIFIER = "aks_resource_id"
 
 
-def _existing(resource_id):
-    """The active Kubernetes Cluster resource recorded with this Azure resource ID, or None."""
+def _existing(resource_id, name, resource_group):
+    """The Kubernetes Cluster resource recorded for this AKS cluster, or None.
+
+    Matched by Azure resource ID, or by cluster name and resource group, which
+    the build records before it asks Azure for the cluster; a resource still
+    PROVISIONING is returned too, so a cluster being built is never adopted twice.
+    """
     wanted = str(resource_id).lower()
-    for resource in Resource.objects.filter(resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle="ACTIVE"):
-        if str(resource.get_cf_values_as_dict().get("aks_resource_id") or "").lower() == wanted:
+    for resource in Resource.objects.filter(
+        resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle__in=("ACTIVE", "PROVISIONING")
+    ):
+        values = resource.get_cf_values_as_dict()
+        if str(values.get("aks_resource_id") or "").lower() == wanted:
+            return resource
+        if (values.get("aks_cluster_name") == name
+                and str(values.get("aks_resource_group") or "").lower() == str(resource_group).lower()):
             return resource
     return None
 
@@ -88,7 +99,10 @@ def discover_resources(**kwargs):
             seen.add(resource_id.lower())
             _, resource_group, name = parse_resource_id(resource_id)
 
-            resource = _existing(resource_id)
+            resource = _existing(resource_id, name, resource_group)
+            if resource is not None and resource.lifecycle == "PROVISIONING":
+                set_progress(f"Skipping '{name}': its CloudBolt build is still running.")
+                continue
             if resource is None:
                 resource = Resource.objects.create(
                     name=name,
