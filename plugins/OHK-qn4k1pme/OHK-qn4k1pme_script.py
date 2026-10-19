@@ -20,11 +20,14 @@ import re
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
 PROFILES = ("poc_minimal", "report")
 
-# Per technology: fields the user still sees, fields pinned to one value
-# (preferred values first; None = first existing option), fields removed.
+# Per technology: fields the user still sees (constrained to a short list of
+# sizes when those exist among the options), fields pinned to one value
+# (preferred values first; an empty list = first existing option), fields
+# removed.
 TRIM = {
     "aws": {
         "show": ["instance_type"],
+        "constrain": {"instance_type": ["t3.small", "t3.medium", "t3.large", "t3a.small", "t3a.medium", "m5.large"]},
         "pin": {
             "key_name": [],
             "sec_groups": ["default"],
@@ -36,6 +39,7 @@ TRIM = {
     },
     "azure_arm": {
         "show": ["node_size", "password_arm", "azure_authentication_type", "azure_ssh_key"],
+        "constrain": {"node_size": ["Standard_B2s", "Standard_B2ms", "Standard_D2s_v5", "Standard_D2s_v3", "Standard_B1ms"]},
         "pin": {
             "resource_group_arm": [],
             "storage_account_type_arm": ["Standard_LRS", "StandardSSD_LRS", "Premium_LRS"],
@@ -53,6 +57,7 @@ TRIM = {
     },
     "vmware": {
         "show": ["cpu_cnt", "mem_size"],
+        "constrain": {"cpu_cnt": ["1", "2", "4"], "mem_size": ["2", "4", "8"]},
         "pin": {"vmware_datastore": [], "vmware_disk_type": ["thin", "Thin"], "sc_nic_0": []},
         "remove": ["vmware_resourcepool", "nsx_scope", "nsx_edge"],
     },
@@ -106,10 +111,11 @@ def _read_inputs():
         "onb_remove": """{{ onb_remove }}""",
     }
     pins = {}
-    for line in _lines(raw["onb_pin"]):
-        name, sep, value = line.partition("=")
-        if sep:
-            pins[name.strip()] = value.strip()
+    for line in re.split(r"[\r\n]+", _text(raw["onb_pin"])):
+        name, sep, value = line.strip().partition("=")
+        if sep and name.strip():
+            # One value pins the field; several values separated by | constrain it to that list.
+            pins[name.strip()] = [v.strip() for v in value.split("|") if v.strip()]
     return {
         "environment": _text(raw["onb_environment"]),
         "profile": (_text(raw["onb_profile"]) or "poc_minimal").lower(),
@@ -273,15 +279,36 @@ def run(job, *args, **kwargs):
         return _success("{}: {} parameter(s) visible on the order form.".format(env.name, len(visible)),
                         dict(outputs, visibleNow=visible))
 
-    table = TRIM.get(slug, {"show": [], "pin": {}, "remove": []})
+    table = TRIM.get(slug, {"show": [], "constrain": {}, "pin": {}, "remove": []})
     keep = set(inputs["keep"]) | set(table["show"])
+    constrain_plan = dict(table.get("constrain", {}))
     pin_plan = {name: prefs for name, prefs in table["pin"].items() if name not in keep}
-    for name, value in inputs["pins"].items():
-        pin_plan[name] = pin_plan.get(name, [])
+    user_pins = {}
+    for name, values in inputs["pins"].items():
+        if len(values) > 1:
+            constrain_plan[name] = values
+            pin_plan.pop(name, None)
+        else:
+            pin_plan[name] = pin_plan.get(name, [])
+            user_pins[name] = values[0] if values else ""
     remove_plan = [n for n in list(table["remove"]) + inputs["remove"] if n not in keep and n not in pin_plan]
 
     actions = []
     protected = []
+    for name, wanted_values in constrain_plan.items():
+        row = rows.get(name)
+        if row is None or name in inputs["remove"]:
+            continue
+        labels = [_option_label(c) for c in row["_cfvs"]]
+        chosen = [c for c, label in zip(row["_cfvs"], labels) if label in wanted_values]
+        if len(chosen) < 2 or len(chosen) == len(row["_cfvs"]):
+            if name in inputs["pins"]:
+                actions.append({"field": name, "action": "left", "reason": "fewer than two of the requested values exist among the options {}".format(labels[:15])})
+            continue
+        chosen.sort(key=lambda c: wanted_values.index(_option_label(c)))
+        env.replace_cf_options(name, chosen)
+        protected.append(name)
+        actions.append({"field": name, "action": "constrained", "values": [_option_label(c) for c in chosen]})
     for name in remove_plan:
         row = rows.get(name)
         if row is None:
@@ -309,7 +336,7 @@ def run(job, *args, **kwargs):
             if name in inputs["pins"]:
                 actions.append({"field": name, "action": "left", "reason": "not a parameter of this environment or handler"})
             continue
-        wanted = inputs["pins"].get(name)
+        wanted = user_pins.get(name)
         if row["optionCount"] == 0 and not wanted:
             actions.append({"field": name, "action": "left", "reason": "no options to pin; import parameters first or pass onb_pin"})
             continue
@@ -338,7 +365,8 @@ def run(job, *args, **kwargs):
     outputs.update({"actions": actions, "protectedFromSync": sorted(set(protected)), "after": after, "visibleNow": visible})
     outputs["next"] = (
         "Order the Custom Server into this environment through MCP and confirm the form shows only {}. "
-        "Pass onb_keep to bring a field back, onb_pin field=value to change a pin.".format(", ".join(visible) or "the size")
+        "Pass onb_keep to bring a field back, onb_pin field=value to change a pin, onb_pin field=a|b|c to offer "
+        "exactly those sizes.".format(", ".join(visible) or "the size")
     )
     message = "{}: {} action(s); visible now: {}.".format(env.name, len(actions), ", ".join(visible) or "none")
     return _success(message, outputs)
