@@ -205,6 +205,8 @@ def _import_aws(handler, image, region, os_build_name, existing_osb, job):
                 "; pass the AMI id of the one to import" if count else
                 "; the cache may be empty (run onb_sync_images) or the name differs; pass the AMI id"))
         ami_id = matches.first().ami_id
+    if not os_build_name:
+        raise Choices(_aws_rows(cache.filter(ami_id=ami_id)), "One AMI matches ({}); pass onb_os_build_name to import it.".format(ami_id))
     already = AmazonMachineImage.objects.filter(resourcehandler=handler, ami_id=ami_id, region=region).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
@@ -265,6 +267,8 @@ def _import_azure(handler, image, location, os_build_name, existing_osb, job):
             len(candidates), location, image))
     match = candidates[0]
     template_name = match.get("template_name") or match.get("name")
+    if not os_build_name:
+        raise Choices(_azure_rows([match]), "One image matches ({}); pass onb_os_build_name to import it.".format(template_name))
     already = AzureARMImage.objects.filter(resourcehandler=handler, template_name=template_name, region=location).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
@@ -307,6 +311,8 @@ def _import_vmware(handler, image, os_build_name, existing_osb, job):
     if len(candidates) != 1:
         raise Choices(_vmware_rows(candidates), "{} template(s) match '{}'; pass the exact name.".format(len(candidates), image))
     match = candidates[0]
+    if not os_build_name:
+        raise Choices(_vmware_rows([match]), "One template matches ({}); pass onb_os_build_name to import it.".format(match["name"]))
     already = VsphereOSBuildAttribute.objects.filter(resourcehandler=handler, template_name=match["name"]).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
@@ -327,6 +333,8 @@ def _import_generic(handler, image, os_build_name, existing_osb, job):
     candidates = [d for d in discovered if str(d.get("name") or d.get("value") or "").lower() == image.lower()]
     if len(candidates) != 1:
         raise Choices([{"name": d.get("name") or d.get("value")} for d in discovered[:MAX_LIST]], "{} image(s) match '{}'.".format(len(candidates), image))
+    if not os_build_name:
+        raise Choices([{"name": candidates[0].get("name") or candidates[0].get("value")}], "One image matches; pass onb_os_build_name to import it.")
     _add_template(handler, candidates[0], os_build_name, existing_osb)
     osba = handler.os_build_attributes.filter(template_name=candidates[0].get("name")).order_by("-id").first()
     if osba is None or osba.os_build is None:
@@ -344,8 +352,6 @@ def run(job, *args, **kwargs):
     inputs = _read_inputs()
     if not inputs["handler"]:
         return _failure("onb_handler is required.")
-    if inputs["image"] and not inputs["os_build_name"]:
-        return _failure("onb_os_build_name is required when onb_image names an image to import.")
     handler, error = _resolve_handler(inputs["handler"])
     if error:
         return _failure(error)
@@ -384,7 +390,7 @@ def run(job, *args, **kwargs):
             "note": choices.note,
             "next": "Call again with onb_image set to one AMI id, template name or publisher:offer:sku:version from the list, and onb_os_build_name.",
         }
-        if inputs["image"]:
+        if inputs["image"] and inputs["os_build_name"]:
             return {"status": "FAILURE", "output_message": "", "error_message": choices.note, "outputs": outputs}
         return _success(choices.note, outputs)
     except Exception as exc:
