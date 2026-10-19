@@ -157,9 +157,12 @@ def _add_template(handler, image_dict, os_build_name, existing_osb):
         image["os_family"] = guess_os_family(image)
     image["reported_os"] = image.get("guest_os")
     image.pop("os_build_name", None)
+    image.pop("os_build", None)
     if existing_osb is not None:
-        image.pop("os_build", None)
-        return handler.add_template(os_build=existing_osb, **image)
+        # AWS and Azure add_template() require os_build_name positionally and reset os_build
+        # unless the mapping flag says the caller chose the build on purpose.
+        return handler.add_template(os_build_name=existing_osb.name, os_build=existing_osb,
+                                    is_ami_osb_mapping=True, is_images_osb_mapping=True, **image)
     return handler.add_template(os_build_name=os_build_name, **image)
 
 
