@@ -285,8 +285,10 @@ def run(job, *args, **kwargs):
         )
         message = "Connection to '{}' failed: {}".format(handler.name, error_text[:300])
         outputs["next"] = (
-            "Give the user the edit link to fix credentials (never ask for the secret in chat), then run this tool again. "
-            "For appliance-side context call onb_recent_errors with onb_contains='{}'.".format(handler.name)
+            "Explain the error and the first hint to the user. Credentials and permissions are fixed on links.edit "
+            "(never ask for the secret in chat); connectivity, DNS, proxy and TLS are fixed on the appliance or network "
+            "side. Then run this tool again. For appliance-side context call onb_recent_errors with "
+            "onb_contains='{}'.".format(handler.name)
         )
 
     try:
