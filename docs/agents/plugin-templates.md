@@ -281,7 +281,7 @@ def run(job, **kwargs):
 
 **Return Format:** List of dictionaries, each representing a resource.
 
-**Required Module-Level Variable:** `RESOURCE_IDENTIFIER` (namespaced field containing the cloud-native unique ID).
+**Required Module-Level Variable:** `RESOURCE_IDENTIFIER` (namespaced field containing the cloud-native unique ID). The Sync Resources job refuses to run a discovery plugin without it ("No resource identifier(s) specified"), even one that creates and updates its resources itself and returns `[]`.
 
 ### Discovery Plugin Template
 
