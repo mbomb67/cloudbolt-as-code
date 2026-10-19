@@ -385,7 +385,18 @@ def _next_steps(report, base):
         )
     for handler in handlers:
         verify = handler.get("lastVerify") or {}
-        if not verify.get("ok"):
+        if verify and not verify.get("ok"):
+            steps.append(
+                {
+                    "step": "Fix the connection of resource handler '{}': the last verify failed with '{}'. Re-run onb_verify_resource_handler afterwards.".format(
+                        handler["name"], (verify.get("error") or "")[:160]
+                    ),
+                    "item": "P3",
+                    "handler": handler["id"],
+                    "url": handler["url"] + "edit/",
+                }
+            )
+        elif not verify:
             steps.append(
                 {
                     "step": "Verify the connection of resource handler '{}' with onb_verify_resource_handler.".format(
