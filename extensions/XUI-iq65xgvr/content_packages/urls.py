@@ -5,12 +5,17 @@ from . import views
 # The list page itself is the admin extension, served by CloudBolt at
 # /extensions/admin/content_packages/packages.
 xui_urlpatterns = [
-    # Details page and the dependency panel and README list it loads
-    # asynchronously
+    # Details page and the dependency panel, README list and Last sync card
+    # it loads asynchronously
     path(
         "xui/content_packages/packages/<str:pkg_id>/",
         views.package_detail,
         name="content_packages_detail",
+    ),
+    path(
+        "xui/content_packages/packages/<str:pkg_id>/last-sync/",
+        views.sync_panel,
+        name="content_packages_sync_panel",
     ),
     path(
         "xui/content_packages/packages/<str:pkg_id>/dependencies/",

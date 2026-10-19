@@ -1,0 +1,4 @@
+{% load i18n %}
+<div id="cpkx-last-synced" class="v">
+  {% if row.synced_at %}{% blocktrans with ago=row.synced_at|timesince %}{{ ago }} ago{% endblocktrans %}{% if row.sync_state %} <span class="cpk-tag cpk-tag-{{ row.sync_state.0 }}">{{ row.sync_state.1 }}</span>{% endif %}<div class="cpk-hint">{{ row.synced_at|date:"Y-m-d H:i T" }}</div>{% else %}<span class="cpk-muted">{% trans "Never" %}</span>{% endif %}
+</div>
