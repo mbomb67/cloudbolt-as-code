@@ -452,7 +452,7 @@ def _ev_4_3_1():
 def _ev_scripts(os_family):
     from cbhooks.models import RemoteScriptHook
 
-    rows = list(RemoteScriptHook.objects.filter(target_os_families__name__icontains=os_family).distinct().values_list("name", flat=True))
+    rows = list(RemoteScriptHook.objects.filter(os_families__name__icontains=os_family).distinct().values_list("name", flat=True))
     return _ev(rows, "{} remote scripts: {}".format(os_family, ", ".join(rows[:8]) or "none"))
 
 
