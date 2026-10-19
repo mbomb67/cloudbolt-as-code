@@ -36,6 +36,20 @@
     "is_orderable": true,
     "labels": [
         {
+            "color": "rgba(244,226,143,1)",
+            "id": "TAG-6spb5ltg",
+            "image": null,
+            "name": "AWS",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
             "color": null,
             "id": "TAG-ib4jvddz",
             "image": null,
