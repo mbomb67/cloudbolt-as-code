@@ -876,6 +876,23 @@
     ]
   },
   {
+    "id": "MTA-0dr8xi4i",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Import OS Build",
+    "description": "Imports one image (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing an existing build of the same name so one build spans handlers, and attaches the build to the handler's environments.",
+    "path": "mcp_tool_actions/MTA-0dr8xi4i",
+    "readme": "mcp_tool_actions/MTA-0dr8xi4i/README.md",
+    "uses": [
+      "plugins/OHK-k2p8ll4p"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_import_os_build",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-1985b88g",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: Status",
@@ -922,6 +939,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "onb_install",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-89dxppus",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Handler Locations",
+    "description": "Lists the regions, locations or clusters a resource handler can turn into environments, flags the ones already imported, lists the existing environments, and for an AWS region lists its VPCs.",
+    "path": "mcp_tool_actions/MTA-89dxppus",
+    "readme": "mcp_tool_actions/MTA-89dxppus/README.md",
+    "uses": [
+      "plugins/OHK-0nuhjdxl"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_handler_locations",
     "packages": [
       "packages/PKG-8aaadefz"
     ]
@@ -1020,6 +1054,57 @@
     ]
   },
   {
+    "id": "MTA-i1kmy5fd",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Configure Custom Server",
+    "description": "Makes the shipped Custom Server blueprint orderable for the POC: recreates it when missing, activates it, enables every environment on its server tier, and sets a hostname template on the tier or on the listed environments.",
+    "path": "mcp_tool_actions/MTA-i1kmy5fd",
+    "readme": "mcp_tool_actions/MTA-i1kmy5fd/README.md",
+    "uses": [
+      "plugins/OHK-ilstyopk"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_configure_custom_server",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-i6p4j2l7",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Import Environments",
+    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.",
+    "path": "mcp_tool_actions/MTA-i6p4j2l7",
+    "readme": "mcp_tool_actions/MTA-i6p4j2l7/README.md",
+    "uses": [
+      "plugins/OHK-8j06wtoe"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_import_environments",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-iyknuxox",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Trim Environment Order Form",
+    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.",
+    "path": "mcp_tool_actions/MTA-iyknuxox",
+    "readme": "mcp_tool_actions/MTA-iyknuxox/README.md",
+    "uses": [
+      "plugins/OHK-qn4k1pme"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_trim_environment",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-js655cf3",
     "type": "mcp_tool_actions",
     "name": "Cancel Jobs",
@@ -1094,6 +1179,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "onb_set_item_status",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-pz5o2gjl",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Remove Environment",
+    "description": "Deletes an environment imported by mistake so the POC can start over; refuses while active servers live in it.",
+    "path": "mcp_tool_actions/MTA-pz5o2gjl",
+    "readme": "mcp_tool_actions/MTA-pz5o2gjl/README.md",
+    "uses": [
+      "plugins/OHK-1wmzl7sp"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_remove_environment",
     "packages": [
       "packages/PKG-8aaadefz"
     ]
@@ -1498,12 +1600,12 @@
     "id": "PKG-8aaadefz",
     "type": "packages",
     "name": "POC Onboarding Toolkit",
-    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
+    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
     "path": "packages/PKG-8aaadefz",
     "readme": "packages/PKG-8aaadefz/README.md",
     "uses": [],
     "used_by": [],
-    "version": "0.1.0",
+    "version": "0.2.0",
     "contents": [
       "mcp_tool_actions/MTA-6zxrhdls",
       "mcp_tool_actions/MTA-1985b88g",
@@ -1513,6 +1615,12 @@
       "mcp_tool_actions/MTA-r5v1eblg",
       "mcp_tool_actions/MTA-92b836jb",
       "mcp_tool_actions/MTA-p72v9y76",
+      "mcp_tool_actions/MTA-89dxppus",
+      "mcp_tool_actions/MTA-i6p4j2l7",
+      "mcp_tool_actions/MTA-iyknuxox",
+      "mcp_tool_actions/MTA-0dr8xi4i",
+      "mcp_tool_actions/MTA-i1kmy5fd",
+      "mcp_tool_actions/MTA-pz5o2gjl",
       "mcp_tool_actions/MTA-543b19sa",
       "mcp_tool_actions/MTA-8j9c0tb0",
       "mcp_tool_actions/MTA-ntmcnvv7"
@@ -1660,6 +1768,19 @@
     ]
   },
   {
+    "id": "OHK-0nuhjdxl",
+    "type": "plugins",
+    "name": "POC Onboarding: Handler Locations",
+    "description": "Lists the regions, locations or clusters a resource handler can turn into environments, flags the ones already imported, lists the existing environments, and for an AWS region lists its VPCs.",
+    "path": "plugins/OHK-0nuhjdxl",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-89dxppus"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-0ql0870k",
     "type": "plugins",
     "name": "Install IIS Windows",
@@ -1737,6 +1858,19 @@
     "used_by": [
       "blueprints/BP-122nbdt5",
       "blueprints/BP-anonytrx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-1wmzl7sp",
+    "type": "plugins",
+    "name": "POC Onboarding: Remove Environment",
+    "description": "Deletes an environment imported by mistake so the POC can start over; refuses while active servers live in it.",
+    "path": "plugins/OHK-1wmzl7sp",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-pz5o2gjl"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2182,6 +2316,19 @@
     ],
     "used_by": [
       "blueprints/BP-zq0csldu"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-8j06wtoe",
+    "type": "plugins",
+    "name": "POC Onboarding: Import Environments",
+    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.",
+    "path": "plugins/OHK-8j06wtoe",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-i6p4j2l7"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2907,6 +3054,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ilstyopk",
+    "type": "plugins",
+    "name": "POC Onboarding: Configure Custom Server",
+    "description": "Makes the shipped Custom Server blueprint orderable for the POC: recreates it when missing, activates it, enables every environment on its server tier, and sets a hostname template on the tier or on the listed environments.",
+    "path": "plugins/OHK-ilstyopk",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-i1kmy5fd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-iub9a2jg",
     "type": "plugins",
     "name": "Runbook Task Template (Linux)",
@@ -2959,6 +3119,19 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-n67skws4"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-k2p8ll4p",
+    "type": "plugins",
+    "name": "POC Onboarding: Import OS Build",
+    "description": "Imports one image (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing an existing build of the same name so one build spans handlers, and attaches the build to the handler's environments.",
+    "path": "plugins/OHK-k2p8ll4p",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-0dr8xi4i"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3371,6 +3544,19 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-nszj7jop"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-qn4k1pme",
+    "type": "plugins",
+    "name": "POC Onboarding: Trim Environment Order Form",
+    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.",
+    "path": "plugins/OHK-qn4k1pme",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-iyknuxox"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
