@@ -294,7 +294,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `is_orderable` | boolean | Default `true`. |
 | `auto_historical_resources` | boolean | Default `false`. |
 | `show_recipient_field_on_order_form` | boolean | Display metadata only (not re-applied on import). |
-| `labels` | array[object] | Blueprint categories/tags. Set every label's `icon` (and its `parent`'s) to `null`: a repo sync passes the importer no files, and a label whose icon file is missing crashes the blueprint refresh with `stat: path should be string ... not NoneType` (CloudBolt 2026.3.78). The tag keeps the image already uploaded on the appliance. |
+| `labels` | array[object] | Blueprint categories/tags. Set every label's `icon` (and its `parent`'s) to `null`: a repo sync passes the importer no files, and a label whose icon file is missing crashes the blueprint refresh with `stat: path should be string ... not NoneType` (CloudBolt 2026.3.78). The tag keeps the image already uploaded on the appliance. The importer reuses an existing tag with the same `name`, whatever its global ID, and stamps `id` only on a tag it has to create (`BlueprintTagSerializer.create_or_update_from_dict`), so give a label the `id` it has on your reference appliance and it never duplicates. |
 | `deployment_permissions` | array[string] | `CBPermission` names. |
 | `deployment_items` | array[object] | Build-tab service items — see nested schema. |
 | `teardown_items` | array[object] | Teardown-tab items (same schema). |
