@@ -42,7 +42,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 0 | `onb_install` | async | Finish the toolkit install (synchronous flags, enabled, egress checks) |
 | 0 | `onb_playbook` | sync | Fetch this skill's text by section for clients without skills |
 | 1 | `onb_verify_resource_handler` | async | Run Verify Connection on a handler and get the real error plus a technology hint |
-| 1 | `onb_sync_images` | async | Fill the handler's image cache now without the whitelist and enable the cache jobs; start it right after verify and let it run |
+| 1 | `onb_sync_images` | async | Fill the handler's image cache now without the whitelist and enable the cache job and rule with the whitelist off; start it right after verify and let it run |
 | 2 | `onb_handler_locations` | async | List regions, locations or clusters (and an AWS region's VPCs) with what is already imported |
 | 2 | `onb_import_environments` | async | Create environments for the chosen locations with their subnets or networks |
 | 2 | `onb_import_os_build` | async | List the cached images for a location, or import an AMI, Azure image or vCenter template into an OS build attached to the environments |

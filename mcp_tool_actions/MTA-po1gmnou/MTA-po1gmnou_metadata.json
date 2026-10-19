@@ -4,7 +4,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "true also enables the technology's Fetch and Cache recurring job and rule, and Execute all Rules.",
+            "description": "true also enables the technology's Fetch and Cache recurring job and rule plus Execute all Rules, with their use_whitelist input mapped to false.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -71,7 +71,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Fill a resource handler's image cache now, without the image whitelist, and turn on the recurring job and rule that keep it fresh (Fetch and Cache available AWS AMIs, Fetch and Cache available VMWare template, the Azure images rule and Execute all Rules). CloudBolt's image pickers and onb_import_os_build read these caches; on a new appliance they are empty, and the default whitelist skips images customers often want. Call it right after onb_verify_resource_handler succeeds, then continue with environments while it runs: an AWS region without a whitelist can take ten minutes or more, Azure a location a minute or two, vCenter a few minutes. onb_locations limits the refresh to those regions or locations (default: the handler's environments, else every imported region). Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Fill a resource handler's image cache now, without the image whitelist, and turn on the recurring job and rule that keep it fresh (Fetch and Cache available AWS AMIs, Fetch and Cache available VMWare template, the Azure images rule and Execute all Rules), mapping their use_whitelist input to false so the scheduled refreshes stay complete. CloudBolt's image pickers and onb_import_os_build read these caches; on a new appliance they are empty, and the default whitelist skips images customers often want. Call it right after onb_verify_resource_handler succeeds, then continue with environments while it runs: an AWS region without a whitelist can take ten minutes or more, Azure a location a minute or two, vCenter a few minutes. onb_locations limits the refresh to those regions or locations (default: the handler's environments, else every imported region). Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_sync_images",
     "mcp_tool_title": ""
 }

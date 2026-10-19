@@ -2,7 +2,8 @@
 POC Onboarding: Sync Images (MCP Tool Action plugin).
 
 Fills a resource handler's image cache now, without the image whitelist,
-and turns on the recurring job and rule that keep it fresh. CloudBolt's
+and turns on the recurring job and rule that keep it fresh, with their
+use_whitelist input mapped to false so the scheduled runs stay complete. CloudBolt's
 image pickers (and onb_import_os_build) read cached images: AMIs
 (AwsCachedAMI), Azure marketplace images (AzureARMAvailableImage), vCenter
 templates (VMWareAvailableImage). On a new appliance the caches are empty
@@ -191,8 +192,34 @@ def _refresh(handler, family, locations, job):
     return {"refreshed": False, "note": "This technology keeps no image cache; its images are listed live on the handler page."}
 
 
+def _whitelist_off(owner, hook):
+    """Map the action's use_whitelist input to false on this trigger (rule action or recurring job).
+
+    The stock Fetch and Cache rules ship with use_whitelist mapped to true, so enabling them as they
+    are would keep the nightly refresh on the whitelist. The mapping is a RunHookInputMapping whose
+    default_value is a CustomFieldValue of the hook's input (named use_whitelist_a<hook id>).
+    """
+    from cbhooks.models import RunHookInputMapping
+    from orders.models import CustomFieldValue
+
+    hook_input = hook.input_fields.filter(name__startswith="use_whitelist").first()
+    if hook_input is None:
+        return "no use_whitelist input"
+    mapping = owner.input_mappings.filter(hook_input=hook_input).first()
+    if mapping is not None and mapping.default_value is not None and mapping.default_value.value is False:
+        return "use_whitelist already false"
+    cfv, _created = CustomFieldValue.objects.get_or_create(field=hook_input, boolean_value=False)
+    if mapping is None:
+        mapping = RunHookInputMapping.objects.create(hook_input=hook_input, default_value=cfv)
+        owner.input_mappings.add(mapping)
+    else:
+        mapping.default_value = cfv
+        mapping.save()
+    return "use_whitelist set to false"
+
+
 def _enable_jobs(family, base):
-    from cbhooks.models import TriggerPoint
+    from cbhooks.models import HookPointAction, TriggerPoint
     from jobs.models import RecurringJob
 
     spec = CACHE_JOBS.get(family, {"recurring_jobs": [], "rules": []})
@@ -207,8 +234,17 @@ def _enable_jobs(family, base):
             rj.enabled = True
             rj.save()
             changed = True
-        rows.append({"kind": "recurring job", "name": name, "schedule": rj.schedule, "status": "enabled" if changed else "already enabled",
-                     "url": base + "/recurring_jobs/"})
+        row = {"kind": "recurring job", "name": name, "schedule": rj.schedule, "status": "enabled" if changed else "already enabled",
+               "url": base + "/recurring_jobs/"}
+        if name != RULES_RUNNER:
+            real = rj.cast()
+            hook = getattr(real, "hook", None)
+            if hook is not None:
+                row["useWhitelist"] = _whitelist_off(real, hook)
+            if family == "aws":
+                row["note"] = ("CloudBolt's AWS cache action always applies the whitelist when it runs as a recurring job "
+                               "(no regions are passed); the rule below does the full refresh per imported region.")
+        rows.append(row)
     for name in spec["rules"]:
         rule = TriggerPoint.objects.filter(name=name).first()
         if rule is None:
@@ -219,7 +255,12 @@ def _enable_jobs(family, base):
             rule.enabled = True
             rule.save()
             changed = True
-        rows.append({"kind": "rule", "name": name, "status": "enabled" if changed else "already enabled", "url": base + "/actions/rules/"})
+        row = {"kind": "rule", "name": name, "status": "enabled" if changed else "already enabled", "url": base + "/actions/rules/"}
+        results = []
+        for action in HookPointAction.objects.filter(hook_point_id=rule.pk):
+            results.append(_whitelist_off(action, action.hook))
+        row["useWhitelist"] = results[0] if len(results) == 1 else (results or "no actions")
+        rows.append(row)
     return rows
 
 
@@ -260,11 +301,11 @@ def run(job, *args, **kwargs):
         "refresh": refresh,
         "cachedImages": {"before": before, "after": after, "scope": locations or "all"},
         "secondsTaken": seconds,
-        "whitelist": "not applied: every image the credentials can see is cached",
+        "whitelist": "not applied now, and the enabled rule and job are mapped to use_whitelist=false for their scheduled runs",
         "scheduledRefresh": jobs,
         "next": (
             "Pick the images with onb_import_os_build (leave onb_image empty to list the cache for a location). The "
-            "recurring job and rule above keep the cache fresh on their schedule."
+            "recurring job and rule above keep the cache fresh on their schedule, without the whitelist."
         ),
     }
     message = "{}: cache {} -> {} image(s) in {}s; {} job/rule row(s).".format(handler.name, before, after, seconds, len(jobs))
