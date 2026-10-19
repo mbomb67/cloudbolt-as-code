@@ -164,6 +164,11 @@ def _pin_environment(orchestrator, cluster_name, namespace, region, group, tier)
     """The Environment pinned to the namespace, created when missing and entitled to ``group``."""
     if orchestrator is None:
         return None
+    # TEMP diagnostics
+    from infrastructure.models import Environment as _Env
+    for _e in _Env.objects.filter(container_orchestrator_id=orchestrator.id):
+        _vals = [(c.field.name, c.field_id, repr(c.value)) for c in _e.custom_field_options.all()]
+        set_progress(f"DEBUG env {_e.id} {_e.name!r} orch={_e.container_orchestrator_id} cfvs={_vals} get_cfv={_e.get_cfv('kubernetes_namespace')!r}")
     try:
         env, created = ensure_environment_for_namespace(
             orchestrator, cluster_name, namespace,
