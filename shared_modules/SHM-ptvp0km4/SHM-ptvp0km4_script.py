@@ -276,8 +276,9 @@ class ArmClient:
         location = resp.headers.get("Location") or resp.headers.get("location")
         if not async_url and not location:
             return "Succeeded"
-        deadline = time.time() + timeout
-        polls = 0
+        started = time.time()
+        deadline = started + timeout
+        last_report = started
         while time.time() < deadline:
             delay = POLL_SECONDS
             try:
@@ -285,7 +286,6 @@ class ArmClient:
             except (TypeError, ValueError):
                 pass
             time.sleep(delay)
-            polls += 1
             if async_url:
                 resp = self.request("GET", async_url, api_version=None)
                 if resp.status_code >= 400:
@@ -309,8 +309,9 @@ class ArmClient:
                     code, message = _error_parts(resp)
                     raise AKSError(f"{what} failed: {code}: {message}", resp.status_code, code)
                 status = "InProgress"
-            if progress and polls % 2 == 0:
-                set_progress(f"{what} is {status} ({int(polls * delay / 60)} min)", increment_tasks=1)
+            if progress and time.time() - last_report >= 60:
+                last_report = time.time()
+                set_progress(f"{what} is {status} ({int((last_report - started) // 60)} min)", increment_tasks=1)
         raise AKSError(f"{what} did not finish within {timeout // 60} minutes.")
 
 
