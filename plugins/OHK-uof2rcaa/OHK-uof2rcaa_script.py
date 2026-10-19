@@ -34,6 +34,12 @@ from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
+# CloudBolt's Sync Resources job refuses to run a discovery plugin without
+# this. The plugin creates and updates the resources itself and returns no
+# dicts, so the framework never matches on it; the plugin matches by
+# Azure resource ID.
+RESOURCE_IDENTIFIER = "aks_resource_id"
+
 
 def _existing(resource_id):
     """The active Kubernetes Cluster resource recorded with this Azure resource ID, or None."""
