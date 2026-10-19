@@ -54,7 +54,15 @@
     "icon": "terraform_rTNoRQp.png",
     "id": "BP-uh9v24v3",
     "is_orderable": true,
-    "labels": [],
+    "labels": [
+        {
+            "color": null,
+            "id": "TAG-nlsbt39p",
+            "image": null,
+            "name": "Terraform",
+            "sequence": 0
+        }
+    ],
     "last_updated": "2026-10-07",
     "management_actions": [
         {
