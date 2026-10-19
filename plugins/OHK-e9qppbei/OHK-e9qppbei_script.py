@@ -183,33 +183,44 @@ def discover_resources(**kwargs):
             defaults={"label": "Kubernetes Cluster", "icon": "fas fa-dharmachakra"},
         )
 
-    discovered = []
+    skipped_handler_ids = set()
+    listed = set()
 
     for environment in environments:
-        client = get_boto3_eks_client(environment)
-
-        if client is None:
-            continue
-
         handler = environment.resource_handler.cast()
 
+        # one resource per cluster per account and region, however many
+        # environments share that account and region
+        if (
+            handler.id in skipped_handler_ids
+            or (handler.id, environment.aws_region) in listed
+        ):
+            continue
+
+        # Not every AWS handler is set up for Kubernetes: one whose credentials
+        # cannot list or describe EKS clusters is skipped, with its remaining
+        # environments, so it does not stop discovery for the other handlers.
         try:
-            response_dict = client.list_clusters()
-        except Exception as err:
-            raise Exception(err)
+            client = get_boto3_eks_client(environment)
 
-        for cluster_name in response_dict["clusters"]:
-            cluster = client.describe_cluster(name=cluster_name)["cluster"]
-
-            # one resource per cluster per account and region, however many
-            # environments share that account and region
-            idtf_resource_name = f"{handler.id}:{environment.aws_region}:{cluster_name}"
-
-            if idtf_resource_name in discovered:
+            if client is None:
                 continue
 
-            discovered.append(idtf_resource_name)
+            clusters = [
+                client.describe_cluster(name=cluster_name)["cluster"]
+                for cluster_name in client.list_clusters()["clusters"]
+            ]
+        except Exception as err:
+            logger.info(
+                f"Skipping AWS handler {handler.name} for EKS discovery after "
+                f"{environment.aws_region} failed: {err}"
+            )
+            skipped_handler_ids.add(handler.id)
+            continue
 
+        listed.add((handler.id, environment.aws_region))
+
+        for cluster in clusters:
             # get cluster resource object
             resource = Resource.objects.filter(
                 name=cluster["name"], lifecycle="ACTIVE"
