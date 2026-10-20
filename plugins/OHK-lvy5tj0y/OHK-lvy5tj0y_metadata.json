@@ -27,7 +27,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause unless the workspace auto-applies.",
     "id": "OHK-lvy5tj0y",
     "max_retries": 0,
     "name": "Terraform Update",
