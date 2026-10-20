@@ -1,10 +1,10 @@
 {
-    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
+    "description": null,
     "enabled": true,
     "icon_url": "",
     "id": "XUI-0jdk7t6h",
     "label": "Azure NSG Management",
-    "last_updated": "2026-07-01",
+    "last_updated": "2026-10-20",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "azure_nsg_management",
