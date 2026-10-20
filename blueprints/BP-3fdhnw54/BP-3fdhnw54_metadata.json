@@ -21,7 +21,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates, deletes, and discovers Azure network security groups.",
+    "description": "Create, delete and synchronise Azure Network Security Groups",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-kdne1t5s"
@@ -30,33 +30,18 @@
         "title": "Azure Network Security Group Sync"
     },
     "favorited": false,
-    "icon": "imagesa040026w_nRnPsaJ_sfLCSn3_BbbLK8c_ubmJBFG_VfFBhMB.png",
+    "icon": "imagesa040026w_nRnPsaJ_sfLCSn3_BbbLK8c_ubmJBFG_JWegGMt.png",
     "id": "BP-3fdhnw54",
     "is_orderable": true,
-    "labels": [
-        {
-            "color": null,
-            "icon": "azure2.png",
-            "id": "TAG-0r4q7b80",
-            "image": "/static/uploads/tags/azure2.png",
-            "name": "Azure",
-            "parent": {
-                "color": "rgba(25,171,188,1)",
-                "icon": "cloud.png",
-                "id": "TAG-cvblowou",
-                "image": "/static/uploads/tags/cloud.png",
-                "name": "Clouds",
-                "sequence": 0
-            },
-            "sequence": 0
-        }
-    ],
-    "last_updated": "2026-07-02",
+    "labels": [],
+    "last_updated": "2026-10-20",
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "Azure Network Security Group",
     "resource_name_template": "",
     "resource_type": {
+        "categories": [],
+        "description": null,
         "icon": "",
         "id": "RT-3vsv1jd0",
         "internal_only": false,

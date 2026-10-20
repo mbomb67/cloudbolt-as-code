@@ -27,35 +27,21 @@ def get_tenant_id_for_azure(handler):
     return handler.tenant_id
 
 
-def _resolve_group(group):
-    """The group kwarg arrives as a Group or as its name depending on caller."""
-    if group is None or isinstance(group, Group):
-        return group
-    return Group.objects.filter(name=str(group)).first()
-
-
 def generate_options_for_env_id(server=None, **kwargs):
-    """RBAC-aware Environment selector, restricted to Azure-backed environments.
-
-    Standard: Group.get_available_environments() returns the environments
-    explicitly entitled to the requesting group (and its ancestors) PLUS any
-    unconstrained environments (no groups assigned). Users must be able to
-    order into both, so never filter Environment by group__in alone.
-    See docs/agents/rbac-and-security.md.
-    """
-    group = _resolve_group(kwargs.get("group"))
-    if not group:
+    group_name = kwargs["group"]
+    
+    try:
+        group = Group.objects.get(name=group_name)
+    except Exception as err:
         return []
-
-    available_ids = [env.id for env in group.get_available_environments()]
-    envs = Environment.objects.filter(
-        id__in=available_ids,
-        resource_handler__azurearmhandler__isnull=False,
-    ).order_by("name")
-    if not envs.exists():
-        return [("", "------ No Azure environments available ------")]
-
-    return [(env.id, env.name) for env in envs]
+    
+    # fetch all group environment
+    envs = group.get_available_environments()
+    azure_envs= [env for env in envs if env.resource_handler.resource_technology.name == "Azure"]
+    
+    options = [(env.id, env.name) for env in azure_envs]
+    
+    return options
 
 
 def generate_options_for_resource_group(control_value=None, **kwargs):
