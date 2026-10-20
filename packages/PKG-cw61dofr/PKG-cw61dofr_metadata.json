@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "blueprints/BP-3fdhnw54",
+        "extensions/XUI-0jdk7t6h"
+    ],
+    "description": "Creates an Azure Network Security Group via Blueprint and couples a UI extension for managing firewall rules",
+    "id": "PKG-cw61dofr",
+    "last_updated": "2026-10-20",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Azure NSG",
+    "version": "1.0.0"
+}
