@@ -42,7 +42,7 @@
     <div class="tf-banner-t">{% trans "A newer version of the no-code module is available" %}</div>
     <div class="tf-banner-s">
       {% if module.version %}{% blocktrans with current=module.version %}This workspace runs v{{ current }}{% endblocktrans %}{% else %}{% trans "This workspace runs an older module version" %}{% endif %}{% if module.pin %}; {% blocktrans with pin=module.pin %}the module is pinned to v{{ pin }}{% endblocktrans %}{% endif %}.
-      {% trans "Deploy Latest Version upgrades the workspace through a plan-approval job." %}
+      {% trans "Deploy Latest Version upgrades the workspace through a CloudBolt job." %}
     </div>
   </div>
   {% if module.upgrade_url %}

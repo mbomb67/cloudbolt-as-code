@@ -4,11 +4,11 @@ CloudBolt build plugin: HCP Terraform No-Code Module.
 Provisions infrastructure for the "HCP Terraform No-Code Module" blueprint
 (BP-00meiwwz) through HCP Terraform's NO-CODE provisioning workflow: one
 dedicated workspace per deployment, created FROM a pinned no-code registry
-module (POST /no-code-modules/:id/workspaces), the form-collected variables
-written as workspace variables, and the run HCP auto-queues adopted into a
-human plan-approval pause. All TFC REST access goes through the tfc_api shared
-module (shared_modules/SHM-jlguerjr) -- no vendor API call is made directly
-here.
+module (POST /no-code-modules/:id/workspaces) with Auto Apply on, the
+form-collected variables written as workspace variables, and the run HCP
+auto-queues adopted and followed until HCP has applied it -- no plan-approval
+pause. All TFC REST access goes through the tfc_api shared module
+(shared_modules/SHM-jlguerjr) -- no vendor API call is made directly here.
 
 This is the sibling of the VCS-based "HCP Terraform VM" build plugin
 (OHK-pvo05e24). It shares that blueprint's "form is the manifest; terraform
@@ -68,15 +68,16 @@ Flow (plan U3):
       no run appeared -> upsert vars + create one (run_with_plan_approval)
     * adopted workspace (retry) -> adopt an orphaned pending run, or fail fast
       if a live CloudBolt job owns one, else upsert vars + fresh run
-  -> plan-approval pause ('Continue Job' applies; cancel rejects+discards) ->
-  store the run URL, every discovered tfc_output_* field and the tfc_var_*
+  -> HCP auto-applies the plan (auto_confirm confirms it if a workspace made
+  before Auto Apply was on stops at the gate; canceling the job while it
+  plans discards the run) -> store the run URL, every discovered tfc_output_* field and the tfc_var_*
   mirrors (the resource keeps the orderer's Workspace Name).
 
-Approval/reject ownership: the shared engine owns the reject path -- it catches
-CancelJobException (a BaseException subclass), discards the run, and re-raises.
-This plugin NEVER catches CancelJobException. A rejected provision re-raises
-out of run(), leaving the resource PROVFAILED with its workspace ID already
-stored -- teardown-cleanable.
+Cancel ownership: the shared engine owns the cancel path -- it catches
+CancelJobException (a BaseException subclass), discards the run while it is
+still pre-apply, and re-raises. This plugin NEVER catches CancelJobException.
+A canceled provision re-raises out of run(), leaving the resource PROVFAILED
+with its workspace ID already stored -- teardown-cleanable.
 
 Credentials stay in HCP Terraform (the project-scoped variable set holds the
 client ID/secret); CloudBolt contributes only WHERE to deploy -- the chosen
@@ -337,7 +338,7 @@ def _no_contract_note(client, workspace_id):
 
 
 def run(job, **kwargs):
-    """Provision through HCP Terraform no-code with a plan-approval pause."""
+    """Provision through HCP Terraform no-code; HCP auto-applies the plan."""
     set_progress("Starting HCP Terraform No-Code Module provisioning...")
     logger.info("HCP Terraform No-Code build plugin started for job %s", job.id)
 
@@ -606,7 +607,7 @@ def run(job, **kwargs):
                 resource.set_value_for_custom_field("tfc_run_id", adopted_run_id)
                 resource.save()
                 result = drive_run_with_plan_approval(
-                    job, client, workspace_id, adopted_run_id
+                    job, client, workspace_id, adopted_run_id, auto_confirm=True
                 )
             else:
                 # No adoptable run (no auto-queued run appeared, or an adopted
@@ -616,7 +617,9 @@ def run(job, **kwargs):
                     workspace_id, variables, sensitive_keys=sensitive_keys
                 )
                 client.upsert_variables(workspace_id, arm_variables, category="env")
-                result = run_with_plan_approval(job, client, workspace_id, message)
+                result = run_with_plan_approval(
+                    job, client, workspace_id, message, auto_confirm=True
+                )
                 resource.set_value_for_custom_field("tfc_run_id", result["run_id"])
                 resource.save()
         except TFCRunFailedError as exc:

@@ -4,9 +4,10 @@ CloudBolt Day-2 resource action: Deploy Latest Version (HCP Terraform no-code).
 Upgrades a no-code deployment -- the "HCP Terraform No-Code Module" blueprint
 (BP-00meiwwz), or any blueprint whose build plugin records
 tfc_nocode_module_id -- to the module version HCP Terraform currently pins as
-no-code ready, through HCP's workspace-upgrade API and the same human
-plan-approval pause every other change in this repo goes through. All TFC
-REST access goes through the tfc_api shared module (shared_modules/SHM-jlguerjr).
+no-code ready, through HCP's workspace-upgrade API. The run is applied with
+no pause on a workspace that auto-applies (every no-code workspace is created
+with Auto Apply on); an older workspace without it pauses for plan approval
+like every other change in this repo. All TFC REST access goes through the tfc_api shared module (shared_modules/SHM-jlguerjr).
 
 What "latest" means: the version pinned on the no-code module in HCP
 Terraform (GET /no-code-modules/:id -> version-pin). HCP owns the pin; moving
@@ -31,18 +32,19 @@ job carrying several resources -- so this plugin iterates every target it was
 handed, upgrades each independently (a failure on one does not stop the
 others), and returns the worst status with a per-target summary. A server
 action pointed at this plugin maps each server to its owning Resource.
-Each target that needs an upgrade pauses the job once for its own plan
-approval, in order.
+On a workspace without Auto Apply, each target that needs an upgrade pauses
+the job once for its own plan approval, in order.
 
 Flow per target:
   read coordinates -> get client -> read workspace + module -> decide
   (already current / not no-code / needs upgrade) -> concurrency guard
   (non-final runs -> FAILURE) -> initiate the upgrade (HCP creates a
   configuration version from the pinned module version and queues a run;
-  the upgrade ID is the run ID) -> adopt that run into the plan-approval
-  pause -> 'Continue Job' confirms it through the documented upgrade
-  confirmation endpoint; canceling the job discards the run (nothing to
-  revert: no variables were written) -> on apply, re-read the workspace,
+  the upgrade ID is the run ID) -> adopt that run -> confirm it through the
+  documented upgrade confirmation endpoint once its plan is ready (at once
+  on an auto-apply workspace, after 'Continue Job' otherwise); canceling the
+  job before then discards the run (nothing to revert: no variables were
+  written) -> on apply, re-read the workspace,
   record tfc_nocode_module_version / tfc_run_id / tfc_run_url, and refresh
   every tfc_output_* from the applied state (the resource keeps the Workspace
   Name its orderer chose; outputs never rename a no-code deployment).
@@ -277,7 +279,7 @@ def _deploy_latest(job, resource):
                 "Terraform tab.".format(label, workspace_name, "; ".join(descriptions)),
             )
 
-        # ---- Initiate the upgrade; adopt its run into the approval pause ---
+        # ---- Initiate the upgrade; adopt its run --------------------------
         blueprint = getattr(resource, "blueprint", None)
         message = build_run_message(
             job.id, resource.global_id, getattr(blueprint, "name", "") or "HCP Terraform"
