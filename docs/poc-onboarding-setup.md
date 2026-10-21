@@ -93,7 +93,7 @@ The toolkit installs through the Content Package Manager, a UI extension from th
 
 1. **Add the repository.** Admin > Source Code Repositories > **Add** > **GitHub**, then enter:
    - Label: `CloudBolt as Code`
-   - Repository URL: `https://github.com/mbomb67/cloudbolt-as-code.git`
+   - Repository URL: `https://github.com/mbomb67/cloudbolt-as-code`
    - Auth method: Personal Access Token, with Username and Password or Token left empty, because the repository is public
 
    Leave the other fields at their defaults and save.
