@@ -1191,7 +1191,15 @@ def _revoke(env, group):
         logger.warning("Could not remove env %s from descendants of %s: %s", env, group, exc)
 
 
+def _escaped(names):
+    """Names for a history message, HTML-escaped as CloudBolt's own Edit groups dialog does."""
+    from django.utils.html import escape
+
+    return ", ".join(escape(name) for name in names)
+
+
 def _record(env, message, profile=None, job=None):
+    """Add an environment history event; message holds names already escaped."""
     try:
         env.add_event("INFO", message, profile=profile, job=job)
     except Exception as exc:
@@ -1211,7 +1219,7 @@ def add_environment_groups(env, groups, profile=None, job=None):
     for group in added:
         _grant(env, group)
     names = [g.name for g in added]
-    _record(env, f"Entitled group(s) {', '.join(names)} to environment '{env.name}'.", profile, job)
+    _record(env, f"Entitled group(s) {_escaped(names)} to environment '{_escaped([env.name])}'.", profile, job)
     return names
 
 
@@ -1229,7 +1237,7 @@ def remove_environment_groups(env, groups, profile=None, job=None):
         for group in list(env.group_set.all()):
             _revoke(env, group)
     names = [g.name for g in removed]
-    message = f"Removed group(s) {', '.join(names)} from environment '{env.name}'."
+    message = f"Removed group(s) {_escaped(names)} from environment '{_escaped([env.name])}'."
     if environment_groups(env)[0] == UNCONSTRAINED:
         message += " No groups remain, so every group may use it."
     _record(env, message, profile, job)
@@ -1244,7 +1252,7 @@ def allow_all_groups(env, profile=None, job=None):
         _revoke(env, group)
     names = [g.name for g in groups]
     if names:
-        _record(env, f"Removed every group ({', '.join(names)}) from environment '{env.name}'; "
+        _record(env, f"Removed every group ({_escaped(names)}) from environment '{_escaped([env.name])}'; "
                      "every group may use it.", profile, job)
     return names
 

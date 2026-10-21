@@ -38,14 +38,13 @@ from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
-ADD = "Add"
-REMOVE = "Remove"
-ALLOW_ALL = "Allow all groups"
-OPERATIONS = [
-    (ADD, "Add - entitle the chosen groups"),
-    (REMOVE, "Remove - take the chosen groups off; with none left, every group may order namespaces"),
-    (ALLOW_ALL, "Allow all groups - remove every group so every group may order namespaces"),
-]
+# The same values and labels as Manage AWS EKS Cluster Groups.
+ADD = "add"
+REMOVE = "remove"
+ALLOW_ALL = "allow_all"
+OPERATIONS = [(ADD, "Add"), (REMOVE, "Remove"), (ALLOW_ALL, "Allow all groups")]
+# Labels are accepted too, so a caller may pass either.
+OPERATION_NAMES = {label.lower(): value for value, label in OPERATIONS}
 
 
 def _text(value):
@@ -99,6 +98,7 @@ def generate_options_for_aks_groups(field=None, **kwargs):
 
 def run(job, resource, **kwargs):
     operation = _text("{{ aks_groups_operation }}") or ADD
+    operation = OPERATION_NAMES.get(operation.lower(), operation)
     group_ids = group_ids_in("""{{ aks_groups }}""")
 
     if not is_aks_cluster(resource):
@@ -113,7 +113,7 @@ def run(job, resource, **kwargs):
     if unknown:
         return "FAILURE", "", f"No CloudBolt group to entitle has the ID(s) {', '.join(unknown)}."
     if operation != ALLOW_ALL and not groups:
-        return "FAILURE", "", f"Choose at least one group to {operation.lower()}."
+        return "FAILURE", "", f"Choose at least one group to {operation}."
 
     set_progress(f"Environment '{env.name}' is {describe(env)}.")
     if operation == ADD:

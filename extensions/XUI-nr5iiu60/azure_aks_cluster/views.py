@@ -1718,9 +1718,9 @@ def scale_node_pool(request, resource_id, pool_name):
 
 
 # Operations of the Manage AKS Cluster Groups action (plugins/OHK-yzmq0kzu).
-GROUPS_ADD = "Add"
-GROUPS_REMOVE = "Remove"
-GROUPS_ALLOW_ALL = "Allow all groups"
+GROUPS_ADD = "add"
+GROUPS_REMOVE = "remove"
+GROUPS_ALLOW_ALL = "allow_all"
 
 
 def _groups_dialog_guard(request, resource_id, title):
