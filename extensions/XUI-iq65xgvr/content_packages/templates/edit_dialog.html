@@ -34,7 +34,7 @@
     <span class="cpk-tag cpk-tag-live" data-cpk-total>{{ selected_count }} {% trans "selected" %}</span>
   </div>
   <div class="form-text">
-    {% trans "Pick top-level content only. A blueprint brings its plugins, forms, shared modules, management actions and its own parameters; an action brings its plugin; a parameter brings the orchestration actions that generate its options; a Runbooks workflow brings the plugins its steps run. Add a parameter the members read but no blueprint defines, such as an environment parameter. Forms and form functions are not listed because they only sync with their parent." %}
+    {% trans "Pick top-level content only. A blueprint brings its plugins, forms, shared modules, management actions, its own parameters and the workflows its Run Workflow items pin; an action brings its plugin; a parameter brings the orchestration actions that generate its options; a Runbooks workflow brings the plugins its steps run. Add a parameter the members read but no blueprint defines, such as an environment parameter. Forms and form functions are not listed because they only sync with their parent." %}
   </div>
 
   {% for section in sections %}

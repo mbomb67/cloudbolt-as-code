@@ -66,6 +66,11 @@ SECRET_TYPES = {"PWD", "ETXT"}
 SWF_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
 WORKFLOW_FILTERS = {"os_families", "resource_technologies", "os_builds"}
 WORKFLOW_INSTANCE_FILTERS = {"groups", "environments", "configuration_managers"}
+# Workflows a blueprint's Run Workflow build item pins travel with it; mirrors
+# workflows.blueprint_pins in extensions/XUI-iq65xgvr.
+RUNNER_HOOK_REF = "plugins/OHK-69gk5ne9"
+PIN_DEFAULT_RE = re.compile(r"^workflow_a\d+$")
+PIN_QUESTION_RE = re.compile(r"^plugin-bdi-([a-z0-9]+)\.workflow$", re.IGNORECASE)
 
 
 def walk(obj, path=""):
@@ -107,11 +112,55 @@ def dependency_refs(obj):
             yield from dependency_refs(item)
 
 
+def pinned_workflows(ref, parsed):
+    """runbook_workflows/SWF-* refs blueprint ref pins by ID: a workflow_a<N>
+    default on a Run Workflow build item, or a defaultValue on that item's
+    plugin-bdi-<item>.workflow question in the blueprint's custom form."""
+    data = parsed.get(ref) or {}
+    values, items = [], set()
+    for item in data.get("deployment_items") or []:
+        item = item if isinstance(item, dict) else {}
+        hook = (item.get("dependencies") or {}).get("hook")
+        if hook != RUNNER_HOOK_REF and (parsed.get(hook) or {}).get("name") != "Run Workflow":
+            continue
+        items.add(str(item.get("id") or "")[4:].lower())
+        values += [str(d.get("value") or "") for d in item.get("parameter_defaults") or []
+                   if isinstance(d, dict) and PIN_DEFAULT_RE.match(str(d.get("name") or ""))]
+    form = parsed.get((data.get("dependencies") or {}).get("custom_form")) or {}
+    if items and isinstance(form.get("json"), str):
+        try:
+            survey = json.loads(form["json"])
+        except ValueError:
+            survey = {}
+        for element in form_elements(survey):
+            m = PIN_QUESTION_RE.match(str(element.get("name") or ""))
+            if m and m.group(1).lower() in items:
+                values.append(str(element.get("defaultValue") or ""))
+    return [f"runbook_workflows/{v.strip()}" for v in dict.fromkeys(values) if SWF_ID_RE.match(v.strip())]
+
+
+def form_elements(node):
+    """Every object with a name in a SurveyJS form definition."""
+    if isinstance(node, dict):
+        if "name" in node:
+            yield node
+        for value in node.values():
+            yield from form_elements(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from form_elements(value)
+
+
 def carried_by(ref, parsed):
-    """What exporting ref writes along with it: its dependencies, transitively."""
+    """What exporting ref writes along with it: its dependencies, transitively,
+    and the workflows a blueprint pins."""
     seen, todo = set(), [ref]
     while todo:
-        for dep in dependency_refs(parsed.get(todo.pop(), {})):
+        current = todo.pop()
+        refs = list(dependency_refs(parsed.get(current, {})))
+        if current.startswith("blueprints/"):
+            refs += pinned_workflows(current, parsed)
+        for dep in refs:
             if dep not in seen:
                 seen.add(dep)
                 todo.append(dep)

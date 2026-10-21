@@ -408,8 +408,28 @@ Decisions (Mike, 2026-10-20):
   current enabled state" applies to workflows as CloudBolt applies it to
   actions.
 - Attached File Archives files are not carried yet; sync accepts entries the
-  target does not hold and warns. Carrying the files and finding workflows a
-  blueprint pins are later phases.
+  target does not hold and warns. Carrying the files is a later phase.
+
+Pins and Remote Scripts (phases 2 and 3, 2026-10-21):
+
+- A blueprint member carries the workflows its Run Workflow build items pin,
+  as a blueprint carries its plugins, without the package listing them. A pin
+  is a default on the item's workflow input (`parameter_defaults`
+  `workflow_a<N>`) or on its `plugin-bdi-<item>.workflow` question in the
+  blueprint's custom form, an SWF- id or exact name.
+- One parser (`workflows.blueprint_pins`) reads the exported files: the
+  Dependencies panel reads the scratch export, Export reads the branch after
+  the blueprint's push, Sync reads the branch. Reading CloudBolt's own export
+  keeps one definition of a pin on both sides; the build item's
+  `input_mappings` would serve the source only.
+- Export writes each pinned workflow's folder and pushes its step plugins
+  after the members. Sync queues the step plugins with the other actions,
+  then the pinned workflows, then the members that follow the actions.
+  Sync refuses to start when a pin has no folder on the branch and the
+  target has no such workflow, as it does for a parameter never exported.
+- The picker gains a Remote Scripts section: the Remote Scripts Run Task
+  offers are not shared, so the Plugins section never listed them. They stay
+  `plugins/OHK-*` refs.
 
 ### Sync (refresh the appliance from the package's home branch)
 

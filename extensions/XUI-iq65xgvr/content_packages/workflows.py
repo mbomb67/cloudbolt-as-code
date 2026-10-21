@@ -16,6 +16,12 @@ actions its steps run under dependencies.
   then a job of this extension runs runbook_workflows.import_workflow, which
   keeps the workflow's SWF- id. A different workflow with the same name is
   never overwritten: that job ends with a warning and the chain goes on.
+- Pins: a blueprint member whose Run Workflow build item pins a workflow
+  carries that workflow the same way, unless the package lists it.
+  blueprint_pins reads the pins from the blueprint's exported metadata and
+  custom form, so the Dependencies panel (a scratch export), Export (the
+  branch after the blueprint's push) and Sync (the branch) read the same
+  files.
 
 The Runbooks content does the work, so it has to be on the appliance; without
 it, workflows are neither offered nor exported nor synced.
@@ -24,6 +30,7 @@ import importlib.util
 import json
 import os
 import posixpath
+import re
 from datetime import date
 
 from cbhooks.models import OrchestrationHook, SharedModule
@@ -34,6 +41,17 @@ from xui.content_packages import store
 logger = ThreadLogger(__name__)
 
 MODULE_NAME = "runbook_workflows"
+
+# The Run Workflow plugin (plugins/OHK-69gk5ne9). An appliance where CloudBolt
+# matched it by name keeps its own global ID, so the name counts too.
+RUNNER_HOOK_ID = "OHK-69gk5ne9"
+RUNNER_NAME = "Run Workflow"
+# A build item default on its workflow input: parameter_defaults names the
+# input's parameter, workflow_a<N> (not workflow_inputs_a<N>).
+PIN_DEFAULT_RE = re.compile(r"^workflow_a\d+$")
+# The custom form question for that input of build item BDI-<item>.
+PIN_QUESTION_RE = re.compile(r"^plugin-bdi-(?P<item>[a-z0-9]+)\.workflow$", re.IGNORECASE)
+WORKFLOW_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
 
 
 def metadata_path(global_id):
@@ -127,6 +145,124 @@ def readme(workflow, data):
         name = (step.get("name") or step.get("key") or "").replace("]", "\\]")
         lines.append("{}. {} ({})".format(index, name, step.get("action_name") or step.get("action")))
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Workflows a blueprint pins
+# ---------------------------------------------------------------------------
+def _json(read, path):
+    try:
+        text = read(path)
+    except Exception:
+        return None
+    try:
+        return json.loads(text) if text else None
+    except ValueError:
+        return None
+
+
+def unit_file(ref):
+    """The metadata file of a "<dir>/<ID>" ref."""
+    ref = ref.strip("/")
+    return "{}/{}_metadata.json".format(ref, posixpath.basename(ref))
+
+
+def _is_runner(read, hook_ref):
+    if posixpath.basename(hook_ref.strip("/")) == RUNNER_HOOK_ID:
+        return True
+    return (_json(read, unit_file(hook_ref)) or {}).get("name") == RUNNER_NAME
+
+
+def _form_elements(node):
+    """Every SurveyJS element (question or panel) in a form definition."""
+    if isinstance(node, dict):
+        if isinstance(node.get("name"), str) and "type" in node:
+            yield node
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                yield from _form_elements(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _form_elements(value)
+
+
+def blueprint_pins(read, metadata_path):
+    """
+    The values (SWF- ids or exact names) a blueprint pins workflows with, read
+    from its exported metadata at metadata_path. For each Run Workflow build
+    item: a default on its workflow input, and a default on the item's
+    plugin-bdi-<item>.workflow question in the blueprint's custom form (a
+    custom form replaces the item's defaults, so the pin may live in either).
+    read(path) returns a repository file's text, or None.
+    """
+    data = _json(read, metadata_path)
+    if not isinstance(data, dict):
+        return []
+    pins, items = [], set()
+    for item in data.get("deployment_items") or []:
+        item = item if isinstance(item, dict) else {}
+        hook = (item.get("dependencies") or {}).get("hook")
+        if not isinstance(hook, str) or not _is_runner(read, hook):
+            continue
+        item_id = str(item.get("id") or "")
+        if item_id.startswith("BDI-"):
+            items.add(item_id[4:].lower())
+        for default in item.get("parameter_defaults") or []:
+            default = default if isinstance(default, dict) else {}
+            if PIN_DEFAULT_RE.match(str(default.get("name") or "")):
+                pins.append(str(default.get("value") or "").strip())
+    form_ref = (data.get("dependencies") or {}).get("custom_form")
+    if items and isinstance(form_ref, str):
+        form = _json(read, unit_file(form_ref)) or {}
+        try:
+            survey = json.loads(form.get("json") or "{}")
+        except (TypeError, ValueError):
+            survey = {}
+        for element in _form_elements(survey):
+            match = PIN_QUESTION_RE.match(element["name"])
+            if match and match.group("item").lower() in items:
+                pins.append(str(element.get("defaultValue") or "").strip())
+    return [pin for pin in dict.fromkeys(pins) if pin]
+
+
+def find_workflow(value, workflows):
+    """The workflow among workflows (store.Workflow objects) that a pin names:
+    by SWF- id, else by exact name, as Run Workflow resolves it."""
+    for workflow in workflows:
+        if workflow.global_id == value:
+            return workflow
+    for workflow in workflows:
+        if workflow.name == value:
+            return workflow
+    return None
+
+
+def branch_workflow_ids(clone, branch, value):
+    """The SWF- ids of the runbook_workflows/ folders on branch that a pin
+    names: the folder with that id, else every folder whose workflow has that
+    exact name."""
+    if WORKFLOW_ID_RE.match(value):
+        try:
+            clone.git.cat_file("-e", "origin/{}:{}".format(branch, metadata_path(value)))
+        except Exception:
+            return []
+        return [value]
+    try:
+        listing = clone.git.ls_tree("--name-only", "origin/{}".format(branch), "--", store.WORKFLOWS_DIR + "/")
+    except Exception:
+        return []
+    found = []
+    for folder in listing.splitlines():
+        global_id = posixpath.basename(folder.strip("/"))
+        if not WORKFLOW_ID_RE.match(global_id):
+            continue
+        try:
+            data = json.loads(clone.git.show("origin/{}:{}".format(branch, metadata_path(global_id))))
+        except Exception:
+            continue
+        if isinstance(data, dict) and data.get("name") == value:
+            found.append(global_id)
+    return found
 
 
 # ---------------------------------------------------------------------------

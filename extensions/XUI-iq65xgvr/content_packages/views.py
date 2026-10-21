@@ -237,10 +237,17 @@ def _sync_jobs(local, jobs):
     return rows
 
 
-def _via_workflow(via):
-    """True when a unit was pushed or synced for a workflow (a step plugin),
-    False for a parameter's generated-options action."""
-    return isinstance(via, str) and via.startswith(store.WORKFLOWS_DIR + "/")
+def _via_kind(ref, via):
+    """Why a unit was pushed or synced for via, for its label: "pin" for a
+    workflow a blueprint pins, "step" for a workflow's step plugin, "options"
+    for a parameter's generated-options action, "" when it is a member."""
+    if not isinstance(via, str) or not via:
+        return ""
+    if isinstance(ref, str) and ref.startswith(store.WORKFLOWS_DIR):
+        return "pin"
+    if via.startswith(store.WORKFLOWS_DIR + "/"):
+        return "step"
+    return "options"
 
 
 def _export_job(local, jobs):
@@ -263,7 +270,7 @@ def _export_job(local, jobs):
         "text": text,
         "active": job.status in ACTIVE_JOB_STATUSES,
         "branch": outputs.get("branch") or local.get("last_export_branch") or "",
-        "results": [dict(r, via_workflow=_via_workflow(r.get("via"))) for r in outputs.get("results") or []],
+        "results": [dict(r, via_kind=_via_kind(r.get("ref"), r.get("via"))) for r in outputs.get("results") or []],
         "pr_url": outputs.get("pr_url") or "",
         "pr_term": outputs.get("pr_term") or "Pull Request",
         "service_name": outputs.get("service_name") or "",
@@ -284,12 +291,24 @@ def _row(item, jobs=None):
     item["problems"] = sum(1 for m in item["members"] if m["state"] != "ok")
     item["sync_jobs"] = _sync_jobs(local, jobs or {})
     members = {m["ref"]: m for m in item["members"]}
+    # Units synced for a member (pinned workflows, step plugins, options
+    # actions) are not members; resolve their names here.
+    others = store.resolve_refs(list(dict.fromkeys(
+        ref for job in item["sync_jobs"] for ref in (job["ref"], job["via"]) if ref and ref not in members
+    )))
+
+    def name_of(ref):
+        if ref in members:
+            return members[ref]["name"]
+        obj = others.get(ref)
+        return store.parse_ref(ref)[0].name_of(obj) if obj is not None else ref or ""
+
     for job in item["sync_jobs"]:
         member = members.get(job["ref"]) or {}
-        job["name"] = member.get("name") or job["ref"]
+        job["name"] = name_of(job["ref"])
         job["prefix"] = member.get("prefix") or (job["ref"] or "").split("/", 1)[-1].split("-", 1)[0]
-        job["via_name"] = (members.get(job["via"]) or {}).get("name") or job["via"] or ""
-        job["via_workflow"] = _via_workflow(job["via"])
+        job["via_name"] = name_of(job["via"]) if job["via"] else ""
+        job["via_kind"] = _via_kind(job["ref"], job["via"])
     statuses = [j["status"] for j in item["sync_jobs"]]
     if "FAILURE" in statuses:
         item["sync_state"] = ("bad", "Sync failed")
@@ -450,9 +469,9 @@ def _picker(selected, aliases=None):
     chosen = set(selected)
     offered = set()
     sections = []
-    for member_type in store.MEMBER_TYPES.values():
+    for key, title, member_type, objects in store.picker_sections():
         items = []
-        for obj in member_type.pickable():
+        for obj in objects:
             ref = store.ref_for(member_type, obj, aliases)
             offered.add(ref)
             items.append({
@@ -464,8 +483,8 @@ def _picker(selected, aliases=None):
             })
         items.sort(key=lambda i: i["name"].lower())
         sections.append({
-            "key": member_type.dir,
-            "title": member_type.title,
+            "key": key,
+            "title": title,
             "items": items,
             "selected": sum(1 for i in items if i["checked"]),
         })
@@ -844,7 +863,7 @@ def api_content(request):
     if request.method != "GET":
         return _method_not_allowed(["GET"])
     types = []
-    for member_type in store.MEMBER_TYPES.values():
+    for key, title, member_type, objects in store.picker_sections():
         items = [
             {
                 "ref": store.ref_for(member_type, obj),
@@ -852,10 +871,10 @@ def api_content(request):
                 "type_title": member_type.singular,
                 "repo_label": _repo_label(member_type, obj),
             }
-            for obj in member_type.pickable()
+            for obj in objects
         ]
         items.sort(key=lambda i: i["name"].lower())
-        types.append({"type": member_type.dir, "prefix": member_type.prefix, "title": member_type.title, "items": items})
+        types.append({"type": key, "prefix": member_type.prefix, "title": title, "items": items})
     return JsonResponse({"types": types})
 
 

@@ -45,6 +45,7 @@ from cbhooks.models import (
     MCPToolAction,
     OrchestrationHook,
     RecurringActionJob,
+    RemoteScriptHook,
     ResourceAction,
     ServerAction,
     SharedModule,
@@ -245,6 +246,26 @@ MEMBER_TYPES = OrderedDict(
 
 PARAMETERS_DIR = "parameters"
 WORKFLOWS_DIR = "runbook_workflows"
+
+
+def _remote_scripts():
+    # The Remote Scripts Run Task offers (runbook_tasks._remote_scripts): not
+    # shared, so the Plugins section, which lists standalone (shared) plugins,
+    # leaves them out, but a package still lists one as plugins/OHK-<id>.
+    return (
+        RemoteScriptHook.objects.filter(run_on_server__isnull=True, shared=False)
+        .select_related("source_code_repo")
+    )
+
+
+def picker_sections():
+    """(key, title, MemberType, objects) for each section of the Add/Edit
+    picker, in order: one per member type, and Remote Scripts after
+    Plugins."""
+    for member_type in MEMBER_TYPES.values():
+        yield member_type.dir, member_type.title, member_type, member_type.pickable()
+        if member_type.dir == "plugins":
+            yield "remote_scripts", "Remote Scripts", member_type, _remote_scripts()
 
 
 # ---------------------------------------------------------------------------
