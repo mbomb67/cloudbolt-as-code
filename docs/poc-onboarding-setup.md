@@ -90,7 +90,13 @@ Use the address the certificate from section 2 names. Then `/mcp`, choose the se
 
 Pick one:
 
-**A. Content Package Manager** (when the extension from this repository is installed): Admin > Content Packages > Import from repository > `https://github.com/mbomb67/cloudbolt-as-code.git`, branch `main`, package **POC Onboarding Toolkit** > Sync.
+**A. Content Package Manager.** Add the Source Code Repository as in option B. Install the extension once: Admin > UI Extensions > Add > **Add package from Repository**, folder `extensions/XUI-iq65xgvr`, branch `main`. The extension adds URL paths that the web server loads only at startup, so restart it as root on the appliance before opening the extension:
+
+```bash
+systemctl restart httpd
+```
+
+Then Admin > Custom Extensions > Content Packages > **Import from repository**: the repository, branch `main`, package **POC Onboarding Toolkit**, then **Sync**.
 
 **B. Source Code Repository plus one API call.** Admin > All Admin > CloudBolt > Source Code Repositories > Add: any label, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, no authentication (public repository), default paths. Note its `SCR-` id (`GET https://<appliance>/api/v3/cmp/sourceCodeRepos/`). Then:
 
@@ -145,6 +151,7 @@ Ask the agent to sync the package's `mcp_tool_actions/` folders from `main` (`sy
 | `self signed certificate in certificate chain` when connecting | Claude does not trust the appliance's certificate | Section 2: replace it, set `NODE_EXTRA_CA_CERTS`, restart Claude |
 | `does not match certificate's altnames` or `ERR_TLS_CERT_ALTNAME_INVALID` | The address in the MCP URL is not in the certificate | Regenerate it with that IP or DNS name (section 2, option 1), or connect with the name the certificate carries |
 | A tool is missing from the agent's list | Cached tool list, or not imported | Reconnect the client; check Actions > MCP Tool Actions |
+| Content Packages page missing or returns an error after the extension sync | The web server has not loaded the extension's URL paths | `systemctl restart httpd` as root on the appliance |
 | Every custom tool fails with a scope error | Token has `read` only | Reconnect and grant `write` |
 | A tool answers with a job id instead of a result | Synchronous Action off | Run `onb_install`, reconnect |
 | `onb_playbook` fails | No egress to raw.githubusercontent.com | Open the `browserUrl` it returns |
