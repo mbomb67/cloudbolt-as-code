@@ -223,6 +223,25 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "CloudBolt groups that may order namespaces on this cluster. Leave empty to keep CloudBolt's default for new environments.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-v1iahtjv",
+            "label": "Entitled CloudBolt groups",
+            "name": "entitled_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
         }
     ],
     "description": "Creates an Amazon EKS cluster and its IAM cluster role in the chosen AWS environment, registers it as a CloudBolt Kubernetes container orchestrator, and stores the cluster details on the resource.",

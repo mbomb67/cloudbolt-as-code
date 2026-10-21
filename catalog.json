@@ -387,6 +387,7 @@
       "resource_actions/RSA-dhgwoj3z",
       "resource_actions/RSA-f9ivvn5q",
       "resource_actions/RSA-inhs50gi",
+      "resource_actions/RSA-l3dokgru",
       "resource_actions/RSA-p2fnjwj3",
       "resource_actions/RSA-rrbh1ntm",
       "resource_actions/RSA-xdlxetyc"
@@ -550,7 +551,7 @@
     "id": "XUI-8a1jocmr",
     "type": "extensions",
     "name": "AWS EKS Cluster",
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
+    "description": "Adds Cluster, Node groups, Workloads, and Groups tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, per-node and per-namespace workload figures, and management of the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
     "path": "extensions/XUI-8a1jocmr",
     "readme": "extensions/XUI-8a1jocmr/README.md",
     "uses": [],
@@ -1697,6 +1698,19 @@
       "blueprints/BP-psw7rclb"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2lvw9oe0",
+    "type": "plugins",
+    "name": "Manage AWS EKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment.",
+    "path": "plugins/OHK-2lvw9oe0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-l3dokgru"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-2lzwvo0j",
@@ -4482,6 +4496,21 @@
     ],
     "used_by": [
       "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-l3dokgru",
+    "type": "resource_actions",
+    "name": "Manage AWS EKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment.",
+    "path": "resource_actions/RSA-l3dokgru",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-2lvw9oe0"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "enabled": true
   },
