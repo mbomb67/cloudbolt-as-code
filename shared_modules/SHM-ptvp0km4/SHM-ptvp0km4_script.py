@@ -738,12 +738,18 @@ def subscription_display_name(arm):
     return (data or {}).get("displayName") or ""
 
 
-# The custom fields on a Kubernetes Cluster resource of this blueprint.
+# The Azure resource ID of a cluster or node pool: the identifier the
+# blueprint's discovery matches resources by (RESOURCE_IDENTIFIER).
 # (name, label, type, description, show_as_attribute)
+RESOURCE_ID_FIELD = (
+    "aks_resource_id", "AKS Resource ID", "STR", "Azure resource ID of the AKS cluster or node pool.", False,
+)
+
+# The custom fields on a Kubernetes Cluster resource of this blueprint.
 CLUSTER_FIELDS = [
     ("aks_cluster_name", "AKS Cluster Name", "STR", "Name of the AKS managed cluster.", True),
     ("aks_resource_group", "Resource Group", "STR", "Azure resource group of the AKS cluster.", True),
-    ("aks_resource_id", "AKS Resource ID", "STR", "Azure resource ID of the AKS cluster.", False),
+    RESOURCE_ID_FIELD,
     ("aks_location", "Azure Region", "STR", "Azure region of the AKS cluster.", True),
     ("azure_rh_id", "Azure RH ID", "STR", "Azure resource handler that manages the cluster.", False),
     ("env_id", "Environment ID", "STR", "CloudBolt Environment the cluster was ordered into.", False),
@@ -775,6 +781,7 @@ POOL_FIELDS = [
     ("aks_pool_zones", "Availability Zones", "STR", "Availability zones the nodes span.", True),
     ("aks_pool_state", "Provisioning State", "STR", "Last provisioning state AKS reported.", True),
     ("aks_pool_power_state", "Power State", "STR", "Running or Stopped.", True),
+    RESOURCE_ID_FIELD,
 ]
 
 
@@ -899,6 +906,7 @@ def pool_values(pool_json):
         "aks_pool_zones": ", ".join(str(z) for z in props.get("availabilityZones") or []) or "None",
         "aks_pool_state": props.get("provisioningState"),
         "aks_pool_power_state": (props.get("powerState") or {}).get("code"),
+        "aks_resource_id": pool_json.get("id"),
     }
 
 
@@ -1036,22 +1044,28 @@ def _cluster_environment(orchestrator):
     )
 
 
-def register_orchestrator(resource, cluster, location):
+def ensure_orchestrator(cluster, location, current_id=None):
     """Create (or refresh) the cluster's Kubernetes orchestrator and per-cluster Environment.
 
     The orchestrator lets CloudBolt, the namespace blueprint, and container
     blueprints reach the API server; the Environment on it is what groups
-    are entitled to when they may order namespaces on the cluster. Returns
-    (orchestrator, environment, created).
+    are entitled to when they may order namespaces on the cluster. Reuses
+    the orchestrator ``current_id`` names, else one already registered for
+    the cluster's API server, so discovery never registers a cluster twice.
+    Touches no resource. Returns (orchestrator, environment, created).
     """
     from containerorchestrators.kuberneteshandler.models import Kubernetes
     from containerorchestrators.models import ContainerOrchestratorTechnology
 
     fields = _orchestrator_credentials(cluster)
     orchestrator = None
-    current_id = resource.get_cf_values_as_dict().get(CLUSTER_ORCHESTRATOR_FIELD)
-    if current_id:
-        orchestrator = Kubernetes.objects.filter(id=int(current_id)).first()
+    try:
+        if current_id not in (None, ""):
+            orchestrator = Kubernetes.objects.filter(id=int(str(current_id).strip())).first()
+    except (TypeError, ValueError):
+        orchestrator = None
+    if orchestrator is None and fields["ip"]:
+        orchestrator = Kubernetes.objects.filter(ip=fields["ip"]).order_by("id").first()
     created = orchestrator is None
     if created:
         tech = ContainerOrchestratorTechnology.objects.get(name="Kubernetes")
@@ -1060,8 +1074,6 @@ def register_orchestrator(resource, cluster, location):
         for key, value in fields.items():
             setattr(orchestrator, key, value)
         orchestrator.save()
-    resource.set_value_for_custom_field(CLUSTER_ORCHESTRATOR_FIELD, orchestrator.id)
-    resource.save()
 
     env = _cluster_environment(orchestrator)
     if env is None:
@@ -1070,6 +1082,16 @@ def register_orchestrator(resource, cluster, location):
             container_orchestrator=orchestrator,
             description=f"AKS cluster {cluster.name} ({location}).",
         )
+    return orchestrator, env, created
+
+
+def register_orchestrator(resource, cluster, location):
+    """``ensure_orchestrator`` for a cluster resource, recording the orchestrator on it.
+    Returns (orchestrator, environment, created)."""
+    current_id = resource.get_cf_values_as_dict().get(CLUSTER_ORCHESTRATOR_FIELD)
+    orchestrator, env, created = ensure_orchestrator(cluster, location, current_id)
+    resource.set_value_for_custom_field(CLUSTER_ORCHESTRATOR_FIELD, orchestrator.id)
+    resource.save()
     return orchestrator, env, created
 
 

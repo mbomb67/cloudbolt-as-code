@@ -3626,7 +3626,7 @@
     "id": "OHK-uof2rcaa",
     "type": "plugins",
     "name": "AKS Cluster Discovery",
-    "description": "Adopts every AKS cluster in each Azure handler's subscription as a Kubernetes Cluster resource and refreshes its details, node pools, and container orchestrator.",
+    "description": "Returns every AKS cluster in each Azure handler's subscription, and the node pools of the clusters CloudBolt tracks, for the discovery sync to adopt or refresh, and registers each running cluster's container orchestrator.",
     "path": "plugins/OHK-uof2rcaa",
     "readme": null,
     "uses": [

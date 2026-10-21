@@ -313,6 +313,9 @@ def run(job, resource, **kwargs):
     resource.name = name
     resource.set_value_for_custom_field("aks_cluster_name", name)
     resource.set_value_for_custom_field("aks_resource_group", resource_group)
+    # Recorded before the create, so discovery matches the cluster to this
+    # resource while the build runs instead of adopting it a second time.
+    resource.set_value_for_custom_field("aks_resource_id", cluster.id)
     resource.set_value_for_custom_field("azure_rh_id", str(rh.id))
     resource.set_value_for_custom_field("env_id", str(env.id))
     resource.save()

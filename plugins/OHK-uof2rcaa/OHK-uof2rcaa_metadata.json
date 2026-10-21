@@ -4,7 +4,7 @@
             "shared_modules/SHM-ptvp0km4"
         ]
     },
-    "description": "Adopts every AKS cluster in each Azure handler's subscription as a Kubernetes Cluster resource and refreshes its details, node pools, and container orchestrator.",
+    "description": "Returns every AKS cluster in each Azure handler's subscription, and the node pools of the clusters CloudBolt tracks, for the discovery sync to adopt or refresh, and registers each running cluster's container orchestrator.",
     "id": "OHK-uof2rcaa",
     "last_updated": "2026-10-19",
     "max_retries": 0,
