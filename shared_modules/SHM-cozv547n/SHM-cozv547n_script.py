@@ -554,10 +554,14 @@ def namespace_blueprint():
 
 
 def new_namespace_resource(blueprint, namespace, group, owner=None, cluster=None):
-    """The Resource a cluster-side action files the namespace under (as an order would)."""
+    """The Resource a cluster-side action files the namespace under (as an order would).
+
+    It starts in PROV, as an ordered resource does while its build runs, so
+    discovery leaves it alone until the action sets it ACTIVE (or PROVFAILED).
+    """
     return Resource.objects.create(
         name=namespace, blueprint=blueprint, resource_type=blueprint.resource_type,
-        group=group, owner=owner, parent_resource=cluster, lifecycle="ACTIVE",
+        group=group, owner=owner, parent_resource=cluster, lifecycle="PROV",
     )
 
 
@@ -755,12 +759,19 @@ def create_landing_zone(resource, cluster_resource, orchestrator, namespace, tie
     }
     set_progress(f"Creating managed namespace '{namespace}' on '{cluster.name}' ({tier['label']} tier, "
                  f"{describe_network_policy(policy)})...")
+    # Recorded before the create, so discovery matches the namespace to this
+    # resource while it is created instead of adopting it a second time.
+    resource.set_value_for_custom_field(CF_PREFIX + "resource_id", managed_namespace_id(cluster, namespace))
+    resource.save()
     try:
         mns = put_managed_namespace(cluster, namespace, cluster_json["location"], properties,
                                     tags={"cloudbolt-resource": str(resource.global_id)},
                                     what=f"Creating managed namespace '{namespace}'")
     except AKSError as exc:
         logger.exception("Managed namespace creation failed")
+        # Nothing exists in Azure, so the resource records no namespace.
+        resource.set_value_for_custom_field(CF_PREFIX + "resource_id", None, ignore_none_value=True)
+        resource.save()
         if env_created:
             delete_environment(env)
         return "FAILURE", "", f"AKS could not create managed namespace '{namespace}': {exc}"

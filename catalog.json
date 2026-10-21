@@ -3552,7 +3552,7 @@
     "id": "OHK-tybit8su",
     "type": "plugins",
     "name": "Discover AKS Namespaces",
-    "description": "Imports every AKS managed namespace on the AKS clusters CloudBolt manages as an AKS Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group.",
+    "description": "Imports every AKS managed namespace on the AKS clusters CloudBolt manages as an AKS Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group, and marks Historical only the namespaces Azure confirms no longer exist.",
     "path": "plugins/OHK-tybit8su",
     "readme": null,
     "uses": [
@@ -3626,7 +3626,7 @@
     "id": "OHK-uof2rcaa",
     "type": "plugins",
     "name": "AKS Cluster Discovery",
-    "description": "Returns every AKS cluster in each Azure handler's subscription, and the node pools of the clusters CloudBolt tracks, for the discovery sync to adopt or refresh, and registers each running cluster's container orchestrator.",
+    "description": "Returns every AKS cluster in each Azure handler's subscription, and the node pools of the clusters CloudBolt tracks, for the discovery sync to adopt or refresh, registers each running cluster's container orchestrator, and marks Historical only what Azure confirms no longer exists.",
     "path": "plugins/OHK-uof2rcaa",
     "readme": null,
     "uses": [

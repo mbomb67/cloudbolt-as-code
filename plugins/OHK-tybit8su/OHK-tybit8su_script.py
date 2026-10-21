@@ -27,6 +27,17 @@ Each adopted namespace gets what an ordered one has:
     whose CPU and memory match its quota, and the quota numbers;
   - its network policy, Kubernetes UID, and who holds an AKS RBAC role on it.
 
+Retirement is the plugin's call; the blueprint's auto_historical_resources
+stays off, so a cluster that cannot be read retires nothing. A tracked
+Active namespace is marked Historical (lifecycle HISTORICAL in its
+dictionary) only when a GET of its own resource ID answers that it, its
+cluster, or its resource group does not exist (azure_aks.resource_gone).
+A namespace that is busy (any provisioning state but Succeeded), sits on a
+cluster that cannot be read, or cannot be checked returns its identifier
+alone, which changes nothing. A namespace still being created (PROV) is
+skipped, and one whose creation failed after Azure made it (PROVFAILED) is
+set back to Active. The sync reactivates a Historical namespace found again.
+
 RBAC: discovery enumerates every AKS cluster; CloudBolt filters the returned
 resources by each user's access.
 
@@ -73,7 +84,7 @@ from shared_modules.aks_namespace import (
     render_access,
     set_environment_quota,
 )
-from shared_modules.azure_aks import AKSError, cluster_for_resource
+from shared_modules.azure_aks import AKSError, cluster_for_resource, resource_gone
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
@@ -130,6 +141,34 @@ def _known_resources(blueprint):
         if key not in known or resource.lifecycle == "ACTIVE":
             known[key] = (str(stored), resource)
     return known
+
+
+def _untouched(stored_id):
+    """A dictionary that matches the namespace's resource and changes nothing."""
+    return {RESOURCE_IDENTIFIER: stored_id}
+
+
+def _cluster_of(resource):
+    """The cluster resource a namespace resource sits on, or None."""
+    if resource.parent_resource_id:
+        return resource.parent_resource
+    cluster_id = resource.get_value_for_custom_field(CF_PREFIX + "cluster_resource_id")
+    try:
+        return Resource.objects.filter(id=int(cluster_id)).first() if cluster_id else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _confirmed_gone(resource, stored_id):
+    """True only when Azure answers that the managed namespace does not exist."""
+    cluster_resource = _cluster_of(resource)
+    if cluster_resource is None:
+        return False
+    try:
+        return resource_gone(cluster_for_resource(cluster_resource).arm, stored_id)
+    except AKSError as exc:
+        logger.info("Could not confirm whether %s still exists: %s", resource, exc)
+        return False
 
 
 def _kubernetes_client(orchestrator, cluster_name):
@@ -190,6 +229,7 @@ def discover_resources(**kwargs):
     known = _known_resources(kwargs.get("blueprint") or namespace_blueprint())
     unassigned = Group.objects.filter(name__startswith="Unassigned").order_by("name").first()
     discovered = []
+    returned = set()
 
     for cluster_resource, orchestrator_id in cluster_resources():
         try:
@@ -197,8 +237,12 @@ def discover_resources(**kwargs):
             set_progress(f"Discovering managed namespaces on '{cluster.name}'...")
             items = list_managed_namespaces(cluster)
         except AKSError as exc:
-            set_progress(f"Skipping cluster {cluster_resource.name}: {exc}")
+            set_progress(f"Skipping cluster {cluster_resource.name}; its namespaces are left as they are: {exc}")
             logger.warning("Skipping cluster %s: %s", cluster_resource, exc)
+            for key, (stored, resource) in known.items():
+                if resource.parent_resource_id == cluster_resource.id and resource.lifecycle == "ACTIVE":
+                    returned.add(key)
+                    discovered.append(_untouched(stored))
             continue
 
         orchestrator = load_orchestrator(orchestrator_id)
@@ -211,16 +255,22 @@ def discover_resources(**kwargs):
             name, mns_id = item.get("name"), item.get("id")
             if not name or not mns_id:
                 continue
+            returned.add(mns_id.lower())
+            stored_id, existing = known.get(mns_id.lower(), (mns_id, None))
+            if existing is not None and existing.lifecycle == "PROV":
+                set_progress(f"Skipping '{name}' on '{cluster.name}': CloudBolt is still creating it.")
+                continue
             reason = adoptable_namespace(item)
             if reason:
                 set_progress(f"Skipping '{name}' on '{cluster.name}': {reason}.")
+                if existing is not None:
+                    discovered.append(_untouched(stored_id))
                 continue
             props = item.get("properties") or {}
             labels = props.get("labels") or {}
             annotations = props.get("annotations") or {}
             quota = props.get("defaultResourceQuota") or {}
 
-            stored_id, existing = known.get(mns_id.lower(), (mns_id, None))
             annotated_group = owning_group_for_namespace(annotations)
             owner_group = annotated_group or (existing.group if existing is not None else unassigned)
             tier_key = _tier_key(labels.get(LABEL_TIER), quota)
@@ -256,8 +306,26 @@ def discover_resources(**kwargs):
                 record[CF_PREFIX + "environment_name"] = env.name
                 record[CF_PREFIX + "entitled_groups"] = "\n".join(entitled_group_names(env))
 
+            if existing is not None and existing.lifecycle == "PROVFAILED":
+                # The sync only reactivates Historical resources by itself.
+                record["lifecycle"] = "ACTIVE"
+                set_progress(f"Recovering '{name}': its CloudBolt build failed after Azure created it.")
+
             # Drop unknowns so discovery does not overwrite good values with None.
             discovered.append({k: v for k, v in record.items() if v is not None})
 
-    set_progress(f"Discovered {len(discovered)} AKS managed namespace(s).")
+    # Tracked Active namespaces no listing returned, including those on
+    # clusters that were not read: retired only when Azure confirms them gone.
+    retired = 0
+    for key, (stored, resource) in known.items():
+        if resource.lifecycle != "ACTIVE" or key in returned:
+            continue
+        if _confirmed_gone(resource, stored):
+            set_progress(f"Managed namespace '{resource.name}' no longer exists; marking it Historical.")
+            discovered.append({RESOURCE_IDENTIFIER: stored, "lifecycle": "HISTORICAL"})
+            retired += 1
+        else:
+            discovered.append(_untouched(stored))
+
+    set_progress(f"Discovered {len(discovered) - retired} AKS managed namespace(s); {retired} no longer exist.")
     return discovered

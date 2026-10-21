@@ -333,6 +333,28 @@ def parse_resource_id(resource_id):
     return sub, rg, parts[-1] if parts and parts[-1] else ""
 
 
+# Codes ARM answers a GET with (HTTP 404) when the resource itself, its parent
+# resource, or its resource group does not exist. Anything else proves
+# nothing: SubscriptionNotFound also covers a principal that lost access, and
+# AuthorizationFailed, throttling, and timeouts say nothing about the resource.
+#   https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/error-not-found
+#   https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/common-deployment-errors
+GONE_ERROR_CODES = ("ResourceNotFound", "NotFound", "ParentResourceNotFound", "ResourceGroupNotFound")
+
+
+def resource_gone(arm, resource_id, api_version=AKS_API_VERSION):
+    """True when Azure confirms the resource no longer exists, False when it
+    exists. Raises AKSError when the answer proves neither."""
+    try:
+        arm.call("GET", resource_id, api_version=api_version, ok=(200,),
+                 what=f"Checking whether {resource_id} still exists")
+        return False
+    except AKSError as exc:
+        if exc.status_code == 404 and exc.code in GONE_ERROR_CODES:
+            return True
+        raise
+
+
 def cluster_id(subscription_id, resource_group, name):
     return (
         f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"

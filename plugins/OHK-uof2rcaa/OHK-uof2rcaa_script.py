@@ -17,6 +17,15 @@ The one thing the sync cannot do is register the cluster as a Kubernetes
 container orchestrator, which the namespace blueprint and the cluster tabs
 need, so that is done here once per running cluster, the same way the build
 plugin does it, and its ID is returned with the cluster.
+
+Retirement is the plugin's call; the blueprint's auto_historical_resources
+stays off, so a handler or API that cannot be reached retires nothing. A
+tracked Active cluster or node pool is marked Historical only when the
+listing that should hold it succeeded, it is missing from it, and a GET of
+its own resource ID answers that it does not exist (resource_gone); the
+dictionary then carries lifecycle HISTORICAL. A retired cluster's node pools
+go with it. Anything else returns the identifier alone, which changes
+nothing. The sync reactivates a Historical resource when it is found again.
   GET /subscriptions/{sub}/providers/Microsoft.ContainerService/managedClusters
   https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/list
   https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/list
@@ -37,6 +46,7 @@ from shared_modules.azure_aks import (
     parse_resource_id,
     pool_sub_resources,
     pool_values,
+    resource_gone,
 )
 from utilities.logger import ThreadLogger
 
@@ -85,6 +95,25 @@ def _environment_id(rh, location, current_env_id):
         pass
     env = envs.order_by("name").first()
     return str(env.id) if env else None
+
+
+def _untouched(resource):
+    """A dictionary that matches the resource and changes nothing."""
+    return {RESOURCE_IDENTIFIER: _stored_id(resource)}
+
+
+def _retired(resource):
+    """A dictionary that marks the resource Historical."""
+    return {RESOURCE_IDENTIFIER: _stored_id(resource), "lifecycle": "HISTORICAL"}
+
+
+def _confirmed_gone(arm, resource):
+    """True only when Azure answers that the resource's ID does not exist."""
+    try:
+        return resource_gone(arm, _stored_id(resource))
+    except AKSError as exc:
+        logger.info("Could not confirm whether %s still exists: %s", resource, exc)
+        return False
 
 
 def _without_none(values):
@@ -156,6 +185,8 @@ def discover_resources(**kwargs):
     discovered = []
     returned = set()
     skipped_rh_ids = set()
+    # Handlers whose listing succeeded, by ID, with the client that read them.
+    arms = {}
 
     for rh in AzureARMHandler.objects.all():
         try:
@@ -168,6 +199,7 @@ def discover_resources(**kwargs):
             set_progress(f"Skipping Azure handler '{rh.name}': {exc}")
             skipped_rh_ids.add(str(rh.id))
             continue
+        arms[str(rh.id)] = arm
         set_progress(f"Azure handler '{rh.name}': {len(clusters)} AKS cluster(s).")
 
         for item in clusters:
@@ -180,6 +212,7 @@ def discover_resources(**kwargs):
             resource = known.get(key)
             if resource is not None and resource.lifecycle == BUILDING:
                 set_progress(f"Skipping '{name}': its CloudBolt build is still running.")
+                discovered.extend(_untouched(r) for r in _pool_records(resource, known).values())
                 continue
             state = (item.get("properties") or {}).get("provisioningState")
             if resource is None and state == "Creating":
@@ -195,27 +228,42 @@ def discover_resources(**kwargs):
                 pools = AKSCluster(arm, resource_group, name).list_pools()
             except AKSError as exc:
                 set_progress(f"Node pools of '{name}' could not be read; their records are left as they are: {exc}")
-                discovered.extend({RESOURCE_IDENTIFIER: _stored_id(r)} for r in records.values())
+                discovered.extend(_untouched(r) for r in records.values())
                 continue
             # A record made before node pool records carried their resource ID
             # cannot be matched; List AKS Node Pools adds the ID to it.
             unmatched = {r.name for r in pool_sub_resources(resource) if not _stored_id(r)}
+            listed_pools = set()
             for pool in pools:
+                listed_pools.add(_key(pool.get("id")))
                 record = records.get(_key(pool.get("id")))
                 if record is None and pool.get("name") in unmatched:
                     continue
                 discovered.append(pool_dict(pool, resource, record))
+            for pool_key, record in records.items():
+                if pool_key in listed_pools:
+                    continue
+                if _confirmed_gone(arm, record):
+                    set_progress(f"Node pool '{record.name}' of '{name}' no longer exists; marking it Historical.")
+                    discovered.append(_retired(record))
+                else:
+                    discovered.append(_untouched(record))
 
-    # The sync treats an active resource it is not given as gone and, when the
-    # blueprint's auto_historical_resources is on, marks it Historical. A
-    # skipped handler's clusters and their node pools were not checked, so each
-    # is returned with its identifier alone, which matches it and changes
-    # nothing.
+    # Tracked Active clusters no listing returned. Retired only when the
+    # handler that tracks one was read and Azure confirms the cluster is gone;
+    # a handler that failed or that CloudBolt no longer has proves nothing.
     for key, resource in known.items():
         if resource.lifecycle != "ACTIVE" or key in returned or resource.parent_resource_id:
             continue
-        if str(resource.get_cf_values_as_dict().get("azure_rh_id")) in skipped_rh_ids:
-            discovered.append({RESOURCE_IDENTIFIER: _stored_id(resource)})
-            discovered.extend({RESOURCE_IDENTIFIER: _stored_id(r)} for r in _pool_records(resource, known).values())
+        pools = list(_pool_records(resource, known).values())
+        arm = arms.get(str(resource.get_cf_values_as_dict().get("azure_rh_id")))
+        if arm is not None and _confirmed_gone(arm, resource):
+            set_progress(f"AKS cluster '{resource.name}' no longer exists; marking it and its "
+                         f"{len(pools)} node pool(s) Historical.")
+            discovered.append(_retired(resource))
+            discovered.extend(_retired(r) for r in pools)
+        else:
+            discovered.append(_untouched(resource))
+            discovered.extend(_untouched(r) for r in pools)
 
     return discovered

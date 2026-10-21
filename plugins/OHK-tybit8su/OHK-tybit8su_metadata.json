@@ -7,7 +7,7 @@
             "shared_modules/SHM-cozv547n"
         ]
     },
-    "description": "Imports every AKS managed namespace on the AKS clusters CloudBolt manages as an AKS Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group.",
+    "description": "Imports every AKS managed namespace on the AKS clusters CloudBolt manages as an AKS Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group, and marks Historical only the namespaces Azure confirms no longer exist.",
     "id": "OHK-tybit8su",
     "last_updated": "2026-10-19",
     "max_retries": 0,
