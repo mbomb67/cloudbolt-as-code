@@ -1,7 +1,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
+from accounts.models import Group
 from common.forms import C2Form
+from common.widgets import CheckboxSelectMultipleTable
 
 # How EKS treats add-on fields that were changed on the cluster. Documented on
 # https://docs.aws.amazon.com/eks/latest/APIReference/API_UpdateAddon.html
@@ -65,3 +67,25 @@ class UpgradeAddonForm(C2Form):
         versions = kwargs.pop("versions", None) or []
         super().__init__(*args, **kwargs)
         self.fields["addon_version"].choices = versions
+
+
+class AddGroupsForm(C2Form):
+    """Groups to entitle to the cluster's environment: every group except the
+    Unassigned and tenant-default placeholders and the ones already on it,
+    rendered like CloudBolt's own Edit groups dialog for an environment."""
+
+    # Not required: the datatable dialog renders fields without their errors,
+    # so the view reports an empty selection itself.
+    groups = forms.ModelMultipleChoiceField(
+        label="",
+        queryset=Group.objects.none(),
+        required=False,
+        widget=CheckboxSelectMultipleTable,
+    )
+
+    def __init__(self, *args, **kwargs):
+        environment = kwargs.pop("environment")
+        super().__init__(*args, **kwargs)
+        self.fields["groups"].queryset = Group.without_unassigned.exclude(
+            id__in=environment.group_set.values_list("id", flat=True)
+        ).order_by("name")
