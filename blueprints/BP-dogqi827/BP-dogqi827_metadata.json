@@ -55,13 +55,6 @@
             "image": null,
             "name": "Kubernetes",
             "sequence": 0
-        },
-        {
-            "color": "rgba(134,219,78,1)",
-            "id": "TAG-pfq0or1t",
-            "image": null,
-            "name": "XaaS",
-            "sequence": 0
         }
     ],
     "last_updated": "2026-10-19",
