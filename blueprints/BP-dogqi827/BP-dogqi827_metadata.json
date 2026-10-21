@@ -1,0 +1,166 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "AKS Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-735mhtvh"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the managed namespace with quota, limits, and network policies on the chosen AKS cluster, then pins a CloudBolt environment to it and entitles your group.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-zu6kqg4b",
+            "name": "AKS Namespace",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-tybit8su"
+        },
+        "href": "/api/v3/cmp/actions/OHK-tybit8su/",
+        "title": "Discover AKS Namespaces"
+    },
+    "favorited": false,
+    "icon": "azure_aks_namespace_logo.png",
+    "id": "BP-dogqi827",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": null,
+            "id": "TAG-rvep5iv0",
+            "image": null,
+            "name": "Azure",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-19",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-7wdigcpr"
+            },
+            "enabled": true,
+            "label": "Request AKS Namespace Quota Change"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-1amyol6t"
+            },
+            "enabled": true,
+            "label": "Manage AKS Namespace Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-nvwe7u4b"
+            },
+            "enabled": true,
+            "label": "Extend AKS Namespace Expiration"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-2f01ppuc"
+            },
+            "enabled": true,
+            "label": "AKS Namespace Connection Details"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-rwaszep5"
+            },
+            "enabled": true,
+            "label": "Manage AKS Namespace Pipeline Identity"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "AKS Namespace",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-layer-group",
+        "id": "RT-mu7y723b",
+        "internal_only": false,
+        "label": "Kubernetes Namespace",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "kubernetes_namespace",
+        "plural_label": "Kubernetes Namespaces"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown AKS Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-wmdr2ef5"
+            },
+            "deploy_seq": -1,
+            "description": "Removes the namespace's access grants and pipeline identities, deletes the namespace and everything in it, then removes the CloudBolt environment.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-nas1d4rd",
+            "name": "Teardown AKS Namespace",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}
