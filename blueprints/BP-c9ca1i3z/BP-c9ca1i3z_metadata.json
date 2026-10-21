@@ -1,0 +1,166 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "GKE Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-32pzj98f"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the namespace with quota, limits, and network policies on the chosen GKE cluster, then pins a CloudBolt environment to it and entitles your group.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-2hm1i5gq",
+            "name": "GKE Namespace",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates a governed namespace on an existing GKE cluster with a tiered ResourceQuota, default container limits, and network policies, entitles the ordering group to deploy containers into it, and grants Google users, groups, and pipelines namespace-scoped Kubernetes RBAC access.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-ml7ee42y"
+        },
+        "href": "/api/v3/cmp/actions/OHK-ml7ee42y/",
+        "title": "Discover GKE Namespaces"
+    },
+    "favorited": false,
+    "icon": "google_gke_namespace_logo.png",
+    "id": "BP-c9ca1i3z",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": null,
+            "id": "TAG-7rmy1aof",
+            "image": null,
+            "name": "GCP",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-21",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-x1658l9r"
+            },
+            "enabled": true,
+            "label": "Request GKE Namespace Quota Change"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-mucwia5b"
+            },
+            "enabled": true,
+            "label": "Manage GKE Namespace Access"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-1qdgexp2"
+            },
+            "enabled": true,
+            "label": "Extend GKE Namespace Expiration"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-0f3na70j"
+            },
+            "enabled": true,
+            "label": "GKE Namespace Connection Details"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-0k2xcobm"
+            },
+            "enabled": true,
+            "label": "Manage GKE Namespace Pipeline Identity"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "GKE Namespace",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-layer-group",
+        "id": "RT-mu7y723b",
+        "internal_only": false,
+        "label": "Kubernetes Namespace",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "kubernetes_namespace",
+        "plural_label": "Kubernetes Namespaces"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown GKE Namespace",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-jm8j1513"
+            },
+            "deploy_seq": -1,
+            "description": "Removes the namespace's access grants and pipeline identities, deletes the namespace and everything in it, then removes the CloudBolt environment.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-yyab2vhe",
+            "name": "Teardown GKE Namespace",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+{% load i18n %}
+{% include "google_gke_cluster/templates/_assets.html" %}
+
+<div id="gkex-cluster" class="gkex">
+  {# ── Cluster identity from the resource's custom fields; live state loads below ── #}
+  <div class="gke-card">
+    <div class="gke-hero-top">
+      <div>
+        <div class="gke-eyebrow">{% trans "Google Kubernetes Engine" %}</div>
+        <div class="gke-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-sub">{{ project|default:"" }}{% if location %} &middot; {{ location }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
+      </div>
+      <div class="gke-tools">
+        {% if console_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ console_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in Google Cloud console" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Basics, Upgrades, properties, and features: the panel renders its own cards ── #}
+  <div data-gke-panel="cluster" data-gke-src="{{ cluster_url }}" data-gke-loading="Google Cloud"></div>
+</div>
+
+<script>
+  $(function () { window.gkexInit("gkex-cluster"); });
+</script>

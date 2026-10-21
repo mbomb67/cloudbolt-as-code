@@ -1,0 +1,14 @@
+{
+    "contents": [
+        "blueprints/BP-g8g8aecx",
+        "blueprints/BP-c9ca1i3z",
+        "extensions/XUI-8egdz3e9"
+    ],
+    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "id": "PKG-xev1ob4t",
+    "last_updated": "2026-10-21",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Google GKE",
+    "version": "1.0.0"
+}

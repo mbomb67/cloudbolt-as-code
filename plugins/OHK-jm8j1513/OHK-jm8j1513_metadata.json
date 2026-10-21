@@ -1,0 +1,20 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-kephq8iq",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Deletes the GKE namespace's pipeline identities and CloudBolt RoleBindings, deletes the namespace and everything in it, then removes the pinned CloudBolt environment.",
+    "id": "OHK-jm8j1513",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Teardown GKE Namespace",
+    "resource_technologies": [],
+    "script_filename": "OHK-jm8j1513_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
