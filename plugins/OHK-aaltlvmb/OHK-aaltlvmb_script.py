@@ -25,7 +25,7 @@ from shared_modules.gcp_gke import (
     GKEError,
     NODE_POOL_NAME_RE,
     cluster_for_resource,
-    environment_machine_types,
+    node_machine_types,
     int_input,
     node_pool_body,
     pool_label,
@@ -37,11 +37,10 @@ from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
-# Fallback when the cluster's environment offers no gcp_node_size options; the
-# same types the build plugin falls back to. Shared-core types are left out.
+# Fallback when the cluster's environment offers no machine types that suit GKE
+# nodes (gcp_gke.node_machine_types); the same types the build plugin falls back to.
 DEFAULT_MACHINE_TYPE = "e2-standard-4"
 DEFAULT_MACHINE_TYPES = ["e2-standard-4", "e2-standard-8", "n2-standard-4", "n2-standard-8"]
-SHARED_CORE_SUFFIXES = ("-micro", "-small")
 
 # A sanity bound on the per-zone node counts.
 MAX_NODES = 1000
@@ -72,8 +71,7 @@ def generate_options_for_gke_new_pool_machine_type(field=None, **kwargs):
     if resource is None:
         return []
     env = _cluster_environment(resource)
-    types = [t for t in (environment_machine_types(env) if env is not None else [])
-             if not t.lower().endswith(SHARED_CORE_SUFFIXES)] or DEFAULT_MACHINE_TYPES
+    types = (node_machine_types(env) if env is not None else []) or DEFAULT_MACHINE_TYPES
     initial = DEFAULT_MACHINE_TYPE if DEFAULT_MACHINE_TYPE in types else types[0]
     return {"options": [(t, t) for t in types], "initial_value": initial}
 

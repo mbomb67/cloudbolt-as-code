@@ -53,7 +53,7 @@ from shared_modules.gcp_gke import (
     channel_versions,
     cluster_body,
     ensure_cluster_fields,
-    environment_machine_types,
+    node_machine_types,
     environment_regions,
     environment_zones,
     gcp_environments_for_group,
@@ -86,11 +86,10 @@ AVAILABILITY = [
     (ZONAL, "Zonal - the control plane and nodes run in one zone"),
 ]
 
-# Fallback when an environment offers no gcp_node_size options. Shared-core
-# types (-micro, -small) are left out of the dropdown.
+# Fallback when an environment offers no machine types that suit GKE nodes
+# (gcp_gke.node_machine_types).
 DEFAULT_MACHINE_TYPE = "e2-standard-4"
 DEFAULT_MACHINE_TYPES = ["e2-standard-4", "e2-standard-8", "n2-standard-4", "n2-standard-8"]
-SHARED_CORE_SUFFIXES = ("-micro", "-small")
 
 # A sanity bound on the order form's per-zone node counts.
 MAX_NODES = 1000
@@ -200,12 +199,11 @@ def generate_options_for_gke_kubernetes_version(field, control_value=None, contr
 
 
 def generate_options_for_gke_machine_type(field, control_value=None, **kwargs):
-    """The environment's machine types (gcp_node_size options) without shared-core types."""
+    """The environment's machine types (gcp_node_size options) that suit GKE nodes."""
     env = _environment(control_value)
     if env is None:
         return [("", "------ First, select an environment ------")]
-    types = [t for t in environment_machine_types(env) if not t.lower().endswith(SHARED_CORE_SUFFIXES)]
-    types = types or DEFAULT_MACHINE_TYPES
+    types = node_machine_types(env) or DEFAULT_MACHINE_TYPES
     initial = DEFAULT_MACHINE_TYPE if DEFAULT_MACHINE_TYPE in types else types[0]
     return {"options": [(t, t) for t in types], "initial_value": initial}
 

@@ -857,6 +857,27 @@ def environment_machine_types(env):
                   key=str.lower)
 
 
+# Node machine types offered on order forms: x86 general-purpose and
+# compute-optimized families in their standard, highmem, and highcpu shapes.
+# Accelerator (A2, A3, G2, TPU), memory-optimized (M, X), bare-metal, local-SSD,
+# Arm (C4A, N4A, T2A, which need arm64 images), and shared-core types are left out.
+# https://cloud.google.com/compute/docs/machine-resource
+NODE_MACHINE_FAMILIES = ("e2", "n2", "n2d", "n4", "c3", "c3d", "c4", "c4d", "n1", "c2", "c2d")
+NODE_MACHINE_SHAPES = ("standard", "highmem", "highcpu")
+NODE_MACHINE_TYPE_RE = re.compile(r"^([a-z0-9]+)-(standard|highmem|highcpu)-(\d+)$")
+
+
+def node_machine_types(env):
+    """The environment's machine types that suit GKE nodes, by family, shape, then vCPUs."""
+    found = []
+    for name in environment_machine_types(env):
+        match = NODE_MACHINE_TYPE_RE.match(name)
+        if match and match.group(1) in NODE_MACHINE_FAMILIES:
+            family, shape, vcpus = match.groups()
+            found.append(((NODE_MACHINE_FAMILIES.index(family), NODE_MACHINE_SHAPES.index(shape), int(vcpus)), name))
+    return [name for _, name in sorted(found)]
+
+
 def is_gke_cluster(resource):
     """True for a Kubernetes Cluster resource of the Google Kubernetes Engine blueprint."""
     if resource is None or getattr(resource.resource_type, "name", "") != CLUSTER_RESOURCE_TYPE:

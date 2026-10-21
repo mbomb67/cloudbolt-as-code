@@ -23,7 +23,7 @@ Creates a GKE Standard cluster in a GCP environment the ordering group can use. 
 Order form: Cluster Name, Environment, Region, Availability, Subnetwork, Release Channel, Kubernetes Version, Machine Type, Nodes per Zone (required), and Autoscale Maximum, Private Nodes, Cluster Admin Principals, RBAC Security Group, Entitled CloudBolt Groups, Expiration Date (optional).
 
 ## Prerequisites
-- A GCP resource handler with at least one environment whose zone (`gcp_zone`) and machine type (`gcp_node_size`) options are imported. Region lists the regions of the environment's zones, Machine Type its machine types (shared-core types are left out). The order form lists environments, not handlers.
+- A GCP resource handler with at least one environment whose zone (`gcp_zone`) and machine type (`gcp_node_size`) options are imported. Region lists the regions of the environment's zones, Machine Type its x86 general-purpose and compute-optimized machine types (accelerator, memory-optimized, Arm, and shared-core types are left out). The order form lists environments, not handlers.
 - The handler's identity needs Kubernetes Engine Admin (`roles/container.admin`) on the environment's project: it creates clusters and node pools, and creates the cluster-admin binding for CloudBolt's ServiceAccount inside each cluster. It also needs `compute.subnetworks.list` and `compute.subnetworks.use` on the subnetwork's project (a Shared VPC host project additionally needs the roles GKE documents for Shared VPC), and `iam.serviceAccounts.actAs` on the node service account (the Compute Engine default service account).
 - The appliance reaches the cluster's control plane endpoint over HTTPS.
 
