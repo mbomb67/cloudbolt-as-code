@@ -708,7 +708,7 @@ def package_sync(request, pkg_id):
                 request,
                 "Started {} sync job{} for {}, one per member{}; they run one after another.".format(
                     len(created), "" if len(created) == 1 else "s", package["name"],
-                    " plus {} for actions its parameters and workflows need".format(extra) if extra else "",
+                    " plus {} for the actions, plugins and workflows its members need".format(extra) if extra else "",
                 ),
             )
             return HttpResponseRedirect(_detail_url(package["id"]))

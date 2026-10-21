@@ -154,15 +154,6 @@ def closure(package, repo=None):
             try:
                 if member_type.synced:
                     _export(obj, repo, root)
-                    if member_type.dir == "blueprints":
-                        if local_workflows is None:
-                            local_workflows = list(workflow_type.resolvable())
-                        pinned, unknown = _pinned(obj, repo, root, local_workflows)
-                        for value in unknown:
-                            errors.append({"ref": ref, "name": member_name, "error": (
-                                "pins workflow {}, which is not on this appliance, so the export cannot carry "
-                                "it.".format(value)
-                            )})
                 else:
                     for _unit_type, unit in services.carried_units(member_type, obj):
                         _export(unit, repo, root)
@@ -170,6 +161,22 @@ def closure(package, repo=None):
                 logger.exception("Dependency export of %s failed", ref)
                 errors.append({"ref": ref, "name": member_name, "error": str(exc) or type(exc).__name__})
                 continue
+            if member_type.dir == "blueprints":
+                # Its pins are listed apart, so a problem with one still lists
+                # what the blueprint's own export writes.
+                try:
+                    if local_workflows is None:
+                        local_workflows = list(workflow_type.resolvable())
+                    pinned, unknown = _pinned(obj, repo, root, local_workflows)
+                except Exception as exc:
+                    logger.exception("Could not work out the workflows %s pins", ref)
+                    message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
+                    errors.append({"ref": ref, "name": member_name, "error": message or type(exc).__name__})
+                    pinned, unknown = [], []
+                for value in unknown:
+                    errors.append({"ref": ref, "name": member_name, "error": (
+                        "pins workflow {}, which is not on this appliance, so the export cannot carry it.".format(value)
+                    )})
             units = _written(root)
             for workflow in pinned:
                 units[workflow.global_id] = {
