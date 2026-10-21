@@ -283,7 +283,7 @@ def run(job, **kwargs):
 
 **Return dictionaries; the sync does the rest.** `ServiceBlueprint.sync_resources` (`servicecatalog/models.py`) matches each dictionary to one of the blueprint's resources by `RESOURCE_IDENTIFIER`, creates the resource when none matches (`_create_discovered_resource`), creates a parameter for any key that is not one yet (`_create_new_cf`), sets every key on the resource, and sets a matched Historical resource back to Active. Never create `Resource` or `CustomField` objects, or set resource attributes, in a discovery plugin: the sync still marks any resource missing from the returned list Historical, however the plugin touched it. An object the sync cannot create, such as a container orchestrator, may be created idempotently in the plugin and its ID returned as a key (`plugins/OHK-e9qppbei`).
 
-**Required Module-Level Variable:** `RESOURCE_IDENTIFIER`, a parameter name or a list of names holding the cloud-native unique ID. It is matched against the blueprint's own resources only (set `GLOBAL_RESOURCE_MATCHING = True` to match any resource), and a dictionary missing it is skipped.
+**Required Module-Level Variable:** `RESOURCE_IDENTIFIER`, a parameter name or a list of names holding the cloud-native unique ID. It is matched against the blueprint's own resources only (set `GLOBAL_RESOURCE_MATCHING = True` to match any resource), and a dictionary missing it is skipped. The Sync Resources job refuses to run a discovery plugin without it ("No resource identifier(s) specified").
 
 ### Discovery Plugin Template
 

@@ -1,0 +1,20 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4",
+            "shared_modules/SHM-cozv547n"
+        ]
+    },
+    "description": "Deletes the AKS namespace's pipeline identities and CloudBolt role assignments, deletes the managed namespace and everything in it, then removes the pinned CloudBolt environment.",
+    "id": "OHK-wmdr2ef5",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "Teardown AKS Namespace",
+    "resource_technologies": [],
+    "script_filename": "OHK-wmdr2ef5_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

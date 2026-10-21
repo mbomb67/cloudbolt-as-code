@@ -1,0 +1,36 @@
+{% load i18n %}
+{% include "azure_aks_cluster/templates/_assets.html" %}
+
+<div id="aksx-node-pools" class="aksx">
+  <div class="aks-card">
+    <div class="aks-hero-top">
+      <div>
+        <div class="aks-eyebrow">{% trans "Node pools" %}</div>
+        <div class="aks-title"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-sub">{{ resource_group|default:"" }}{% if location %} &middot; {{ location }}{% endif %}</div>
+      </div>
+      <div class="aks-tools">
+        {% if add_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ add_url }}">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Add node pool" %}
+        </a>
+        {% endif %}
+        {% if list_url %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ list_url }}" title="{% trans 'Run List AKS Node Pools to bring the node pool sub-resources in line with Azure' %}">
+          <i class="bi bi-cloud-download" aria-hidden="true"></i> {% trans "Refresh" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-refresh title="{% trans 'Read the node pools and nodes again' %}">
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Reload" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Node pools and nodes: the panel renders its own cards ── #}
+  <div data-aks-panel="node-pools" data-aks-src="{{ node_pools_url }}" data-aks-loading="Azure and the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.aksxInit("aksx-node-pools"); });
+</script>

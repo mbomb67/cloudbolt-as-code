@@ -1,0 +1,148 @@
+{% load i18n %}
+{% if error %}
+<div class="aks-card">
+  {% include "azure_aks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Node pools, with the Azure portal's columns ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Node pools" %} &middot; {{ rows|length }}</span>
+    <div class="aks-card-tools">
+      {% if kubernetes_version %}<span class="aks-muted">{% trans "Control plane" %} {{ kubernetes_version }}</span>{% endif %}
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter node pools' %}" data-aks-filter="#aksx-pools-table">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table id="aksx-pools-table" class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Node pool" %}</th>
+          <th>{% trans "Provisioning state" %}</th>
+          <th>{% trans "Power state" %}</th>
+          <th>{% trans "Scale method" %}</th>
+          <th>{% trans "Target nodes" %}</th>
+          <th>{% trans "Ready nodes" %}</th>
+          <th>{% trans "Autoscale" %}</th>
+          <th>{% trans "Mode" %}</th>
+          <th>{% trans "Operating system" %}</th>
+          <th>{% trans "Kubernetes version" %}</th>
+          <th>{% trans "Node image version" %}</th>
+          <th>{% trans "Node size" %}</th>
+          <th>{% trans "Availability zones" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-aks-row>
+          <td class="aks-nowrap">
+            {{ r.name }}
+            {% if not r.tracked %}<span class="aks-tag aks-tag-warn" title="{% trans 'No AKS Node Pool sub-resource yet; use Refresh' %}">{% trans "not synced" %}</span>{% endif %}
+          </td>
+          <td>{% include "azure_aks_cluster/templates/_pill.html" with p=r.state %}</td>
+          <td>{% include "azure_aks_cluster/templates/_pill.html" with p=r.power %}</td>
+          <td>{{ r.scale_method }}</td>
+          <td>{{ r.target|default_if_none:"&mdash;" }}</td>
+          <td>
+            {% if r.ready is None %}
+              <span class="aks-muted" title="{% trans 'The cluster nodes could not be read' %}">&mdash;</span>
+            {% else %}
+              {{ r.ready }}{% if r.target is not None and r.ready < r.target %} <span class="aks-tag aks-tag-warn">{% trans "of" %} {{ r.target }}</span>{% endif %}
+            {% endif %}
+          </td>
+          <td class="aks-nowrap">{% if r.min is not None %}{{ r.min }}&ndash;{{ r.max }}{% else %}<span class="aks-muted">&mdash;</span>{% endif %}</td>
+          <td>
+            {% if r.mode == "System" %}<span class="badge bg-dark">{% trans "System" %}</span>{% elif r.mode %}<span class="badge bg-secondary">{{ r.mode }}</span>{% endif %}
+          </td>
+          <td class="aks-nowrap">{{ r.os_type }}{% if r.os_sku %}<div class="aks-hint">{{ r.os_sku }}</div>{% endif %}</td>
+          <td class="aks-nowrap">
+            {{ r.version|default:"&mdash;" }}
+            {% if r.behind %}<div><span class="aks-tag aks-tag-warn">{% trans "behind control plane" %}</span></div>{% endif %}
+          </td>
+          <td>
+            <span class="aks-mono">{{ r.node_image|default:"&mdash;" }}</span>
+            {% if r.new_image %}<div><span class="aks-tag aks-tag-info" title="{% trans 'Latest' %}: {{ r.latest_image }}">{% trans "New image" %}</span></div>{% endif %}
+          </td>
+          <td class="aks-nowrap">{{ r.vm_size|default:"&mdash;" }}{% if r.spot %} <span class="aks-tag">{% trans "Spot" %}</span>{% endif %}</td>
+          <td class="aks-nowrap">{% if r.zones %}{{ r.zones|join:", " }}{% else %}<span class="aks-muted">{% trans "None" %}</span>{% endif %}</td>
+          <td>
+            <div class="aks-row-tools">
+              {% if r.scale_url %}
+              <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ r.scale_url }}"><i class="bi bi-arrows-expand" aria-hidden="true"></i> {% trans "Scale" %}</a>
+              {% endif %}
+              {% if r.upgrade_url %}
+              <a class="btn btn-sm btn-primary open-dialog" href="{{ r.upgrade_url }}" title="{% if r.behind %}{% trans 'Move the pool to the control plane version' %}{% else %}{% trans 'Move the pool to the latest node image' %}{% endif %}"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade" %}</a>
+              {% endif %}
+              {% if r.delete_url %}
+              <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ r.delete_url }}"><i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="14" class="aks-empty">{% trans "This cluster has no node pools." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if warnings %}
+  <div class="aks-note">
+    {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{# ── Nodes, read through the cluster's container orchestrator ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Nodes" %}{% if not nodes_error %} &middot; {{ nodes|length }}{% endif %}</span>
+    {% if nodes %}
+    <div class="aks-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter nodes' %}" data-aks-filter="#aksx-pool-nodes-table">
+    </div>
+    {% endif %}
+  </div>
+  {% if nodes_error %}
+    {% include "azure_aks_cluster/templates/_alert.html" with error=nodes_error %}
+  {% else %}
+  <div class="table-responsive">
+    <table id="aksx-pool-nodes-table" class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Node pool" %}</th>
+          <th>{% trans "Kubernetes version" %}</th>
+          <th>{% trans "Node image version" %}</th>
+          <th>{% trans "Zone" %}</th>
+          <th>{% trans "Internal IP" %}</th>
+          <th>{% trans "Age" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in nodes %}
+        <tr data-aks-row>
+          <td class="aks-mono">{{ n.name }}</td>
+          <td class="aks-nowrap">
+            {% include "azure_aks_cluster/templates/_pill.html" with p=n.status %}
+            {% if n.cordoned %}<span class="aks-tag aks-tag-warn">{% trans "cordoned" %}</span>{% endif %}
+          </td>
+          <td>{{ n.pool|default:"&mdash;" }}</td>
+          <td class="aks-mono">{{ n.kubelet|default:"&mdash;" }}</td>
+          <td class="aks-mono">{{ n.node_image|default:"&mdash;" }}</td>
+          <td>{{ n.zone|default:"&mdash;" }}</td>
+          <td class="aks-mono">{{ n.internal_ip|default:"&mdash;" }}</td>
+          <td class="aks-nowrap">{{ n.age }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="aks-empty">{% trans "The cluster has no nodes." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% endif %}

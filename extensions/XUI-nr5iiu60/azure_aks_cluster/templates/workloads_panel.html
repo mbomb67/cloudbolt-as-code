@@ -1,0 +1,134 @@
+{% load i18n %}
+{% if error %}
+<div class="aks-card">
+  {% include "azure_aks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Nodes ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Nodes" %} &middot; {{ nodes|length }}</span>
+    <div class="aks-card-tools">
+      {% if not_ready %}<span class="aks-pill aks-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% blocktrans count n=not_ready %}{{ n }} not ready{% plural %}{{ n }} not ready{% endblocktrans %}</span>{% endif %}
+      {% if pressured %}<span class="aks-pill aks-pill-warn"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% blocktrans count n=pressured %}{{ n }} node under pressure{% plural %}{{ n }} nodes under pressure{% endblocktrans %}</span>{% endif %}
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter nodes' %}" data-aks-filter="#aksx-nodes-table">
+    </div>
+  </div>
+  <div class="aks-stats">
+    <div class="aks-stat"><div class="k">{% trans "CPU requested" %}</div><div class="v">{{ totals.cpu_requests }} <span class="aks-muted">/ {{ totals.cpu_allocatable }} {% trans "cores" %}</span></div></div>
+    <div class="aks-stat"><div class="k">{% trans "Memory requested" %}</div><div class="v">{{ totals.memory_requests }} <span class="aks-muted">/ {{ totals.memory_allocatable }}</span></div></div>
+    <div class="aks-stat"><div class="k">{% trans "Pods" %}</div><div class="v">{{ totals.pods }} <span class="aks-muted">{% trans "running or pending" %}</span></div></div>
+  </div>
+  <div class="table-responsive">
+    <table id="aksx-nodes-table" class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Node" %}</th>
+          <th>{% trans "Node pool" %}</th>
+          <th>{% trans "Ready" %}</th>
+          <th>{% trans "Conditions" %}</th>
+          <th>{% trans "CPU requests" %}</th>
+          <th>{% trans "Memory requests" %}</th>
+          <th>{% trans "Pods" %}</th>
+          <th>{% trans "Kubelet" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in nodes %}
+        <tr data-aks-row>
+          <td>
+            <span class="aks-mono">{{ n.name }}</span>
+            <div class="aks-hint">{{ n.instance_type|default:"" }}{% if n.zone %} &middot; {{ n.zone }}{% endif %}{% if n.age %} &middot; {{ n.age }}{% endif %}</div>
+          </td>
+          <td>{{ n.pool|default:"&mdash;" }}</td>
+          <td><span class="aks-pill aks-pill-{{ n.ready.style }}"><i class="bi {{ n.ready.icon }}" aria-hidden="true"></i> {{ n.ready.text }}</span></td>
+          <td>
+            {% for c in n.conditions %}
+              <span class="aks-cond" title="{{ c.message }}"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {{ c.type }}</span>
+            {% empty %}
+              <span class="aks-muted">{% trans "No pressure" %}</span>
+            {% endfor %}
+            {% if n.unschedulable %}<span class="aks-tag aks-tag-warn">{% trans "cordoned" %}</span>{% endif %}
+          </td>
+          <td class="aks-nowrap">
+            {{ n.cpu.requests }} <span class="aks-muted">/ {{ n.cpu.allocatable }}</span>
+            <div class="aks-meter aks-meter-{{ n.cpu.style }}"><span style="width: {{ n.cpu.percent }}%"></span></div>
+            <div class="aks-hint">{{ n.cpu.percent }}%</div>
+          </td>
+          <td class="aks-nowrap">
+            {{ n.memory.requests }} <span class="aks-muted">/ {{ n.memory.allocatable }}</span>
+            <div class="aks-meter aks-meter-{{ n.memory.style }}"><span style="width: {{ n.memory.percent }}%"></span></div>
+            <div class="aks-hint">{{ n.memory.percent }}%</div>
+          </td>
+          <td>{{ n.pods }}</td>
+          <td class="aks-mono">{{ n.kubelet|default:"&mdash;" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="aks-empty">{% trans "The cluster has no nodes." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Namespaces ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Namespaces" %} &middot; {{ namespaces|length }}</span>
+    <div class="aks-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter namespaces' %}" data-aks-filter="#aksx-namespaces-table">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table id="aksx-namespaces-table" class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Namespace" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Pods" %}</th>
+          <th>{% trans "Deployments" %}</th>
+          <th>{% trans "Services" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ns in namespaces %}
+        <tr data-aks-row>
+          <td>
+            <span class="aks-mono">{{ ns.name }}</span>
+            {% if ns.landing_zone %}
+            <div class="aks-hint">
+              {% if ns.landing_zone.url %}<a href="{{ ns.landing_zone.url }}" title="{% trans 'Open the CloudBolt namespace resource' %}">{% else %}<span>{% endif %}<i class="bi bi-layers" aria-hidden="true"></i> {% trans "landing zone" %}{% if ns.landing_zone.group %} &middot; {{ ns.landing_zone.group }}{% endif %}{% if ns.landing_zone.tier %} &middot; {{ ns.landing_zone.tier }}{% endif %}{% if ns.landing_zone.url %}</a>{% else %}</span>{% endif %}
+            </div>
+            {% endif %}
+          </td>
+          <td><span class="aks-pill aks-pill-{{ ns.status.style }}"><i class="bi {{ ns.status.icon }}" aria-hidden="true"></i> {{ ns.status.text }}</span></td>
+          <td>{{ ns.pods }}{% if ns.pods_not_running %} <span class="aks-tag aks-tag-warn" title="{% trans 'Pods that are not Running or Succeeded' %}">{{ ns.pods_not_running }} {% trans "waiting" %}</span>{% endif %}</td>
+          <td>{{ ns.deployments }}{% if ns.deployments_unavailable %} <span class="aks-tag aks-tag-warn" title="{% trans 'Deployments with unavailable replicas' %}">{{ ns.deployments_unavailable }} {% trans "degraded" %}</span>{% endif %}</td>
+          <td>{{ ns.services }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="aks-empty">{% trans "The cluster has no namespaces." %}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if namespaces %}
+      <tfoot>
+        <tr>
+          <td>{% trans "Total" %}</td>
+          <td></td>
+          <td>{{ totals.all_pods }}</td>
+          <td>{{ totals.deployments }}</td>
+          <td>{{ totals.services }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{% if warnings %}
+<div class="aks-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+{% endif %}
