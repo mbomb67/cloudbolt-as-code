@@ -11,17 +11,11 @@ Goal: the agent is connected to the appliance as a CloudBolt admin with write sc
 
 ## 2. Toolkit install (one-time manual step, then agent-driven)
 
-Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not installed. The sync tool cannot install itself, so the user does one of these in the UI, once:
-
-**A. Content Package Manager** (when that extension is installed): Admin > Content Packages > Import from repository > repository `https://github.com/mbomb67/cloudbolt-as-code.git`, branch `main`, package **POC Onboarding Toolkit** (`PKG-8aaadefz`) > Sync. One step; every tool, the POC Server blueprint and the echo webhook arrive together.
-
-**B. Source Control Repository**: Admin > All Admin > CloudBolt > Source Code Repositories > Add: a label, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, no authentication (public repository), default paths. Then import the tools with the one API call in [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md) §3, or in the UI (Actions > MCP Tool Actions > Create from Repository, one folder at a time) using the folders listed in [packages/PKG-8aaadefz/README.md](../../../../packages/PKG-8aaadefz/README.md).
-
-**C. No internet from the appliance**: build one zip per tool with `python tools/package_zip.py mcp_tool_actions/MTA-...` from a clone and upload each at Actions > MCP Tool Actions > Import.
+Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not installed. The sync tool cannot install itself, so the user installs it once in the UI through the Content Package Manager. Walk them through section 4 of [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md): add the Source Code Repository `https://github.com/mbomb67/cloudbolt-as-code.git` (GitHub, no credentials), add the UI extension `extensions/XUI-iq65xgvr` from it, restart httpd as root, then Import from repository and Sync the package **POC Onboarding Toolkit** (`PKG-8aaadefz`). Every tool, the POC Server blueprint and the echo webhook arrive together. If the Content Packages page is missing after the extension sync, httpd has not been restarted.
 
 After the import every tool is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Tell the user to reconnect the MCP client (tool lists are cached per session), then call `fetch_mcp_tool_actions` again: every `onb_` name from [SKILL.md](../SKILL.md) must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
 
-Later toolkit updates: `sync_from_source_control_repo` with `sync_branch: main` and the package's `mcp_tool_actions/` folders as `sync_paths` (or Sync on the package), then `onb_install`, then reconnect.
+Later toolkit updates: the user clicks Sync on the package (Admin > Admin Extensions > Content Packages), then `onb_install`, then reconnect.
 
 ## 3. First status
 

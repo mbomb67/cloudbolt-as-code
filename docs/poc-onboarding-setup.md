@@ -7,6 +7,7 @@ Get an AI agent ready to take a new CloudBolt appliance through the POC Test Pla
 1. CloudBolt 2026.2.48 or later, licensed, reachable at `https://<appliance>`. The MCP server is on by default at `https://<appliance>/mcp`.
 2. An account that is a CloudBolt admin (super admin or CB admin). Every onboarding tool refuses other callers.
 3. Outbound HTTPS from the appliance to `github.com` and `raw.githubusercontent.com` (to fetch the toolkit and the playbook) and to `content.cloudbolt.app` (Content Library). Set the web proxy under Admin > Miscellaneous Settings if one is required.
+4. Root access to the appliance's shell, for the certificate (section 2) and one web server restart (section 4).
 
 ## 2. Appliance certificate
 
@@ -88,49 +89,25 @@ Use the address the certificate from section 2 names. Then `/mcp`, choose the se
 
 ## 4. Install the toolkit (once)
 
-Pick one:
+The toolkit installs through the Content Package Manager, a UI extension from the same repository. In the CloudBolt UI, signed in as the admin:
 
-**A. Content Package Manager.** Add the Source Code Repository as in option B. Install the extension once: Admin > UI Extensions > Add > **Add package from Repository**, folder `extensions/XUI-iq65xgvr`, branch `main`. The extension adds URL paths that the web server loads only at startup, so restart it as root on the appliance before opening the extension:
+1. **Add the repository.** Admin > Source Code Repositories > **Add** > **GitHub**, then enter:
+   - Label: `CloudBolt as Code`
+   - Repository URL: `https://github.com/mbomb67/cloudbolt-as-code.git`
+   - Auth method: Personal Access Token, with Username and Password or Token left empty, because the repository is public
 
-```bash
-systemctl restart httpd
-```
+   Leave the other fields at their defaults and save.
+2. **Add the Content Package Manager.** Admin > Manage UI Extensions > **Add** > **Add package from Repository**. Repository `CloudBolt as Code`, branch `main`, extension JSON file `extensions/XUI-iq65xgvr/XUI-iq65xgvr_metadata.json` (the `content_packages` extension). Save.
+3. **Restart the web server** as root on the appliance. The extension adds URL paths that the web server loads only at startup.
 
-Then Admin > Custom Extensions > Content Packages > **Import from repository**: the repository, branch `main`, package **POC Onboarding Toolkit**, then **Sync**.
+   ```bash
+   systemctl restart httpd
+   ```
 
-**B. Source Code Repository plus one API call.** Admin > All Admin > CloudBolt > Source Code Repositories > Add: any label, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, no authentication (public repository), default paths. Note its `SCR-` id (`GET https://<appliance>/api/v3/cmp/sourceCodeRepos/`). Then:
+4. **Import the package.** Admin > Admin Extensions > **Content Packages** > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **POC Onboarding Toolkit** (`PKG-8aaadefz`) under Packages on this branch, then **Import**.
+5. **Sync it.** The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**. Each member syncs as its own job: the MCP tools, the POC Server blueprint and the POC Echo webhook. The package's Last sync shows the result.
 
-```bash
-CB_API_TOKEN=$(curl -sS -X POST "https://<appliance>/api/v3/cmp/apiToken/" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "<admin>", "password": "<password>"}' | python -c "import json,sys; print(json.load(sys.stdin)['token'])")
-
-curl -sS -X POST "https://<appliance>/api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/" \
-  -H "Authorization: Bearer $CB_API_TOKEN" -H "Content-Type: application/json" \
-  -d '{"branch": "main", "refreshIfExists": true, "objectsToSync": {"mcp_tool_actions": [
-        "MTA-6zxrhdls/MTA-6zxrhdls_metadata.json", "MTA-1985b88g/MTA-1985b88g_metadata.json",
-        "MTA-zpohocjt/MTA-zpohocjt_metadata.json", "MTA-hwg74btd/MTA-hwg74btd_metadata.json",
-        "MTA-jzscq0mk/MTA-jzscq0mk_metadata.json", "MTA-r5v1eblg/MTA-r5v1eblg_metadata.json",
-        "MTA-92b836jb/MTA-92b836jb_metadata.json", "MTA-p72v9y76/MTA-p72v9y76_metadata.json",
-        "MTA-po1gmnou/MTA-po1gmnou_metadata.json", "MTA-89dxppus/MTA-89dxppus_metadata.json",
-        "MTA-i6p4j2l7/MTA-i6p4j2l7_metadata.json", "MTA-iyknuxox/MTA-iyknuxox_metadata.json",
-        "MTA-0dr8xi4i/MTA-0dr8xi4i_metadata.json", "MTA-i1kmy5fd/MTA-i1kmy5fd_metadata.json",
-        "MTA-pz5o2gjl/MTA-pz5o2gjl_metadata.json", "MTA-70aez9bm/MTA-70aez9bm_metadata.json",
-        "MTA-cpq7bvz4/MTA-cpq7bvz4_metadata.json", "MTA-tuzkb8h4/MTA-tuzkb8h4_metadata.json",
-        "MTA-bp0rkcq9/MTA-bp0rkcq9_metadata.json", "MTA-0689nxjy/MTA-0689nxjy_metadata.json",
-        "MTA-e5qv0zay/MTA-e5qv0zay_metadata.json", "MTA-kw8krevn/MTA-kw8krevn_metadata.json",
-        "MTA-89w58iux/MTA-89w58iux_metadata.json", "MTA-qab6r2gk/MTA-qab6r2gk_metadata.json",
-        "MTA-znqpide5/MTA-znqpide5_metadata.json", "MTA-ckumouj0/MTA-ckumouj0_metadata.json",
-        "MTA-zfoxwh12/MTA-zfoxwh12_metadata.json", "MTA-543b19sa/MTA-543b19sa_metadata.json",
-        "MTA-8j9c0tb0/MTA-8j9c0tb0_metadata.json", "MTA-ntmcnvv7/MTA-ntmcnvv7_metadata.json",
-        "MTA-thkvyt0v/MTA-thkvyt0v_metadata.json", "MTA-gnx1ckno/MTA-gnx1ckno_metadata.json"]}}'
-```
-
-The response is a sync job; `GET /api/v3/cmp/jobs/<JOB-id>/` lists each tool with `success` after a few seconds. The UI alternative is Actions > MCP Tool Actions > Create from Repository, one tool at a time. The POC Server blueprint and echo webhook used in the extensibility phase are synced later by the agent (`blueprints/BP-x78p48gz`, `webhooks/IWH-f16qxnhm`).
-
-**Testing a branch before it merges.** Use the branch name wherever these steps say `main` (option A's branch field, the `"branch"` in option B's call, section 7). The branch name must not contain a slash; CloudBolt reads it from a URL path segment. `onb_playbook` reads the skill from `main` by default: pass `onb_ref` with the branch name until it merges (`onb_install` reports when the playbook is not published on `main` yet).
-
-**C. No internet from the appliance.** From a clone, `python tools/package_zip.py mcp_tool_actions/MTA-6zxrhdls` and the other folders listed in [packages/PKG-8aaadefz/README.md](../packages/PKG-8aaadefz/README.md), then Actions > MCP Tool Actions > Import for each zip.
+**Testing a branch before it merges.** In steps 4 and 5 choose the branch instead of `main`; its name must not contain a slash. `onb_playbook` reads the skill from `main` by default, so pass `onb_ref` with the branch name until it merges (`onb_install` reports when the playbook is not published on `main` yet).
 
 ## 5. Finish the install
 
@@ -142,7 +119,7 @@ Say "Onboard CloudBolt for a POC" (in Claude Code with this repository open, `/c
 
 ## 7. Updating the toolkit
 
-Ask the agent to sync the package's `mcp_tool_actions/` folders from `main` (`sync_from_source_control_repo`), run `onb_install`, and reconnect. With the Content Package Manager, Sync the package instead.
+Admin > Admin Extensions > Content Packages > **POC Onboarding Toolkit** > **Sync**, with **Refresh content that already exists** checked. Then ask the agent to run `onb_install`, and reconnect the MCP client.
 
 ## Troubleshooting
 
