@@ -1,7 +1,7 @@
 """
 Azure AKS Cluster XUI
 
-Adds three tabs to the Kubernetes Cluster resources of the Azure Kubernetes
+Adds four tabs to the Kubernetes Cluster resources of the Azure Kubernetes
 Service blueprint (BP-20q58q9z) -- any resource carrying an aks_cluster_name
 custom field. The AWS EKS Cluster extension gates on eks_cluster_name, so the
 two never show on the same resource.
@@ -25,6 +25,11 @@ two never show on the same resource.
   capacity and pod counts, plus namespaces with pod, deployment and service
   counts, each namespace landing zone linked to its CloudBolt resource, and a
   Create namespace button (Create AKS Namespace).
+- Groups: the CloudBolt groups entitled to the cluster's environment, which
+  may order namespaces on the cluster, shown as CloudBolt's own environment
+  Groups tab does (no groups is Unconstrained; only the Unassigned
+  placeholder is Unassigned), with Add groups, Remove, and Allow all groups
+  (Manage AKS Cluster Groups).
 
 Namespace landing zones of the AKS Namespace blueprint (kubernetes_namespace
 resources carrying aks_namespace_name; the EKS extension gates on
@@ -48,7 +53,8 @@ eks_namespace_name) get two tabs, built by the aks_namespace shared module
 
 Every button starts one of the blueprints' resource actions as a CloudBolt
 job (Upgrade AKS Version, Add, Scale, Upgrade, Delete and List AKS Node
-Pools, Create AKS Namespace, and the namespace actions above), so approvals,
+Pools, Create AKS Namespace, Manage AKS Cluster Groups, and the namespace
+actions above), so approvals,
 permissions and job history apply. Buttons appear only when the action is synced, applies to the
 resource's blueprint and the viewer may run it (resource_action_permitted),
 and the job runs as the viewer.
@@ -105,7 +111,7 @@ from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.permissions import resource_action_permitted
 
-from xui.azure_aks_cluster.forms import ScaleNodePoolForm
+from xui.azure_aks_cluster.forms import AddClusterGroupsForm, ConfirmForm, ScaleNodePoolForm
 
 logger = ThreadLogger(__name__)
 
@@ -129,6 +135,7 @@ ACTION_LIST_POOLS = "List AKS Node Pools"
 ACTION_SCALE_POOL = "Scale AKS Node Pool"
 ACTION_UPGRADE_POOL = "Upgrade AKS Node Pool"
 ACTION_CREATE_NAMESPACE = "Create AKS Namespace"
+ACTION_MANAGE_GROUPS = "Manage AKS Cluster Groups"
 # ...and of the AKS Namespace blueprint's.
 ACTION_MANAGE_NAMESPACE_ACCESS = "Manage AKS Namespace Access"
 ACTION_MANAGE_PIPELINE_IDENTITY = "Manage AKS Namespace Pipeline Identity"
@@ -1120,6 +1127,54 @@ def workloads_panel(request, resource_id):
 
 
 # ---------------------------------------------------------------------------
+# Groups tab: who may order namespaces on the cluster
+# ---------------------------------------------------------------------------
+# A group may order an AKS namespace on the cluster when the cluster's
+# per-cluster Environment is available to it: entitled to the group or an
+# ancestor, or unconstrained (no groups). CloudBolt's Unassigned group is a
+# placeholder that entitles no one. Changes run as Manage AKS Cluster Groups
+# jobs; this tab only reads.
+def _cluster_environment(resource):
+    """The cluster's per-cluster Environment, or PanelError."""
+    try:
+        return _aks().cluster_environment(resource)
+    except PanelError:
+        raise
+    except Exception as exc:
+        if _is_aks_error(exc):
+            raise PanelError(str(exc))
+        raise
+
+
+def _groups_context(resource, profile):
+    aks = _aks()
+    env = _cluster_environment(resource)
+    state, groups = aks.environment_groups(env)
+    action = _action_for(profile, resource, ACTION_MANAGE_GROUPS)
+    rows = [
+        {
+            "group": group,
+            "remove_url": reverse("azure_aks_remove_cluster_group", args=[resource.id, group.global_id])
+            if action else "",
+        }
+        for group in groups
+    ]
+    return {
+        "profile": profile,
+        "environment": env,
+        "state": state,
+        "rows": rows,
+        "allow_all_url": reverse("azure_aks_allow_all_cluster_groups", args=[resource.id])
+        if action and state != aks.UNCONSTRAINED else "",
+        "action_label": action.label if action else "",
+    }
+
+
+def groups_panel(request, resource_id):
+    return _panel(request, resource_id, "groups_panel.html", _groups_context)
+
+
+# ---------------------------------------------------------------------------
 # Namespace Connect tab: how to reach one landing zone, and who may
 # ---------------------------------------------------------------------------
 # Access to a managed namespace is two Azure role assignments on it: Azure
@@ -1662,6 +1717,167 @@ def scale_node_pool(request, resource_id, pool_name):
     }
 
 
+# Operations of the Manage AKS Cluster Groups action (plugins/OHK-yzmq0kzu).
+GROUPS_ADD = "Add"
+GROUPS_REMOVE = "Remove"
+GROUPS_ALLOW_ALL = "Allow all groups"
+
+
+def _groups_dialog_guard(request, resource_id, title):
+    """Checks the group dialogs share: the viewer may see the resource and
+    run Manage AKS Cluster Groups on it, and the cluster has an environment.
+    Returns (resource, profile, action, environment, refusal) where refusal
+    is a dialog context or None."""
+    resource = get_object_or_404(Resource, pk=resource_id)
+    profile = request.get_user_profile()
+    if not _can_view(profile, resource):
+        return resource, profile, None, None, _dialog_message(
+            title, "You do not have permission to view this resource."
+        )
+    action = _action_for(profile, resource, ACTION_MANAGE_GROUPS)
+    if action is None:
+        return resource, profile, None, None, _dialog_message(
+            title,
+            "The {} action is not available on this resource: it is not synced, not on the "
+            "resource's blueprint, or you are not allowed to run it.".format(ACTION_MANAGE_GROUPS),
+        )
+    try:
+        env = _cluster_environment(resource)
+    except PanelError as exc:
+        return resource, profile, None, None, _dialog_message(title, str(exc))
+    return resource, profile, action, env, None
+
+
+@dialog_view
+def add_cluster_groups(request, resource_id):
+    """Entitle more CloudBolt groups to the cluster's environment."""
+    title = "Add groups"
+    resource, profile, action, env, refusal = _groups_dialog_guard(request, resource_id, title)
+    if refusal:
+        return refusal
+    aks = _aks()
+    state, entitled = aks.environment_groups(env)
+    entitled_ids = {group.id for group in entitled}
+    choices = [(g.global_id, g.name) for g in aks.assignable_groups() if g.id not in entitled_ids]
+    if not choices:
+        return _dialog_message(title, "Every CloudBolt group is already entitled to this cluster.", css="")
+
+    if request.method == "POST":
+        form = AddClusterGroupsForm(request.POST, choices=choices)
+        if form.is_valid():
+            values = {"aks_groups_operation": GROUPS_ADD, "aks_groups": form.cleaned_data["groups"]}
+            _run_action(request, profile, resource, action, values, "Adding groups")
+            return _redirect_back(request, resource)
+    else:
+        form = AddClusterGroupsForm(choices=choices)
+
+    if state == aks.UNCONSTRAINED:
+        now = mark_safe(
+            '<p class="text-danger">Every group may order namespaces on this cluster now. Once you add '
+            "groups, only those groups (and their subgroups) may.</p>"
+        )
+    elif state == aks.RESTRICTED:
+        now = mark_safe("<p>The groups you add replace CloudBolt's Unassigned placeholder.</p>")
+    else:
+        now = ""
+    content = format_html(
+        "<p>The groups you choose may order namespaces on cluster <b>{}</b> (environment <b>{}</b>). "
+        "The change runs as a CloudBolt job through the <b>{}</b> action.</p>{}",
+        _cluster_name(resource), env.name, action.label, now,
+    )
+    return {
+        "title": title,
+        "content": content,
+        "form": form,
+        "action_url": reverse("azure_aks_add_cluster_groups", args=[resource.id]),
+        "use_ajax": True,
+        "submit": "Add",
+    }
+
+
+@dialog_view
+def remove_cluster_group(request, resource_id, group_id):
+    """Take one group off the cluster's environment."""
+    title = "Remove group"
+    resource, profile, action, env, refusal = _groups_dialog_guard(request, resource_id, title)
+    if refusal:
+        return refusal
+    entitled = _aks().environment_groups(env)[1]
+    group = next((g for g in entitled if g.global_id == group_id), None)
+    if group is None:
+        return _dialog_message(title, "That group is not entitled to this cluster.")
+
+    if request.method == "POST":
+        form = ConfirmForm(request.POST)
+        if form.is_valid():
+            values = {"aks_groups_operation": GROUPS_REMOVE, "aks_groups": [group.global_id]}
+            _run_action(request, profile, resource, action, values, "Removing group {}".format(group.name))
+            return _redirect_back(request, resource)
+    else:
+        form = ConfirmForm()
+
+    content = format_html(
+        "<p>Group <b>{}</b> will no longer be able to order namespaces on cluster <b>{}</b>. Namespaces it "
+        "already ordered stay. The change runs as a CloudBolt job through the <b>{}</b> action.</p>",
+        group.name, _cluster_name(resource), action.label,
+    )
+    if len(entitled) == 1:
+        content += format_html(
+            '<p class="text-danger"><b>{}</b> is the last group entitled. Removing it leaves environment '
+            "<b>{}</b> with no groups, so <b>every group</b> may order namespaces on this cluster.</p>",
+            group.name, env.name,
+        )
+    return {
+        "title": title,
+        "content": content,
+        "form": form,
+        "action_url": reverse("azure_aks_remove_cluster_group", args=[resource.id, group.global_id]),
+        "use_ajax": True,
+        "submit": "Remove",
+    }
+
+
+@dialog_view
+def allow_all_cluster_groups(request, resource_id):
+    """Remove every group from the cluster's environment, so every group may order namespaces."""
+    title = "Allow all groups"
+    resource, profile, action, env, refusal = _groups_dialog_guard(request, resource_id, title)
+    if refusal:
+        return refusal
+    aks = _aks()
+    state, entitled = aks.environment_groups(env)
+    if state == aks.UNCONSTRAINED:
+        return _dialog_message(title, "Every group may already order namespaces on this cluster.", css="")
+
+    if request.method == "POST":
+        form = ConfirmForm(request.POST)
+        if form.is_valid():
+            values = {"aks_groups_operation": GROUPS_ALLOW_ALL}
+            _run_action(request, profile, resource, action, values, "Allowing all groups")
+            return _redirect_back(request, resource)
+    else:
+        form = ConfirmForm()
+
+    if entitled:
+        removed = format_html_join(", ", "<b>{}</b>", ((g.name,) for g in entitled))
+    else:
+        removed = mark_safe("CloudBolt's Unassigned placeholder")
+    content = format_html(
+        '<p class="text-danger"><b>Every CloudBolt group</b> will be able to order namespaces on cluster '
+        "<b>{}</b>.</p><p>This removes {} from environment <b>{}</b>, leaving it unconstrained. The change "
+        "runs as a CloudBolt job through the <b>{}</b> action.</p>",
+        _cluster_name(resource), removed, env.name, action.label,
+    )
+    return {
+        "title": title,
+        "content": content,
+        "form": form,
+        "action_url": reverse("azure_aks_allow_all_cluster_groups", args=[resource.id]),
+        "use_ajax": True,
+        "submit": "Allow all groups",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
@@ -1760,6 +1976,24 @@ def aks_workloads_tab(request, obj_id):
         ),
     })
     return render(request, TEMPLATES + "workloads_tab.html", context)
+
+
+@tab_extension(
+    model=Resource,
+    title="Groups",
+    delegate=ClusterTabDelegate,
+    description="CloudBolt groups that may order namespaces on an AKS cluster, with Add, Remove, and Allow all groups",
+)
+def aks_groups_tab(request, obj_id):
+    resource = get_object_or_404(Resource, pk=obj_id)
+    profile = request.get_user_profile()
+    context = _tab_context(resource)
+    context.update({
+        "groups_url": reverse("azure_aks_cluster_groups_panel", args=[resource.id]),
+        "add_url": reverse("azure_aks_add_cluster_groups", args=[resource.id])
+        if _action_for(profile, resource, ACTION_MANAGE_GROUPS) else "",
+    })
+    return render(request, TEMPLATES + "groups_tab.html", context)
 
 
 def _namespace_tab_context(resource):

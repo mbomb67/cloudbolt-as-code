@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from common.forms import C2Form
+from common.widgets import CheckboxSelectMultipleTable
 
 # Scale methods as the Azure portal names them on a node pool's Scale page.
 SCALE_METHOD_CHOICES = [
@@ -66,3 +67,22 @@ class ScaleNodePoolForm(C2Form):
             if minimum > maximum:
                 raise ValidationError("The minimum node count cannot exceed the maximum.")
         return cleaned
+
+
+class AddClusterGroupsForm(C2Form):
+    """CloudBolt groups to entitle to a cluster's environment (those not entitled yet)."""
+
+    groups = forms.MultipleChoiceField(
+        label="",
+        widget=CheckboxSelectMultipleTable,
+        error_messages={"required": "Choose at least one group."},
+    )
+
+    def __init__(self, *args, **kwargs):
+        choices = kwargs.pop("choices", [])
+        super().__init__(*args, **kwargs)
+        self.fields["groups"].choices = choices
+
+
+class ConfirmForm(C2Form):
+    """No fields: submitting the dialog confirms."""

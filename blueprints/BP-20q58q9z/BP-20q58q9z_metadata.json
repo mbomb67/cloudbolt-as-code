@@ -22,7 +22,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, and create namespace landing zones.",
+    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-uof2rcaa"
@@ -107,6 +107,13 @@
             },
             "enabled": true,
             "label": "Create AKS Namespace"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-my8fifei"
+            },
+            "enabled": true,
+            "label": "Manage AKS Cluster Groups"
         }
     ],
     "metadata_version": "2026.1.0",

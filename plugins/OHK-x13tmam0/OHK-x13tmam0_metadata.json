@@ -297,6 +297,25 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "CloudBolt groups that may order namespaces on the cluster. They replace the Unassigned placeholder on the cluster's environment; leave empty to entitle groups later on the cluster's Groups tab.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-g7haz3ke",
+            "label": "Entitled CloudBolt Groups",
+            "name": "aks_entitled_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
@@ -310,7 +329,8 @@
         "aks_sku_tier",
         "aks_upgrade_channel",
         "aks_private_cluster",
-        "aks_admin_group_ids"
+        "aks_admin_group_ids",
+        "aks_entitled_groups"
     ],
     "dependencies": {
         "sharedModules": [

@@ -21,7 +21,8 @@ extension. It has four parts:
    Cluster resource and on its AKS Node Pool sub-resources, the Azure
    environments a group may order into, the Kubernetes container orchestrator
    and per-cluster Environment that let CloudBolt (and the namespace
-   blueprint) reach the cluster's API server.
+   blueprint) reach the cluster's API server, and the CloudBolt groups
+   entitled to that Environment (who may order namespaces on the cluster).
 
 4. Generic ARM helpers the namespace module builds on: role assignments and
    user-assigned managed identities with federated credentials.
@@ -1024,6 +1025,17 @@ def cluster_environment_name(cluster_name, location):
     return f"Resource-{cluster_name} Environment#{location}"
 
 
+def _cluster_environment(orchestrator):
+    """The per-cluster Environment on the orchestrator (not a namespace's), or None."""
+    return (
+        Environment.objects.filter(container_orchestrator=orchestrator, resource_handler__isnull=True,
+                                   name__startswith="Resource-")
+        .exclude(custom_field_options__field__name=NAMESPACE_ENV_FIELD)
+        .order_by("id")
+        .first()
+    )
+
+
 def register_orchestrator(resource, cluster, location):
     """Create (or refresh) the cluster's Kubernetes orchestrator and per-cluster Environment.
 
@@ -1051,12 +1063,7 @@ def register_orchestrator(resource, cluster, location):
     resource.set_value_for_custom_field(CLUSTER_ORCHESTRATOR_FIELD, orchestrator.id)
     resource.save()
 
-    env = (
-        Environment.objects.filter(container_orchestrator=orchestrator, resource_handler__isnull=True,
-                                   name__startswith="Resource-")
-        .exclude(custom_field_options__field__name=NAMESPACE_ENV_FIELD)
-        .first()
-    )
+    env = _cluster_environment(orchestrator)
     if env is None:
         env = Environment.objects.create(
             name=cluster_environment_name(cluster.name, location),
@@ -1092,6 +1099,154 @@ def delete_orchestrator(resource):
     name = orchestrator.name
     orchestrator.delete()
     return f"Removed container orchestrator {name} and {removed} environment(s)."
+
+
+# ---------------------------------------------------------------------------
+# CloudBolt groups entitled to the per-cluster Environment
+# ---------------------------------------------------------------------------
+# A group may order AKS namespaces on a cluster when the cluster's Environment
+# is in Group.get_available_environments(): entitled to the group or an
+# ancestor, or unconstrained (no groups at all). With the global preference
+# that restricts new environments on, CloudBolt puts each new Environment in
+# the Unassigned group, a placeholder that entitles no real group. Changes
+# follow CloudBolt's own Edit groups dialog for an environment: the group set
+# changes, descendant groups inherit (or lose) the environment, and the
+# environment's history records the change.
+
+GROUP_ID_RE = re.compile(r"GRP-[A-Za-z0-9]+")
+
+UNCONSTRAINED = "unconstrained"
+RESTRICTED = "restricted"
+ENTITLED = "entitled"
+
+
+def cluster_environment(resource):
+    """The per-cluster Environment of a cluster resource, or raise AKSError."""
+    from containerorchestrators.kuberneteshandler.models import Kubernetes
+
+    orchestrator = None
+    orchestrator_id = resource.get_cf_values_as_dict().get(CLUSTER_ORCHESTRATOR_FIELD)
+    try:
+        if orchestrator_id not in (None, ""):
+            orchestrator = Kubernetes.objects.filter(id=int(str(orchestrator_id).strip())).first()
+    except (TypeError, ValueError):
+        orchestrator = None
+    env = _cluster_environment(orchestrator) if orchestrator is not None else None
+    if env is None:
+        raise AKSError(
+            f"Cluster '{resource.name}' has no CloudBolt environment: CloudBolt never registered it as a "
+            "container orchestrator. Run the Azure Kubernetes Service blueprint's discovery."
+        )
+    return env
+
+
+def assignable_groups():
+    """Every group a cluster may be entitled to (all but the Unassigned placeholders), by name."""
+    from accounts.models import Group
+
+    return list(Group.without_unassigned.order_by("name"))
+
+
+def group_ids_in(text):
+    """Group global IDs in a rendered input, in order, without repeats.
+
+    A multi-select input renders as a Python list ("['GRP-...', ...]"); the
+    IDs are matched, never evaluated.
+    """
+    return list(dict.fromkeys(GROUP_ID_RE.findall(str(text or ""))))
+
+
+def groups_for_ids(group_ids):
+    """(groups, unknown): the assignable groups with these global IDs, and the IDs that match none."""
+    from accounts.models import Group
+
+    found = {g.global_id: g for g in Group.without_unassigned.filter(global_id__in=group_ids)}
+    return [found[i] for i in group_ids if i in found], [i for i in group_ids if i not in found]
+
+
+def environment_groups(env):
+    """(state, groups) for an Environment: UNCONSTRAINED when it has no groups,
+    RESTRICTED when it has only Unassigned placeholders, else ENTITLED with
+    its real groups by name."""
+    groups = list(env.group_set.order_by("name"))
+    real = [g for g in groups if not g.is_unassigned]
+    if real:
+        return ENTITLED, real
+    return (RESTRICTED if groups else UNCONSTRAINED), []
+
+
+def _grant(env, group):
+    env.group_set.add(group)
+    try:
+        group.add_env_to_descendants(env)
+    except Exception as exc:
+        logger.warning("Could not propagate env %s to descendants of %s: %s", env, group, exc)
+
+
+def _revoke(env, group):
+    env.group_set.remove(group)
+    try:
+        group.remove_env_from_descendants(env)
+    except Exception as exc:
+        logger.warning("Could not remove env %s from descendants of %s: %s", env, group, exc)
+
+
+def _record(env, message, profile=None, job=None):
+    try:
+        env.add_event("INFO", message, profile=profile, job=job)
+    except Exception as exc:
+        logger.warning("Could not record a history event on environment %s: %s", env, exc)
+
+
+def add_environment_groups(env, groups, profile=None, job=None):
+    """Entitle groups to the Environment, dropping any Unassigned placeholder.
+    Returns the names of the groups added."""
+    current = set(env.group_set.all())
+    added = [g for g in groups if g not in current]
+    if not added:
+        return []
+    for group in current:
+        if group.is_unassigned:
+            _revoke(env, group)
+    for group in added:
+        _grant(env, group)
+    names = [g.name for g in added]
+    _record(env, f"Entitled group(s) {', '.join(names)} to environment '{env.name}'.", profile, job)
+    return names
+
+
+def remove_environment_groups(env, groups, profile=None, job=None):
+    """Remove groups from the Environment. When no real group is left, the
+    Environment becomes unconstrained (any Unassigned placeholder goes too).
+    Returns the names of the groups removed."""
+    current = set(env.group_set.all())
+    removed = [g for g in groups if g in current]
+    if not removed:
+        return []
+    for group in removed:
+        _revoke(env, group)
+    if environment_groups(env)[0] == RESTRICTED:
+        for group in list(env.group_set.all()):
+            _revoke(env, group)
+    names = [g.name for g in removed]
+    message = f"Removed group(s) {', '.join(names)} from environment '{env.name}'."
+    if environment_groups(env)[0] == UNCONSTRAINED:
+        message += " No groups remain, so every group may use it."
+    _record(env, message, profile, job)
+    return names
+
+
+def allow_all_groups(env, profile=None, job=None):
+    """Remove every group, Unassigned included, so every group may use the
+    Environment. Returns the names of the groups removed."""
+    groups = list(env.group_set.order_by("name"))
+    for group in groups:
+        _revoke(env, group)
+    names = [g.name for g in groups]
+    if names:
+        _record(env, f"Removed every group ({', '.join(names)}) from environment '{env.name}'; "
+                     "every group may use it.", profile, job)
+    return names
 
 
 def active_namespaces(resource):

@@ -22,6 +22,11 @@ xui_urlpatterns = [
         name="azure_aks_workloads_panel",
     ),
     path(
+        "azure-aks/<int:resource_id>/groups/",
+        views.groups_panel,
+        name="azure_aks_cluster_groups_panel",
+    ),
+    path(
         "azure-aks/namespaces/<int:resource_id>/connect/",
         views.namespace_connect_panel,
         name="azure_aks_namespace_connect_panel",
@@ -36,5 +41,20 @@ xui_urlpatterns = [
         "azure-aks/<int:resource_id>/node-pools/<str:pool_name>/scale/",
         views.scale_node_pool,
         name="azure_aks_scale_node_pool",
+    ),
+    path(
+        "azure-aks/<int:resource_id>/groups/add/",
+        views.add_cluster_groups,
+        name="azure_aks_add_cluster_groups",
+    ),
+    path(
+        "azure-aks/<int:resource_id>/groups/allow-all/",
+        views.allow_all_cluster_groups,
+        name="azure_aks_allow_all_cluster_groups",
+    ),
+    path(
+        "azure-aks/<int:resource_id>/groups/<str:group_id>/remove/",
+        views.remove_cluster_group,
+        name="azure_aks_remove_cluster_group",
     ),
 ]

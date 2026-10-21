@@ -25,6 +25,11 @@ the cluster's admin credential.
   https://learn.microsoft.com/en-us/azure/aks/auto-upgrade-node-os-image
   https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks/baseline-aks
 
+Entitled CloudBolt Groups, when chosen, are entitled to the per-cluster
+Environment in place of CloudBolt's Unassigned placeholder, so they can order
+namespaces on the cluster at once; cluster owners change the list later on
+the cluster's Groups tab (Manage AKS Cluster Groups).
+
 RBAC: users pick an Environment from group.get_available_environments(); the
 Azure resource handler is never shown (docs/agents/rbac-and-security.md).
 """
@@ -38,10 +43,14 @@ from shared_modules.azure_aks import (
     AKSError,
     ArmClient,
     CLUSTER_NAME_RE,
+    add_environment_groups,
+    assignable_groups,
     azure_environments_for_group,
     ensure_cluster_fields,
     environment_node_sizes,
     environment_resource_groups,
+    group_ids_in,
+    groups_for_ids,
     guid_or_none,
     handler_for_environment,
     kubernetes_versions,
@@ -143,6 +152,11 @@ def generate_options_for_aks_kubernetes_version(field, control_value=None, **kwa
             initial = v["version"]
         options.append((v["version"], label))
     return {"options": options, "initial_value": initial or (options[0][0] if options else None), "sort": False}
+
+
+def generate_options_for_aks_entitled_groups(field, **kwargs):
+    """Every CloudBolt group but the Unassigned placeholders."""
+    return [(g.global_id, g.name) for g in assignable_groups()]
 
 
 def generate_options_for_aks_sku_tier(field, **kwargs):
@@ -252,6 +266,7 @@ def run(job, resource, **kwargs):
     private = _text("{{ aks_private_cluster }}").lower() in ("true", "1", "yes", "on")
     channel = _text("{{ aks_upgrade_channel }}") or "patch"
     admin_groups_text = _text("""{{ aks_admin_group_ids }}""")
+    entitled_ids = group_ids_in("""{{ aks_entitled_groups }}""")
 
     # ---- Validate ----------------------------------------------------------
     if not CLUSTER_NAME_RE.match(name):
@@ -277,6 +292,9 @@ def run(job, resource, **kwargs):
             (admin_groups if guid_or_none(token) else bad).append(guid_or_none(token) or token)
     if bad:
         return "FAILURE", "", f"Not Microsoft Entra group object IDs: {', '.join(bad)}."
+    entitled_groups, unknown = groups_for_ids(entitled_ids)
+    if unknown:
+        return "FAILURE", "", f"No CloudBolt group to entitle has the ID(s) {', '.join(unknown)}."
 
     try:
         rh = handler_for_environment(env)
@@ -336,9 +354,12 @@ def run(job, resource, **kwargs):
                 f"container orchestrator: {exc}")
     set_progress(f"Registered container orchestrator '{orchestrator.name}' and environment '{cluster_env.name}'.")
 
-    return (
-        "SUCCESS",
-        f"AKS cluster '{name}' is ready (Kubernetes {created['properties'].get('currentKubernetesVersion')}). "
-        f"Entitle groups to environment '{cluster_env.name}' to let them order namespaces on it.",
-        "",
-    )
+    # ---- Groups that may order namespaces on the cluster -------------------
+    ready = f"AKS cluster '{name}' is ready (Kubernetes {created['properties'].get('currentKubernetesVersion')})."
+    if not entitled_groups:
+        return ("SUCCESS", f"{ready} Entitle groups on the cluster's Groups tab (environment "
+                f"'{cluster_env.name}') to let them order namespaces on it.", "")
+    names = add_environment_groups(cluster_env, entitled_groups, profile=job.owner, job=job)
+    set_progress(f"Entitled group(s) {', '.join(names)} to environment '{cluster_env.name}'.")
+    return ("SUCCESS", f"{ready} Group(s) {', '.join(g.name for g in entitled_groups)} may order "
+            "namespaces on it.", "")

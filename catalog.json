@@ -38,7 +38,7 @@
     "id": "BP-20q58q9z",
     "type": "blueprints",
     "name": "Azure Kubernetes Service",
-    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, and create namespace landing zones.",
+    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster.",
     "path": "blueprints/BP-20q58q9z",
     "readme": "blueprints/BP-20q58q9z/README.md",
     "uses": [
@@ -50,6 +50,7 @@
       "resource_actions/RSA-gp2aywcz",
       "resource_actions/RSA-j4f98ti1",
       "resource_actions/RSA-jttbwkm5",
+      "resource_actions/RSA-my8fifei",
       "resource_actions/RSA-v9717mtc",
       "resource_actions/RSA-wsre115s",
       "resource_actions/RSA-wxd1o7s8"
@@ -624,7 +625,7 @@
     "id": "XUI-nr5iiu60",
     "type": "extensions",
     "name": "Azure AKS Cluster",
-    "description": "Adds Cluster, Node pools, and Workloads tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory.",
+    "description": "Adds Cluster, Node pools, Workloads, and Groups tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory.",
     "path": "extensions/XUI-nr5iiu60",
     "readme": "extensions/XUI-nr5iiu60/README.md",
     "uses": [],
@@ -3902,6 +3903,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-yzmq0kzu",
+    "type": "plugins",
+    "name": "Manage AKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "plugins/OHK-yzmq0kzu",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-my8fifei"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-z9p72xu7",
     "type": "plugins",
     "name": "Azure PS - List Resource Groups",
@@ -4530,6 +4546,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-my8fifei",
+    "type": "resource_actions",
+    "name": "Manage AKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "resource_actions/RSA-my8fifei",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-yzmq0kzu"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-nvwe7u4b",
     "type": "resource_actions",
     "name": "Extend AKS Namespace Expiration",
@@ -5038,6 +5069,7 @@
       "plugins/OHK-tybit8su",
       "plugins/OHK-t1r0y1yd",
       "plugins/OHK-0fp008gh",
+      "plugins/OHK-yzmq0kzu",
       "plugins/OHK-cqkwd0mq",
       "plugins/OHK-4rucefwc",
       "plugins/OHK-jeighfcq",
