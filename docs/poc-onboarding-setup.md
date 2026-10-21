@@ -107,8 +107,6 @@ The toolkit installs through the Content Package Manager, a UI extension from th
 4. **Import the package.** Admin > Admin Extensions > **Content Packages** > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **POC Onboarding Toolkit** (`PKG-8aaadefz`) under Packages on this branch, then **Import**.
 5. **Sync it.** The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**. Each member syncs as its own job: the MCP tools, the POC Server blueprint and the POC Echo webhook. The package's Last sync shows the result.
 
-**Testing a branch before it merges.** In steps 4 and 5 choose the branch instead of `main`; its name must not contain a slash. `onb_playbook` reads the skill from `main` by default, so pass `onb_ref` with the branch name until it merges (`onb_install` reports when the playbook is not published on `main` yet).
-
 ## 5. Finish the install
 
 Ask the agent: "Run onb_install and tell me what changed." The importer leaves Synchronous Action off on every tool; `onb_install` turns it on where it belongs, enables every tool, checks outbound access, and reports. Then reconnect the MCP client (tool lists are cached per session). Check: "Run onb_status" answers inline with the appliance inventory.
