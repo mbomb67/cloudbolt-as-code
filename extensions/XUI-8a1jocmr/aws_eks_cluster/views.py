@@ -1715,7 +1715,7 @@ def add_groups(request, resource_id):
                 "eks_groups_operation": "add",
                 "eks_groups": [group.global_id for group in added],
             }
-            _run_action(request, profile, resource, action, values, "Adding groups {}".format(_names(added)))
+            _run_action(request, profile, resource, action, values, "Adding {}".format(_names(added)))
             return _redirect_back(request, resource)
         if form.is_valid():
             top_content = format_html('<p class="text-danger">{}</p>', "Select at least one group.")
@@ -1764,7 +1764,7 @@ def remove_group(request, resource_id, group_id):
 
     if request.method == "POST":
         values = {"eks_groups_operation": "remove", "eks_groups": [group.global_id]}
-        _run_action(request, profile, resource, action, values, "Removing group {}".format(group.name))
+        _run_action(request, profile, resource, action, values, "Removing {}".format(group.name))
         return _redirect_back(request, resource)
 
     content = format_html(
