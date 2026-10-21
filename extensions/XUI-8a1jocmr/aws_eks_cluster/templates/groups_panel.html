@@ -1,0 +1,98 @@
+{% load i18n helper_tags %}
+<div class="eks-card-h">
+  <span class="eks-card-t">{% trans "Entitled groups" %}{% if not error and state == "entitled" %} &middot; {{ rows|length }}{% endif %}</span>
+  <div class="eks-card-tools">
+    {% if add_url %}
+    <a class="btn btn-sm btn-primary open-dialog" href="{{ add_url }}">
+      <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Add groups" %}
+    </a>
+    {% endif %}
+    {% if allow_all_url %}
+    <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ allow_all_url }}" title="{% trans 'Clear every group so the environment is unconstrained' %}">
+      <i class="bi bi-globe" aria-hidden="true"></i> {% trans "Allow all groups" %}
+    </a>
+    {% endif %}
+    {% if state == "entitled" %}
+    <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter groups' %}" data-eks-filter="#eksx-groups-table">
+    {% endif %}
+  </div>
+</div>
+{% if error %}
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+{% else %}
+<div class="eks-meta" style="border-top: 0;">
+  <div class="cell">
+    <div class="k">{% trans "Environment" %}</div>
+    <div class="v">{{ environment|link_or_label:profile }}</div>
+  </div>
+  <div class="cell">
+    <div class="k">{% trans "Access" %}</div>
+    <div class="v">
+      {% if state == "unconstrained" %}
+        <span class="eks-pill eks-pill-warn"><i class="bi bi-globe" aria-hidden="true"></i> {% trans "Unconstrained" %}</span>
+      {% elif state == "restricted" %}
+        <span class="eks-pill eks-pill-bad"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Restricted" %}</span>
+      {% else %}
+        <span class="eks-pill eks-pill-ok"><i class="bi bi-people-fill" aria-hidden="true"></i> {% blocktrans count n=rows|length %}{{ n }} group{% plural %}{{ n }} groups{% endblocktrans %}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if state == "unconstrained" %}
+<div class="eks-banner">
+  <i class="bi bi-globe" aria-hidden="true"></i>
+  <div class="eks-banner-body">
+    <div class="eks-banner-t">{% trans "Unconstrained: every group can order namespaces on this cluster" %}</div>
+    <div class="eks-banner-s">{% trans "The cluster's environment has no groups, so CloudBolt makes it available to all of them. Add groups to limit namespace ordering to those groups." %}</div>
+  </div>
+</div>
+{% elif state == "restricted" %}
+<div class="eks-banner eks-banner-bad">
+  <i class="bi bi-lock-fill" aria-hidden="true"></i>
+  <div class="eks-banner-body">
+    <div class="eks-banner-t">{% trans "Restricted: no group is entitled yet" %}</div>
+    <div class="eks-banner-s">{% trans "Only CloudBolt's Unassigned placeholder is on the cluster's environment, which new environments get when CloudBolt restricts them. No group can order namespaces on this cluster until groups are added." %}</div>
+  </div>
+</div>
+{% else %}
+<div class="table-responsive">
+  <table id="eksx-groups-table" class="eks-table">
+    <thead>
+      <tr>
+        <th>{% trans "Group" %}</th>
+        <th>{% trans "Type" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-eks-row>
+        <td>
+          {{ r.group|link_or_label:profile }}
+          {% if r.group.parent %}<div class="eks-hint">{% trans "in" %} {{ r.group.parent.name }}</div>{% endif %}
+        </td>
+        <td>{{ r.group.type|default:"&mdash;" }}</td>
+        <td>
+          <div class="eks-row-tools">
+            {% if r.remove_url %}
+            <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ r.remove_url }}"><i class="bi bi-x-circle" aria-hidden="true"></i> {% trans "Remove" %}</a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="eks-note">
+  <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% trans "Subgroups of an entitled group can order namespaces too. Namespaces already ordered keep their own environments and owning groups." %}</div>
+  {% if can_manage %}
+  <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with action=manage_action %}Changes run as {{ action }} jobs; Refresh once they finish.{% endblocktrans %}</div>
+  {% else %}
+  <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with action=manage_action %}Changing these groups needs permission to run {{ action }} on this cluster.{% endblocktrans %}</div>
+  {% endif %}
+</div>
+{% endif %}

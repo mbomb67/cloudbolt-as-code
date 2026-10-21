@@ -7,13 +7,13 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 |---|---|
 | [Packages](#packages) | 7 |
 | [Blueprints](#blueprints) | 30 |
-| [Resource actions](#resource-actions) | 50 |
+| [Resource actions](#resource-actions) | 51 |
 | [Server actions](#server-actions) | 3 |
 | [Orchestration actions](#orchestration-actions) | 21 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 167 |
+| [Plugins](#plugins) | 168 |
 | [Shared modules](#shared-modules) | 23 |
 | [UI extensions](#ui-extensions) | 12 |
 | [Parameters](#parameters) | 2 |
@@ -104,6 +104,7 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | Manage AKS Cluster Groups | [RSA-my8fifei](resource_actions/RSA-my8fifei/) | Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster. | [Manage AKS Cluster Groups](plugins/OHK-yzmq0kzu/) | [Azure Kubernetes Service](blueprints/BP-20q58q9z/README.md) |
 | Manage AKS Namespace Access | [RSA-1amyol6t](resource_actions/RSA-1amyol6t/) | Grants or revokes kubectl access to an AKS namespace for a Microsoft Entra user, group, or service principal through namespace-scoped Azure RBAC roles, and a CloudBolt group's entitlement to its environment. | [Manage AKS Namespace Access](plugins/OHK-cqkwd0mq/) | [AKS Namespace](blueprints/BP-dogqi827/README.md) |
 | Manage AKS Namespace Pipeline Identity | [RSA-rwaszep5](resource_actions/RSA-rwaszep5/) | Creates or deletes a user-assigned managed identity that a GitHub Actions workflow signs in as through OIDC, with kubectl access to an AKS namespace through namespace-scoped Azure RBAC roles. | [Manage AKS Namespace Pipeline Identity](plugins/OHK-4rucefwc/) | [AKS Namespace](blueprints/BP-dogqi827/README.md) |
+| Manage AWS EKS Cluster Groups | [RSA-l3dokgru](resource_actions/RSA-l3dokgru/) | Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment. | [Manage AWS EKS Cluster Groups](plugins/OHK-2lvw9oe0/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Manage Delete Lock | [RSA-qwku9lip](resource_actions/RSA-qwku9lip/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | [Manage Delete Lock](plugins/OHK-sf6w5pfn/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Manage Namespace Access | [RSA-mr1clc5e](resource_actions/RSA-mr1clc5e/) | Grants or revokes kubectl access to an EKS namespace for an IAM role or user through a namespace-scoped EKS access entry, and a CloudBolt group's entitlement to its environment. | [Manage AWS EKS Namespace Access](plugins/OHK-3902mdky/) | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
 | Manage Pipeline Identity | [RSA-l59xsi54](resource_actions/RSA-l59xsi54/) | Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry. | [Manage AWS EKS Namespace Pipeline Identity](plugins/OHK-h9moajbi/) | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
@@ -310,6 +311,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Manage AKS Cluster Groups | [OHK-yzmq0kzu](plugins/OHK-yzmq0kzu/) | Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster. | CloudBolt Plug-in | [Manage AKS Cluster Groups](resource_actions/RSA-my8fifei/) |
 | Manage AKS Namespace Access | [OHK-cqkwd0mq](plugins/OHK-cqkwd0mq/) | Grants or revokes kubectl access to an AKS namespace for a Microsoft Entra user, group, or service principal through namespace-scoped Azure RBAC roles, and a CloudBolt group's entitlement to its environment. | CloudBolt Plug-in | [Manage AKS Namespace Access](resource_actions/RSA-1amyol6t/) |
 | Manage AKS Namespace Pipeline Identity | [OHK-4rucefwc](plugins/OHK-4rucefwc/) | Creates or deletes a user-assigned managed identity that a GitHub Actions workflow signs in as through OIDC, with kubectl access to an AKS namespace through namespace-scoped Azure RBAC roles. | CloudBolt Plug-in | [Manage AKS Namespace Pipeline Identity](resource_actions/RSA-rwaszep5/) |
+| Manage AWS EKS Cluster Groups | [OHK-2lvw9oe0](plugins/OHK-2lvw9oe0/) | Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment. | CloudBolt Plug-in | [Manage AWS EKS Cluster Groups](resource_actions/RSA-l3dokgru/) |
 | Manage AWS EKS Namespace Access | [OHK-3902mdky](plugins/OHK-3902mdky/) | Grants or revokes kubectl access to an EKS namespace for an IAM role or user through a namespace-scoped EKS access entry, and a CloudBolt group's entitlement to its environment. | CloudBolt Plug-in | [Manage Namespace Access](resource_actions/RSA-mr1clc5e/) |
 | Manage AWS EKS Namespace Pipeline Identity | [OHK-h9moajbi](plugins/OHK-h9moajbi/) | Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry. | CloudBolt Plug-in | [Manage Pipeline Identity](resource_actions/RSA-l59xsi54/) |
 | Manage Blueprint Permissions | [OHK-mgta9oez](plugins/OHK-mgta9oez/) | Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored. | CloudBolt Plug-in | [Manage Blueprint Permissions](mcp_tool_actions/MTA-ntmcnvv7/README.md) |
@@ -416,7 +418,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
-| AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
+| AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, Workloads, and Groups tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, per-node and per-namespace workload figures, and management of the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
 | Azure AKS Cluster | [XUI-nr5iiu60](extensions/XUI-nr5iiu60/README.md) | Adds Cluster, Node pools, Workloads, and Groups tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |

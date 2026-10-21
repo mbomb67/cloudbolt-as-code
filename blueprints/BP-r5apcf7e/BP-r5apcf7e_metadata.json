@@ -121,6 +121,13 @@
             },
             "enabled": true,
             "label": "Create AWS EKS Namespace"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-l3dokgru"
+            },
+            "enabled": true,
+            "label": "Manage AWS EKS Cluster Groups"
         }
     ],
     "metadata_version": "2026.1.0",
