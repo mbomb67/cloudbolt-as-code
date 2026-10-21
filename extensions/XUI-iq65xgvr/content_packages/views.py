@@ -237,6 +237,12 @@ def _sync_jobs(local, jobs):
     return rows
 
 
+def _via_workflow(via):
+    """True when a unit was pushed or synced for a workflow (a step plugin),
+    False for a parameter's generated-options action."""
+    return isinstance(via, str) and via.startswith(store.WORKFLOWS_DIR + "/")
+
+
 def _export_job(local, jobs):
     """The last export job with a display status and, once it has finished,
     the per-member results it returned as outputs."""
@@ -257,7 +263,7 @@ def _export_job(local, jobs):
         "text": text,
         "active": job.status in ACTIVE_JOB_STATUSES,
         "branch": outputs.get("branch") or local.get("last_export_branch") or "",
-        "results": outputs.get("results") or [],
+        "results": [dict(r, via_workflow=_via_workflow(r.get("via"))) for r in outputs.get("results") or []],
         "pr_url": outputs.get("pr_url") or "",
         "pr_term": outputs.get("pr_term") or "Pull Request",
         "service_name": outputs.get("service_name") or "",
@@ -283,6 +289,7 @@ def _row(item, jobs=None):
         job["name"] = member.get("name") or job["ref"]
         job["prefix"] = member.get("prefix") or (job["ref"] or "").split("/", 1)[-1].split("-", 1)[0]
         job["via_name"] = (members.get(job["via"]) or {}).get("name") or job["via"] or ""
+        job["via_workflow"] = _via_workflow(job["via"])
     statuses = [j["status"] for j in item["sync_jobs"]]
     if "FAILURE" in statuses:
         item["sync_state"] = ("bad", "Sync failed")

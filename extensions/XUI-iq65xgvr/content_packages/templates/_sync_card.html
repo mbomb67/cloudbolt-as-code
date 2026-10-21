@@ -26,7 +26,7 @@
           <tbody>
             {% for j in row.sync_jobs %}
             <tr>
-              <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div>{% if j.via %}<div class="cpk-hint">{% blocktrans with via=j.via_name %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
+              <td>{% if j.prefix %}<span class="cpk-tag">{{ j.prefix }}</span> {% endif %}{{ j.name }}<div class="cpk-hint cpk-mono">{{ j.ref }}</div>{% if j.via_workflow %}<div class="cpk-hint">{% blocktrans with via=j.via_name %}Runs in a step of {{ via }}{% endblocktrans %}</div>{% elif j.via %}<div class="cpk-hint">{% blocktrans with via=j.via_name %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
               <td>{% if j.url %}<a href="{{ j.url }}">{% trans "Job" %} {{ j.job_id }}</a>{% else %}<span class="cpk-muted">{{ j.job_id }}</span>{% endif %}</td>
               <td><span class="cpk-pill{% if j.pill %} cpk-pill-{{ j.pill }}{% endif %}">{{ j.text }}</span></td>
             </tr>

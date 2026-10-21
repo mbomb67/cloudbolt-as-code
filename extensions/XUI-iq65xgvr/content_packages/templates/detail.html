@@ -168,7 +168,7 @@
             <tbody>
               {% for r in e.results %}
               <tr>
-                <td><span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}<div class="cpk-hint cpk-mono">{{ r.ref }}</div>{% if r.via %}<div class="cpk-hint">{% blocktrans with via=r.via %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
+                <td><span class="cpk-tag">{{ r.prefix }}</span> {{ r.name }}<div class="cpk-hint cpk-mono">{{ r.ref }}</div>{% if r.via_workflow %}<div class="cpk-hint">{% blocktrans with via=r.via %}Runs in a step of {{ via }}{% endblocktrans %}</div>{% elif r.via %}<div class="cpk-hint">{% blocktrans with via=r.via %}Generates the options of {{ via }}{% endblocktrans %}</div>{% endif %}</td>
                 <td>
                   {% if r.status == "success" and r.prefix == "CF" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Written" %}</span>
                   {% elif r.status == "success" %}<span class="cpk-pill cpk-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Pushed" %}</span>
