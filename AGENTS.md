@@ -24,6 +24,7 @@ Content lives in **ID-prefixed folders** under type-specific top-level dirs, eac
 | `form_functions/` | `FJS-` | Form JS helpers (transitive-import only) |
 | `packages/` | `PKG-` | Named sets of content exported and synced together (Content Package Manager) |
 | `parameters/` | `CF-` | Standalone parameters a package lists; written and synced by the Content Package Manager, not by Source Control Repos |
+| `runbook_workflows/` | `SWF-` | Runbooks workflows a package lists; written and synced by the Content Package Manager, not by Source Control Repos |
 | `typings/` | n/a | CloudBolt API type stubs, copied from your appliance and gitignored (see [docs/dev-environment-setup.md](docs/dev-environment-setup.md)) |
 
 Full per-type schemas, enums, required fields, and worked examples: **[docs/agents/metadata-schemas.md](docs/agents/metadata-schemas.md)**.
@@ -54,7 +55,7 @@ Resource/server/orchestration/flowcontrol actions, recurring jobs, CIT tests, an
 
 ## Content packages
 
-`packages/PKG-<id>/PKG-<id>_metadata.json` is not CloudBolt content: Source Control Repos ignores it, and the Content Package Manager extension (`extensions/XUI-iq65xgvr`) reads it to export and sync a set of units as one. Its `contents` list uses the same `"<top_level_dir>/<GLOBAL_ID>"` refs as `dependencies`, but holds **top-level members only**: never `forms/` or `form_functions/`, and nothing another member's export already carries (a blueprint brings its plugins, management actions, its own parameters, generated-options actions, forms and shared modules; an action brings its plugin and shared modules; a parameter brings its generated-options actions). A webhook a form calls does not travel with the blueprint, so list it; so does a parameter the content reads that no blueprint defines, such as an environment parameter, as `parameters/CF-<id>`. Source Control Repos cannot export a standalone parameter, so the extension writes `parameters/CF-<id>/` on export and creates or updates the parameter by name on sync ([metadata-schemas.md §16](docs/agents/metadata-schemas.md#16-parameters--cf--content-package-manager-only)); get that folder from an appliance export rather than writing it by hand. The PKG suffix comes from rule 6's generator with the `PKG` prefix. Use `cb-scaffold-package`; schema in [metadata-schemas.md §15](docs/agents/metadata-schemas.md#15-packages--pkg-).
+`packages/PKG-<id>/PKG-<id>_metadata.json` is not CloudBolt content: Source Control Repos ignores it, and the Content Package Manager extension (`extensions/XUI-iq65xgvr`) reads it to export and sync a set of units as one. Its `contents` list uses the same `"<top_level_dir>/<GLOBAL_ID>"` refs as `dependencies`, but holds **top-level members only**: never `forms/` or `form_functions/`, and nothing another member's export already carries (a blueprint brings its plugins, management actions, its own parameters, generated-options actions, forms and shared modules; an action brings its plugin and shared modules; a parameter brings its generated-options actions; a Runbooks workflow brings the plugins its steps run). A webhook a form calls does not travel with the blueprint, so list it; so does a parameter the content reads that no blueprint defines, such as an environment parameter, as `parameters/CF-<id>`. Source Control Repos cannot export a standalone parameter, so the extension writes `parameters/CF-<id>/` on export and creates or updates the parameter by name on sync ([metadata-schemas.md §16](docs/agents/metadata-schemas.md#16-parameters--cf--content-package-manager-only)); get that folder from an appliance export rather than writing it by hand. A Runbooks workflow travels the same way, as `runbook_workflows/SWF-<id>` ([§17](docs/agents/metadata-schemas.md#17-runbook_workflows--swf--content-package-manager-only)): it keeps its ID on every appliance, and Sync never overwrites a different local workflow with the same name. The PKG suffix comes from rule 6's generator with the `PKG` prefix. Use `cb-scaffold-package`; schema in [metadata-schemas.md §15](docs/agents/metadata-schemas.md#15-packages--pkg-).
 
 ## Round-trip is not lossless
 
@@ -62,7 +63,7 @@ When CloudBolt exports content to a repo, secrets are redacted to placeholder st
 
 ## Top-level dir names
 
-The dir names above are CloudBolt's defaults. They CAN be customized per repo via `SourceCodeRepo.path_to_*` (shell + API call), but the override is rare. **Assume the defaults.** Only probe for customization if a default dir is missing or a cross-reference path doesn't resolve. `packages/` and `parameters/` have no `path_to_*` field and are always named so.
+The dir names above are CloudBolt's defaults. They CAN be customized per repo via `SourceCodeRepo.path_to_*` (shell + API call), but the override is rare. **Assume the defaults.** Only probe for customization if a default dir is missing or a cross-reference path doesn't resolve. `packages/`, `parameters/` and `runbook_workflows/` have no `path_to_*` field and are always named so.
 
 ## Tooling
 

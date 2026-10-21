@@ -3,7 +3,7 @@ Content Package Manager XUI
 
 An admin page (Admin > Custom Extensions > Content Packages) for defining
 content packages: named sets of blueprints, actions, plugins, shared modules,
-UI extensions and parameters that belong together. Definitions live in store.py; export,
+UI extensions, parameters and Runbooks workflows that belong together. Definitions live in store.py; export,
 sync and import run through services.py. This module renders the list page, a
 details page per package, the Add/Edit, Delete, Export, Sync and Import
 dialogs, and the JSON API under xui/content_packages/api/.
@@ -16,7 +16,8 @@ each member's and dependency's README from its repository (docs.py).
 
 Export and Sync both run as CloudBolt jobs and return at once: Export through
 the self-registering plugin in hooks.py, Sync as one sourcecodereposync job per
-member, except a parameter, which gets the extension's parameter job.
+member, except a parameter or workflow, which gets one of the extension's
+own jobs.
 Everything here requires CB Admin.
 """
 import functools
@@ -108,7 +109,7 @@ def _member(ref, obj, repo, branch):
     except store.PackageError:
         return {
             "ref": ref, "type": "", "type_title": "Unknown", "prefix": "?", "global_id": "",
-            "name": str(ref), "exists": False, "drift": False, "state": "missing", "pill": "bad",
+            "name": str(ref), "exists": False, "drift": False, "written": False, "state": "missing", "pill": "bad",
             "note": 'Not a content reference of the form "<top_level_dir>/<GLOBAL_ID>".',
             "url": None, "remote_source_url": "",
         }
@@ -121,6 +122,7 @@ def _member(ref, obj, repo, branch):
         "name": global_id,
         "exists": obj is not None,
         "drift": False,
+        "written": not member_type.synced,
         "state": "ok",
         "pill": "",
         "note": "{} {}".format(member_type.singular, global_id),
@@ -140,9 +142,11 @@ def _member(ref, obj, repo, branch):
         info["url"] = None
     if not member_type.synced:
         # Written and read by this extension, not linked to a repository.
-        info["note"] = "Parameter {}; Export writes it to {}/{}/.".format(obj.name, store.PARAMETERS_DIR, global_id)
+        info["note"] = "{} {}; Export writes it to {}/.".format(member_type.singular, obj.name, ref)
         if obj.global_id != global_id:
             info["note"] += " Here it is {}, matched by name.".format(obj.global_id)
+        if getattr(obj, "enabled", True) is False:
+            info["note"] += " It is disabled on this appliance."
         return info
     remote_url = getattr(obj, "remote_source_url", "") or ""
     info["remote_source_url"] = remote_url
@@ -304,8 +308,8 @@ def _row(item, jobs=None):
 # ---------------------------------------------------------------------------
 @admin_extension(
     title="Content Packages",
-    description="Define named sets of blueprints, actions, plugins, shared modules, UI extensions and "
-    "parameters that move between repositories and appliances together.",
+    description="Define named sets of blueprints, actions, plugins, shared modules, UI extensions, "
+    "parameters and Runbooks workflows that move between repositories and appliances together.",
 )
 def packages(request):
     profile = request.get_user_profile()
@@ -378,7 +382,7 @@ def package_docs(request, pkg_id):
     locations = {}
     for ref, obj in resolved.items():
         if not store.parse_ref(ref)[0].synced:
-            loc = docs.parameter_location(package, ref, home)
+            loc = docs.written_location(package, ref, home)
             if loc is not None:
                 locations[obj.global_id] = loc
     try:
@@ -393,8 +397,8 @@ def package_docs(request, pkg_id):
 @cbadmin_required
 def readme_dialog(request, global_id):
     """A member's or dependency's README, rendered from its repository. A
-    parameter member's README is found through its package, named by the
-    package query parameter."""
+    parameter or workflow member's README is found through its package, named
+    by the package query parameter."""
     obj, loc = docs.resolve([global_id]).get(global_id), None
     pkg_id = request.GET.get("package")
     if pkg_id:
@@ -402,7 +406,7 @@ def readme_dialog(request, global_id):
         for ref, member in store.resolve_package(package).items():
             if member is None or not ref.endswith("/" + global_id) or store.parse_ref(ref)[0].synced:
                 continue
-            obj, loc = member, docs.parameter_location(package, ref, _home_repo(package))
+            obj, loc = member, docs.written_location(package, ref, _home_repo(package))
             if loc is None:
                 return {
                     "title": "{} documentation".format(docs.name_of(obj)),
@@ -421,7 +425,10 @@ def readme_dialog(request, global_id):
 # Dialogs
 # ---------------------------------------------------------------------------
 def _repo_label(member_type, obj):
-    """The repository a unit is linked to, or a parameter's name."""
+    """The repository a unit is linked to, a parameter's name, or whether a
+    workflow is disabled."""
+    if member_type.dir == store.WORKFLOWS_DIR:
+        return "" if obj.enabled else "Disabled"
     if not member_type.synced:
         return obj.name
     return obj.source_code_repo.label if obj.source_code_repo_id else ""
@@ -675,7 +682,7 @@ def package_sync(request, pkg_id):
                 request,
                 "Started {} sync job{} for {}, one per member{}; they run one after another.".format(
                     len(created), "" if len(created) == 1 else "s", package["name"],
-                    " plus {} for generated-options actions of its parameters".format(extra) if extra else "",
+                    " plus {} for actions its parameters and workflows need".format(extra) if extra else "",
                 ),
             )
             return HttpResponseRedirect(_detail_url(package["id"]))
@@ -693,6 +700,9 @@ def package_sync(request, pkg_id):
         "has_extensions": any(ref.startswith("extensions/") for ref in package.get("contents") or []),
         "has_parameters": any(
             ref.startswith(store.PARAMETERS_DIR + "/") for ref in package.get("contents") or []
+        ),
+        "has_workflows": any(
+            ref.startswith(store.WORKFLOWS_DIR + "/") for ref in package.get("contents") or []
         ),
     }
     context.update(_repo_context(package, values, repos))

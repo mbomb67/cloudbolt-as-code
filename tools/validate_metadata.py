@@ -13,6 +13,9 @@ Checks every <ID>_metadata.json under the content directories:
   - a standalone parameter (parameters/CF-*) has a name, a known type, no
     secret option or default values, generated-options refs to
     orchestration_actions/, and belongs to a package (else it never syncs)
+  - a Runbooks workflow (runbook_workflows/SWF-*) has a name and steps, lists
+    every step's plugin under dependencies.hooks as plugins/OHK-*, and
+    belongs to a package (else it never syncs)
 
 Exit code 1 with a list of problems, 0 when clean (warnings do not fail).
 No dependencies.
@@ -27,7 +30,7 @@ CONTENT_DIRS = (
     "blueprints", "plugins", "resource_actions", "server_actions",
     "orchestration_actions", "flowcontrol_actions", "recurring_jobs",
     "cit_tests", "webhooks", "mcp_tool_actions", "shared_modules", "extensions", "forms",
-    "form_functions", "parameters",
+    "form_functions", "parameters", "runbook_workflows",
 )
 REF_RE = re.compile(r"^(%s)/([A-Z]+-[A-Za-z0-9]+)$" % "|".join(CONTENT_DIRS))
 # The nil GUID is an accepted placeholder.
@@ -47,7 +50,7 @@ MEMBER_PREFIXES = {
     "blueprints": "BP", "resource_actions": "RSA", "server_actions": "SVA",
     "orchestration_actions": "HPA", "flowcontrol_actions": "FCA", "recurring_jobs": "RJB",
     "cit_tests": "CIT", "webhooks": "IWH", "mcp_tool_actions": "MTA", "shared_modules": "SHM",
-    "plugins": "OHK", "extensions": "XUI", "parameters": "CF",
+    "plugins": "OHK", "extensions": "XUI", "parameters": "CF", "runbook_workflows": "SWF",
 }
 TRANSITIVE_DIRS = ("forms", "form_functions")
 
@@ -57,6 +60,12 @@ CF_ID_RE = re.compile(r"^CF-[a-z0-9]{8,}$")
 PARAMETER_TYPES = {"STR", "INT", "IP", "DT", "DTM", "TXT", "ETXT", "CODE", "BOOL", "DEC", "NET", "PWD",
                    "TUP", "LDAP", "URL", "NSXS", "NSXE", "STOR", "FILE", "AAP"}
 SECRET_TYPES = {"PWD", "ETXT"}
+
+# Runbooks workflows; mirrors extensions/XUI-iq65xgvr/content_packages/workflows.py and
+# runbook_workflows.export_workflow (shared_modules/SHM-nznzhpp0).
+SWF_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
+WORKFLOW_FILTERS = {"os_families", "resource_technologies", "os_builds"}
+WORKFLOW_INSTANCE_FILTERS = {"groups", "environments", "configuration_managers"}
 
 
 def walk(obj, path=""):
@@ -191,6 +200,38 @@ def check_parameter(problems, warnings, p, folder, data, text):
                         "plus a newline), so the next export rewrites it")
 
 
+def check_workflow(problems, warnings, p, folder, data, text):
+    if not SWF_ID_RE.match(folder):
+        problems.append(f"{p}: workflow folder {folder} is not SWF- plus 8 or more [a-z0-9]")
+    if not isinstance(data.get("name"), str) or not data["name"].strip():
+        problems.append(f"{p}: missing name")
+    filters = data.get("filters")
+    if not isinstance(filters, dict) or set(filters) - WORKFLOW_FILTERS:
+        problems.append(f"{p}: filters must be an object of {', '.join(sorted(WORKFLOW_FILTERS))} name lists")
+    instance = data.get("instance_filters")
+    if not isinstance(instance, list) or set(instance) - WORKFLOW_INSTANCE_FILTERS:
+        problems.append(f"{p}: instance_filters must list only {', '.join(sorted(WORKFLOW_INSTANCE_FILTERS))}")
+    steps = data.get("steps")
+    if not isinstance(steps, list) or not steps:
+        problems.append(f"{p}: a workflow needs at least one step")
+        steps = []
+    hooks = (data.get("dependencies") or {}).get("hooks")
+    hooks = hooks if isinstance(hooks, list) else []
+    for i, step in enumerate(steps):
+        step = step if isinstance(step, dict) else {}
+        action = step.get("action")
+        if not isinstance(action, str) or not action.startswith("OHK-"):
+            problems.append(f"{p}: steps[{i}] needs an action OHK-*")
+        elif f"plugins/{action}" not in hooks:
+            problems.append(f"{p}: steps[{i}] runs {action}, which dependencies.hooks does not list "
+                            "as plugins/" + action)
+        if not step.get("action_name"):
+            problems.append(f"{p}: steps[{i}] needs action_name; sync finds a renumbered plugin by it")
+    if text != json.dumps(data, indent=4, sort_keys=True) + "\n":
+        warnings.append(f"{p}: not in the exporter's format (json.dumps(indent=4, sort_keys=True) "
+                        "plus a newline), so the next export rewrites it")
+
+
 def main(root="."):
     os.chdir(root)
     problems = []
@@ -206,7 +247,7 @@ def main(root="."):
 
     parsed = {}
     packages = []
-    parameters = []
+    parameters = []  # (path, ref) of the parameters and workflows only a package syncs
     for p in metadata_files:
         p = p.replace("\\", "/")
         top, folder, fname = p.split("/")
@@ -229,6 +270,9 @@ def main(root="."):
             continue
         if top == "parameters":
             check_parameter(problems, warnings, p, folder, data, text)
+            parameters.append((p, f"{top}/{folder}"))
+        if top == "runbook_workflows":
+            check_workflow(problems, warnings, p, folder, data, text)
             parameters.append((p, f"{top}/{folder}"))
 
         script = data.get("script_filename")

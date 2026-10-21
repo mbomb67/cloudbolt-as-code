@@ -108,7 +108,7 @@
                 <td>
                   {% if m.state == "missing" %}
                     <span class="cpk-pill cpk-pill-bad" title="{{ m.note }}"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Missing" %}</span>
-                  {% elif m.type == "parameters" %}
+                  {% elif m.written %}
                     <span class="cpk-muted" title="{{ m.note }}">{% trans "Written by Export" %}</span>
                   {% elif m.state == "drift" %}
                     <span class="cpk-pill cpk-pill-warn" title="{{ m.note }}"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Not on" %} {{ row.repository.branch }}</span>
@@ -120,7 +120,7 @@
                 </td>
                 <td class="cpk-nowrap text-end">
                   {% if m.exists %}
-                  <a class="btn btn-sm btn-outline-secondary open-dialog d-none" data-cpk-doc="{{ m.ref }}" href="{% url 'content_packages_readme' m.global_id %}{% if m.type == 'parameters' %}?package={{ row.id }}{% endif %}" data-dialog-width="960px">
+                  <a class="btn btn-sm btn-outline-secondary open-dialog d-none" data-cpk-doc="{{ m.ref }}" href="{% url 'content_packages_readme' m.global_id %}{% if m.written %}?package={{ row.id }}{% endif %}" data-dialog-width="960px">
                     <i class="bi bi-file-earmark-text" aria-hidden="true"></i> {% trans "Display documentation" %}
                   </a>
                   {% endif %}

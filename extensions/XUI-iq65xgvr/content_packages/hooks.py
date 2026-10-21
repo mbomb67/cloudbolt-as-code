@@ -25,6 +25,14 @@ PARAMETER_DESCRIPTION = (
 )
 PARAMETER_FILE = "parameter_job.py"
 
+WORKFLOW_NAME = "Content Package Manager: Sync Workflow"
+WORKFLOW_DESCRIPTION = (
+    "Creates or updates a Runbooks workflow from a content package's repository branch. Created and run by "
+    "the Content Package Manager UI extension; its code is the extension's workflow_job.py, so do not edit "
+    "or delete it here."
+)
+WORKFLOW_FILE = "workflow_job.py"
+
 
 def hook_file(filename):
     """Absolute path of one of this extension's files."""
@@ -52,3 +60,7 @@ def export_hook():
 
 def parameter_hook():
     return plugin(PARAMETER_NAME, PARAMETER_DESCRIPTION, PARAMETER_FILE)
+
+
+def workflow_hook():
+    return plugin(WORKFLOW_NAME, WORKFLOW_DESCRIPTION, WORKFLOW_FILE)
