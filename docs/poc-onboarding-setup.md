@@ -24,10 +24,10 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 825 -nodes -subj "/CN=$IP" -add
 chown --reference=/root/localhost.crt.bak /etc/pki/tls/certs/localhost.crt /etc/pki/tls/private/localhost.key
 chmod 400 /etc/pki/tls/certs/localhost.crt /etc/pki/tls/private/localhost.key
 systemctl restart httpd
-cat /etc/pki/tls/certs/localhost.crt
+openssl x509 -noout -fingerprint -sha256 -in /etc/pki/tls/certs/localhost.crt
 ```
 
-When users reach the appliance by a DNS name, use `subjectAltName=IP:$IP,DNS:<name>`. Save the printed certificate, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`, on your PC, for example as `C:\certs\cloudbolt.crt`. The browser's certificate viewer can also export it (Details > Export). The original files stay in `/root`.
+When users reach the appliance by a DNS name, use `subjectAltName=IP:$IP,DNS:<name>`. Note the printed SHA-256 fingerprint for the trust step. The original files stay in `/root`.
 
 ### Option 2: the customer's certificate for a DNS name
 
@@ -35,25 +35,46 @@ Create a DNS record for the appliance and request a certificate for that name fr
 
 ### Trust the certificate in Claude
 
-Claude Code, in a terminal or in the Claude desktop app's Code tab, adds the certificates in the file named by `NODE_EXTRA_CA_CERTS`. It reads the variable at startup.
+Claude Code, in a terminal or in the Claude desktop app's Code tab, trusts the certificates in the file named by `NODE_EXTRA_CA_CERTS` and reads the variable at startup. Each block downloads the appliance's certificate, prints its SHA-256 fingerprint, and sets the variable. Compare the fingerprint with the one the appliance printed before you rely on it.
 
-Windows:
+Windows (PowerShell):
 
 ```powershell
-setx NODE_EXTRA_CA_CERTS "C:\certs\cloudbolt.crt"
+$appliance = "<appliance IP or DNS name>"
+New-Item -ItemType Directory -Force "$HOME\certs" | Out-Null
+$tcp = New-Object Net.Sockets.TcpClient($appliance, 443)
+$ssl = New-Object Net.Security.SslStream($tcp.GetStream(), $false, ({ $true } -as [Net.Security.RemoteCertificateValidationCallback]))
+$ssl.AuthenticateAsClient($appliance)
+$cert = New-Object Security.Cryptography.X509Certificates.X509Certificate2($ssl.RemoteCertificate)
+$ssl.Dispose(); $tcp.Dispose()
+$b64 = [Convert]::ToBase64String($cert.RawData) -replace '(.{64})', "`$1`n"
+"-----BEGIN CERTIFICATE-----`n$($b64.TrimEnd())`n-----END CERTIFICATE-----" | Set-Content -Encoding ascii "$HOME\certs\cloudbolt.crt"
+[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($cert.RawData)) -replace '-', ':'
+setx NODE_EXTRA_CA_CERTS "$HOME\certs\cloudbolt.crt"
+# Optional: Edge and Chrome stop warning too (Windows asks you to confirm)
+certutil -user -addstore Root "$HOME\certs\cloudbolt.crt"
 ```
 
-macOS and Linux: add `export NODE_EXTRA_CA_CERTS="$HOME/certs/cloudbolt.crt"` to your shell profile.
+macOS and Linux:
 
-On any system the variable can go in the `env` block of `~/.claude/settings.json` instead:
+```bash
+APPLIANCE="<appliance IP or DNS name>"
+PROFILE=~/.zshrc   # ~/.bashrc for bash
+mkdir -p ~/certs
+openssl s_client -connect "$APPLIANCE:443" </dev/null 2>/dev/null | openssl x509 -out ~/certs/cloudbolt.crt
+openssl x509 -in ~/certs/cloudbolt.crt -noout -fingerprint -sha256
+echo 'export NODE_EXTRA_CA_CERTS="$HOME/certs/cloudbolt.crt"' >> "$PROFILE"
+```
+
+Then quit and reopen the terminal running Claude Code, or the Claude desktop app. Apps started from the Dock or a launcher may not read the shell profile; for the desktop app, or on any system, the variable can go in the `env` block of `~/.claude/settings.json` instead:
 
 ```json
-{ "env": { "NODE_EXTRA_CA_CERTS": "C:\certs\cloudbolt.crt" } }
+{ "env": { "NODE_EXTRA_CA_CERTS": "C:/Users/<you>/certs/cloudbolt.crt" } }
 ```
 
-Then quit and reopen the terminal running Claude Code, or the Claude desktop app. If `NODE_EXTRA_CA_CERTS` is already set, for example for a corporate proxy, append the appliance certificate to that file instead of replacing the variable. Check: `claude --debug` logs `CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS`, and `/mcp` > the server > Authenticate no longer reports a certificate error.
+If `NODE_EXTRA_CA_CERTS` is already set, for example for a corporate proxy, append the appliance certificate to that file instead of replacing the variable. With option 2, skip the download and point the variable at the customer's root CA certificate, and only when the PC does not already trust it. Check: `claude --debug` logs `CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS`, and `/mcp` > the server > Authenticate no longer reports a certificate error.
 
-To stop the browser warning as well on Windows, run `certutil -user -addstore Root C:\certs\cloudbolt.crt` and confirm the prompt; Edge and Chrome then trust the appliance. Other MCP clients: add the certificate to the client's trusted certificates as its documentation describes. Connectors added on claude.ai or in Claude Desktop's chat settings reach the server from Anthropic's cloud, so they need an appliance reachable from the internet with a publicly trusted certificate; use Claude Code for an appliance on a private network.
+Other MCP clients: add the certificate to the client's trusted certificates as its documentation describes. Connectors added on claude.ai or in Claude Desktop's chat settings reach the server from Anthropic's cloud, so they need an appliance reachable from the internet with a publicly trusted certificate; use Claude Code for an appliance on a private network.
 
 ## 3. Connect the agent
 
