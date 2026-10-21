@@ -24,8 +24,8 @@ Namespace blueprint (BP-e4c0q58z):
   Namespace) in the toolbar.
 - Groups: the CloudBolt groups entitled to the cluster's own Environment,
   which decides who may order AWS EKS Namespace landing zones on it, with
-  Add groups, Remove and Allow all groups. These change CloudBolt data
-  directly (no job), the way the environment's own Edit groups dialog does.
+  Add groups, Remove and Allow all groups buttons (Manage AWS EKS Cluster
+  Groups).
 - Connect (on kubernetes_namespace resources): the update-kubeconfig and
   set-context commands, a ready-made kubeconfig to copy or download, and the
   IAM roles and users whose EKS access policies cover the namespace, the
@@ -43,8 +43,8 @@ Namespace blueprint (BP-e4c0q58z):
 
 Every button starts one of the blueprint's resource actions as a CloudBolt
 job (Update EKS Version, Upgrade AWS EKS Nodegroup, Scale AWS EKS Nodegroup,
-Delete AWS EKS Nodegroup, Update AWS EKS Add-on; Add and List AWS EKS
-Nodegroup from the toolbar), so
+Delete AWS EKS Nodegroup, Update AWS EKS Add-on, Manage AWS EKS Cluster
+Groups; Add and List AWS EKS Nodegroup from the toolbar), so
 approvals, permissions and job history apply. Buttons appear only when the
 action is synced, applies to the resource's blueprint and the viewer may run
 it (resource_action_permitted), and the job runs as the viewer.
@@ -76,7 +76,6 @@ from datetime import datetime, timezone
 
 from botocore.exceptions import BotoCoreError, ClientError
 from accounts.models import Group
-from alerts.methods import alert
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -118,6 +117,7 @@ ACTION_CREATE_NAMESPACE = "Create AWS EKS Namespace"
 ACTION_MANAGE_NAMESPACE_ACCESS = "Manage AWS EKS Namespace Access"
 ACTION_MANAGE_PIPELINE_IDENTITY = "Manage AWS EKS Namespace Pipeline Identity"
 ACTION_REQUEST_QUOTA_CHANGE = "Request AWS EKS Namespace Quota Change"
+ACTION_MANAGE_GROUPS = "Manage AWS EKS Cluster Groups"
 
 # amiType EKS reports for a node group whose launch template names its own
 # AMI; UpdateNodegroupVersion cannot move those, so no Upgrade button.
@@ -131,12 +131,6 @@ NAMESPACE_RESOURCE_TYPE = "kubernetes_namespace"
 # Parameter that pins a namespace landing zone's own Environment to its
 # namespace; the cluster's Environment is the one on the orchestrator without it.
 NAMESPACE_ENV_FIELD = "kubernetes_namespace"
-
-# Managing the groups on the cluster's Environment needs the right to run
-# Create AWS EKS Namespace on the cluster: that action already lets its
-# runner create a namespace for any group, so deciding which groups may
-# order one themselves grants nothing more.
-ACTION_MANAGE_GROUPS = ACTION_CREATE_NAMESPACE
 
 # CloudBolt global ids of groups, as the Remove buttons pass them.
 GROUP_ID_RE = re.compile(r"^GRP-[0-9A-Za-z]{1,32}$")
@@ -1666,55 +1660,47 @@ def upgrade_addon(request, resource_id, addon_name):
 # ---------------------------------------------------------------------------
 # Dialogs that change which groups may order namespaces on the cluster
 # ---------------------------------------------------------------------------
-# These edit the cluster Environment's groups directly, as CloudBolt's own
-# Edit groups dialog for an environment does (infrastructure EnvGroupsForm):
-# Environment.group_set, add_env_to_descendants / remove_env_from_descendants
-# for subgroups, and an environment history event. The environment is always
-# re-derived from the cluster resource and group ids are re-resolved against
-# it, so nothing from the request names an environment.
+# Each dialog starts the Manage AWS EKS Cluster Groups action as a job, so
+# permissions, approvals, job history and API/MCP runs all go through
+# CloudBolt. The action re-derives the cluster's environment from the
+# resource and re-resolves every group id; the dialogs only read the
+# environment to describe the change.
 def _groups_guard(request, resource_id, title):
-    """Returns (resource, environment, refusal) where refusal is a dialog
-    context or None."""
+    """Returns (resource, profile, action, environment, refusal) where
+    refusal is a dialog context or None."""
     resource = get_object_or_404(Resource, pk=resource_id)
     profile = request.get_user_profile()
     if not _can_view(profile, resource):
-        return resource, None, _dialog_message(title, "You do not have permission to view this resource.")
+        return resource, profile, None, None, _dialog_message(
+            title, "You do not have permission to view this resource."
+        )
     if not _attr(resource, "eks_cluster_name"):
-        return resource, None, _dialog_message(title, "This resource is not an AWS EKS cluster.")
-    if _action_for(profile, resource, ACTION_MANAGE_GROUPS) is None:
-        return resource, None, _dialog_message(
+        return resource, profile, None, None, _dialog_message(title, "This resource is not an AWS EKS cluster.")
+    action = _action_for(profile, resource, ACTION_MANAGE_GROUPS)
+    if action is None:
+        return resource, profile, None, None, _dialog_message(
             title,
-            "Changing which groups may order namespaces on this cluster needs the {} action: it is "
-            "not synced, not on the resource's blueprint, or you are not allowed to run it.".format(
-                ACTION_MANAGE_GROUPS
-            ),
+            "The {} action is not available on this resource: it is not synced, not on the "
+            "resource's blueprint, or you are not allowed to run it.".format(ACTION_MANAGE_GROUPS),
         )
     env = _cluster_environment(resource)
     if env is None:
-        return resource, None, _dialog_message(
+        return resource, profile, action, None, _dialog_message(
             title, "No CloudBolt environment is linked to this cluster's container orchestrator."
         )
-    return resource, env, None
+    return resource, profile, action, env, None
 
 
 def _names(groups):
     return ", ".join(sorted(g.name for g in groups))
 
 
-def _record_groups_change(request, env, message):
-    """Environment history event, page message and security alert, as the
-    environment's own Edit groups dialog records them."""
-    env.add_event("INFO", message, request=request)
-    messages.success(request, message)
-    alert("cloudbolt.security", message)
-
-
 @dialog_view(template_name="common/datatable_form_dialog.html")
 def add_groups(request, resource_id):
-    """Entitle more groups to the cluster's Environment. The Unassigned
-    placeholder that restricted new environments start with is dropped."""
+    """Entitle more groups to the cluster's environment through the Manage
+    AWS EKS Cluster Groups action (operation Add)."""
     title = "Add groups"
-    resource, env, refusal = _groups_guard(request, resource_id, title)
+    resource, profile, action, env, refusal = _groups_guard(request, resource_id, title)
     if refusal:
         return refusal
     cluster = _cluster_name(resource)
@@ -1725,18 +1711,11 @@ def add_groups(request, resource_id):
         form = AddGroupsForm(request.POST, environment=env)
         if form.is_valid() and form.cleaned_data["groups"]:
             added = list(form.cleaned_data["groups"])
-            placeholders = list(env.group_set.filter(id__in=Group.unassigned.ids()))
-            if placeholders:
-                env.group_set.remove(*placeholders)
-            env.group_set.add(*added)
-            for group in placeholders:
-                group.remove_env_from_descendants(env)
-            for group in added:
-                group.add_env_to_descendants(env)
-            _record_groups_change(request, env, format_html(
-                'Groups {} may now order namespaces on cluster "{}" through environment "{}"',
-                _names(added), cluster, env.name,
-            ))
+            values = {
+                "eks_groups_operation": "add",
+                "eks_groups": [group.global_id for group in added],
+            }
+            _run_action(request, profile, resource, action, values, "Adding groups {}".format(_names(added)))
             return _redirect_back(request, resource)
         if form.is_valid():
             top_content = format_html('<p class="text-danger">{}</p>', "Select at least one group.")
@@ -1754,8 +1733,9 @@ def add_groups(request, resource_id):
         effect = "The groups already on it keep their access."
     content = format_html(
         "<p>Members of the groups you select, and of their subgroups, can order namespaces on "
-        "<b>{}</b> through environment <b>{}</b>. {}</p>",
-        cluster, env.name, effect,
+        "<b>{}</b> through environment <b>{}</b>. {} The change runs as a CloudBolt job through the "
+        "<b>{}</b> action.</p>",
+        cluster, env.name, effect, action.label,
     )
     return {
         "title": title,
@@ -1770,10 +1750,10 @@ def add_groups(request, resource_id):
 
 @dialog_view
 def remove_group(request, resource_id, group_id):
-    """Stop one group ordering namespaces on the cluster. Removing the last
-    group leaves the environment unconstrained, never back to Unassigned."""
+    """Stop one group ordering namespaces on the cluster (operation Remove).
+    Removing the last group leaves the environment unconstrained."""
     title = "Remove group"
-    resource, env, refusal = _groups_guard(request, resource_id, title)
+    resource, profile, action, env, refusal = _groups_guard(request, resource_id, title)
     if refusal:
         return refusal
     entitled = env.group_set.exclude(id__in=Group.unassigned.ids())
@@ -1781,35 +1761,19 @@ def remove_group(request, resource_id, group_id):
     if group is None:
         return _dialog_message(title, "That group is not entitled to this cluster's environment.")
     cluster = _cluster_name(resource)
-    last = not entitled.exclude(id=group.id).exists()
 
     if request.method == "POST":
-        env.group_set.remove(group)
-        group.remove_env_from_descendants(env)
-        if last:
-            leftovers = list(env.group_set.all())
-            env.group_set.clear()
-            for placeholder in leftovers:
-                placeholder.remove_env_from_descendants(env)
-            message = format_html(
-                'Group {} removed from environment "{}"; it has no groups left, so every group may '
-                'order namespaces on cluster "{}"',
-                group.name, env.name, cluster,
-            )
-        else:
-            message = format_html(
-                'Group {} may no longer order namespaces on cluster "{}" (environment "{}")',
-                group.name, cluster, env.name,
-            )
-        _record_groups_change(request, env, message)
+        values = {"eks_groups_operation": "remove", "eks_groups": [group.global_id]}
+        _run_action(request, profile, resource, action, values, "Removing group {}".format(group.name))
         return _redirect_back(request, resource)
 
     content = format_html(
         "<p>Members of <b>{}</b> and its subgroups can no longer order namespaces on <b>{}</b>. "
-        "Namespaces already ordered keep their own environments.</p>",
-        group.name, cluster,
+        "Namespaces already ordered keep their own environments. The change runs as a CloudBolt job "
+        "through the <b>{}</b> action.</p>",
+        group.name, cluster, action.label,
     )
-    if last:
+    if not entitled.exclude(id=group.id).exists():
         content += format_html(
             '<p class="text-danger"><b>{} is the last entitled group.</b> Removing it leaves environment '
             "<b>{}</b> with no groups, so <b>every CloudBolt group can order namespaces on this cluster</b>. "
@@ -1828,10 +1792,10 @@ def remove_group(request, resource_id, group_id):
 
 @dialog_view
 def allow_all_groups(request, resource_id):
-    """Clear every group from the cluster's Environment, Unassigned included,
-    so it is unconstrained."""
+    """Clear every group from the cluster's environment, Unassigned included,
+    so it is unconstrained (operation Allow all groups)."""
     title = "Allow all groups"
-    resource, env, refusal = _groups_guard(request, resource_id, title)
+    resource, profile, action, env, refusal = _groups_guard(request, resource_id, title)
     if refusal:
         return refusal
     cluster = _cluster_name(resource)
@@ -1844,14 +1808,9 @@ def allow_all_groups(request, resource_id):
         )
 
     if request.method == "POST":
-        previous = list(env.group_set.all())
-        env.group_set.clear()
-        for group in previous:
-            group.remove_env_from_descendants(env)
-        _record_groups_change(request, env, format_html(
-            'Every group removed from environment "{}", so every group may order namespaces on cluster "{}"',
-            env.name, cluster,
-        ))
+        _run_action(
+            request, profile, resource, action, {"eks_groups_operation": "allow_all"}, "Allowing all groups"
+        )
         return _redirect_back(request, resource)
 
     if entitled:
@@ -1860,8 +1819,9 @@ def allow_all_groups(request, resource_id):
         now = "Today no group can: only CloudBolt's Unassigned placeholder is on it."
     content = format_html(
         "<p>Remove every group from environment <b>{}</b>, the Unassigned placeholder included, so it "
-        "is unconstrained and <b>every CloudBolt group can order namespaces on {}</b>. {}</p>",
-        env.name, cluster, now,
+        "is unconstrained and <b>every CloudBolt group can order namespaces on {}</b>. {} The change "
+        "runs as a CloudBolt job through the <b>{}</b> action.</p>",
+        env.name, cluster, now, action.label,
     )
     return {
         "title": title,

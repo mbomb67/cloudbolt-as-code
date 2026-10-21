@@ -7,13 +7,13 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 |---|---|
 | [Packages](#packages) | 6 |
 | [Blueprints](#blueprints) | 28 |
-| [Resource actions](#resource-actions) | 37 |
+| [Resource actions](#resource-actions) | 38 |
 | [Server actions](#server-actions) | 3 |
 | [Orchestration actions](#orchestration-actions) | 21 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 148 |
+| [Plugins](#plugins) | 149 |
 | [Shared modules](#shared-modules) | 21 |
 | [UI extensions](#ui-extensions) | 11 |
 | [Parameters](#parameters) | 2 |
@@ -92,6 +92,7 @@ Day-2 actions on resources. Most belong to a blueprint and are documented there.
 | List AWS EKS Nodegroup | [RSA-0g4pfrde](resource_actions/RSA-0g4pfrde/) | Syncs the cluster's managed node groups from AWS into CloudBolt sub-resources, creating missing ones and removing ones AWS no longer has. | [List AWS EKS Nodegroup](plugins/OHK-prji4iqt/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | List Blob Containers | [RSA-h93k53ld](resource_actions/RSA-h93k53ld/) | Lists the blob containers in the resource's Azure storage account. | [List Blob Containers](plugins/OHK-3kp5czyb/) | [Azure Storage Account](blueprints/BP-nszj7jop/README.md) |
 | List Resources in Group | [RSA-a38h23ms](resource_actions/RSA-a38h23ms/) | Lists the Azure resources in the resource group and records the count on the resource. | [List Resources in Group](plugins/OHK-iy92hhvh/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
+| Manage AWS EKS Cluster Groups | [RSA-l3dokgru](resource_actions/RSA-l3dokgru/) | Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment. | [Manage AWS EKS Cluster Groups](plugins/OHK-2lvw9oe0/) | [AWS EKS](blueprints/BP-r5apcf7e/README.md) |
 | Manage Delete Lock | [RSA-qwku9lip](resource_actions/RSA-qwku9lip/) | Applies or releases a CanNotDelete or ReadOnly management lock on the Azure resource group. | [Manage Delete Lock](plugins/OHK-sf6w5pfn/) | [Azure Resource Group](blueprints/BP-zmeot1ff/README.md) |
 | Manage Namespace Access | [RSA-mr1clc5e](resource_actions/RSA-mr1clc5e/) | Grants or revokes kubectl access to an EKS namespace for an IAM role or user through a namespace-scoped EKS access entry, and a CloudBolt group's entitlement to its environment. | [Manage AWS EKS Namespace Access](plugins/OHK-3902mdky/) | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
 | Manage Pipeline Identity | [RSA-l59xsi54](resource_actions/RSA-l59xsi54/) | Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry. | [Manage AWS EKS Namespace Pipeline Identity](plugins/OHK-h9moajbi/) | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
@@ -280,6 +281,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | List Blob Containers | [OHK-3kp5czyb](plugins/OHK-3kp5czyb/) | Lists the blob containers in the resource's Azure storage account. | CloudBolt Plug-in | [List Blob Containers](resource_actions/RSA-h93k53ld/) |
 | List Resources in Group | [OHK-iy92hhvh](plugins/OHK-iy92hhvh/) | Lists the Azure resources in the resource group and records the count on the resource. | CloudBolt Plug-in | [List Resources in Group](resource_actions/RSA-a38h23ms/) |
 | List Subscription Access | [OHK-ovt0z46j](plugins/OHK-ovt0z46j/) | Lists role assignments at subscription scope with resolved principal names. | CloudBolt Plug-in | [List Access](resource_actions/RSA-f7wb11ny/) |
+| Manage AWS EKS Cluster Groups | [OHK-2lvw9oe0](plugins/OHK-2lvw9oe0/) | Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment. | CloudBolt Plug-in | [Manage AWS EKS Cluster Groups](resource_actions/RSA-l3dokgru/) |
 | Manage AWS EKS Namespace Access | [OHK-3902mdky](plugins/OHK-3902mdky/) | Grants or revokes kubectl access to an EKS namespace for an IAM role or user through a namespace-scoped EKS access entry, and a CloudBolt group's entitlement to its environment. | CloudBolt Plug-in | [Manage Namespace Access](resource_actions/RSA-mr1clc5e/) |
 | Manage AWS EKS Namespace Pipeline Identity | [OHK-h9moajbi](plugins/OHK-h9moajbi/) | Creates or deletes an IAM role that a GitHub Actions workflow assumes through OIDC, with kubectl access to an EKS namespace through an access entry. | CloudBolt Plug-in | [Manage Pipeline Identity](resource_actions/RSA-l59xsi54/) |
 | Manage Blueprint Permissions | [OHK-mgta9oez](plugins/OHK-mgta9oez/) | Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored. | CloudBolt Plug-in | [Manage Blueprint Permissions](mcp_tool_actions/MTA-ntmcnvv7/README.md) |

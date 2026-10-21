@@ -89,7 +89,9 @@
 
 <div class="eks-note">
   <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% trans "Subgroups of an entitled group can order namespaces too. Namespaces already ordered keep their own environments and owning groups." %}</div>
-  {% if not can_manage %}
+  {% if can_manage %}
+  <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with action=manage_action %}Changes run as {{ action }} jobs; Refresh once they finish.{% endblocktrans %}</div>
+  {% else %}
   <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with action=manage_action %}Changing these groups needs permission to run {{ action }} on this cluster.{% endblocktrans %}</div>
   {% endif %}
 </div>

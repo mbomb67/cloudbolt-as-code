@@ -3,9 +3,9 @@ Build service item action for AWS EKS Cluster Service blueprint.
 """
 
 from __future__ import unicode_literals
-import ast
 import json
 import random
+import re
 import string
 import time
 from botocore.exceptions import ClientError
@@ -276,24 +276,6 @@ def generate_options_for_entitled_groups(**kwargs):
     return [(g.global_id, g.name) for g in Group.without_unassigned.order_by("name")]
 
 
-def parse_group_ids(raw):
-    """
-    The group ids chosen in the Entitled CloudBolt groups field. A multi-select
-    renders as a Python list; nothing chosen renders as an empty string, and an
-    unrendered template starts with a brace.
-    """
-    raw = (raw or "").strip()
-    if not raw or raw in ("None", "[]") or raw.startswith("{"):
-        return []
-    try:
-        value = ast.literal_eval(raw)
-    except (ValueError, SyntaxError):
-        value = raw
-    if isinstance(value, str):
-        value = [value]
-    return [str(item).strip() for item in value if str(item).strip()]
-
-
 def entitle_groups(job, env, group_ids):
     """
     Make the cluster environment's groups exactly the chosen groups, so only
@@ -507,7 +489,9 @@ def run(job, resource, logger=None, **kwargs):
     security_groups = "{{security_groups}}"
     cluster_name = "{{ cluster_name }}"
     env_id = "{{ env_id }}"
-    entitled_group_ids = parse_group_ids("""{{ entitled_groups }}""")
+    # A multi-select renders as a Python list of the chosen group ids, and as
+    # nothing when none are chosen.
+    entitled_group_ids = re.findall(r"GRP-[A-Za-z0-9]+", """{{ entitled_groups }}""")
 
     # Network Configuration
     subnets = ["{{ subnet_1 }}", "{{ subnet_2 }}"]
