@@ -443,6 +443,8 @@ def create_eks_nodegroup_cb_subresource(resource, resource_type, create_ng_obj, 
 
     res.eks_nodegroup_resource_status = create_ng_obj["status"]
     res.eks_nodegroup_arn = create_ng_obj["nodegroupArn"]
+    # The AWS EKS discovery matches node group records by arn.
+    res.arn = create_ng_obj["nodegroupArn"]
     res.eks_nodegroup_ami_type = create_ng_obj["amiType"]
     res.eks_nodegroup_instance_types = create_ng_obj["instanceTypes"]
     res.eks_nodegroup_noderole_arn = create_ng_obj["nodeRole"]
