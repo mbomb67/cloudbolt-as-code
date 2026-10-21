@@ -8,7 +8,54 @@ Get an AI agent ready to take a new CloudBolt appliance through the POC Test Pla
 2. An account that is a CloudBolt admin (super admin or CB admin). Every onboarding tool refuses other callers.
 3. Outbound HTTPS from the appliance to `github.com` and `raw.githubusercontent.com` (to fetch the toolkit and the playbook) and to `content.cloudbolt.app` (Content Library). Set the web proxy under Admin > Miscellaneous Settings if one is required.
 
-## 2. Connect the agent
+## 2. Appliance certificate
+
+The appliance ships with a self-signed certificate created when the image was built. It names the build host, not your appliance, so MCP clients refuse it with `self signed certificate in certificate chain`, and with a hostname mismatch once it is trusted. Replace it before connecting, then trust it in Claude.
+
+### Option 1: self-signed certificate for the appliance's address
+
+The usual choice for a POC. As root on the appliance, with the IP users connect to:
+
+```bash
+IP=<appliance IP>
+cp -p /etc/pki/tls/certs/localhost.crt /root/localhost.crt.bak
+cp -p /etc/pki/tls/private/localhost.key /root/localhost.key.bak
+openssl req -x509 -newkey rsa:2048 -sha256 -days 825 -nodes -subj "/CN=$IP" -addext "subjectAltName=IP:$IP" -keyout /etc/pki/tls/private/localhost.key -out /etc/pki/tls/certs/localhost.crt
+chown --reference=/root/localhost.crt.bak /etc/pki/tls/certs/localhost.crt /etc/pki/tls/private/localhost.key
+chmod 400 /etc/pki/tls/certs/localhost.crt /etc/pki/tls/private/localhost.key
+systemctl restart httpd
+cat /etc/pki/tls/certs/localhost.crt
+```
+
+When users reach the appliance by a DNS name, use `subjectAltName=IP:$IP,DNS:<name>`. Save the printed certificate, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`, on your PC, for example as `C:\certs\cloudbolt.crt`. The browser's certificate viewer can also export it (Details > Export). The original files stay in `/root`.
+
+### Option 2: the customer's certificate for a DNS name
+
+Create a DNS record for the appliance and request a certificate for that name from the customer's CA or a public CA. Put the certificate, followed by any intermediate certificates, in `/etc/pki/tls/certs/localhost.crt` and its key in `/etc/pki/tls/private/localhost.key`, then run the `chown`, `chmod` and `systemctl` lines above. Connect with `https://<dns-name>/mcp`. Claude Code reads the operating system's certificate store (native install, or npm with Node 22.15 or later), so a PC that already trusts the customer's CA skips the next step. Otherwise trust the CA's root certificate as below.
+
+### Trust the certificate in Claude
+
+Claude Code, in a terminal or in the Claude desktop app's Code tab, adds the certificates in the file named by `NODE_EXTRA_CA_CERTS`. It reads the variable at startup.
+
+Windows:
+
+```powershell
+setx NODE_EXTRA_CA_CERTS "C:\certs\cloudbolt.crt"
+```
+
+macOS and Linux: add `export NODE_EXTRA_CA_CERTS="$HOME/certs/cloudbolt.crt"` to your shell profile.
+
+On any system the variable can go in the `env` block of `~/.claude/settings.json` instead:
+
+```json
+{ "env": { "NODE_EXTRA_CA_CERTS": "C:\certs\cloudbolt.crt" } }
+```
+
+Then quit and reopen the terminal running Claude Code, or the Claude desktop app. If `NODE_EXTRA_CA_CERTS` is already set, for example for a corporate proxy, append the appliance certificate to that file instead of replacing the variable. Check: `claude --debug` logs `CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS`, and `/mcp` > the server > Authenticate no longer reports a certificate error.
+
+To stop the browser warning as well on Windows, run `certutil -user -addstore Root C:\certs\cloudbolt.crt` and confirm the prompt; Edge and Chrome then trust the appliance. Other MCP clients: add the certificate to the client's trusted certificates as its documentation describes. Connectors added on claude.ai or in Claude Desktop's chat settings reach the server from Anthropic's cloud, so they need an appliance reachable from the internet with a publicly trusted certificate; use Claude Code for an appliance on a private network.
+
+## 3. Connect the agent
 
 Claude Code:
 
@@ -16,9 +63,9 @@ Claude Code:
 claude mcp add --transport http cloudbolt https://<appliance>/mcp
 ```
 
-Then `/mcp`, choose the server, and sign in to CloudBolt in the browser window as the admin. Grant the `write` scope when asked; without it no custom tool runs. Any Streamable HTTP MCP client with OAuth support connects the same way with the same URL. Check: ask "Who am I according to CloudBolt?" and the answer names your admin user.
+Use the address the certificate from section 2 names. Then `/mcp`, choose the server, and sign in to CloudBolt in the browser window as the admin. Grant the `write` scope when asked; without it no custom tool runs. Any Streamable HTTP MCP client with OAuth support connects the same way with the same URL. Check: ask "Who am I according to CloudBolt?" and the answer names your admin user.
 
-## 3. Install the toolkit (once)
+## 4. Install the toolkit (once)
 
 Pick one:
 
@@ -54,19 +101,19 @@ curl -sS -X POST "https://<appliance>/api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFr
 
 The response is a sync job; `GET /api/v3/cmp/jobs/<JOB-id>/` lists each tool with `success` after a few seconds. The UI alternative is Actions > MCP Tool Actions > Create from Repository, one tool at a time. The POC Server blueprint and echo webhook used in the extensibility phase are synced later by the agent (`blueprints/BP-x78p48gz`, `webhooks/IWH-f16qxnhm`).
 
-**Testing a branch before it merges.** Use the branch name wherever these steps say `main` (option A's branch field, the `"branch"` in option B's call, section 6). The branch name must not contain a slash; CloudBolt reads it from a URL path segment. `onb_playbook` reads the skill from `main` by default: pass `onb_ref` with the branch name until it merges (`onb_install` reports when the playbook is not published on `main` yet).
+**Testing a branch before it merges.** Use the branch name wherever these steps say `main` (option A's branch field, the `"branch"` in option B's call, section 7). The branch name must not contain a slash; CloudBolt reads it from a URL path segment. `onb_playbook` reads the skill from `main` by default: pass `onb_ref` with the branch name until it merges (`onb_install` reports when the playbook is not published on `main` yet).
 
 **C. No internet from the appliance.** From a clone, `python tools/package_zip.py mcp_tool_actions/MTA-6zxrhdls` and the other folders listed in [packages/PKG-8aaadefz/README.md](../packages/PKG-8aaadefz/README.md), then Actions > MCP Tool Actions > Import for each zip.
 
-## 4. Finish the install
+## 5. Finish the install
 
 Ask the agent: "Run onb_install and tell me what changed." The importer leaves Synchronous Action off on every tool; `onb_install` turns it on where it belongs, enables every tool, checks outbound access, and reports. Then reconnect the MCP client (tool lists are cached per session). Check: "Run onb_status" answers inline with the appliance inventory.
 
-## 5. Start
+## 6. Start
 
 Say "Onboard CloudBolt for a POC" (in Claude Code with this repository open, `/cb-poc-onboarding`). Have the [POC Test Plan](https://docs.cloudbolt.io) prerequisites at hand: the licence, the two clouds you will connect, credentials with the minimum permissions for each (the agent never asks for them; it sends you to the page where they are entered), and whether SMTP, LDAP, SSO or a DNS record for a branded portal are available. Anything that is not available is recorded as not applicable, not as a failure.
 
-## 6. Updating the toolkit
+## 7. Updating the toolkit
 
 Ask the agent to sync the package's `mcp_tool_actions/` folders from `main` (`sync_from_source_control_repo`), run `onb_install`, and reconnect. With the Content Package Manager, Sync the package instead.
 
@@ -74,6 +121,8 @@ Ask the agent to sync the package's `mcp_tool_actions/` folders from `main` (`sy
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `self signed certificate in certificate chain` when connecting | Claude does not trust the appliance's certificate | Section 2: replace it, set `NODE_EXTRA_CA_CERTS`, restart Claude |
+| `does not match certificate's altnames` or `ERR_TLS_CERT_ALTNAME_INVALID` | The address in the MCP URL is not in the certificate | Regenerate it with that IP or DNS name (section 2, option 1), or connect with the name the certificate carries |
 | A tool is missing from the agent's list | Cached tool list, or not imported | Reconnect the client; check Actions > MCP Tool Actions |
 | Every custom tool fails with a scope error | Token has `read` only | Reconnect and grant `write` |
 | A tool answers with a job id instead of a result | Synchronous Action off | Run `onb_install`, reconnect |
