@@ -296,18 +296,32 @@ def set_resource_expiration(resource, new_date):
 # ---------------------------------------------------------------------------
 
 class LandingZoneError(Exception):
-    """Raised for non-2xx responses from the OpenShift API."""
+    """Raised for non-2xx responses from the OpenShift API, or when it cannot be reached."""
+
+
+# (connect, read) seconds for every OpenShift API call, so an unreachable
+# cluster fails the order form or job quickly instead of hanging it.
+# Docs: https://requests.readthedocs.io/en/latest/user/advanced/#timeouts
+REQUEST_TIMEOUT = (10, 60)
+
+
+def _session_bearer_token(client):
+    """The token the handler's API wrapper logged in with, read from its session."""
+    session = getattr(client, "http_session", None)
+    header = session.headers.get("Authorization", "") if session is not None else ""
+    return header[len("Bearer "):] if header.startswith("Bearer ") else ""
 
 
 class OpenShiftLandingZoneClient:
     """Minimal OpenShift API client for landing-zone objects.
 
     The OpenShift Virtualization handler's API wrapper client exposes the API
-    base URL and issues an OAuth bearer token; this client reuses both.
+    base URL and the bearer token it authenticated with; this client reuses both.
     """
 
-    def __init__(self, api_url, token, verify_ssl=False):
+    def __init__(self, api_url, token, verify_ssl=False, timeout=REQUEST_TIMEOUT):
         self.api_url = api_url.rstrip("/")
+        self.timeout = timeout
         self._session = requests.Session()
         self._session.headers.update({
             "Authorization": f"Bearer {token}",
@@ -320,29 +334,45 @@ class OpenShiftLandingZoneClient:
 
     @classmethod
     def from_handler(cls, handler):
-        """Create a client from a cast ``OVirtHandler`` (OpenShift Virtualization)."""
-        wrapper = handler.get_api_wrapper()
-        client = wrapper.client
+        """Create a client from a cast ``OVirtHandler`` (OpenShift Virtualization).
 
-        api_url = getattr(client, "openshift_base_api_url", None)
-        if not api_url:
-            protocol = getattr(handler, "protocol", "https")
-            port = getattr(handler, "port", 6443)
-            api_url = f"{protocol}://{handler.ip}:{port}"
+        Reuses the API URL (``<protocol>://api.<host>:<port>``, so the handler's
+        port is honored) and the bearer token the handler's API wrapper already
+        authenticated with. Connecting the wrapper is what logs in: with Service
+        Account Token auth it sends the stored token, and with Account
+        Credentials it fetches an OAuth token from the cluster's
+        ``oauth-openshift.apps.<host>`` route on 443. Never fetch a token here:
+        that would contact the OAuth route even for service-account handlers,
+        whose network may open only the API port.
+        """
+        client = handler.get_api_wrapper().client
 
-        token = client.get_oauth_token()
-        if isinstance(token, dict):
-            token = token.get("access_token", token)
+        token = _session_bearer_token(client)
+        if not token and getattr(client, "auth_type", "") == "serviceaccount_token":
+            # The handler stores the service account token as its password.
+            token = client.password
+        if not token:
+            raise LandingZoneError(
+                f"Resource handler '{handler.name}' did not authenticate to OpenShift; "
+                "check its credentials on the resource handler page."
+            )
 
         verify_ssl = bool(getattr(handler, "enable_ssl_verification", False))
-        return cls(api_url=api_url, token=token, verify_ssl=verify_ssl)
+        return cls(api_url=client.openshift_base_api_url, token=token, verify_ssl=verify_ssl)
 
     # -- transport ----------------------------------------------------------
 
     def _request(self, method, path, json=None, params=None, headers=None, allow_404=False):
         """Issue a request; return parsed JSON, or None on 404 when ``allow_404``."""
         url = f"{self.api_url}/{path.lstrip('/')}"
-        resp = self._session.request(method, url, json=json, params=params, headers=headers)
+        try:
+            resp = self._session.request(
+                method, url, json=json, params=params, headers=headers, timeout=self.timeout
+            )
+        except requests.exceptions.RequestException as exc:
+            raise LandingZoneError(
+                f"{method.upper()} {path} could not reach {self.api_url}: {exc}"
+            ) from exc
         if resp.status_code == 404 and allow_404:
             return None
         if not resp.ok:
