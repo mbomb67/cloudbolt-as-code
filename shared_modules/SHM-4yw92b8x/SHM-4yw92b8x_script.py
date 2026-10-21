@@ -103,7 +103,8 @@ RELEASE_CHANNELS = [
     ("RAPID", "Rapid"),
     ("EXTENDED", "Extended"),
 ]
-RELEASE_CHANNEL_LABELS = dict(RELEASE_CHANNELS, UNSPECIFIED="No channel")
+RELEASE_CHANNEL_LABELS = {"REGULAR": "Regular", "STABLE": "Stable", "RAPID": "Rapid", "EXTENDED": "Extended",
+                          "UNSPECIFIED": "No channel"}
 
 # The ServiceAccount, its token Secret, and the ClusterRoleBinding that give
 # CloudBolt's container orchestrator cluster-admin on a GKE cluster.
