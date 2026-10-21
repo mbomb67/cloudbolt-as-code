@@ -1,0 +1,22 @@
+{
+    "contents": [
+        "mcp_tool_actions/MTA-6zxrhdls",
+        "mcp_tool_actions/MTA-1985b88g",
+        "mcp_tool_actions/MTA-zpohocjt",
+        "mcp_tool_actions/MTA-hwg74btd",
+        "mcp_tool_actions/MTA-jzscq0mk",
+        "mcp_tool_actions/MTA-r5v1eblg",
+        "mcp_tool_actions/MTA-92b836jb",
+        "mcp_tool_actions/MTA-p72v9y76",
+        "mcp_tool_actions/MTA-543b19sa",
+        "mcp_tool_actions/MTA-8j9c0tb0",
+        "mcp_tool_actions/MTA-ntmcnvv7"
+    ],
+    "description": "Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.",
+    "id": "PKG-8aaadefz",
+    "last_updated": "2026-10-19",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "POC Onboarding Toolkit",
+    "version": "0.1.0"
+}
