@@ -17,8 +17,8 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | Bicep Deployment | [BP-nibk4erf](BP-nibk4erf/README.md) | Deploys an Azure deployment stack from a Bicep template hosted in GitHub, with a what-if preview and approval gate. |
 | Create VPC | [BP-n454hj40](BP-n454hj40/README.md) | Creates an AWS VPC with an Ansible playbook and a matching CloudBolt environment. |
 | DNS A Record | [BP-dnsrec01](BP-dnsrec01/README.md) | Creates, discovers, and removes Active Directory-integrated DNS A records over LDAPS. |
-| HCP Terraform No-Code + Ansible | [BP-uh9v24v3](BP-uh9v24v3/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply, then runs the pinned Ansible job templates on the deployment's servers. |
-| HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply. |
+| HCP Terraform No-Code + Ansible | [BP-uh9v24v3](BP-uh9v24v3/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies, then runs the pinned Ansible job templates on the deployment's servers. |
+| HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies. |
 | HCP Terraform VM | [BP-b0qm83lh](BP-b0qm83lh/README.md) | Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | IIS Web Application | [BP-122nbdt5](BP-122nbdt5/README.md) | Deploys a Windows server and installs an IIS web application. |
 | Migrate Aria Automation Deployments to Resources | [BP-zq0csldu](BP-zq0csldu/README.md) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. |

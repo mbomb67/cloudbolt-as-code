@@ -13,10 +13,13 @@ imported; use the build plugin (or label them) to bring them under management.
 RBAC: discovery enumerates every orchestrator; CloudBolt filters the returned
 resources by each user's access.
 
-Discovery contract:
-  - Every dict MUST include a "name" key.
+Discovery contract (servicecatalog/models.py, ServiceBlueprint.sync_resources):
+  - The plugin only returns dicts; the sync creates, updates or reactivates
+    the resources and creates any parameter that does not exist yet.
   - RESOURCE_IDENTIFIER names the field carrying the cluster-native unique ID
     (the namespace UID).
+  - A namespace on a cluster that was not listed is returned with its UID
+    alone, so the sync leaves it as it is instead of marking it Historical.
   - "parent_resource_id" nests the namespace under its cluster resource and
     "group" hands it to the CloudBolt Group recorded in the namespace's
     cloudbolt.io/group-id annotation; both are Resource attributes CloudBolt
@@ -27,6 +30,7 @@ Discovery contract:
 Entry point: discover_resources(**kwargs) -> list[dict]
 """
 
+import datetime
 import re
 
 from common.methods import set_progress
@@ -38,11 +42,11 @@ from shared_modules.eks_namespace import (
     NamespaceError,
     TIERS,
     cluster_resources,
-    ensure_custom_fields,
     entitled_group_names,
     find_environment_for_namespace,
     load_orchestrator,
     owning_group_for_namespace,
+    to_date,
 )
 from utilities.logger import ThreadLogger
 
@@ -88,10 +92,38 @@ def _tier_from_quota(hard, labelled_tier):
     return labelled_tier or "custom"
 
 
+def _expiration(annotations):
+    """The lease annotation as the datetime set_resource_expiration stores, or None."""
+    expires = to_date(annotations.get(ANNOTATION_EXPIRES))
+    if expires is None:
+        return None
+    return datetime.datetime.combine(expires, datetime.time(hour=23, minute=59))
+
+
+def _untouched(blueprint, listed_cluster_ids, returned_uids):
+    """
+    The UID alone for each active namespace on a cluster that was not listed:
+    no orchestrator, unreachable, or the cluster resource itself not Active.
+    The sync matches them and changes nothing, so they are not marked
+    Historical when the blueprint's auto_historical_resources is on.
+    """
+    if blueprint is None:
+        return []
+    kept = []
+    for resource in blueprint.resource_set.filter(lifecycle="ACTIVE"):
+        values = resource.get_cf_values_as_dict()
+        uid = values.get(RESOURCE_IDENTIFIER)
+        cluster_id = resource.parent_resource_id or values.get(CF_PREFIX + "cluster_resource_id")
+        if uid and uid not in returned_uids and str(cluster_id) not in listed_cluster_ids:
+            kept.append({RESOURCE_IDENTIFIER: uid})
+    return kept
+
+
 def discover_resources(**kwargs):
     """Discover landing-zone namespaces across every EKS cluster's orchestrator."""
-    ensure_custom_fields()
     discovered = []
+    listed_cluster_ids = set()
+    returned_uids = set()
 
     for cluster, orchestrator_id in cluster_resources():
         orchestrator = load_orchestrator(orchestrator_id)
@@ -112,6 +144,8 @@ def discover_resources(**kwargs):
             set_progress(f"Error listing namespaces on {cluster.name}: {exc}")
             logger.warning("Error listing namespaces for orchestrator %s: %s", orchestrator, exc)
             continue
+
+        listed_cluster_ids.add(str(cluster.id))
 
         for ns in namespaces:
             meta = ns.get("metadata") or {}
@@ -138,7 +172,7 @@ def discover_resources(**kwargs):
             tier_key = _tier_from_quota(hard, labels.get(LABEL_TIER, ""))
 
             record = {
-                "name": name,  # REQUIRED
+                "name": name,
                 RESOURCE_IDENTIFIER: uid,
                 "parent_resource_id": cluster.id,
                 "group": owning_group_for_namespace(annotations),
@@ -152,7 +186,7 @@ def discover_resources(**kwargs):
                 CF_PREFIX + "storage_limit_gb": _quantity_to_int(hard.get("requests.storage"), "gib"),
                 CF_PREFIX + "max_pods": _quantity_to_int(hard.get("pods")),
                 CF_PREFIX + "network_isolation": "deny-by-default" in policies,
-                "expiration_date": annotations.get(ANNOTATION_EXPIRES) or None,
+                "expiration_date": _expiration(annotations),
             }
             if env is not None:
                 record[CF_PREFIX + "environment_id"] = env.id
@@ -161,6 +195,8 @@ def discover_resources(**kwargs):
 
             # Drop unknowns so discovery does not overwrite good values with None.
             discovered.append({k: v for k, v in record.items() if v is not None})
+            returned_uids.add(uid)
 
     set_progress(f"Discovered {len(discovered)} EKS namespace landing zone(s).")
+    discovered.extend(_untouched(kwargs.get("blueprint"), listed_cluster_ids, returned_uids))
     return discovered

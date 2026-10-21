@@ -3,7 +3,7 @@
     "id": "BP-00meiwwz",
     "type": "blueprints",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies.",
     "path": "blueprints/BP-00meiwwz",
     "readme": "blueprints/BP-00meiwwz/README.md",
     "uses": [
@@ -447,7 +447,7 @@
     "id": "BP-uh9v24v3",
     "type": "blueprints",
     "name": "HCP Terraform No-Code + Ansible",
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply, then runs the pinned Ansible job templates on the deployment's servers.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies, then runs the pinned Ansible job templates on the deployment's servers.",
     "path": "blueprints/BP-uh9v24v3",
     "readme": "blueprints/BP-uh9v24v3/README.md",
     "uses": [
@@ -746,7 +746,7 @@
     "id": "FRM-1dxfulvq",
     "type": "forms",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions an HCP Terraform no-code module; the job pauses for plan review before apply.",
+    "description": "Provisions an HCP Terraform no-code module; HCP Terraform applies the plan automatically.",
     "path": "forms/FRM-1dxfulvq",
     "readme": null,
     "uses": [],
@@ -810,7 +810,7 @@
     "id": "FRM-ai7lwb13",
     "type": "forms",
     "name": "HCP Terraform No-Code + Ansible",
-    "description": "Provisions an HCP Terraform no-code module and runs the pinned Ansible job templates on its servers; the job pauses for plan review before apply.",
+    "description": "Provisions an HCP Terraform no-code module and runs the pinned Ansible job templates on its servers; HCP Terraform applies the plan automatically.",
     "path": "forms/FRM-ai7lwb13",
     "readme": null,
     "uses": [],
@@ -836,7 +836,7 @@
     "id": "FRM-h4py5w3a",
     "type": "forms",
     "name": "Terraform Update",
-    "description": "Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and the job pauses for plan review; Continue Job applies it, canceling the job discards the run and restores the previous values.",
+    "description": "Edit this deployment's Terraform variables. The change is planned in its HCP Terraform workspace and applied without a pause if the workspace auto-applies; otherwise the job pauses for plan review: Continue Job applies it, canceling the job discards the run and restores the previous values.",
     "path": "forms/FRM-h4py5w3a",
     "readme": null,
     "uses": [
@@ -1871,7 +1871,7 @@
     "id": "OHK-4y8f1vff",
     "type": "plugins",
     "name": "Deploy Latest Version",
-    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform, pausing for plan approval only on a workspace without Auto Apply; a no-op when already current, and runs on every selected resource in a bulk action.",
     "path": "plugins/OHK-4y8f1vff",
     "readme": null,
     "uses": [
@@ -2325,7 +2325,7 @@
     "id": "OHK-axtt0yqq",
     "type": "plugins",
     "name": "HCP Terraform No-Code Module",
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription, with a plan-approval pause before apply.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module into a chosen CloudBolt environment's Azure subscription through a workspace that HCP Terraform auto-applies.",
     "path": "plugins/OHK-axtt0yqq",
     "readme": null,
     "uses": [
@@ -2684,7 +2684,7 @@
     "id": "OHK-e9qppbei",
     "type": "plugins",
     "name": "Discover EKS",
-    "description": "Discovers EKS clusters in every AWS environment and creates or updates a CloudBolt resource and Kubernetes container orchestrator for each.",
+    "description": "Returns every EKS cluster in every AWS environment for CloudBolt's discovery sync and registers each one as a Kubernetes container orchestrator.",
     "path": "plugins/OHK-e9qppbei",
     "readme": null,
     "uses": [],
@@ -3019,7 +3019,7 @@
     "id": "OHK-lvy5tj0y",
     "type": "plugins",
     "name": "Terraform Update",
-    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause unless the workspace auto-applies.",
     "path": "plugins/OHK-lvy5tj0y",
     "readme": null,
     "uses": [
@@ -4245,7 +4245,7 @@
     "id": "RSA-dxrh4m6j",
     "type": "resource_actions",
     "name": "Terraform Update",
-    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause.",
+    "description": "Updates any HCP Terraform workspace-per-deployment resource's variables from the built-in JSON dialog or a custom action form, then runs with a plan-approval pause unless the workspace auto-applies.",
     "path": "resource_actions/RSA-dxrh4m6j",
     "readme": null,
     "uses": [
@@ -4594,7 +4594,7 @@
     "id": "RSA-pngq92ss",
     "type": "resource_actions",
     "name": "Deploy Latest Version",
-    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform, pausing for plan approval only on a workspace without Auto Apply; a no-op when already current, and runs on every selected resource in a bulk action.",
     "path": "resource_actions/RSA-pngq92ss",
     "readme": null,
     "uses": [
