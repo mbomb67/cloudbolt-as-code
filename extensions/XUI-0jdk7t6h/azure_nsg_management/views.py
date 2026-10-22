@@ -53,7 +53,7 @@ from utilities.decorators import dialog_view
 from utilities.events import add_resource_event
 from utilities.logger import ThreadLogger
 
-from xui.azure_nsg_management.forms import ConfirmForm, SecurityRuleForm
+from xui.azure_nsg_management.forms import PROTOCOL_CHOICES, ConfirmForm, SecurityRuleForm
 
 logger = ThreadLogger(__name__)
 
@@ -70,6 +70,9 @@ MANAGE_PERMISSION = "resource.change_attributes"
 MARKER_FIELD = "azure_network_security_group_id"
 
 DIRECTIONS = {"inbound": "Inbound", "outbound": "Outbound"}
+
+# Protocols as the portal names them (Azure stores Tcp, Udp, ...).
+PROTOCOL_LABELS = dict(PROTOCOL_CHOICES)
 
 # Custom rule priorities; Azure's default rules use 65000 and above.
 # https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview#security-rules
@@ -223,7 +226,7 @@ def _rule_row(resource, rule, is_default, can_manage):
         "priority": rule.priority,
         "access": rule.access or "",
         "allow": (rule.access or "").lower() == "allow",
-        "protocol": _any(rule.protocol),
+        "protocol": PROTOCOL_LABELS.get(rule.protocol or "*", rule.protocol),
         "port": _values(rule.destination_port_range, rule.destination_port_ranges),
         "source_ports": "" if source_ports == "Any" else source_ports,
         "source": source_asgs or _values(rule.source_address_prefix, rule.source_address_prefixes),

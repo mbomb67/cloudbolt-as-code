@@ -30,7 +30,8 @@
   .nsgx .nsg-card-tools .form-control { width: 220px; max-width: 100%; }
   {# Essentials: two columns of label / value rows, like the portal's Overview #}
   .nsgx .nsg-ess { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 40px; padding: 12px 22px 14px; }
-  .nsgx .nsg-ess dl { margin: 0; }
+  {# CloudBolt's own stylesheet makes every dl a grid; these are plain lists of rows #}
+  .nsgx .nsg-ess dl { margin: 0; display: block; }
   .nsgx .nsg-kv { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; padding: 6px 0; font-size: 13px; align-items: baseline; }
   .nsgx .nsg-kv dt { font-weight: 600; color: var(--nsg-muted); margin: 0; }
   .nsgx .nsg-kv dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
