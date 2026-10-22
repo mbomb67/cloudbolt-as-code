@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "extensions/XUI-0jdk7t6h",
+        "blueprints/BP-3fdhnw54"
+    ],
+    "description": "Orders, discovers, and deletes Azure network security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "id": "PKG-gqw2jqgj",
+    "last_updated": "2026-10-22",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Azure Network Security Groups",
+    "version": "1.0.0"
+}

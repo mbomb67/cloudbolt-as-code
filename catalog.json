@@ -72,7 +72,10 @@
       "plugins/OHK-9jouejv8",
       "plugins/OHK-kdne1t5s"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "BP-5pei9cno",
@@ -579,7 +582,10 @@
     "readme": "extensions/XUI-0jdk7t6h/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "XUI-60382c9x",
@@ -1530,6 +1536,21 @@
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
       "extensions/XUI-8a1jocmr"
+    ]
+  },
+  {
+    "id": "PKG-gqw2jqgj",
+    "type": "packages",
+    "name": "Azure Network Security Groups",
+    "description": "Orders, discovers, and deletes Azure network security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "path": "packages/PKG-gqw2jqgj",
+    "readme": "packages/PKG-gqw2jqgj/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "extensions/XUI-0jdk7t6h",
+      "blueprints/BP-3fdhnw54"
     ]
   },
   {
