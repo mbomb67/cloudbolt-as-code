@@ -495,7 +495,10 @@
       "resource_actions/RSA-kx7mdgva",
       "resource_actions/RSA-yj1c4b5s"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-57ltvnbl"
+    ]
   },
   {
     "id": "BP-uh9v24v3",
@@ -723,7 +726,10 @@
     "readme": "extensions/XUI-y9bdnzxt/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-57ltvnbl"
+    ]
   },
   {
     "id": "XUI-ycumvq8k",
@@ -1493,6 +1499,21 @@
       "blueprints/BP-uh9v24v3",
       "webhooks/IWH-yj93is5z",
       "extensions/XUI-ax1sluwi"
+    ]
+  },
+  {
+    "id": "PKG-57ltvnbl",
+    "type": "packages",
+    "name": "OpenShift",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, and the Connect and Workloads tabs on each project.",
+    "path": "packages/PKG-57ltvnbl",
+    "readme": "packages/PKG-57ltvnbl/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "extensions/XUI-y9bdnzxt",
+      "blueprints/BP-tikkhf2y"
     ]
   },
   {
