@@ -25,6 +25,11 @@ xui_urlpatterns = [
         name="aws_eks_workloads_panel",
     ),
     path(
+        "aws-eks/<int:resource_id>/groups/",
+        views.groups_panel,
+        name="aws_eks_groups_panel",
+    ),
+    path(
         "aws-eks/namespaces/<int:resource_id>/connect/",
         views.namespace_connect_panel,
         name="aws_eks_namespace_connect_panel",
@@ -49,5 +54,21 @@ xui_urlpatterns = [
         "aws-eks/<int:resource_id>/nodegroups/<str:nodegroup_name>/delete/",
         views.delete_nodegroup,
         name="aws_eks_delete_nodegroup",
+    ),
+    # Dialogs that change the groups on the cluster's environment
+    path(
+        "aws-eks/<int:resource_id>/groups/add/",
+        views.add_groups,
+        name="aws_eks_add_groups",
+    ),
+    path(
+        "aws-eks/<int:resource_id>/groups/allow-all/",
+        views.allow_all_groups,
+        name="aws_eks_allow_all_groups",
+    ),
+    path(
+        "aws-eks/<int:resource_id>/groups/<str:group_id>/remove/",
+        views.remove_group,
+        name="aws_eks_remove_group",
     ),
 ]

@@ -5,9 +5,11 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 
 | Blueprint | ID | Description |
 |---|---|---|
+| AKS Namespace | [BP-dogqi827](BP-dogqi827/README.md) | Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access. |
 | AWS EKS | [BP-r5apcf7e](BP-r5apcf7e/README.md) | Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones. |
 | AWS EKS Namespace | [BP-e4c0q58z](BP-e4c0q58z/README.md) | Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it. |
 | Azure Cross-Tenant Subscription | [BP-5pei9cno](BP-5pei9cno/README.md) | Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections. |
+| Azure Kubernetes Service | [BP-20q58q9z](BP-20q58q9z/README.md) | Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster. |
 | Azure Network Security Group | [BP-3fdhnw54](BP-3fdhnw54/README.md) | Creates, deletes, and discovers Azure network security groups. |
 | Azure Resource Group | [BP-zmeot1ff](BP-zmeot1ff/README.md) | Creates, deletes, and discovers Azure resource groups, with day-2 actions for tags, delete locks, and contents. |
 | Azure Resource Group - Bicep | [BP-p7zmh96m](BP-p7zmh96m/README.md) | Creates an Azure resource group from Microsoft's subscription-scoped create-rg Bicep quickstart template as a deployment stack. |

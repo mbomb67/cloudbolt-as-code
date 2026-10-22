@@ -1,0 +1,12 @@
+{
+    "description": "Managed-namespace landing zones, Azure RBAC namespace access, connection details, and GitHub pipeline identities for the AKS Namespace blueprint.",
+    "id": "SHM-cozv547n",
+    "label": "AKS Namespace",
+    "max_retries": 0,
+    "module_name": "aks_namespace",
+    "name": "aks_namespace",
+    "resource_technologies": [],
+    "script_filename": "SHM-cozv547n_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

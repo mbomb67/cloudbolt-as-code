@@ -35,6 +35,32 @@
     "used_by": []
   },
   {
+    "id": "BP-20q58q9z",
+    "type": "blueprints",
+    "name": "Azure Kubernetes Service",
+    "description": "Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster.",
+    "path": "blueprints/BP-20q58q9z",
+    "readme": "blueprints/BP-20q58q9z/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-27oemiwb",
+      "plugins/OHK-uof2rcaa",
+      "plugins/OHK-x13tmam0",
+      "resource_actions/RSA-ehxck39g",
+      "resource_actions/RSA-gp2aywcz",
+      "resource_actions/RSA-j4f98ti1",
+      "resource_actions/RSA-jttbwkm5",
+      "resource_actions/RSA-my8fifei",
+      "resource_actions/RSA-v9717mtc",
+      "resource_actions/RSA-wsre115s",
+      "resource_actions/RSA-wxd1o7s8"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-yrpqo1o0"
+    ]
+  },
+  {
     "id": "BP-3fdhnw54",
     "type": "blueprints",
     "name": "Azure Network Security Group",
@@ -168,6 +194,29 @@
       "plugins/OHK-dnstrd01"
     ],
     "used_by": []
+  },
+  {
+    "id": "BP-dogqi827",
+    "type": "blueprints",
+    "name": "AKS Namespace",
+    "description": "Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access.",
+    "path": "blueprints/BP-dogqi827",
+    "readme": "blueprints/BP-dogqi827/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-735mhtvh",
+      "plugins/OHK-tybit8su",
+      "plugins/OHK-wmdr2ef5",
+      "resource_actions/RSA-1amyol6t",
+      "resource_actions/RSA-2f01ppuc",
+      "resource_actions/RSA-7wdigcpr",
+      "resource_actions/RSA-nvwe7u4b",
+      "resource_actions/RSA-rwaszep5"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-yrpqo1o0"
+    ]
   },
   {
     "id": "BP-e4c0q58z",
@@ -387,6 +436,7 @@
       "resource_actions/RSA-dhgwoj3z",
       "resource_actions/RSA-f9ivvn5q",
       "resource_actions/RSA-inhs50gi",
+      "resource_actions/RSA-l3dokgru",
       "resource_actions/RSA-p2fnjwj3",
       "resource_actions/RSA-rrbh1ntm",
       "resource_actions/RSA-xdlxetyc"
@@ -550,7 +600,7 @@
     "id": "XUI-8a1jocmr",
     "type": "extensions",
     "name": "AWS EKS Cluster",
-    "description": "Adds Cluster, Node groups, and Workloads tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, and per-node and per-namespace workload figures, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
+    "description": "Adds Cluster, Node groups, Workloads, and Groups tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, per-node and per-namespace workload figures, and management of the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory.",
     "path": "extensions/XUI-8a1jocmr",
     "readme": "extensions/XUI-8a1jocmr/README.md",
     "uses": [],
@@ -634,6 +684,20 @@
     "uses": [],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "XUI-nr5iiu60",
+    "type": "extensions",
+    "name": "Azure AKS Cluster",
+    "description": "Adds Cluster, Node pools, Workloads, and Groups tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory.",
+    "path": "extensions/XUI-nr5iiu60",
+    "readme": "extensions/XUI-nr5iiu60/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-yrpqo1o0"
+    ]
   },
   {
     "id": "XUI-vwrd15py",
@@ -1310,8 +1374,10 @@
       "plugins/OHK-cfciy0fo"
     ],
     "used_by": [
+      "blueprints/BP-dogqi827",
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
+      "blueprints/BP-20q58q9z",
       "blueprints/BP-c9ca1i3z",
       "blueprints/BP-g8g8aecx",
       "blueprints/BP-122nbdt5",
@@ -1508,6 +1574,22 @@
     ]
   },
   {
+    "id": "PKG-yrpqo1o0",
+    "type": "packages",
+    "name": "Azure AKS",
+    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "path": "packages/PKG-yrpqo1o0",
+    "readme": "packages/PKG-yrpqo1o0/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-dogqi827",
+      "extensions/XUI-nr5iiu60"
+    ]
+  },
+  {
     "id": "PKG-zny1ynfs",
     "type": "packages",
     "name": "Data Disks from a Disk Map",
@@ -1572,6 +1654,21 @@
     ]
   },
   {
+    "id": "OHK-0fp008gh",
+    "type": "plugins",
+    "name": "List AKS Node Pools",
+    "description": "Re-reads the AKS cluster and its node pools from Azure, refreshing the cluster's values and creating, updating, or removing AKS Node Pool sub-resources to match.",
+    "path": "plugins/OHK-0fp008gh",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-v9717mtc"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-0ql0870k",
     "type": "plugins",
     "name": "Install IIS Windows",
@@ -1627,6 +1724,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-27oemiwb",
+    "type": "plugins",
+    "name": "AKS Cluster Teardown",
+    "description": "Deletes the AKS cluster with its CloudBolt container orchestrator, environment, and node pool sub-resources, refusing while namespace landing zones remain.",
+    "path": "plugins/OHK-27oemiwb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-29uent0x",
     "type": "plugins",
     "name": "Install Postgres",
@@ -1667,6 +1779,19 @@
       "blueprints/BP-psw7rclb"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-2lvw9oe0",
+    "type": "plugins",
+    "name": "Manage AWS EKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment.",
+    "path": "plugins/OHK-2lvw9oe0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-l3dokgru"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-2lzwvo0j",
@@ -1821,6 +1946,22 @@
     ],
     "used_by": [
       "resource_actions/RSA-kx7mdgva"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-4rucefwc",
+    "type": "plugins",
+    "name": "Manage AKS Namespace Pipeline Identity",
+    "description": "Creates or deletes a user-assigned managed identity that a GitHub Actions workflow signs in as through OIDC, with kubectl access to an AKS namespace through namespace-scoped Azure RBAC roles.",
+    "path": "plugins/OHK-4rucefwc",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-rwaszep5"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1997,6 +2138,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-735mhtvh",
+    "type": "plugins",
+    "name": "AKS Namespace",
+    "description": "Creates an AKS managed namespace with a tiered quota, default container limits, and the chosen ingress and egress policies on an existing cluster, then pins a CloudBolt environment to it, entitles the ordering group, and grants Microsoft Entra principals namespace-scoped Azure RBAC access.",
+    "path": "plugins/OHK-735mhtvh",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-7987st2p",
     "type": "plugins",
     "name": "Azure Network Security Group Build",
@@ -2075,6 +2232,21 @@
     ],
     "used_by": [
       "blueprints/BP-zq0csldu"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-80c4ibdb",
+    "type": "plugins",
+    "name": "Scale AKS Node Pool",
+    "description": "Sets a node pool to a fixed node count or turns on the cluster autoscaler with a minimum and maximum, waits for AKS, and refreshes the pool's sub-resource.",
+    "path": "plugins/OHK-80c4ibdb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-ehxck39g"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2387,6 +2559,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-b7poza8x",
+    "type": "plugins",
+    "name": "Add AKS Node Pool",
+    "description": "Adds a User or System node pool on the control plane's Kubernetes version to the AKS cluster, optionally autoscaled and spread across availability zones, and records it as an AKS Node Pool sub-resource.",
+    "path": "plugins/OHK-b7poza8x",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-wxd1o7s8"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-bf3iyg9j",
     "type": "plugins",
     "name": "Runbook Tasks",
@@ -2519,6 +2706,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-cqkwd0mq",
+    "type": "plugins",
+    "name": "Manage AKS Namespace Access",
+    "description": "Grants or revokes kubectl access to an AKS namespace for a Microsoft Entra user, group, or service principal through namespace-scoped Azure RBAC roles, and a CloudBolt group's entitlement to its environment.",
+    "path": "plugins/OHK-cqkwd0mq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-1amyol6t"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-cwqouaqn",
     "type": "plugins",
     "name": "Run Ansible Job Templates on Servers",
@@ -2528,6 +2731,21 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-uh9v24v3"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-czexzrl1",
+    "type": "plugins",
+    "name": "Delete AKS Node Pool",
+    "description": "Deletes a chosen node pool from the AKS cluster, refusing the cluster's only System pool, and removes its AKS Node Pool sub-resource.",
+    "path": "plugins/OHK-czexzrl1",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-j4f98ti1"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2653,7 +2871,7 @@
     "id": "OHK-e9qppbei",
     "type": "plugins",
     "name": "Discover EKS",
-    "description": "Returns every EKS cluster in every AWS environment for CloudBolt's discovery sync and registers each one as a Kubernetes container orchestrator.",
+    "description": "Returns every EKS cluster in every AWS environment, and the managed node groups of tracked clusters, for CloudBolt's discovery sync, registers each cluster as a Kubernetes container orchestrator, and retires tracked ones only when AWS confirms they are gone.",
     "path": "plugins/OHK-e9qppbei",
     "readme": null,
     "uses": [],
@@ -2889,6 +3107,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-jeighfcq",
+    "type": "plugins",
+    "name": "Request AKS Namespace Quota Change",
+    "description": "Moves an AKS namespace landing zone to a different size tier after approval and mirrors the new quota into its environment.",
+    "path": "plugins/OHK-jeighfcq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-7wdigcpr"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-jm8j1513",
     "type": "plugins",
     "name": "Teardown GKE Namespace",
@@ -2917,6 +3151,22 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-n67skws4"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-kb4pv2yq",
+    "type": "plugins",
+    "name": "Create AKS Namespace",
+    "description": "Creates a namespace landing zone on this AKS cluster for a chosen CloudBolt group, filed as an AKS Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "plugins/OHK-kb4pv2yq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-jttbwkm5"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3196,6 +3446,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ojf2vvq1",
+    "type": "plugins",
+    "name": "Upgrade AKS Version",
+    "description": "Upgrades the AKS cluster's control plane, alone or with all its node pools, to a Kubernetes version AKS offers, then refreshes the cluster and its node pool sub-resources.",
+    "path": "plugins/OHK-ojf2vvq1",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-gp2aywcz"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ovt0z46j",
     "type": "plugins",
     "name": "List Subscription Access",
@@ -3228,7 +3493,7 @@
     "id": "OHK-ow9x0amc",
     "type": "plugins",
     "name": "Discover AWS EKS Namespaces",
-    "description": "Imports namespaces labeled cloudbolt.io/landing-zone=true from every EKS cluster's orchestrator as AWS EKS Namespace resources.",
+    "description": "Imports namespaces labeled cloudbolt.io/landing-zone=true from every EKS cluster's orchestrator as AWS EKS Namespace resources and retires tracked ones only when the cluster or AWS confirms they are gone.",
     "path": "plugins/OHK-ow9x0amc",
     "readme": null,
     "uses": [
@@ -3524,6 +3789,37 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-t0j1w09c",
+    "type": "plugins",
+    "name": "Upgrade AKS Node Pool",
+    "description": "Upgrades a node pool to the control plane's Kubernetes version or to the latest node image for its version, waits for AKS, and refreshes the pool's sub-resource.",
+    "path": "plugins/OHK-t0j1w09c",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-wsre115s"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-t1r0y1yd",
+    "type": "plugins",
+    "name": "Extend AKS Namespace Expiration",
+    "description": "Extends an AKS namespace landing zone's expiration date on the resource and the managed namespace annotation.",
+    "path": "plugins/OHK-t1r0y1yd",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-nvwe7u4b"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-t2gs5caq",
     "type": "plugins",
     "name": "Teardown Bicep Deployment",
@@ -3575,6 +3871,22 @@
     "uses": [],
     "used_by": [
       "orchestration_actions/HPA-1lp8xqo3"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-tybit8su",
+    "type": "plugins",
+    "name": "Discover AKS Namespaces",
+    "description": "Imports every AKS managed namespace on the AKS clusters CloudBolt manages as an AKS Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group, and marks Historical only the namespaces Azure confirms no longer exist.",
+    "path": "plugins/OHK-tybit8su",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3637,6 +3949,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-uof2rcaa",
+    "type": "plugins",
+    "name": "AKS Cluster Discovery",
+    "description": "Returns every AKS cluster in each Azure handler's subscription, and the node pools of the clusters CloudBolt tracks, for the discovery sync to adopt or refresh, registers each running cluster's container orchestrator, and marks Historical only what Azure confirms no longer exists.",
+    "path": "plugins/OHK-uof2rcaa",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-up7829pv",
     "type": "plugins",
     "name": "Install Windows File Server",
@@ -3677,6 +4004,22 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-t7hlyvyy"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-vi009xb8",
+    "type": "plugins",
+    "name": "AKS Namespace Connection Details",
+    "description": "Shows the commands and kubeconfig that connect kubectl to an AKS namespace, its network policy, and which Microsoft Entra principals have access to it.",
+    "path": "plugins/OHK-vi009xb8",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-2f01ppuc"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3751,6 +4094,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-wmdr2ef5",
+    "type": "plugins",
+    "name": "Teardown AKS Namespace",
+    "description": "Deletes the AKS namespace's pipeline identities and CloudBolt role assignments, deletes the managed namespace and everything in it, then removes the pinned CloudBolt environment.",
+    "path": "plugins/OHK-wmdr2ef5",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-wr079u8q",
     "type": "plugins",
     "name": "Test Postgres Connection",
@@ -3760,6 +4119,21 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-9tfwebk7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-x13tmam0",
+    "type": "plugins",
+    "name": "AKS Cluster Build",
+    "description": "Creates an AKS cluster with Microsoft Entra ID and Azure RBAC, Azure CNI Overlay with Cilium, and automatic upgrades, registers it as a CloudBolt Kubernetes container orchestrator, and records its node pools.",
+    "path": "plugins/OHK-x13tmam0",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3914,6 +4288,21 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-b91c5f90"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yzmq0kzu",
+    "type": "plugins",
+    "name": "Manage AKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "plugins/OHK-yzmq0kzu",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ptvp0km4"
+    ],
+    "used_by": [
+      "resource_actions/RSA-my8fifei"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4091,6 +4480,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-1amyol6t",
+    "type": "resource_actions",
+    "name": "Manage AKS Namespace Access",
+    "description": "Grants or revokes kubectl access to an AKS namespace for a Microsoft Entra user, group, or service principal through namespace-scoped Azure RBAC roles, and a CloudBolt group's entitlement to its environment.",
+    "path": "resource_actions/RSA-1amyol6t",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-cqkwd0mq"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-1kpl3w0d",
     "type": "resource_actions",
     "name": "Grant Access",
@@ -4117,6 +4521,21 @@
     ],
     "used_by": [
       "blueprints/BP-c9ca1i3z"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-2f01ppuc",
+    "type": "resource_actions",
+    "name": "AKS Namespace Connection Details",
+    "description": "Shows the commands and kubeconfig that connect kubectl to an AKS namespace, its network policy, and which Microsoft Entra principals have access to it.",
+    "path": "resource_actions/RSA-2f01ppuc",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-vi009xb8"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
     ],
     "enabled": true
   },
@@ -4178,6 +4597,21 @@
     ],
     "used_by": [
       "blueprints/BP-lt6a3yzf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-7wdigcpr",
+    "type": "resource_actions",
+    "name": "Request AKS Namespace Quota Change",
+    "description": "Moves an AKS namespace landing zone to a different size tier after approval and mirrors the new quota into its environment.",
+    "path": "resource_actions/RSA-7wdigcpr",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-jeighfcq"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
     ],
     "enabled": true
   },
@@ -4290,6 +4724,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-ehxck39g",
+    "type": "resource_actions",
+    "name": "Scale AKS Node Pool",
+    "description": "Sets a node pool to a fixed node count or turns on the cluster autoscaler with a minimum and maximum, waits for AKS, and refreshes the pool's sub-resource.",
+    "path": "resource_actions/RSA-ehxck39g",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-80c4ibdb"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-f7wb11ny",
     "type": "resource_actions",
     "name": "List Access",
@@ -4332,6 +4781,21 @@
     "used_by": [
       "blueprints/BP-p7zmh96m",
       "blueprints/BP-nibk4erf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-gp2aywcz",
+    "type": "resource_actions",
+    "name": "Upgrade AKS Version",
+    "description": "Upgrades the AKS cluster's control plane, alone or with all its node pools, to a Kubernetes version AKS offers, then refreshes the cluster and its node pool sub-resources.",
+    "path": "resource_actions/RSA-gp2aywcz",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ojf2vvq1"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
     ],
     "enabled": true
   },
@@ -4441,6 +4905,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-j4f98ti1",
+    "type": "resource_actions",
+    "name": "Delete AKS Node Pool",
+    "description": "Deletes a chosen node pool from the AKS cluster, refusing the cluster's only System pool, and removes its AKS Node Pool sub-resource.",
+    "path": "resource_actions/RSA-j4f98ti1",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-czexzrl1"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-jaitfhwp",
     "type": "resource_actions",
     "name": "Run SQL Command",
@@ -4452,6 +4931,21 @@
     ],
     "used_by": [
       "blueprints/BP-b91c5f90"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-jttbwkm5",
+    "type": "resource_actions",
+    "name": "Create AKS Namespace",
+    "description": "Creates a namespace landing zone on this AKS cluster for a chosen CloudBolt group, filed as an AKS Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "resource_actions/RSA-jttbwkm5",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-kb4pv2yq"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
     ],
     "enabled": true
   },
@@ -4497,6 +4991,21 @@
     ],
     "used_by": [
       "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-l3dokgru",
+    "type": "resource_actions",
+    "name": "Manage AWS EKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment.",
+    "path": "resource_actions/RSA-l3dokgru",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-2lvw9oe0"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "enabled": true
   },
@@ -4576,6 +5085,36 @@
     "enabled": true
   },
   {
+    "id": "RSA-my8fifei",
+    "type": "resource_actions",
+    "name": "Manage AKS Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to an AKS cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "resource_actions/RSA-my8fifei",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-yzmq0kzu"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-nvwe7u4b",
+    "type": "resource_actions",
+    "name": "Extend AKS Namespace Expiration",
+    "description": "Extends an AKS namespace landing zone's expiration date on the resource and the managed namespace annotation.",
+    "path": "resource_actions/RSA-nvwe7u4b",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-t1r0y1yd"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-p2fnjwj3",
     "type": "resource_actions",
     "name": "Upgrade AWS EKS Nodegroup",
@@ -4637,6 +5176,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-rwaszep5",
+    "type": "resource_actions",
+    "name": "Manage AKS Namespace Pipeline Identity",
+    "description": "Creates or deletes a user-assigned managed identity that a GitHub Actions workflow signs in as through OIDC, with kubectl access to an AKS namespace through namespace-scoped Azure RBAC roles.",
+    "path": "resource_actions/RSA-rwaszep5",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-4rucefwc"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-tqy61754",
     "type": "resource_actions",
     "name": "Launch Helm Chart",
@@ -4647,6 +5201,21 @@
       "plugins/OHK-tb703wqx"
     ],
     "used_by": [],
+    "enabled": true
+  },
+  {
+    "id": "RSA-v9717mtc",
+    "type": "resource_actions",
+    "name": "List AKS Node Pools",
+    "description": "Re-reads the AKS cluster and its node pools from Azure, refreshing the cluster's values and creating, updating, or removing AKS Node Pool sub-resources to match.",
+    "path": "resource_actions/RSA-v9717mtc",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-0fp008gh"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
     "enabled": true
   },
   {
@@ -4676,6 +5245,36 @@
     ],
     "used_by": [
       "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-wsre115s",
+    "type": "resource_actions",
+    "name": "Upgrade AKS Node Pool",
+    "description": "Upgrades a node pool to the control plane's Kubernetes version or to the latest node image for its version, waits for AKS, and refreshes the pool's sub-resource.",
+    "path": "resource_actions/RSA-wsre115s",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-t0j1w09c"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-wxd1o7s8",
+    "type": "resource_actions",
+    "name": "Add AKS Node Pool",
+    "description": "Adds a User or System node pool on the control plane's Kubernetes version to the AKS cluster, optionally autoscaled and spread across availability zones, and records it as an AKS Node Pool sub-resource.",
+    "path": "resource_actions/RSA-wxd1o7s8",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-b7poza8x"
+    ],
+    "used_by": [
+      "blueprints/BP-20q58q9z"
     ],
     "enabled": true
   },
@@ -4938,6 +5537,26 @@
     ]
   },
   {
+    "id": "SHM-cozv547n",
+    "type": "shared_modules",
+    "name": "aks_namespace",
+    "description": "Managed-namespace landing zones, Azure RBAC namespace access, connection details, and GitHub pipeline identities for the AKS Namespace blueprint.",
+    "path": "shared_modules/SHM-cozv547n",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-735mhtvh",
+      "plugins/OHK-vi009xb8",
+      "plugins/OHK-kb4pv2yq",
+      "plugins/OHK-tybit8su",
+      "plugins/OHK-t1r0y1yd",
+      "plugins/OHK-cqkwd0mq",
+      "plugins/OHK-4rucefwc",
+      "plugins/OHK-jeighfcq",
+      "plugins/OHK-wmdr2ef5"
+    ]
+  },
+  {
     "id": "SHM-dnsldap1",
     "type": "shared_modules",
     "name": "ldap_dns",
@@ -5077,6 +5696,36 @@
     "used_by": [
       "plugins/OHK-69gk5ne9",
       "plugins/OHK-9ewh41dg"
+    ]
+  },
+  {
+    "id": "SHM-ptvp0km4",
+    "type": "shared_modules",
+    "name": "azure_aks",
+    "description": "ARM client, cluster and node pool operations, orchestrator registration, and role-assignment helpers for Azure Kubernetes Service content.",
+    "path": "shared_modules/SHM-ptvp0km4",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-b7poza8x",
+      "plugins/OHK-x13tmam0",
+      "plugins/OHK-uof2rcaa",
+      "plugins/OHK-27oemiwb",
+      "plugins/OHK-735mhtvh",
+      "plugins/OHK-vi009xb8",
+      "plugins/OHK-kb4pv2yq",
+      "plugins/OHK-czexzrl1",
+      "plugins/OHK-tybit8su",
+      "plugins/OHK-t1r0y1yd",
+      "plugins/OHK-0fp008gh",
+      "plugins/OHK-yzmq0kzu",
+      "plugins/OHK-cqkwd0mq",
+      "plugins/OHK-4rucefwc",
+      "plugins/OHK-jeighfcq",
+      "plugins/OHK-80c4ibdb",
+      "plugins/OHK-wmdr2ef5",
+      "plugins/OHK-t0j1w09c",
+      "plugins/OHK-ojf2vvq1"
     ]
   },
   {

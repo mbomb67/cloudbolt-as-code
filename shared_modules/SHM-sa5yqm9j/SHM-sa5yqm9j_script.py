@@ -570,14 +570,19 @@ def orchestrator_id_for_cluster(cluster_resource):
 
 
 def cluster_resources():
-    """Every active Kubernetes Cluster resource that has an orchestrator, with its id.
+    """Every active EKS cluster resource that has an orchestrator, with its id.
 
+    The Kubernetes Cluster resource type is shared with the Azure Kubernetes
+    Service blueprint, so only resources carrying the eks_cluster_name the
+    AWS EKS build and discovery stamp count.
     Returns [(resource, orchestrator_id), ...] sorted by resource name.
     """
     clusters = []
     for resource in Resource.objects.filter(
         resource_type__name=CLUSTER_RESOURCE_TYPE, lifecycle="ACTIVE"
     ).order_by("name"):
+        if not resource.get_cf_values_as_dict().get("eks_cluster_name"):
+            continue
         orchestrator_id = orchestrator_id_for_cluster(resource)
         if orchestrator_id is not None:
             clusters.append((resource, orchestrator_id))
@@ -876,7 +881,10 @@ def environment_namespace(env):
 
 def find_environment_for_namespace(orchestrator, namespace):
     """Return the Environment on ``orchestrator`` pinned to ``namespace``, or None."""
-    for env in Environment.objects.filter(container_orchestrator_id=orchestrator.id):
+    # Filter on the foreign key itself: Environment's manager reads a keyword that
+    # matches a custom field name (container_orchestrator_id is one) as a
+    # parameter lookup, so container_orchestrator_id=... matches nothing.
+    for env in Environment.objects.filter(container_orchestrator=orchestrator).order_by("id"):
         if environment_namespace(env) == namespace:
             return env
     return None
@@ -908,7 +916,7 @@ def cluster_region(cluster, orchestrator):
     region = str(cluster.get_cf_values_as_dict().get("aws_region") or "").strip()
     if region:
         return region
-    for env in Environment.objects.filter(container_orchestrator_id=orchestrator.id).order_by("name"):
+    for env in Environment.objects.filter(container_orchestrator=orchestrator).order_by("name"):
         if "#" in env.name:
             return env.name.rsplit("#", 1)[1].strip()
     return ""

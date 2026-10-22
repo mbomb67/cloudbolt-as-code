@@ -1,0 +1,30 @@
+{% load i18n %}
+{% include "azure_aks_cluster/templates/_assets.html" %}
+
+<div id="aksx-ns-workloads" class="aksx">
+  <div class="aks-card">
+    <div class="aks-hero-top">
+      <div>
+        <div class="aks-eyebrow">{% trans "Workloads" %}</div>
+        <div class="aks-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="aks-sub">{% if cluster_name %}{% trans "On cluster" %} {{ cluster_name }} &middot; {% endif %}{% trans "Read-only inventory, read live from the cluster" %}</div>
+      </div>
+      <div class="aks-tools">
+        {% if quota_change_url %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ quota_change_url }}" title="{% trans 'Ask for a larger or smaller size tier' %}">
+          <i class="bi bi-sliders" aria-hidden="true"></i> {% trans "Request quota change" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-aks-panel="namespace-workloads" data-aks-src="{{ workloads_url }}" data-aks-loading="the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.aksxInit("aksx-ns-workloads"); });
+</script>

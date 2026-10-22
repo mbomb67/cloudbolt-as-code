@@ -1,0 +1,350 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the AKS cluster: letters, digits, underscores, and hyphens, starting and ending with a letter or digit.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-5vuj2k25",
+            "label": "Cluster Name",
+            "maximum": "63.00",
+            "minimum": "1.00",
+            "name": "aks_cluster_name",
+            "placeholder": null,
+            "regex_constraint": "^[A-Za-z0-9]([A-Za-z0-9_-]{0,61}[A-Za-z0-9])?$",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure environment (subscription and region) to create the cluster in.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_resource_group_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_node_size_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_kubernetes_version_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-s4kjs92o",
+            "label": "Environment",
+            "name": "aks_env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure resource group for the cluster.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_resource_group_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-1xgt491l",
+            "label": "Resource Group",
+            "name": "aks_resource_group",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Kubernetes minor version; AKS installs its latest patch.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_kubernetes_version_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-3gw3lmjo",
+            "label": "Kubernetes Version",
+            "name": "aks_kubernetes_version",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "VM size of the system node pool; Microsoft recommends at least 4 vCPUs and no B-series sizes.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "aks_env_id_a169"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "aks_node_size_a169"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-n1ww8ik3",
+            "label": "System Node Size",
+            "name": "aks_node_size",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Nodes in the system node pool; Microsoft recommends at least 2 (3 for production).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-bad1et9i",
+            "label": "System Node Count",
+            "maximum": "100.00",
+            "minimum": "1.00",
+            "name": "aks_node_count",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "When greater than the node count, the cluster autoscaler may grow the system node pool up to this many nodes.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-3ttvg6ie",
+            "label": "Autoscale Maximum",
+            "maximum": "1000.00",
+            "minimum": "0.00",
+            "name": "aks_max_node_count",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Free for dev/test; Standard adds the uptime SLA; Premium adds long-term support.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-6q90k35h",
+            "label": "Pricing Tier",
+            "name": "aks_sku_tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Channel AKS uses to upgrade Kubernetes automatically; node images update weekly regardless.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-ge2h4n12",
+            "label": "Automatic Upgrade",
+            "name": "aks_upgrade_channel",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Keep the API server off the internet; CloudBolt must then reach the private endpoint to manage the cluster.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-f0l07toj",
+            "label": "Private Cluster",
+            "name": "aks_private_cluster",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Microsoft Entra group object IDs (comma-separated) given cluster-admin access.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-k3nf01pd",
+            "label": "Cluster Admin Entra Groups",
+            "name": "aks_admin_group_ids",
+            "placeholder": "00000000-0000-0000-0000-000000000000",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "CloudBolt groups that may order namespaces on the cluster. They replace the Unassigned placeholder on the cluster's environment; leave empty to entitle groups later on the cluster's Groups tab.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-g7haz3ke",
+            "label": "Entitled CloudBolt Groups",
+            "name": "aks_entitled_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "aks_cluster_name",
+        "aks_env_id",
+        "aks_resource_group",
+        "aks_kubernetes_version",
+        "aks_node_size",
+        "aks_node_count",
+        "aks_max_node_count",
+        "aks_sku_tier",
+        "aks_upgrade_channel",
+        "aks_private_cluster",
+        "aks_admin_group_ids",
+        "aks_entitled_groups"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4"
+        ]
+    },
+    "description": "Creates an AKS cluster with Microsoft Entra ID and Azure RBAC, Azure CNI Overlay with Cilium, and automatic upgrades, registers it as a CloudBolt Kubernetes container orchestrator, and records its node pools.",
+    "id": "OHK-x13tmam0",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "AKS Cluster Build",
+    "resource_technologies": [],
+    "script_filename": "OHK-x13tmam0_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

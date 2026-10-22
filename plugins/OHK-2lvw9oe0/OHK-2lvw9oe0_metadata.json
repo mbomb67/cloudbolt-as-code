@@ -1,0 +1,51 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Add the chosen groups, remove them, or allow every group.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-bl1eu9ir",
+            "label": "Operation",
+            "name": "eks_groups_operation",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "Groups to add or remove; groups already entitled to the cluster are marked. Not used by Allow all groups.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-79luejmv",
+            "label": "Groups",
+            "name": "eks_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Adds or removes the CloudBolt groups that may order namespaces on an EKS cluster, or allows every group, by changing the groups of the cluster's own environment.",
+    "id": "OHK-2lvw9oe0",
+    "max_retries": 0,
+    "name": "Manage AWS EKS Cluster Groups",
+    "resource_technologies": [],
+    "script_filename": "OHK-2lvw9oe0_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
