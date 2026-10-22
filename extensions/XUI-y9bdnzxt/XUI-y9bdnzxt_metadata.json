@@ -1,0 +1,23 @@
+{
+    "description": "Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-y9bdnzxt",
+    "label": "OpenShift Project",
+    "last_updated": "2026-10-22",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "openshift_project",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "templates/_assets.html",
+        "templates/_alert.html",
+        "templates/connect_tab.html",
+        "templates/connect_panel.html",
+        "templates/workloads_tab.html",
+        "templates/workloads_panel.html"
+    ],
+    "version": ""
+}

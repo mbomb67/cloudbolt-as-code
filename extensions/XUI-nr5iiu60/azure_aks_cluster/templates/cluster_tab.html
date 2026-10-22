@@ -1,0 +1,32 @@
+{% load i18n %}
+{% include "azure_aks_cluster/templates/_assets.html" %}
+
+<div id="aksx-cluster" class="aksx">
+  {# ── Cluster identity from the resource's custom fields; live state loads below ── #}
+  <div class="aks-card">
+    <div class="aks-hero-top">
+      <div>
+        <div class="aks-eyebrow">{% trans "Azure Kubernetes Service" %}</div>
+        <div class="aks-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-sub">{{ resource_group|default:"" }}{% if location %} &middot; {{ location }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
+      </div>
+      <div class="aks-tools">
+        {% if portal_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ portal_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in Azure portal" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Essentials, Upgrades, properties, and integrations: the panel renders its own cards ── #}
+  <div data-aks-panel="cluster" data-aks-src="{{ cluster_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.aksxInit("aksx-cluster"); });
+</script>

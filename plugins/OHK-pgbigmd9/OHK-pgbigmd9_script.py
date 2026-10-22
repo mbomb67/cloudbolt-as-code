@@ -140,11 +140,14 @@ def delete_orchestrator(resource):
     except Kubernetes.DoesNotExist:
         return
 
-    removed = Environment.objects.filter(
+    # delete() also counts cascaded rows (history events, group links), so
+    # report the environments alone.
+    _, deleted = Environment.objects.filter(
         container_orchestrator=kubernetes,
         resource_handler__isnull=True,
         name__startswith="Resource-",
-    ).delete()[0]
+    ).delete()
+    removed = deleted.get(Environment._meta.label, 0)
 
     kubernetes.delete()
     set_progress(

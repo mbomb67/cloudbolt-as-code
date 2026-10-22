@@ -1,0 +1,167 @@
+{% load i18n %}
+{% if error %}
+<div class="aks-card">
+  {% include "azure_aks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Where the namespace lives ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Managed namespace" %}</span>
+    <div class="aks-card-tools">
+      {% if portal_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ portal_url }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in Azure portal" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="aks-ess">
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Cluster" %}</dt>
+        <dd>{% if cluster_url %}<a href="{{ cluster_url }}">{{ cluster_name }}</a>{% else %}{{ cluster_name }}{% endif %}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Resource group" %}</dt>
+        <dd>{{ resource_group|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Location" %}</dt>
+        <dd>{{ location|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "CloudBolt environment" %}</dt>
+        <dd>{{ environment_name|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "API server address" %}</dt>
+        <dd class="aks-mono">{{ fqdn|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Authentication" %}</dt>
+        <dd>{{ auth_mode|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Network policy" %}</dt>
+        <dd>{{ network_policy|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# Collapsible sections are <details>: open ones start expanded. #}
+
+{# ── Who has access ── #}
+<details class="aks-card aks-fold" open>
+  <summary class="aks-card-h">
+    <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
+    <span class="aks-card-t">{% trans "Access" %} &middot; {{ access|length }}</span>
+  </summary>
+  {% if access_error %}
+    {% include "azure_aks_cluster/templates/_alert.html" with error=access_error %}
+  {% elif access %}
+  <div class="table-responsive">
+    <table class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Microsoft Entra object ID" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th>{% trans "Access" %}</th>
+          <th>{% trans "Granted on" %}</th>
+          <th>{% trans "Granted by" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in access %}
+        <tr>
+          <td class="aks-mono">{{ row.principal }}</td>
+          <td>{{ row.type_text|default:"&mdash;" }}</td>
+          <td><span class="aks-pill">{{ row.label }}</span></td>
+          <td>{% if row.scope == "namespace" %}{{ row.scope_text }}{% else %}<span class="aks-tag aks-tag-warn">{{ row.scope_text }}</span>{% endif %}</td>
+          <td>{% if row.managed %}<span class="aks-tag aks-tag-info">CloudBolt</span>{% else %}<span class="aks-muted">{% trans "Outside CloudBolt" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="aks-empty">{% trans "No Microsoft Entra principal has access to this namespace yet. Use Manage access to grant it." %}</div>
+  {% endif %}
+  <div class="aks-note">
+    {% blocktrans with user_role=namespace_user_role roles=level_roles %}Access is two Azure role assignments on the managed namespace: {{ user_role }}, to see the namespace and get its credentials, plus one of {{ roles }}, which sets what the person may do inside it. Principals are listed by object ID; display names are not looked up.{% endblocktrans %}
+  </div>
+</details>
+
+{# ── Pipeline identities ── #}
+{% if pipelines %}
+<details class="aks-card aks-fold" open>
+  <summary class="aks-card-h">
+    <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
+    <span class="aks-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
+  </summary>
+  {% for p in pipelines %}
+  <div class="aks-note">
+    <span class="aks-mono">{{ p.repository }}</span> &middot; {{ p.trigger }} &middot; <span class="aks-pill">{{ p.level_text }}</span>
+    <div class="aks-hint">{% trans "Managed identity" %} <span class="aks-mono">{{ p.identity_name }}</span>{% if p.client_id %} &middot; {% trans "client ID" %} <span class="aks-mono">{{ p.client_id }}</span>{% endif %}</div>
+  </div>
+  <div class="aks-card-h">
+    <span class="aks-hint">{% trans "GitHub Actions workflow" %}</span>
+    <div class="aks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-copy="#aksx-pipeline-{{ forloop.counter }}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+    </div>
+  </div>
+  <pre class="aks-pre aks-mono" id="aksx-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
+  {% endfor %}
+</details>
+{% endif %}
+
+{# ── Commands ── #}
+<details class="aks-card aks-fold" open>
+  <summary class="aks-card-h">
+    <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
+    <span class="aks-card-t">{% trans "Connect with kubectl" %}</span>
+  </summary>
+  <ol class="aks-steps">
+    {% for command in commands %}
+    <li>
+      <code class="aks-mono" id="aksx-cmd-{{ forloop.counter }}">{{ command }}</code>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-copy="#aksx-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="aks-note">
+    {% trans "Needs Azure CLI 2.80.0 or later (for az aks namespace get-credentials) and kubelogin, and a sign-in as a principal listed under Access above." %}
+  </div>
+</details>
+
+{# ── kubeconfig, only when it holds no secret: starts collapsed ── #}
+{% if kubeconfig %}
+<details class="aks-card aks-fold">
+  <summary class="aks-card-h">
+    <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
+    <span class="aks-card-t">{% trans "kubeconfig" %}</span>
+    <div class="aks-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-copy="#aksx-kubeconfig">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-download="#aksx-kubeconfig" data-aks-filename="{{ kubeconfig_filename }}">
+        <i class="bi bi-download" aria-hidden="true"></i> {% trans "Download" %}
+      </button>
+    </div>
+  </summary>
+  <pre class="aks-pre aks-mono" id="aksx-kubeconfig">{{ kubeconfig }}</pre>
+  <div class="aks-note">
+    {% trans "Contains no secret: kubelogin signs you in with Microsoft Entra ID. Save it, point KUBECONFIG at the file, then run kubelogin convert-kubeconfig -l azurecli." %}
+  </div>
+</details>
+{% endif %}
+
+{% endif %}

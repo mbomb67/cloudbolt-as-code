@@ -5,6 +5,7 @@ Build service item action for AWS EKS Cluster Service blueprint.
 from __future__ import unicode_literals
 import json
 import random
+import re
 import string
 import time
 from botocore.exceptions import ClientError
@@ -267,6 +268,60 @@ def generate_options_for_env_id(**kwargs):
     return options
 
 
+def generate_options_for_entitled_groups(**kwargs):
+    """
+    Every CloudBolt group except the Unassigned and tenant-default groups,
+    which are placeholders rather than teams.
+    """
+    return [(g.global_id, g.name) for g in Group.without_unassigned.order_by("name")]
+
+
+def entitle_groups(job, env, group_ids):
+    """
+    Make the cluster environment's groups exactly the chosen groups, so only
+    they (and their subgroups) can order namespaces on the cluster. Mirrors
+    CloudBolt's own Edit groups dialog for an environment (EnvGroupsForm):
+    any Unassigned placeholder the restrict-new-environments preference added
+    is dropped, and the change propagates to descendant groups.
+    """
+    current = ", ".join(g.name for g in env.group_set.order_by("name")) or "none (unconstrained)"
+    if not group_ids:
+        set_progress(
+            "No entitled groups chosen; environment '{}' keeps the groups CloudBolt gave it: {}".format(
+                env.name, current
+            )
+        )
+        return
+
+    groups = list(Group.without_unassigned.filter(global_id__in=group_ids).order_by("name"))
+    unknown = sorted(set(group_ids) - {g.global_id for g in groups})
+    if unknown:
+        set_progress("Ignoring group ids that are not CloudBolt groups: {}".format(", ".join(unknown)))
+    if not groups:
+        set_progress("No valid groups chosen; environment '{}' keeps its groups: {}".format(env.name, current))
+        return
+
+    previous = set(env.group_set.all())
+    env.group_set.set(groups)
+    for group in previous - set(groups):
+        group.remove_env_from_descendants(env)
+    for group in groups:
+        group.add_env_to_descendants(env)
+
+    names = ", ".join(g.name for g in groups)
+    env.add_event(
+        "INFO",
+        'Groups for environment "{}" set to {} by the AWS EKS build'.format(env.name, names),
+        profile=job.owner,
+        job=job,
+    )
+    set_progress(
+        "Entitled these groups to order namespaces on this cluster through environment '{}': {}".format(
+            env.name, names
+        )
+    )
+
+
 def version_key(version):
     return tuple(int(part) for part in str(version).split("."))
 
@@ -434,6 +489,9 @@ def run(job, resource, logger=None, **kwargs):
     security_groups = "{{security_groups}}"
     cluster_name = "{{ cluster_name }}"
     env_id = "{{ env_id }}"
+    # A multi-select renders as a Python list of the chosen group ids, and as
+    # nothing when none are chosen.
+    entitled_group_ids = re.findall(r"GRP-[A-Za-z0-9]+", """{{ entitled_groups }}""")
 
     # Network Configuration
     subnets = ["{{ subnet_1 }}", "{{ subnet_2 }}"]
@@ -535,10 +593,13 @@ def run(job, resource, logger=None, **kwargs):
     # into the cluster. Environment.container_orchestrator is a foreign key,
     # so the AWS environment itself is left alone: pointing it at the
     # orchestrator (what environment_set.add did) would hijack it.
-    Environment.objects.create(
+    cluster_env = Environment.objects.create(
         name="Resource-{} Environment#{}".format(resource.name, environment.aws_region),
         container_orchestrator=kubernetes,
     )
+    # Namespace orders offer this cluster to the groups this environment is
+    # available to (group.get_available_environments()).
+    entitle_groups(job, cluster_env, entitled_group_ids)
 
     job.set_progress("EkS cluster created successfully")
 

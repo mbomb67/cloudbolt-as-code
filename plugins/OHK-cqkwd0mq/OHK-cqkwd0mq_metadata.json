@@ -1,0 +1,102 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Grant adds access; revoke removes it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-0mernreo",
+            "label": "Action",
+            "name": "aks_ns_access_action",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Azure RBAC role the principal gets on this namespace, with Namespace User: Writer, Reader, or Admin. Ignored on revoke.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xlw7r0o0",
+            "label": "Access Level",
+            "name": "aks_ns_access_level",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt group to entitle to (or remove from) the namespace's environment, so its members can (or can no longer) order containers into it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xcefayg5",
+            "label": "CloudBolt Group",
+            "name": "aks_ns_cloudbolt_group_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Microsoft Entra object ID of a user, group, or service principal to give kubectl access through Azure RBAC, or to remove. Prefix it with Group:, User:, or ServicePrincipal: when you know its type.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-kmyp1ttf",
+            "label": "Microsoft Entra Principal",
+            "name": "aks_ns_principal",
+            "placeholder": "Group:00000000-0000-0000-0000-000000000000",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "aks_ns_access_action",
+        "aks_ns_principal",
+        "aks_ns_access_level",
+        "aks_ns_cloudbolt_group_id"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4",
+            "shared_modules/SHM-cozv547n"
+        ]
+    },
+    "description": "Grants or revokes kubectl access to an AKS namespace for a Microsoft Entra user, group, or service principal through namespace-scoped Azure RBAC roles, and a CloudBolt group's entitlement to its environment.",
+    "id": "OHK-cqkwd0mq",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "Manage AKS Namespace Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-cqkwd0mq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,35 @@
+{% load i18n %}
+{% include "azure_aks_cluster/templates/_assets.html" %}
+
+<div id="aksx-connect" class="aksx">
+  <div class="aks-card">
+    <div class="aks-hero-top">
+      <div>
+        <div class="aks-eyebrow">{% trans "Connect to namespace" %}</div>
+        <div class="aks-title"><i class="bi bi-terminal" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="aks-sub">{% if cluster_name %}{% trans "On AKS cluster" %} {{ cluster_name }}{% endif %}</div>
+      </div>
+      <div class="aks-tools">
+        {% if pipeline_url %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ pipeline_url }}" title="{% trans 'Add or remove a managed identity for a GitHub Actions workflow' %}">
+          <i class="bi bi-robot" aria-hidden="true"></i> {% trans "Pipeline identity" %}
+        </a>
+        {% endif %}
+        {% if manage_access_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ manage_access_url }}" title="{% trans 'Grant or revoke kubectl access for a Microsoft Entra user, group, or service principal' %}">
+          <i class="bi bi-people" aria-hidden="true"></i> {% trans "Manage access" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-aks-panel="connect" data-aks-src="{{ connect_url }}" data-aks-loading="Azure"></div>
+</div>
+
+<script>
+  $(function () { window.aksxInit("aksx-connect"); });
+</script>

@@ -1,0 +1,37 @@
+{% load i18n %}
+{% include "azure_aks_cluster/templates/_assets.html" %}
+
+<div id="aksx-workloads" class="aksx">
+  <div class="aks-card">
+    <div class="aks-hero-top">
+      <div>
+        <div class="aks-eyebrow">{% trans "Workloads" %}</div>
+        <div class="aks-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-sub">
+          {% if orchestrator_name %}{% trans "Read through container orchestrator" %} {{ orchestrator_name }}{% else %}{% trans "No container orchestrator is linked to this resource" %}{% endif %}
+        </div>
+      </div>
+      <div class="aks-tools">
+        {% if create_namespace_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ create_namespace_url }}" title="{% trans 'Create a namespace landing zone for a CloudBolt group' %}">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Create namespace" %}
+        </a>
+        {% endif %}
+        {% if orchestrator_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ orchestrator_url }}">
+          <i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Open orchestrator" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-aks-panel="workloads" data-aks-src="{{ workloads_url }}" data-aks-loading="the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.aksxInit("aksx-workloads"); });
+</script>

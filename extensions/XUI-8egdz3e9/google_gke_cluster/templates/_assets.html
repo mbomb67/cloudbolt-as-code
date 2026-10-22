@@ -1,0 +1,171 @@
+{% comment %}
+  Shared styles and panel loader for the Google GKE Cluster tabs.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tabs without an asset build.
+  Class names carry a gke- prefix so they never meet the EKS and AKS extensions'.
+{% endcomment %}
+<style>
+  .gkex {
+    --gke-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --gke-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --gke-line: var(--neutral-250, #E2E8ED);
+    --gke-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --gke-primary: var(--bs-primary, #0d6efd);
+    --gke-ok: var(--bs-success, #198754);
+    --gke-warn: var(--bs-warning, #ffc107);
+    --gke-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --gke-bad: var(--bs-danger, #dc3545);
+  }
+  .gkex .gke-card { background: var(--surface, #fff); border: 1px solid var(--gke-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .gkex .gke-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .gkex .gke-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gke-muted); }
+  .gkex .gke-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .gkex .gke-title .bi { color: var(--gke-primary); }
+  .gkex .gke-sub { font-size: 12.5px; font-weight: 600; color: var(--gke-muted); margin-top: 2px; }
+  .gkex .gke-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .gkex .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--gke-muted); margin-bottom: 3px; }
+  .gkex .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .gkex .gke-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--gke-line); flex-wrap: wrap; }
+  .gkex .gke-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--gke-muted); }
+  .gkex .gke-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .gkex .gke-card-tools .form-control { width: 220px; max-width: 100%; }
+  .gkex .gke-sub-h { padding: 10px 18px; border-top: 1px solid var(--gke-line); border-bottom: 1px solid var(--gke-line); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--gke-muted); background: var(--gke-surface-2); }
+  {# Cluster basics: two columns of label / value rows, like the console's Details page #}
+  .gkex .gke-ess { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 40px; padding: 12px 22px 14px; }
+  .gkex .gke-ess dl { margin: 0; }
+  .gkex .gke-kv { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; padding: 6px 0; font-size: 13px; align-items: baseline; }
+  .gkex .gke-kv dt { font-weight: 600; color: var(--gke-muted); margin: 0; }
+  .gkex .gke-kv dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .gkex .gke-props { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .gkex .gke-props .gke-card { margin-bottom: 0; }
+  .gkex .gke-props dl { margin: 0; padding: 8px 18px 12px; }
+  .gkex .gke-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .gkex .gke-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--gke-muted); padding: 10px 18px; border-bottom: 1px solid var(--gke-line); text-align: left; white-space: nowrap; }
+  .gkex .gke-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .gkex .gke-table tbody tr:last-child td { border-bottom: 0; }
+  .gkex .gke-table tbody tr:hover td { background: var(--gke-surface-2); }
+  .gkex .gke-table tfoot td { padding: 10px 18px; border-top: 1px solid var(--gke-line); font-weight: 700; color: var(--gke-soft); }
+  .gkex .gke-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--gke-soft); }
+  .gkex .gke-pill-ok { background: color-mix(in srgb, var(--gke-ok) 14%, transparent); color: var(--gke-ok); }
+  .gkex .gke-pill-warn { background: color-mix(in srgb, var(--gke-warn) 22%, transparent); color: var(--gke-warn-text); }
+  .gkex .gke-pill-bad { background: color-mix(in srgb, var(--gke-bad) 12%, transparent); color: var(--gke-bad); }
+  .gkex .gke-pill-live { background: color-mix(in srgb, var(--gke-primary) 13%, transparent); color: var(--gke-primary); }
+  .gkex .gke-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--gke-soft); vertical-align: middle; white-space: nowrap; }
+  .gkex .gke-tag-warn { background: color-mix(in srgb, var(--gke-warn) 22%, transparent); color: var(--gke-warn-text); }
+  .gkex .gke-tag-bad { background: color-mix(in srgb, var(--gke-bad) 12%, transparent); color: var(--gke-bad); }
+  .gkex .gke-tag-ok { background: color-mix(in srgb, var(--gke-ok) 14%, transparent); color: var(--gke-ok); }
+  .gkex .gke-tag-info { background: color-mix(in srgb, var(--gke-primary) 13%, transparent); color: var(--gke-primary); }
+  .gkex .gke-muted { color: var(--gke-muted); font-weight: 600; }
+  .gkex .gke-hint { font-size: 11.5px; color: var(--gke-muted); font-weight: 600; margin-top: 3px; }
+  .gkex .gke-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .gkex .gke-nowrap { white-space: nowrap; }
+  .gkex .gke-empty { color: var(--gke-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .gkex .gke-banner { display: flex; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--gke-line); background: color-mix(in srgb, var(--gke-warn) 12%, var(--surface, #fff)); }
+  .gkex .gke-banner > .bi { font-size: 18px; color: var(--gke-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .gkex .gke-banner-info { background: color-mix(in srgb, var(--gke-primary) 9%, var(--surface, #fff)); }
+  .gkex .gke-banner-info > .bi { color: var(--gke-primary); }
+  .gkex .gke-banner-bad { background: color-mix(in srgb, var(--gke-bad) 9%, var(--surface, #fff)); }
+  .gkex .gke-banner-bad > .bi { color: var(--gke-bad); }
+  .gkex .gke-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
+  .gkex .gke-banner-body { flex: 1; min-width: 0; }
+  .gkex .gke-banner-t { font-size: 13.5px; font-weight: 700; }
+  .gkex .gke-banner-s { font-size: 12.5px; color: var(--gke-muted); font-weight: 600; }
+  .gkex .gke-issues { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .gkex .gke-issues li { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; }
+  .gkex .gke-issues li .bi { color: var(--gke-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  .gkex .gke-issues li .gke-mono { font-size: 11.5px; color: var(--gke-muted); }
+  .gkex .gke-versions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .gkex .gke-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--gke-bad); overflow-wrap: anywhere; }
+  .gkex .gke-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .gkex .gke-note { padding: 8px 22px 12px; font-size: 12px; color: var(--gke-muted); font-weight: 600; }
+  .gkex .gke-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--gke-muted); display: flex; align-items: center; gap: 8px; }
+  .gkex .gke-spin { display: inline-block; animation: gke-spin 1s linear infinite; }
+  .gkex .gke-meter { height: 6px; max-width: 150px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 9%, transparent); overflow: hidden; margin-top: 5px; }
+  .gkex .gke-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--gke-ok); }
+  .gkex .gke-meter-warn > span { background: var(--gke-warn); }
+  .gkex .gke-meter-bad > span { background: var(--gke-bad); }
+  .gkex .gke-cond { display: inline-flex; align-items: center; gap: 4px; color: var(--gke-warn-text); font-size: 12px; font-weight: 700; margin-right: 8px; white-space: nowrap; }
+  .gkex .gke-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .gkex .gke-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--gke-line); }
+  .gkex .gke-stat .k { margin-bottom: 1px; }
+  .gkex .gke-stat .v { font-size: 16px; }
+  .gkex .gke-steps { margin: 0; padding: 12px 22px 4px 40px; }
+  .gkex .gke-steps li { margin-bottom: 8px; }
+  .gkex .gke-steps code { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--gke-surface-2); color: var(--bs-body-color, #212529); overflow-wrap: anywhere; margin-right: 6px; }
+  .gkex .gke-pre { margin: 0; padding: 14px 22px; max-height: 420px; overflow: auto; background: var(--gke-surface-2); white-space: pre; }
+  .gkex details.gke-fold > summary { list-style: none; cursor: pointer; user-select: none; }
+  .gkex details.gke-fold > summary::-webkit-details-marker { display: none; }
+  .gkex details.gke-fold > summary .gke-chevron { color: var(--gke-muted); transition: transform .15s ease; }
+  .gkex details.gke-fold[open] > summary .gke-chevron { transform: rotate(90deg); }
+  .gkex details.gke-fold:not([open]) > summary { border-bottom: 0; }
+  .gkex details.gke-fold > summary:focus-visible { outline: 2px solid var(--gke-primary); outline-offset: -2px; }
+  .gkex .gke-quota { display: flex; flex-wrap: wrap; gap: 14px 24px; padding: 14px 22px 16px; }
+  .gkex .gke-quota-item { flex: 1 1 130px; min-width: 130px; cursor: default; }
+  .gkex .gke-quota-item:focus-visible { outline: 2px solid var(--gke-primary); outline-offset: 4px; border-radius: 4px; }
+  .gkex .gke-quota-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .gkex .gke-quota-top .k { margin-bottom: 0; }
+  .gkex .gke-quota-top .gke-hint { margin-top: 0; }
+  .gkex .gke-quota-item .gke-meter { max-width: none; height: 8px; margin-top: 6px; }
+  @keyframes gke-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-gke-panel] inside a tab root from its data-gke-src URL
+  // and wires client-side filters (data-gke-filter), the reload button
+  // (data-gke-refresh), and copy and download buttons (data-gke-copy and
+  // data-gke-download name the element whose text they take; the download
+  // file name comes from data-gke-filename). A panel may name its source in
+  // data-gke-loading.
+  window.gkexInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("gkex-ready")) { return; }
+    $root.data("gkex-ready", true);
+
+    function load($panel, url) {
+      var source = $panel.data("gke-loading") || "Google Cloud";
+      $panel.html('<div class="gke-loading"><i class="bi bi-arrow-repeat gke-spin" aria-hidden="true"></i> Loading from ' + source + '…</div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="gke-card"><div class="gke-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-gke-panel]").each(function () { load($(this), $(this).data("gke-src")); });
+    }
+    $root.on("input", "input[data-gke-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("gke-filter")).find("tbody tr[data-gke-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-gke-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    $root.on("click", "[data-gke-copy]", function (e) {
+      e.preventDefault();
+      var $button = $(this);
+      var text = $($button.data("gke-copy")).text();
+      if (!navigator.clipboard) { return; }
+      navigator.clipboard.writeText(text).then(function () {
+        var $icon = $button.find("i.bi");
+        $icon.removeClass("bi-clipboard").addClass("bi-check2");
+        setTimeout(function () { $icon.removeClass("bi-check2").addClass("bi-clipboard"); }, 1500);
+      });
+    });
+    $root.on("click", "[data-gke-download]", function (e) {
+      e.preventDefault();
+      var text = $($(this).data("gke-download")).text();
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      link.download = $(this).data("gke-filename") || "kubeconfig.yaml";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 0);
+    });
+    loadAll();
+  };
+})();
+</script>

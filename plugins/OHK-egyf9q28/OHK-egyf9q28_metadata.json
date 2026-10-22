@@ -1,0 +1,20 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-kephq8iq",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Shows the commands and kubeconfig that connect kubectl to a GKE namespace, its network policy, and which Google principals have access to it.",
+    "id": "OHK-egyf9q28",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "GKE Namespace Connection Details",
+    "resource_technologies": [],
+    "script_filename": "OHK-egyf9q28_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
