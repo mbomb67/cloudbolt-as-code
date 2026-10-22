@@ -956,7 +956,8 @@ CLUSTER_FIELDS = [
     ("gke_cluster_name", "GKE Cluster Name", "STR", "Name of the GKE cluster.", True),
     ("gke_project_id", "Google Cloud Project", "STR", "Google Cloud project ID of the GKE cluster.", True),
     ("gke_location", "Location", "STR", "Region (regional cluster) or zone (zonal cluster) of the cluster.", True),
-    ("gke_cluster_id", "GKE Cluster ID", "STR", "Unique ID GKE assigns to the cluster.", False),
+    ("gke_cluster_id", "GKE Cluster ID", "STR",
+     "Unique ID GKE assigns to the cluster; a node pool record holds <cluster ID>/nodePools/<pool name>.", False),
     ("gke_self_link", "GKE Self Link", "STR", "Server-defined URL of the cluster.", False),
     ("gcp_rh_id", "GCP RH ID", "STR", "GCP resource handler that manages the cluster.", False),
     ("env_id", "Environment ID", "STR", "CloudBolt Environment the cluster was ordered into.", False),
@@ -1138,7 +1139,7 @@ def pool_values(pool_json, cluster_json=None, total_nodes=None):
     per_zone = pool_json.get("initialNodeCount")
     if total_nodes is not None and zones:
         per_zone = int(round(total_nodes / len(zones)))
-    return {
+    values = {
         "gke_pool_name": pool_json.get("name"),
         "gke_pool_machine_type": config.get("machineType"),
         "gke_pool_image_type": config.get("imageType"),
@@ -1156,6 +1157,18 @@ def pool_values(pool_json, cluster_json=None, total_nodes=None):
         "gke_pool_spot": "Yes" if (config.get("spot") or config.get("preemptible")) else "No",
         "gke_pool_auto_upgrade": "Yes" if (pool_json.get("management") or {}).get("autoUpgrade") else "No",
     }
+    if (cluster_json or {}).get("id"):
+        values["gke_cluster_id"] = pool_identifier(cluster_json["id"], pool_json.get("name"))
+    return values
+
+
+def pool_identifier(cluster_id, pool_name):
+    """The identifier a node pool record carries under gke_cluster_id, which discovery matches on.
+
+    GKE gives node pools no ID of their own; the cluster ID and the pool name
+    are unique together, and a rebuilt cluster gets a new cluster ID.
+    """
+    return f"{cluster_id}/nodePools/{pool_name}"
 
 
 def pool_label(pool_json, cluster_json=None, total_nodes=None):

@@ -670,10 +670,14 @@ def namespace_blueprint():
 
 
 def new_namespace_resource(blueprint, namespace, group, owner=None, cluster=None):
-    """The Resource a cluster-side action files the namespace under (as an order would)."""
+    """The Resource a cluster-side action files the namespace under (as an order would).
+
+    It starts in PROV, as an ordered resource does while its build runs, so
+    discovery leaves it alone until the action sets it ACTIVE (or PROVFAILED).
+    """
     return Resource.objects.create(
         name=namespace, blueprint=blueprint, resource_type=blueprint.resource_type,
-        group=group, owner=owner, parent_resource=cluster, lifecycle="ACTIVE",
+        group=group, owner=owner, parent_resource=cluster, lifecycle="PROV",
     )
 
 
@@ -1108,7 +1112,7 @@ def parse_principals(text):
 
 def binding_name(principal, level_key):
     """A stable RoleBinding name per principal and level."""
-    digest = hashlib.sha1(principal.lower().encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha256(principal.lower().encode("utf-8")).hexdigest()[:12]
     return f"cloudbolt-{level_key}-{digest}"
 
 
@@ -1516,7 +1520,7 @@ def pipeline_ids(resource, owner, repo, suffix):
     https://cloud.google.com/iam/docs/reference/rest/v1/projects.locations.workloadIdentityPools.providers/create
     https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts/create
     """
-    digest = hashlib.sha1(
+    digest = hashlib.sha256(
         f"{resource.global_id}|{owner.lower()}/{repo.lower()}|{suffix}".encode("utf-8")
     ).hexdigest()[:16]
     return f"cb-gh-{digest}", f"cb-gh-{digest}"

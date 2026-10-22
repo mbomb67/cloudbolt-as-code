@@ -32,9 +32,14 @@ docs/agents/plugin-templates.md section 2):
     the resources and creates any parameter that does not exist yet.
   - RESOURCE_IDENTIFIER names the field carrying the cluster-native unique ID
     (the namespace UID).
-  - A namespace on a cluster that was not listed (no orchestrator, or its API
-    unreachable) is returned with its UID alone, so the sync leaves it as it
-    is instead of marking it Historical.
+  - Retiring on proof only: the blueprint keeps auto_historical_resources
+    off, and a tracked Active namespace that was not returned is retired
+    (returned with lifecycle HISTORICAL) only when its cluster's landing
+    zones were listed without it and a GET of the namespace answers 404, or
+    when clusters.get says its GKE cluster no longer exists. Anything else
+    (an unreachable cluster, an API error, a job still running on the
+    resource) proves nothing, and the namespace is returned with its UID
+    alone, which changes nothing.
   - "parent_resource_id" nests the namespace under its cluster resource and
     "group" hands it to its owning CloudBolt Group; both are Resource
     attributes CloudBolt lets a discovery dict set.
@@ -49,6 +54,9 @@ import re
 
 from accounts.models import Group
 from common.methods import set_progress
+from jobs.models import Job
+from resources.models import Resource
+from shared_modules.gcp_gke import GKEError, cluster_for_resource
 from shared_modules.gke_namespace import (
     ANNOTATION_EXPIRES,
     ANNOTATION_NETWORK_POLICY,
@@ -187,22 +195,74 @@ def _pin_environment(orchestrator, cluster_name, namespace, region, group, tier)
     return env
 
 
-def _untouched(blueprint, listed_cluster_ids, returned_uids):
-    """The UID alone for each active namespace on a cluster that was not listed.
+def _has_running_job(resource):
+    """A job still running on the resource, such as Create GKE Namespace or a
+    teardown, may be about to create or remove the namespace."""
+    return (
+        resource.jobs.filter(status__in=Job.ACTIVE_STATUSES).exists()
+        or Job.objects.filter(
+            status__in=Job.ACTIVE_STATUSES,
+            job_parameters__hookparameters__resources=resource,
+        ).exists()
+    )
 
-    The sync matches them and changes nothing, so they are not marked
-    Historical when the blueprint's auto_historical_resources is on.
+
+def _cluster_is_gone(cluster_resource):
+    """True only when clusters.get, under the cluster's own GCP handler, answers 404.
+    https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters/get
     """
+    if cluster_resource is None:
+        return False
+    try:
+        return cluster_for_resource(cluster_resource).get(allow_404=True) is None
+    except GKEError:
+        return False
+
+
+def _namespace_is_gone(resource, values, listings, gone_clusters):
+    """True when the namespace's cluster was listed without it and a GET of it
+    answers 404, or when its cluster itself no longer exists."""
+    cluster_id = resource.parent_resource_id or values.get(CF_PREFIX + "cluster_resource_id")
+    try:
+        cluster_id = int(str(cluster_id).strip())
+    except (TypeError, ValueError):
+        return False
+    listing = listings.get(cluster_id)
+    if listing is not None:
+        name = values.get(CF_PREFIX + "name") or resource.name
+        if name in listing["names"]:
+            return False
+        # The API server answers 404 when "the requested resource does not exist":
+        # https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#http-status-codes
+        try:
+            return listing["client"].get_namespace(name) is None
+        except NamespaceError:
+            return False
+    # A cluster that was not listed (no orchestrator, unreachable, or not
+    # Active) proves nothing about its namespaces unless it is gone itself.
+    if cluster_id not in gone_clusters:
+        gone_clusters[cluster_id] = _cluster_is_gone(Resource.objects.filter(id=cluster_id).first())
+    return gone_clusters[cluster_id]
+
+
+def _unreturned(blueprint, listings, returned_uids):
+    """Each Active namespace not returned above: retired when proven gone, else
+    its UID alone, which the sync matches and leaves as it is."""
     if blueprint is None:
         return []
-    kept = []
+    results = []
+    gone_clusters = {}
     for resource in blueprint.resource_set.filter(lifecycle="ACTIVE"):
         values = resource.get_cf_values_as_dict()
         uid = values.get(RESOURCE_IDENTIFIER)
-        cluster_id = resource.parent_resource_id or values.get(CF_PREFIX + "cluster_resource_id")
-        if uid and uid not in returned_uids and str(cluster_id) not in listed_cluster_ids:
-            kept.append({RESOURCE_IDENTIFIER: uid})
-    return kept
+        if not uid or uid in returned_uids:
+            continue
+        if not _has_running_job(resource) and _namespace_is_gone(resource, values, listings, gone_clusters):
+            set_progress(f"Namespace {resource.name} no longer exists; retiring it.")
+            results.append({RESOURCE_IDENTIFIER: uid, "lifecycle": "HISTORICAL"})
+        else:
+            results.append({RESOURCE_IDENTIFIER: uid})
+    return results
 
 
 def discover_resources(**kwargs):
@@ -211,7 +271,7 @@ def discover_resources(**kwargs):
     known = _known_resources(blueprint)
     unassigned = Group.objects.filter(name__startswith="Unassigned").order_by("name").first()
     discovered = []
-    listed_cluster_ids = set()
+    listings = {}
     returned_uids = set()
 
     for cluster_resource, orchestrator_id in cluster_resources():
@@ -229,7 +289,10 @@ def discover_resources(**kwargs):
             logger.warning("Skipping cluster %s: %s", cluster_resource, exc)
             continue
 
-        listed_cluster_ids.add(str(cluster_resource.id))
+        listings[cluster_resource.id] = {
+            "client": client,
+            "names": {(ns.get("metadata") or {}).get("name") for ns in namespaces},
+        }
         region = cluster_region(cluster_resource, orchestrator)
 
         for ns in namespaces:
@@ -298,5 +361,5 @@ def discover_resources(**kwargs):
             returned_uids.add(uid)
 
     set_progress(f"Discovered {len(discovered)} GKE namespace landing zone(s).")
-    discovered.extend(_untouched(blueprint, listed_cluster_ids, returned_uids))
+    discovered.extend(_unreturned(blueprint, listings, returned_uids))
     return discovered

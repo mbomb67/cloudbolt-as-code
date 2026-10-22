@@ -160,10 +160,16 @@ def run(job, resource=None, **kwargs):
         namespace_resource.delete()
         set_progress("Removed the empty namespace resource.")
     elif status == "FAILURE":
+        # As an order's failed build leaves it, so Delete can still tear it down.
+        namespace_resource.lifecycle = "PROVFAILED"
+        namespace_resource.save()
         error += (
             f" The namespace resource '{namespace}' was kept so Delete can tear down "
             "what was created."
         )
+    else:
+        namespace_resource.lifecycle = "ACTIVE"
+        namespace_resource.save()
 
     logger.info("Create namespace on %s finished %s: %s", cluster.name, status, output or error)
     return status, output, error

@@ -1520,7 +1520,15 @@ def _run_action(request, profile, resource, action, values, what):
 
 
 def _redirect_back(request, resource):
-    return HttpResponseRedirect(request.META.get("HTTP_REFERER") or resource.get_absolute_url())
+    """Back to the page the dialog opened from when it is on this site, else the resource page."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    referer = request.META.get("HTTP_REFERER") or ""
+    if referer and url_has_allowed_host_and_scheme(
+        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return HttpResponseRedirect(referer)
+    return HttpResponseRedirect(resource.get_absolute_url())
 
 
 # Shows Nodes per zone for Manual and the minimum and maximum for Autoscale.
