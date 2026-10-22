@@ -16,7 +16,7 @@ Creates, deletes and discovers Azure Network Security Groups (NSGs) as CloudBolt
 - An Azure (ARM) resource handler with at least one Environment the ordering group can use. The order form lists only Azure environments; the handler itself is never shown.
 - The handler's service principal needs read/write/delete on `Microsoft.Network/networkSecurityGroups` in the target resource groups (Network Contributor is sufficient) and read on resource groups for discovery.
 - The Resource Group dropdown is populated from the `resource_group_arm` parameter options synced onto the selected Environment; if none are synced the list is empty.
-- Custom fields `azure_rh_id`, `azure_network_security_group`, `azure_network_security_group_id`, `azure_location` and `resource_group_name` are created automatically on first run.
+- Custom fields `azure_rh_id`, `azure_network_security_group`, `azure_network_security_group_id`, `azure_location` and `resource_group_name` are created automatically by the first build or discovery.
 
 ## Setup
 1. Sync the repository; the build, teardown and discovery plugins and the extension import with the blueprint.
@@ -25,8 +25,8 @@ Creates, deletes and discovers Azure Network Security Groups (NSGs) as CloudBolt
 4. To attach VMs to an NSG at provision time, follow the setup in [HPA-vo2ghe4x](../../orchestration_actions/HPA-vo2ghe4x/README.md).
 
 ## Notes
-- Order form: Environment, Resource Group (regenerated when the Environment changes) and NSG name. The NSG is created in the Environment's region (`node_location`).
+- Order form: Environment, Resource Group (regenerated when the Environment changes) and NSG name. The NSG is created in the Environment's region (`node_location`). Names must follow Azure's rules (1-80 letters, digits, underscores, periods and hyphens), or the build fails before calling Azure.
 - Build fails if an NSG with the same name already exists in the resource group; run discovery to adopt it instead.
-- Teardown starts the Azure delete and returns SUCCESS without waiting for it to finish, so confirm in Azure before relying on the NSG being gone. If the resource has no `azure_network_security_group_id`, teardown returns SUCCESS without calling Azure.
-- Discovery walks every resource group of every Azure handler and keys resources on `azure_network_security_group_id` plus `azure_location`.
-- Security rules are managed from the extension's tab, not by this blueprint; edits there write directly to Azure with no CloudBolt job record.
+- Teardown waits for Azure to delete the NSG. Azure refuses to delete an NSG still associated with a subnet or network interface, and the teardown then fails with Azure's message; dissociate it and delete the resource again. An NSG already gone returns WARNING. If the resource has no `azure_network_security_group_id`, teardown returns SUCCESS without calling Azure.
+- Discovery lists every NSG in each Azure handler's subscription and keys resources on `azure_network_security_group_id` plus `azure_location`. It marks a tracked NSG Historical only when its handler was read, the NSG is missing, no job is running on it, and Azure answers that it does not exist; an unreachable handler retires nothing.
+- Security rules are managed from the extension's tab, not by this blueprint; edits there write directly to Azure and are recorded in the resource's History.

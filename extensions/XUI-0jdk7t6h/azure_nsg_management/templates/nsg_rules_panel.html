@@ -1,0 +1,111 @@
+{% load i18n %}
+{% if error %}
+<div class="nsg-card">
+  <div class="nsg-alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div>{{ error }}</div>
+  </div>
+</div>
+{% else %}
+
+{# ── Essentials, in the Azure portal's order ── #}
+<div class="nsg-card">
+  <div class="nsg-card-h">
+    <span class="nsg-card-t">{% trans "Essentials" %}</span>
+    <div class="nsg-card-tools">
+      {% if nsg.provisioning_state == "Succeeded" %}
+      <span class="nsg-pill nsg-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {{ nsg.provisioning_state }}</span>
+      {% elif nsg.provisioning_state == "Failed" %}
+      <span class="nsg-pill nsg-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {{ nsg.provisioning_state }}</span>
+      {% elif nsg.provisioning_state %}
+      <span class="nsg-pill nsg-pill-warn"><i class="bi bi-arrow-repeat nsg-spin" aria-hidden="true"></i> {{ nsg.provisioning_state }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="nsg-ess">
+    <dl>
+      <div class="nsg-kv">
+        <dt>{% trans "Resource group" %}</dt>
+        <dd>{{ nsg.resource_group|default:"&mdash;" }}</dd>
+      </div>
+      <div class="nsg-kv">
+        <dt>{% trans "Location" %}</dt>
+        <dd>{{ nsg.location|default:"&mdash;" }}</dd>
+      </div>
+      <div class="nsg-kv">
+        <dt>{% trans "Subscription ID" %}</dt>
+        <dd class="nsg-mono">{{ nsg.subscription_id|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="nsg-kv">
+        <dt>{% trans "Custom security rules" %}</dt>
+        <dd>{{ inbound_custom }} {% trans "inbound" %}, {{ outbound_custom }} {% trans "outbound" %}</dd>
+      </div>
+      <div class="nsg-kv">
+        <dt>{% trans "Associated with" %}</dt>
+        <dd>{{ subnets|length }} {% trans "subnets" %}, {{ interfaces|length }} {% trans "network interfaces" %}</dd>
+      </div>
+      <div class="nsg-kv">
+        <dt>{% trans "Tags" %}</dt>
+        <dd>
+          {% for key, value in nsg.tags %}<span class="nsg-kvtag">{{ key }}: {{ value }}</span>{% empty %}<span class="nsg-muted">{% trans "None" %}</span>{% endfor %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+  <div class="nsg-ess-wide">
+    <div class="nsg-kv">
+      <dt>{% trans "Resource ID" %}</dt>
+      <dd class="nsg-mono">{{ nsg.id }}</dd>
+    </div>
+  </div>
+</div>
+
+{# ── What the NSG filters: subnets and network interfaces it is associated with ── #}
+{% if subnets or interfaces %}
+<div class="nsg-card">
+  <div class="nsg-card-h">
+    <span class="nsg-card-t"><i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Associations" %}</span>
+  </div>
+  <div class="nsg-assoc">
+    <div>
+      <div class="nsg-sub-h">{% trans "Subnets" %} &middot; {{ subnets|length }}</div>
+      <ul>
+        {% for a in subnets %}
+        <li>{% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}<div class="nsg-hint">{{ a.resource_group }}</div></li>
+        {% empty %}
+        <li class="nsg-muted">{% trans "None" %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <div class="nsg-sub-h">{% trans "Network interfaces" %} &middot; {{ interfaces|length }}</div>
+      <ul>
+        {% for a in interfaces %}
+        <li>{% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}<div class="nsg-hint">{{ a.resource_group }}</div></li>
+        {% empty %}
+        <li class="nsg-muted">{% trans "None" %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% trans "Inbound security rules" as inbound_title %}
+{% include "azure_nsg_management/templates/_nsg_rules_table.html" with rows=inbound title=inbound_title icon="bi-box-arrow-in-right" custom=inbound_custom table_id="nsgx-inbound-table" add_url=add_inbound_url %}
+
+{% trans "Outbound security rules" as outbound_title %}
+{% include "azure_nsg_management/templates/_nsg_rules_table.html" with rows=outbound title=outbound_title icon="bi-box-arrow-right" custom=outbound_custom table_id="nsgx-outbound-table" add_url=add_outbound_url %}
+
+<div class="nsg-note">
+  <i class="bi bi-info-circle" aria-hidden="true"></i>
+  {% if can_manage %}
+  {% trans "Changes apply in Azure as soon as you save them and are recorded in this resource's History. Rules affect new connections only." %}
+  {% else %}
+  {% trans "Changing these rules needs the Change Resource Attributes permission on this resource." %}
+  {% endif %}
+</div>
+
+{% endif %}

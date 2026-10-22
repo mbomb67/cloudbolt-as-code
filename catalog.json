@@ -574,7 +574,7 @@
     "id": "XUI-0jdk7t6h",
     "type": "extensions",
     "name": "Azure NSG Management",
-    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
+    "description": "Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete.",
     "path": "extensions/XUI-0jdk7t6h",
     "readme": "extensions/XUI-0jdk7t6h/README.md",
     "uses": [],
