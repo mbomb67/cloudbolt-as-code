@@ -113,6 +113,19 @@ def _attr(resource, name):
     return value
 
 
+HREF_RE = re.compile(r'href="([^"]+)"')
+
+
+def _url(value):
+    """An https URL from a URL custom field, which CloudBolt may render as an
+    <a href> tag; '' for anything else."""
+    text = str(value or "").strip()
+    match = HREF_RE.search(text)
+    if match:
+        text = match.group(1)
+    return text if text.startswith("https://") else ""
+
+
 def _has_permission(profile, permission, resource):
     if getattr(profile, "is_cbadmin", False):
         return True
@@ -389,7 +402,7 @@ def _connect_context(resource, profile):
             isolation = _network_isolation(lz, client, namespace)
         except lz.LandingZoneError as exc:
             isolation = {"text": "Unknown: {}".format(exc), "policies": []}
-        console_url = _attr(resource, CF_PREFIX + "console_url") or client.project_console_url(namespace)
+        console_url = _url(_attr(resource, CF_PREFIX + "console_url")) or client.project_console_url(namespace)
         api_url = client.api_url
     finally:
         client.close()
