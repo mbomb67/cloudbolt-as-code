@@ -368,9 +368,9 @@ def nsg_rules_panel(request, resource_id):
             context = _panel_context(resource, profile)
         except NSGError as exc:
             context = {"error": str(exc)}
-        except Exception as exc:
+        except Exception:
             logger.exception("Security Rules panel failed for resource %s", resource.id)
-            context = {"error": f"Could not load the security rules: {exc}"}
+            context = {"error": "Could not load the security rules. The CloudBolt application log has the details."}
     context["resource"] = resource
     return render(request, TEMPLATES + "nsg_rules_panel.html", context)
 
@@ -426,9 +426,9 @@ def _save_rule(request, resource, profile, nsg, form, rule_name, verb):
     except NSGError as exc:
         form.add_error(None, str(exc))
         return None
-    except Exception as exc:
+    except Exception:
         logger.exception("Could not save NSG rule %s on resource %s", rule_name, resource.id)
-        form.add_error(None, f"The rule could not be saved: {exc}")
+        form.add_error(None, "The rule could not be saved. The CloudBolt application log has the details.")
         return None
     _record(resource, profile, f"Security rule '{rule_name}' {verb} ({form.direction}, priority {priority}).")
     messages.success(request, f"Security rule '{rule_name}' {verb}.")
@@ -548,9 +548,9 @@ def delete_rule(request, resource_id, rule_name):
                 _network_client(resource).security_rules.begin_delete(resource_group, nsg_name, rule.name).result()
             except HttpResponseError as exc:
                 form.add_error(None, f"Azure could not delete the rule: {_azure_message(exc)}")
-            except Exception as exc:
+            except Exception:
                 logger.exception("Could not delete NSG rule %s on resource %s", rule.name, resource.id)
-                form.add_error(None, f"The rule could not be deleted: {exc}")
+                form.add_error(None, "The rule could not be deleted. The CloudBolt application log has the details.")
             else:
                 _record(resource, profile, f"Security rule '{rule.name}' deleted ({rule.direction}, priority {rule.priority}).")
                 messages.success(request, f"Security rule '{rule.name}' deleted.")
