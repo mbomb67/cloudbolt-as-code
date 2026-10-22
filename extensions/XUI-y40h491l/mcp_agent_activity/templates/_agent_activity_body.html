@@ -1,0 +1,657 @@
+{% load i18n %}
+{% comment %}
+  The Agent Activity page body, shared by the list page and the session page
+  (agent_activity.html) and the user profile tab (agent_activity_tab.html).
+  Context: data (the script's settings, from views._page_data; data.session is
+  set on a session page), denied, denied_message, own_scope, csv.
+{% endcomment %}
+<div id="mcpaa" class="mcpaa">
+  {% if not data.embedded and not data.session %}
+  <div class="aa-card">
+    <div class="aa-hero">
+      <div>
+        <div class="aa-eyebrow">{% trans "MCP" %}</div>
+        <div class="aa-title"><i class="bi bi-robot" aria-hidden="true"></i> {% trans "Agent Activity" %}</div>
+        <div class="aa-sub">{% trans "Orders, jobs and history records that AI agents created or changed through CloudBolt's MCP server, by user, agent and session." %}</div>
+        {% if own_scope and not denied %}<div class="aa-hint">{% trans "You see your own records: orders you own or acted on, jobs you own and history written under your name." %}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if denied %}
+  <div class="aa-card">
+    <div class="aa-alert">
+      <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+      <div>{{ denied_message }}</div>
+    </div>
+  </div>
+  {% else %}
+  {% if not data.session %}
+  <div class="aa-card">
+    <div class="aa-card-h">
+      <span class="aa-card-t">{% trans "Filters" %}</span>
+      {% if data.embedded %}
+      <div class="aa-card-tools">
+        {% if own_scope %}<span class="aa-hint">{% trans "Your own records only." %}</span>{% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ data.urls.full_page }}" data-aa-full-page><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open full page" %}</a>
+      </div>
+      {% endif %}
+    </div>
+    <form class="aa-card-b" data-aa-form novalidate>
+      <div class="aa-filters">
+        <div>
+          <label for="aa-user">{% trans "User" %}</label>
+          <select id="aa-user" name="user" class="form-select form-select-sm" data-aa-facet="user"><option value="">{% trans "Any user" %}</option></select>
+        </div>
+        <div>
+          <label for="aa-agent">{% trans "Agent" %}</label>
+          <select id="aa-agent" name="agent" class="form-select form-select-sm" data-aa-facet="agent"><option value="">{% trans "Any agent" %}</option></select>
+        </div>
+        <div>
+          <label for="aa-session">{% trans "Session" %}</label>
+          <select id="aa-session" name="session" class="form-select form-select-sm" data-aa-facet="session"><option value="">{% trans "Any session" %}</option></select>
+        </div>
+        <div>
+          <label for="aa-from">{% trans "From" %}</label>
+          <input id="aa-from" name="from" type="date" class="form-control form-control-sm">
+        </div>
+        <div>
+          <label for="aa-to">{% trans "To" %}</label>
+          <input id="aa-to" name="to" type="date" class="form-control form-control-sm">
+        </div>
+        <div>
+          <label for="aa-q">{% trans "Text" %}</label>
+          <input id="aa-q" name="q" type="search" class="form-control form-control-sm" maxlength="200" placeholder="{% trans 'Order, job, hostname, resource or marker' %}">
+        </div>
+      </div>
+      <div class="aa-actions">
+        <button type="submit" class="btn btn-sm btn-primary" data-aa-search><i class="bi bi-search" aria-hidden="true"></i> {% trans "Search" %}</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-aa-reset>{% trans "Reset" %}</button>
+        <span class="aa-hint" data-aa-window-hint></span>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="aa-card d-none" data-aa-error-card>
+    <div class="aa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div data-aa-error></div></div>
+  </div>
+
+  {% if data.session %}
+  <div class="aa-card" data-aa-session-card aria-live="polite">
+    <div class="aa-empty"><i class="bi bi-arrow-repeat aa-spin" aria-hidden="true"></i> {% trans "Loading session" %}</div>
+  </div>
+  {% else %}
+  <div class="aa-card d-none" data-aa-recent-card>
+    <div class="aa-card-h">
+      <span class="aa-card-t">{% trans "Recent sessions" %}</span>
+      <div class="aa-card-tools aa-hint" data-aa-recent-hint></div>
+    </div>
+    <div data-aa-recent-notices></div>
+    <div class="table-responsive" data-aa-recent-body></div>
+    <div class="aa-pager d-none" data-aa-recent-pager></div>
+  </div>
+
+  <div class="aa-card d-none" data-aa-prompt-card>
+    <div class="aa-empty">{% trans "Choose filters and press Search." %}</div>
+  </div>
+  {% endif %}
+
+  <div class="aa-card d-none" data-aa-results-card>
+    <div class="aa-card-h">
+      <span class="aa-card-t">{% if data.session %}{% trans "Records" %}{% else %}{% trans "Results" %}{% endif %}</span>
+      <div class="aa-card-tools">
+        <span class="aa-hint" data-aa-results-hint></span>
+        {% if not data.session %}<a class="btn btn-sm btn-outline-primary d-none" href="#" data-aa-session-open><i class="bi bi-plug" aria-hidden="true"></i> {% trans "Open session" %}</a>{% endif %}
+        {% if data.urls.xlsx %}<a class="btn btn-sm btn-outline-secondary" href="#" data-aa-xlsx title="{% if data.session %}{% trans 'Summary, every record tab and the tool calls in one workbook' %}{% else %}{% trans 'Every tab of this search in one workbook' %}{% endif %}"><i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i> {% trans "Excel" %}</a>{% endif %}
+        {% if csv %}<a class="btn btn-sm btn-outline-secondary" href="#" data-aa-export title="{% trans 'This tab only' %}"><i class="bi bi-download" aria-hidden="true"></i> {% trans "CSV" %}</a>{% endif %}
+      </div>
+    </div>
+    <div data-aa-notices></div>
+    <div class="aa-tabs" role="tablist">
+      <button type="button" role="tab" data-aa-tab="orders"><i class="bi bi-cart" aria-hidden="true"></i> {% trans "Orders" %} <span class="aa-count" data-aa-count="orders">0</span></button>
+      <button type="button" role="tab" data-aa-tab="jobs"><i class="bi bi-gear" aria-hidden="true"></i> {% trans "Jobs" %} <span class="aa-count" data-aa-count="jobs">0</span></button>
+      <button type="button" role="tab" data-aa-tab="history"><i class="bi bi-clock-history" aria-hidden="true"></i> {% trans "Server & resource history" %} <span class="aa-count" data-aa-count="history">0</span></button>
+      {% if not data.session %}<button type="button" role="tab" data-aa-tab="sessions"><i class="bi bi-plug" aria-hidden="true"></i> {% trans "Sessions" %} <span class="aa-count" data-aa-count="sessions">0</span></button>{% endif %}
+    </div>
+    <div class="table-responsive" data-aa-section-body role="tabpanel"></div>
+    <div class="aa-pager d-none" data-aa-pager></div>
+  </div>
+
+  {% if data.session and data.urls.log %}
+  <div class="aa-card" data-aa-calls-card>
+    <div class="aa-card-h">
+      <span class="aa-card-t">{% trans "Tool calls" %}</span>
+      {% if data.own_log_lines %}<span class="aa-hint">{% trans "Only calls logged under your username." %}</span>{% endif %}
+      <div class="aa-card-tools aa-hint" data-aa-calls-hint></div>
+    </div>
+    <div class="table-responsive" data-aa-calls-body>
+      <div class="aa-empty"><i class="bi bi-arrow-repeat aa-spin" aria-hidden="true"></i> {% trans "Reading the MCP log" %}</div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% if not denied %}
+{{ data|json_script:"mcpaa-data" }}
+<script>
+(function () {
+  "use strict";
+  var data = JSON.parse(document.getElementById("mcpaa-data").textContent);
+  // Endpoint URLs are written into the script by the server rather than read
+  // back from the settings block, so no link is built from page text.
+  var URLS = {
+    page: "{{ data.urls.page|escapejs }}",
+    full_page: "{{ data.urls.full_page|escapejs }}",
+    session_page: "{{ data.urls.session_page|escapejs }}",
+    search: "{{ data.urls.search|escapejs }}",
+    facets: "{{ data.urls.facets|escapejs }}",
+    recent: "{{ data.urls.recent|escapejs }}",
+    section: "{{ data.urls.section|escapejs }}",
+    "export": "{{ data.urls.export|escapejs }}",
+    xlsx: "{{ data.urls.xlsx|escapejs }}",
+    log: "{{ data.urls.log|escapejs }}"
+  };
+  var root = document.getElementById("mcpaa");
+  var form = root.querySelector("[data-aa-form]");
+  var sessionMode = data.session || "";
+  var KEYS = ["from", "to", "user", "agent", "session", "q"];
+  var FACETS = ["user", "agent", "session"];
+  var ANY = { user: "Any user", agent: "Any agent", session: "Any session" };
+  // On a session page every row has the same session and agent, so those columns go.
+  var SESSION_PAGE_HIDES = ["Session", "Agent"];
+  var state = { filters: null, section: "orders", sections: {}, counts: {}, recentFilters: null };
+
+  function $(selector) { return root.querySelector(selector); }
+
+  // Builds an element; strings become text nodes, so record values never become HTML.
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (key) {
+      var value = attrs[key];
+      if (value === null || value === undefined || value === false) { return; }
+      if (key === "text") { node.textContent = value; } else { node.setAttribute(key, value); }
+    });
+    (children || []).forEach(function (child) {
+      if (child === null || child === undefined || child === "") { return; }
+      node.appendChild(typeof child === "string" || typeof child === "number" ? document.createTextNode(String(child)) : child);
+    });
+    return node;
+  }
+
+  function query(filters, extra) {
+    var parts = [];
+    function add(key, value) { parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(String(value))); }
+    KEYS.forEach(function (key) { if (filters[key]) { add(key, filters[key]); } });
+    Object.keys(extra || {}).forEach(function (key) { add(key, extra[key]); });
+    return parts.join("&");
+  }
+
+  function readForm() {
+    var filters = {};
+    KEYS.forEach(function (key) { filters[key] = form ? (form.elements[key].value || "").trim() : ""; });
+    return filters;
+  }
+
+  function writeForm(filters) {
+    if (!form) { return; }
+    KEYS.forEach(function (key) {
+      var field = form.elements[key];
+      var value = filters[key] || "";
+      if (field.tagName === "SELECT" && value && !Array.prototype.some.call(field.options, function (o) { return o.value === value; })) {
+        field.appendChild(el("option", { value: value, text: value }));
+      }
+      field.value = value;
+    });
+  }
+
+  function getJSON(url) {
+    return fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (body) {
+          if (!response.ok) { throw new Error(body.error || ("Request failed (" + response.status + ").")); }
+          return body;
+        });
+      });
+  }
+
+  function showError(error) {
+    var card = $("[data-aa-error-card]");
+    if (!error) { card.classList.add("d-none"); return; }
+    $("[data-aa-error]").textContent = String(error.message || error);
+    card.classList.remove("d-none");
+  }
+
+  function busy(on) {
+    var button = $("[data-aa-search]");
+    if (button) { button.disabled = on; }
+    ["[data-aa-results-card]", "[data-aa-recent-card]"].forEach(function (selector) {
+      var card = $(selector);
+      if (card) { card.classList.toggle("aa-busy", on); }
+    });
+  }
+
+  function windowHint(timeZone) {
+    var hint = $("[data-aa-window-hint]");
+    if (hint) {
+      hint.textContent = "Dates are appliance time (" + (timeZone || data.time_zone) + "). A search covers at most " + data.max_days + " days.";
+    }
+  }
+
+  // ---- Facets ---------------------------------------------------------------
+  function fillSelect(select, facet, options, selected, more) {
+    while (select.options.length) { select.remove(0); }
+    select.appendChild(el("option", { value: "", text: ANY[facet] }));
+    options.forEach(function (option) {
+      select.appendChild(el("option", { value: option.value, text: option.label + " (" + plural(option.count, "record") + ")" }));
+    });
+    if (more) {
+      select.appendChild(el("option", { value: "", disabled: "disabled", text: more + " older sessions not listed: type a session id in Text" }));
+    }
+    select.value = selected || "";
+  }
+
+  function applyFacets(facets, filters) {
+    if (!form) { return; }
+    FACETS.forEach(function (facet) {
+      fillSelect(form.elements[facet], facet, facets[facet] || [], filters[facet], facet === "session" ? facets.session_more : 0);
+    });
+  }
+
+  var facetTimer = null;
+  var facetSeq = 0;
+  function refreshFacets() {
+    clearTimeout(facetTimer);
+    facetTimer = setTimeout(function () {
+      var filters = readForm();
+      var seq = ++facetSeq;
+      getJSON(URLS.facets + "?" + query(filters)).then(function (reply) {
+        if (seq !== facetSeq) { return; }
+        applyFacets(reply.facets, readForm());
+      }).catch(showError);
+    }, 250);
+  }
+
+  // ---- Cells ----------------------------------------------------------------
+  function link(item, label) {
+    if (!item) { return el("span", { "class": "aa-muted", text: "—" }); }
+    return item.url ? el("a", { href: item.url, text: label || item.name }) : el("span", { text: label || item.name });
+  }
+
+  function sessionUrl(session) { return URLS.session_page.replace("SESSION", encodeURIComponent(session)); }
+
+  function sessionCell(session) {
+    if (!session) { return el("span", { "class": "aa-muted", text: "(none)" }); }
+    return el("a", { href: sessionUrl(session), "class": "aa-mono", text: session });
+  }
+
+  function usersCell(users) {
+    var cell = el("div");
+    (users || []).forEach(function (user, index) {
+      if (index) { cell.appendChild(document.createTextNode(", ")); }
+      cell.appendChild(link(user));
+    });
+    return cell;
+  }
+
+  // The client application (from the MCP log) when known, else the OAuth client name.
+  function agentName(row) {
+    return row.client_app ? row.client_app.label : (row.agent || "(blank)");
+  }
+
+  function agentCell(row) {
+    var app = row.client_app;
+    var title = app ? app.raw + (row.client ? "\nOAuth client id " + row.client : "") : (row.client ? "OAuth client id " + row.client : "No OAuth client id");
+    return el("div", null, [
+      el("span", { text: agentName(row), title: title }),
+      app ? el("div", { "class": "aa-hint", text: "via " + (row.agent || "(blank)") }) : null,
+      row.agents && row.agents.length ? el("div", { "class": "aa-hint", text: "Also: " + row.agents.filter(function (a) { return a !== row.agent; }).join(", ") }) : null
+    ]);
+  }
+
+  function pill(status) {
+    if (!status || !status.code) { return el("span", { "class": "aa-muted", text: "—" }); }
+    return el("span", { "class": "aa-pill" + (status.tone ? " aa-pill-" + status.tone : ""), title: status.code, text: status.label });
+  }
+
+  function plural(count, word) { return count + " " + word + (count === 1 ? "" : "s"); }
+
+  function td(child, cls) { return el("td", { "class": cls || null }, [child]); }
+
+  var COLUMNS = {
+    sessions: [
+      ["Session"], ["Agent"], ["User"], ["First seen"], ["Last seen"], ["Span"], ["Orders", "aa-num"], ["Jobs", "aa-num"], ["History", "aa-num"]
+    ],
+    orders: [["Order"], ["Status"], ["Events"], ["User"], ["Recipient"], ["Agent"], ["Session"], ["Last activity"]],
+    jobs: [["Job"], ["Type"], ["Status"], ["User"], ["Agent"], ["Session"], ["Created"]],
+    history: [["Time"], ["Type"], ["Object"], ["Event"], ["Message"], ["User"], ["Job"], ["Agent"], ["Session"]]
+  };
+
+  var ROWS = {
+    sessions: function (row) {
+      return [
+        td(sessionCell(row.session)), td(agentCell(row)), td(usersCell(row.users)),
+        td(el("span", { "class": "text-nowrap", text: row.first })), td(el("span", { "class": "text-nowrap", text: row.last })),
+        td(el("span", { "class": "text-nowrap", text: row.span })),
+        td(String(row.orders), "aa-num"), td(String(row.jobs), "aa-num"), td(String(row.history), "aa-num")
+      ];
+    },
+    orders: function (row) {
+      var events = el("div");
+      (row.events || []).forEach(function (name) { events.appendChild(el("span", { "class": "aa-tag", text: name })); });
+      return [
+        td(el("div", null, [link(row.order, "#" + row.order.id), el("div", { "class": "aa-hint", text: row.order.name })])),
+        td(pill(row.status)), td(events), td(usersCell(row.users)), td(link(row.recipient)),
+        td(agentCell(row)), td(sessionCell(row.session)),
+        td(el("span", { "class": "text-nowrap", text: row.last }))
+      ];
+    },
+    jobs: function (row) {
+      return [
+        td(el("div", null, [link(row.job), row.parent ? el("div", { "class": "aa-hint" }, ["Child of ", link(row.parent)]) : null])),
+        td(el("div", null, [row.type, row.title ? el("div", { "class": "aa-hint", text: row.title }) : null])),
+        td(pill(row.status)), td(link(row.user)), td(agentCell(row)), td(sessionCell(row.session)),
+        td(el("span", { "class": "text-nowrap", text: row.when }))
+      ];
+    },
+    history: function (row) {
+      return [
+        td(el("span", { "class": "text-nowrap", text: row.when })), td(row.kind_label), td(link(row.object)),
+        td(el("span", { "class": "aa-tag", text: row.event_type })), td(el("span", { "class": "aa-muted", text: row.message })),
+        td(link(row.user)), td(link(row.job)), td(agentCell(row)), td(sessionCell(row.session))
+      ];
+    }
+  };
+
+  var EMPTY = {
+    sessions: "No sessions match.", orders: "No orders match.", jobs: "No jobs match.", history: "No history records match."
+  };
+
+  function table(section, rows) {
+    if (!rows.length) { return el("div", { "class": "aa-empty", text: EMPTY[section] }); }
+    var keep = COLUMNS[section].map(function (col) { return !(sessionMode && SESSION_PAGE_HIDES.indexOf(col[0]) > -1); });
+    var head = el("tr", null, COLUMNS[section].filter(function (col, i) { return keep[i]; }).map(function (col) { return el("th", { "class": col[1] || null, text: col[0] }); }));
+    var body = el("tbody", null, rows.map(function (row) {
+      return el("tr", null, ROWS[section](row).filter(function (cell, i) { return keep[i]; }));
+    }));
+    return el("table", { "class": "aa-table" }, [el("thead", null, [head]), body]);
+  }
+
+  function notices(target, list) {
+    target.textContent = "";
+    (list || []).forEach(function (text) {
+      target.appendChild(el("div", { "class": "aa-notice" }, [el("i", { "class": "bi bi-info-circle", "aria-hidden": "true" }), el("div", { text: text })]));
+    });
+  }
+
+  // Fills a pager; its buttons carry the page number in the attribute named.
+  function renderPager(pager, info, attr) {
+    pager.textContent = "";
+    pager.classList.toggle("d-none", info.pages <= 1);
+    if (info.pages <= 1) { return; }
+    var first = (info.page - 1) * data.page_size + 1;
+    var last = Math.min(info.total, first + info.rows.length - 1);
+    var previous = { type: "button", "class": "btn btn-sm btn-outline-secondary", "aria-label": "Previous page", disabled: info.page <= 1 ? "disabled" : null };
+    var next = { type: "button", "class": "btn btn-sm btn-outline-secondary", "aria-label": "Next page", disabled: info.page >= info.pages ? "disabled" : null };
+    previous[attr] = info.page - 1;
+    next[attr] = info.page + 1;
+    pager.appendChild(el("span", { text: first + "–" + last + " of " + info.total }));
+    pager.appendChild(el("button", previous, [el("i", { "class": "bi bi-chevron-left", "aria-hidden": "true" })]));
+    pager.appendChild(el("button", next, [el("i", { "class": "bi bi-chevron-right", "aria-hidden": "true" })]));
+  }
+
+  // ---- Results --------------------------------------------------------------
+  function renderSection() {
+    var section = state.section;
+    var info = state.sections[section] || { rows: [], page: 1, pages: 1, total: 0 };
+    root.querySelectorAll("[data-aa-tab]").forEach(function (tab) {
+      var active = tab.getAttribute("data-aa-tab") === section;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    var body = $("[data-aa-section-body]");
+    body.textContent = "";
+    body.appendChild(table(section, info.rows));
+    renderPager($("[data-aa-pager]"), info, "data-aa-page");
+    var exportLink = $("[data-aa-export]");
+    if (exportLink) {
+      exportLink.href = URLS["export"].replace("SECTION", section) + "?" + query(state.filters || {});
+    }
+    var workbookLink = $("[data-aa-xlsx]");
+    if (workbookLink) {
+      workbookLink.href = URLS.xlsx + "?" + query(state.filters || {});
+    }
+  }
+
+  // "Michael Bombard used Claude Desktop to work on 1 order, start 6 jobs and change 4 records ..."
+  function summary(detail) {
+    var who = (detail.users || []).map(function (u) { return u.name; }).join(" and ") || "An unknown user";
+    var did = [];
+    if (detail.orders) { did.push("work on " + plural(detail.orders, "order")); }
+    if (detail.jobs) { did.push("start " + plural(detail.jobs, "job")); }
+    if (detail.history) { did.push("change " + plural(detail.history, "server or resource record")); }
+    var what = did.length ? did.slice(0, -1).join(", ") + (did.length > 1 ? " and " : "") + did[did.length - 1] : "make no recorded changes";
+    var when = detail.first === detail.last ? "at " + detail.first : "between " + detail.first + " and " + detail.last + " (" + detail.span + ")";
+    return who + " used " + agentName(detail) + " to " + what + ", " + when + ".";
+  }
+
+  function renderSession(detail) {
+    var card = $("[data-aa-session-card]");
+    if (!card) { return; }
+    card.textContent = "";
+    if (!detail) {
+      card.appendChild(el("div", { "class": "aa-empty", text: "No records for this session in the " + data.max_days + " days before the end date." }));
+      return;
+    }
+    var app = detail.client_app;
+    var meta = [
+      ["Client app", app ? app.label + (app.version ? " " + app.version : "") : "Not in the MCP log", app ? app.raw : null],
+      ["Connected through", app && app.bridge ? app.bridge : "Directly", null],
+      ["OAuth client", detail.agent || "(blank)", "The name the client registered with CloudBolt's OAuth server"],
+      ["Client id", (detail.clients || []).filter(Boolean).join(", ") || "—", "The OAuth client id CloudBolt issued when this client registered"],
+      ["User", (detail.users || []).map(function (u) { return u.name; }).join(", ") || "—", null],
+      ["First seen", detail.first + (detail.may_start_earlier ? " (or earlier)" : ""), null],
+      ["Last seen", detail.last, null],
+      ["Span", detail.span, null]
+    ];
+    card.appendChild(el("div", { "class": "aa-hero" }, [
+      el("div", null, [
+        el("div", { "class": "aa-eyebrow", text: "MCP session" }),
+        el("div", { "class": "aa-title" }, [el("i", { "class": "bi bi-robot", "aria-hidden": "true" }), el("span", { text: agentName(detail) })]),
+        el("div", { "class": "aa-sub", text: summary(detail) })
+      ])
+    ]));
+    card.appendChild(el("div", { "class": "aa-meta" }, meta.map(function (item) {
+      return el("div", { title: item[2] }, [el("div", { "class": "aa-eyebrow", text: item[0] }), el("div", { "class": "v", text: item[1] })]);
+    })));
+  }
+
+  function loadCalls() {
+    var body = $("[data-aa-calls-body]");
+    if (!body) { return; }
+    getJSON(URLS.log.replace("SESSION", encodeURIComponent(sessionMode))).then(function (reply) {
+      body.textContent = "";
+      if (reply.error) { body.appendChild(el("div", { "class": "aa-alert", text: reply.error })); return; }
+      var hint = $("[data-aa-calls-hint]");
+      hint.textContent = plural(reply.calls.length, "call") + (reply.limited ? ", newest only" : "");
+      hint.title = "From " + reply.path + " on this web node" + (reply.limited ? "; older lines and rotated files are not read" : "");
+      if (!reply.calls.length) { body.appendChild(el("div", { "class": "aa-empty", text: "The MCP log on this node has no calls for this session." })); return; }
+      var head = el("tr", null, ["Time", "Tool", "Result", "User", "Details"].map(function (name) { return el("th", { text: name }); }));
+      var rows = reply.calls.map(function (call) {
+        var result = call.outcome
+          ? el("span", { "class": "aa-pill " + (call.outcome === "completed" ? "aa-pill-ok" : "aa-pill-bad"), title: call.error || null, text: call.outcome + " · " + call.ms + " ms" })
+          : el("span", { "class": "aa-muted", text: "no result logged" });
+        return el("tr", null, [
+          td(el("span", { "class": "text-nowrap", text: call.time })),
+          td(el("div", null, [el("span", { "class": "aa-mono", text: call.action || call.tool }), call.action ? el("div", { "class": "aa-hint", text: "via " + call.tool }) : null])),
+          td(el("div", null, [result, call.error ? el("div", { "class": "aa-hint", text: call.error }) : null])),
+          td(call.user),
+          td(el("details", { "class": "aa-raw" }, [el("summary", { text: "Arguments" }), el("pre", { "class": "aa-mono", text: call.args || call.raw })]))
+        ]);
+      });
+      body.appendChild(el("table", { "class": "aa-table" }, [el("thead", null, [head]), el("tbody", null, rows)]));
+    }).catch(function (error) {
+      body.textContent = "";
+      body.appendChild(el("div", { "class": "aa-alert", text: String(error.message || error) }));
+    });
+  }
+
+  function showResults(reply) {
+    state.filters = reply.filters;
+    state.sections = reply.sections;
+    state.counts = reply.counts;
+    writeForm(reply.filters);
+    applyFacets(reply.facets, reply.filters);
+    windowHint(reply.time_zone);
+    Object.keys(reply.counts).forEach(function (section) {
+      var badge = root.querySelector('[data-aa-count="' + section + '"]');
+      if (badge) { badge.textContent = reply.counts[section]; }
+    });
+    $("[data-aa-results-hint]").textContent = reply.window.from + " to " + reply.window.to + " (" + reply.window.days + (reply.window.days === 1 ? " day)" : " days)");
+    notices($("[data-aa-notices]"), reply.notices);
+    var open = $("[data-aa-session-open]");
+    if (open) {
+      open.classList.toggle("d-none", !reply.filters.session);
+      if (reply.filters.session) { open.href = sessionUrl(reply.filters.session); }
+    }
+    if (sessionMode) {
+      renderSession(reply.session);
+      if (!reply.counts[state.section]) {
+        // Open on the first record section that has rows.
+        state.section = ["orders", "jobs", "history"].filter(function (name) { return reply.counts[name]; })[0] || "orders";
+      }
+    } else {
+      $("[data-aa-recent-card]").classList.add("d-none");
+      $("[data-aa-prompt-card]").classList.add("d-none");
+    }
+    $("[data-aa-results-card]").classList.remove("d-none");
+    renderSection();
+    var fullPage = $("[data-aa-full-page]");
+    if (fullPage) { fullPage.href = URLS.full_page + "?" + query(reply.filters); }
+    if (!data.embedded && !sessionMode) { window.history.replaceState(null, "", URLS.page + "?" + query(reply.filters)); }
+  }
+
+  function search(filters) {
+    showError(null);
+    busy(true);
+    return getJSON(URLS.search + "?" + query(filters)).then(showResults).catch(showError).then(function () { busy(false); });
+  }
+
+  function loadPage(page) {
+    var section = state.section;
+    busy(true);
+    getJSON(URLS.section.replace("SECTION", section) + "?" + query(state.filters, { page: page })).then(function (reply) {
+      state.sections[section] = reply;
+      renderSection();
+    }).catch(showError).then(function () { busy(false); });
+  }
+
+  function renderRecent(info, windowInfo) {
+    $("[data-aa-recent-hint]").textContent = info.total + (info.total === 1 ? " session, " : " sessions, ") + windowInfo.from + " to " + windowInfo.to;
+    var body = $("[data-aa-recent-body]");
+    body.textContent = "";
+    body.appendChild(info.rows.length ? table("sessions", info.rows) : el("div", { "class": "aa-empty", text: "No agent activity in these dates. Agent activity is recorded once the MCP agent attribution patch is installed." }));
+    renderPager($("[data-aa-recent-pager]"), info, "data-aa-recent-page");
+    $("[data-aa-recent-card]").classList.remove("d-none");
+  }
+
+  function loadRecent() {
+    showError(null);
+    busy(true);
+    var filters = readForm();
+    getJSON(URLS.recent + "?" + query(filters)).then(function (reply) {
+      state.recentFilters = reply.filters;
+      state.recentWindow = reply.window;
+      applyFacets(reply.facets, reply.filters);
+      windowHint(reply.time_zone);
+      notices($("[data-aa-recent-notices]"), reply.notices);
+      renderRecent(reply.sessions, reply.window);
+    }).catch(showError).then(function () { busy(false); });
+  }
+
+  function loadRecentPage(page) {
+    busy(true);
+    getJSON(URLS.section.replace("SECTION", "sessions") + "?" + query(state.recentFilters, { page: page })).then(function (reply) {
+      renderRecent(reply, state.recentWindow);
+    }).catch(showError).then(function () { busy(false); });
+  }
+
+  // ---- Events ---------------------------------------------------------------
+  if (form) {
+    form.addEventListener("change", function (event) {
+      var name = event.target.name;
+      if (data.facet_mode === "cascade" && FACETS.indexOf(name) > -1) {
+        // A choice clears the lists after it, which it narrows.
+        data.facet_order.slice(data.facet_order.indexOf(name) + 1).forEach(function (later) { form.elements[later].value = ""; });
+      }
+      refreshFacets();
+    });
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      search(readForm());
+    });
+
+    root.querySelector("[data-aa-reset]").addEventListener("click", function () {
+      state.section = "orders";
+      $("[data-aa-results-card]").classList.add("d-none");
+      showError(null);
+      if (!data.embedded) { window.history.replaceState(null, "", URLS.page); }
+      start(false);
+    });
+  }
+
+  root.addEventListener("click", function (event) {
+    var tab = event.target.closest("[data-aa-tab]");
+    if (tab) {
+      state.section = tab.getAttribute("data-aa-tab");
+      renderSection();
+      return;
+    }
+    var pageButton = event.target.closest("[data-aa-page]");
+    if (pageButton && !pageButton.disabled) {
+      loadPage(parseInt(pageButton.getAttribute("data-aa-page"), 10));
+      return;
+    }
+    var recentButton = event.target.closest("[data-aa-recent-page]");
+    if (recentButton && !recentButton.disabled) {
+      loadRecentPage(parseInt(recentButton.getAttribute("data-aa-recent-page"), 10));
+    }
+  });
+
+  function start(fromUrl) {
+    if (sessionMode) {
+      // No dates: the search covers the session's own first to last record.
+      search({ session: sessionMode });
+      loadCalls();
+      return;
+    }
+    var initial = fromUrl ? data.initial : {};
+    var given = KEYS.some(function (key) { return initial[key]; });
+    // A preset (the user on a profile tab) fills the form without running a search.
+    var filters = {};
+    KEYS.forEach(function (key) { filters[key] = initial[key] || data.preset[key] || ""; });
+    if (!filters.session || filters.from || filters.to) {
+      filters.from = filters.from || data.defaults.from;
+      filters.to = filters.to || data.defaults.to;
+    }
+    writeForm(filters);
+    windowHint(data.time_zone);
+    var fullPage = $("[data-aa-full-page]");
+    if (fullPage) { fullPage.href = URLS.full_page + "?" + query(filters); }
+    if (given) {
+      search(filters);
+    } else if (data.default_view === "recent_sessions") {
+      loadRecent();
+    } else {
+      $("[data-aa-prompt-card]").classList.remove("d-none");
+      refreshFacets();
+    }
+  }
+
+  start(true);
+})();
+</script>
+{% endif %}
