@@ -1473,7 +1473,10 @@
     ],
     "used_by": [],
     "hook_point": "Post-Provision",
-    "enabled": false
+    "enabled": false,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "HPA-w1dmx20b",
@@ -1542,14 +1545,16 @@
     "id": "PKG-gqw2jqgj",
     "type": "packages",
     "name": "Azure Network Security Groups",
-    "description": "Orders, discovers, and deletes Azure network security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "description": "Orders, discovers, and deletes Azure network security groups, adds a Security Rules tab for viewing and editing their rules, and can attach new Azure VMs to a chosen network security group at provisioning.",
     "path": "packages/PKG-gqw2jqgj",
     "readme": "packages/PKG-gqw2jqgj/README.md",
     "uses": [],
     "used_by": [],
     "version": "1.0.0",
     "contents": [
+      "plugins/OHK-vswf8b1m",
       "extensions/XUI-0jdk7t6h",
+      "orchestration_actions/HPA-vo2ghe4x",
       "blueprints/BP-3fdhnw54"
     ]
   },
@@ -4137,7 +4142,10 @@
     "readme": null,
     "uses": [],
     "used_by": [],
-    "plugin_type": "CloudBolt Plug-in"
+    "plugin_type": "CloudBolt Plug-in",
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "OHK-vtuzh4nh",
