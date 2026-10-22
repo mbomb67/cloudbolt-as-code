@@ -72,7 +72,10 @@
       "plugins/OHK-9jouejv8",
       "plugins/OHK-kdne1t5s"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "BP-5pei9cno",
@@ -579,7 +582,10 @@
     "readme": "extensions/XUI-0jdk7t6h/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "XUI-60382c9x",
@@ -1467,7 +1473,10 @@
     ],
     "used_by": [],
     "hook_point": "Post-Provision",
-    "enabled": false
+    "enabled": false,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "HPA-w1dmx20b",
@@ -1530,6 +1539,23 @@
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
       "extensions/XUI-8a1jocmr"
+    ]
+  },
+  {
+    "id": "PKG-gqw2jqgj",
+    "type": "packages",
+    "name": "Azure Network Security Groups",
+    "description": "Orders, discovers, and deletes Azure network security groups, adds a Security Rules tab for viewing and editing their rules, and can attach new Azure VMs to a chosen network security group at provisioning.",
+    "path": "packages/PKG-gqw2jqgj",
+    "readme": "packages/PKG-gqw2jqgj/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "plugins/OHK-vswf8b1m",
+      "extensions/XUI-0jdk7t6h",
+      "orchestration_actions/HPA-vo2ghe4x",
+      "blueprints/BP-3fdhnw54"
     ]
   },
   {
@@ -4116,7 +4142,10 @@
     "readme": null,
     "uses": [],
     "used_by": [],
-    "plugin_type": "CloudBolt Plug-in"
+    "plugin_type": "CloudBolt Plug-in",
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "OHK-vtuzh4nh",
