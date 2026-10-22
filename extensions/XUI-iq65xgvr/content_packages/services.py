@@ -22,11 +22,13 @@ one member at a time rather than reimplementing them:
   clone after a fetch, the technique behind the metadata file picker, and
   registers the manifest locally keyed by its PKG id.
 
-Parameters are the exception, because Source Control Repos has no folder for
-them (parameters.py): export writes parameters/<CF-id>/ in the manifest commit
-after pushing each parameter's generated-options actions, and sync syncs those
-actions in their own jobs, then queues one job per parameter
-(jobs.run_parameter_sync) in the same chain.
+Parameters and Runbooks workflows are the exceptions, because Source Control
+Repos has no folder for them (parameters.py, workflows.py): export writes
+parameters/<CF-id>/ or runbook_workflows/<SWF-id>/ in the manifest commit
+after pushing what each one needs (a parameter's generated-options actions, a
+workflow's step plugins), and sync syncs those in their own jobs, then queues
+one job of this extension per parameter or workflow (jobs.run_parameter_sync,
+jobs.run_workflow_sync) in the same chain.
 """
 import json
 import os
@@ -48,7 +50,7 @@ from source_code_repos.services import SourceCodeRepoService
 from source_code_repos.validators import validate_branch_name
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import hooks, parameters, store
+from xui.content_packages import hooks, parameters, store, workflows
 
 logger = ThreadLogger(__name__)
 
@@ -76,9 +78,10 @@ SYNC_KEYS = {
 
 # Sync order: libraries first, blueprints last (as sync_from_repo does), so
 # whatever a blueprint references is already in place when it imports.
-# Parameters follow the actions, so their generated-options actions exist
-# when they are linked.
-SYNC_ORDER = {"shared_modules": 0, "plugins": 1, "parameters": 3, "blueprints": 4}
+# Parameters and workflows follow the actions, so a parameter's
+# generated-options actions and a workflow's step plugins exist when they
+# are linked.
+SYNC_ORDER = {"shared_modules": 0, "plugins": 1, "parameters": 3, "runbook_workflows": 3, "blueprints": 4}
 DEFAULT_SYNC_RANK = 2
 
 # Files a push deletes and never writes back, restored after an export: hand
@@ -165,6 +168,17 @@ def _member_object(obj):
 # ---------------------------------------------------------------------------
 # Sync
 # ---------------------------------------------------------------------------
+def _carried_refs(member_type, clone, branch, global_id):
+    """Refs of the units a written member needs synced before it, read from
+    its metadata on branch: a parameter's generated-options actions, a
+    workflow's step plugins."""
+    if member_type.dir == store.WORKFLOWS_DIR:
+        data = workflows.read_metadata(clone, branch, global_id)
+        return ["plugins/{}".format(hook_id) for hook_id in workflows.hook_ids(data)]
+    data = parameters.read_metadata(clone, branch, global_id)
+    return ["orchestration_actions/{}".format(action_id) for action_id in parameters.action_ids(data)]
+
+
 def sync_order(refs):
     """Members in the order their sync jobs run."""
     ranked = []
@@ -176,10 +190,11 @@ def sync_order(refs):
 
 def _sync_plan(refs, repo, branch):
     """[(ref, via)] in run order: every member (via None), plus each
-    generated-options action a parameter member's metadata on the branch
-    references and the package does not list (via is that parameter's ref),
-    run with the other actions. Reads the parameters' metadata, so a
-    parameter that was never exported fails here, before any job exists."""
+    generated-options action of a parameter member and each step plugin of a
+    workflow member that their metadata on the branch references and the
+    package does not list (via is that member's ref), run with the other
+    actions. Reads that metadata, so a parameter or workflow that was never
+    exported fails here, before any job exists."""
     extra = OrderedDict()
     if any(not store.parse_ref(ref)[0].synced for ref in refs):
         repo, clone = branch_clone(repo, branch)
@@ -187,10 +202,9 @@ def _sync_plan(refs, repo, branch):
             member_type, global_id = store.parse_ref(ref)
             if member_type.synced:
                 continue
-            for action_id in parameters.action_ids(parameters.read_metadata(clone, branch, global_id)):
-                action_ref = "orchestration_actions/{}".format(action_id)
-                if action_ref not in refs:
-                    extra.setdefault(action_ref, ref)
+            for unit_ref in _carried_refs(member_type, clone, branch, global_id):
+                if unit_ref not in refs:
+                    extra.setdefault(unit_ref, ref)
     else:
         require_branch(repo, branch)
     ordered = sync_order(refs)
@@ -226,11 +240,13 @@ def _repo_sync_job(package, ref, repo, branch, refresh_if_exists, ignore_action_
     )
 
 
-def _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, previous):
-    """The job that creates or updates one parameter member, behind previous:
-    the HookParameters and Job OrchestrationHook.run_as_job creates for a
-    plugin, plus the prereq_job link run_as_job cannot set."""
-    params = HookParameters.objects.create(hook=hooks.parameter_hook())
+def _written_sync_job(package, ref, repo, branch, refresh_if_exists, ignore_action_enabled, profile, previous):
+    """The job that creates or updates one parameter or workflow member,
+    behind previous: the HookParameters and Job OrchestrationHook.run_as_job
+    creates for a plugin, plus the prereq_job link run_as_job cannot set."""
+    member_type = store.parse_ref(ref)[0]
+    hook = hooks.workflow_hook() if member_type.dir == store.WORKFLOWS_DIR else hooks.parameter_hook()
+    params = HookParameters.objects.create(hook=hook)
     params.arguments = {
         "context": {
             "package_id": package["id"],
@@ -238,6 +254,7 @@ def _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, 
             "source_code_repo_id": repo.id,
             "branch": branch,
             "refresh_if_exists": bool(refresh_if_exists),
+            "ignore_action_enabled": bool(ignore_action_enabled),
         }
     }
     params.save()
@@ -253,9 +270,10 @@ def _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, 
 def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled, profile):
     """Create one job per member, each waiting for the one before it, and
     make the repository and branch the package's home: the OOB
-    sourcecodereposync job for each unit, and for a parameter the extension's
-    parameter job, preceded by OOB sync jobs for the generated-options
-    actions it needs. Returns [(ref, Job, via)] in run order."""
+    sourcecodereposync job for each unit, and for a parameter or workflow the
+    extension's own job, preceded by OOB sync jobs for the generated-options
+    actions or step plugins it needs. Returns [(ref, Job, via)] in run
+    order."""
     branch = check_branch(branch)
     refs = list(package.get("contents") or [])
     if not refs:
@@ -269,7 +287,9 @@ def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled
                 package, ref, repo, branch, refresh_if_exists, ignore_action_enabled, profile, previous
             )
         else:
-            job = _parameter_sync_job(package, ref, repo, branch, refresh_if_exists, profile, previous)
+            job = _written_sync_job(
+                package, ref, repo, branch, refresh_if_exists, ignore_action_enabled, profile, previous
+            )
         created.append((ref, job, via))
         previous = job
     store.record_sync(package["id"], repo.id, branch, [(ref, job.id, via) for ref, job, via in created])
@@ -405,15 +425,17 @@ def restore_docs(clone, base, package):
 
 def _push(service, package, member_type, obj, ref, branch, commit_message, report, via=None):
     """Push one unit with CloudBolt's own per-object push and return its
-    result row. via is the parameter a generated-options action is pushed
-    for."""
+    result row. via is the parameter a generated-options action, or the
+    workflow a step plugin, is pushed for."""
     name = member_type.name_of(obj)
     row = {"ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix, "name": name, "via": via}
     # restore_docs finds this export's commits by the marker.
     detail = "{}\n\n{} {} {} ({})".format(
         commit_message, _commit_marker(package), member_type.singular, name, obj.global_id
     )
-    if via:
+    if via and via.startswith(store.WORKFLOWS_DIR + "/"):
+        detail += ", which a step of {} runs".format(via)
+    elif via:
         detail += ", which generates the options of {}".format(via)
     report("Pushing {} {} ({}){}".format(
         member_type.singular, name, obj.global_id, " for {}".format(via) if via else ""
@@ -428,29 +450,45 @@ def _push(service, package, member_type, obj, ref, branch, commit_message, repor
     return row
 
 
-def _parameter_files(cf, repo, global_id):
-    """[(repo path, text, replace)] of a parameter member's folder: its
-    metadata, rewritten on every export, and a README written only when the
-    folder has none."""
-    data = parameters.export_metadata(cf, repo, global_id)
-    path = parameters.metadata_path(global_id)
+def _written_files(member_type, obj, repo, global_id):
+    """[(repo path, text, replace)] of a parameter or workflow member's
+    folder: its metadata, rewritten on every export, and a README written
+    only when the folder has none."""
+    if member_type.dir == store.WORKFLOWS_DIR:
+        data = workflows.export_metadata(obj, repo)
+        path = workflows.metadata_path(global_id)
+        text, readme = workflows.dumps(data), workflows.readme(obj, data)
+    else:
+        data = parameters.export_metadata(obj, repo, global_id)
+        path = parameters.metadata_path(global_id)
+        text, readme = parameters.dumps(data), parameters.readme(obj, data)
     return [
-        (path, parameters.dumps(data), True),
-        (posixpath.join(posixpath.dirname(path), "README.md"), parameters.readme(cf, data), False),
+        (path, text, True),
+        (posixpath.join(posixpath.dirname(path), "README.md"), readme, False),
     ]
+
+
+def carried_units(member_type, obj):
+    """[(MemberType, unit)] a written member's export pushes with it: a
+    parameter's generated-options actions, a workflow's step plugins."""
+    if member_type.dir == store.WORKFLOWS_DIR:
+        plugin_type = store.MEMBER_TYPES["plugins"]
+        return [(plugin_type, hook) for hook in workflows.step_hooks(obj)]
+    action_type = store.MEMBER_TYPES["orchestration_actions"]
+    return [(action_type, hpa) for hpa in parameters.gen_options_actions(obj)]
 
 
 def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
     manifest and the README (written whole the first time, then with only its
     member table rebuilt) to packages/<PKG-id>/, together
-    with each parameter member's folder and the READMEs the pushes deleted.
-    A parameter's generated-options actions are pushed with it unless the
-    package lists them. A member that fails does not stop the others.
-    progress, when given, is called with one line per step (the export job
-    passes job.set_progress). Returns the outcome: one result per member, per
-    action pushed for a parameter, and for the manifest, the restored files,
-    and the PR link."""
+    with each parameter and workflow member's folder and the READMEs the
+    pushes deleted. A parameter's generated-options actions and a workflow's
+    step plugins are pushed with it unless the package lists them. A member
+    that fails does not stop the others. progress, when given, is called with
+    one line per step (the export job passes job.set_progress). Returns the
+    outcome: one result per member, per unit pushed for a parameter or
+    workflow, and for the manifest, the restored files, and the PR link."""
     report = progress or (lambda message: None)
     branch = check_branch(branch)
     commit_message = (commit_message or "").strip()
@@ -469,9 +507,8 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         report(restore_note)
 
     results = []
-    written = []  # (row, files) of the parameters, committed with the manifest
-    actions_pushed = set()
-    action_type = store.MEMBER_TYPES["orchestration_actions"]
+    written = []  # (row, files) of the parameters and workflows, committed with the manifest
+    carried_pushed = set()
     for ref in refs:
         member_type, global_id = store.parse_ref(ref)
         obj = resolved.get(ref)
@@ -489,22 +526,24 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         row = {"ref": ref, "type_title": member_type.singular, "prefix": member_type.prefix,
                "name": member_type.name_of(obj), "via": None, "status": "pending", "message": ""}
         results.append(row)
-        for action in parameters.gen_options_actions(obj):
-            if action.global_id in listed or action.global_id in actions_pushed:
-                continue
-            actions_pushed.add(action.global_id)
-            results.append(_push(
-                service, package, action_type, action, store.ref_for(action_type, action), branch,
-                commit_message, report, via=ref,
-            ))
+        kind = member_type.singular.lower()
         try:
-            written.append((row, _parameter_files(obj, repo, global_id)))
+            for unit_type, unit in carried_units(member_type, obj):
+                if unit.global_id in listed or unit.global_id in carried_pushed:
+                    continue
+                carried_pushed.add(unit.global_id)
+                results.append(_push(
+                    service, package, unit_type, unit, store.ref_for(unit_type, unit), branch,
+                    commit_message, report, via=ref,
+                ))
+            written.append((row, _written_files(member_type, obj, repo, global_id)))
         except Exception as exc:
-            logger.exception("Export of parameter %s failed", ref)
-            row.update(status="failure", message=strip_tags(str(exc)) or type(exc).__name__)
-            report("Could not export parameter {}: {}".format(ref, row["message"]))
+            logger.exception("Export of %s failed", ref)
+            message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
+            row.update(status="failure", message=strip_tags(message or "") or type(exc).__name__)
+            report("Could not export {} {}: {}".format(kind, ref, row["message"]))
         else:
-            report("Writing parameter {} ({}) with the manifest".format(row["name"], ref))
+            report("Writing {} {} ({}) with the manifest".format(kind, row["name"], ref))
 
     folder = "{}/{}".format(PACKAGES_DIR, package["id"])
     manifest_path = "{}/{}_metadata.json".format(folder, package["id"])
@@ -554,7 +593,7 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                     stream.write(_readme(package, resolved))
             message = "{}\n\n{} manifest".format(commit_message, _commit_marker(package))
             if written:
-                message += "\n\nWrites the parameters:\n{}".format("\n".join(row["ref"] for row, _ in written))
+                message += "\n\nWrites:\n{}".format("\n".join(row["ref"] for row, _ in written))
             if restored:
                 message += "\n\nRestores the READMEs the pushes deleted:\n{}".format("\n".join(restored))
             repo.commit_and_push(branch, message, profile, repo_dir=repo_dir)

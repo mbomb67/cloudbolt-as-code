@@ -362,6 +362,55 @@ actions inside the parameter job with `refresh_action_from_local_path`, the
 blueprint import's internal path (per-object OOB sync jobs keep a job log and
 Rerun per action); changing a matched parameter's global ID.
 
+### Runbooks workflows
+
+Added 2026-10-21 (phase 1 of packaging the Runbooks content). A Runbooks
+workflow (`SWF-*`) is a JSON value of the `runbook_workflow_store`
+parameter, kept by the `runbook_workflows` shared module
+(`shared_modules/SHM-nznzhpp0`). Source Control Repos never sees it, and its
+steps run plugins (Remote Scripts, plug-ins, webhooks, emails, copy-file
+actions) that no other member exports.
+
+Built, on the parameters pattern:
+
+- A member type `runbook_workflows/` with prefix `SWF`, not backed by a model:
+  `MemberType.lookup` replaces the global ID query, and `store.Workflow` wraps
+  each stored workflow. Without the Runbooks content the type offers nothing.
+- `runbook_workflows` owns the format. `export_workflow` writes step actions
+  by global ID and name, OS family / technology / OS build filters by name
+  (with the families and technologies only OS builds or environments
+  implied), and only which group, environment and configuration manager
+  filters were set. `import_workflow` creates or updates.
+- `create_workflow(..., workflow_id=None)`: a package sync passes the source
+  ID, so a blueprint pinned by ID finds the workflow on every appliance.
+  Add, Copy and the REST API never pass one. An edit (`update_workflow`)
+  keeps the ID as before.
+- Export pushes each step's plugin with the OOB per-object push (unless the
+  package lists it), then writes `runbook_workflows/SWF-<id>/` in the
+  manifest commit with the plugins under `dependencies.hooks`.
+- Sync adds an OOB sync job per step plugin with the other actions, then one
+  job of a third self-registering plugin, "Content Package Manager: Sync
+  Workflow" (`workflow_job.py`), before blueprints.
+
+Decisions (Mike, 2026-10-20):
+
+- A different workflow with the same name on the target is never
+  overwritten, because a workflow can be local work of that appliance. The
+  job changes nothing and ends WARNING, which CloudBolt's `can_be_started`
+  treats as done, so the rest of the chain runs. No alias table: a workflow
+  keeps one ID everywhere or is not synced.
+- Steps map to plugins by global ID, else by type and name, because
+  CloudBolt's hook import keeps an existing plugin's global ID when it matches
+  it by name.
+- Group, environment and configuration manager filters do not travel; an
+  update keeps the target's own. A new workflow whose source set them, or
+  whose filter names have no match, arrives disabled. "Keep each action's
+  current enabled state" applies to workflows as CloudBolt applies it to
+  actions.
+- Attached File Archives files are not carried yet; sync accepts entries the
+  target does not hold and warns. Carrying the files and finding workflows a
+  blueprint pins are later phases.
+
 ### Sync (refresh the appliance from the package's home branch)
 
 1. Group `contents` by top-level dir and map to the sync keys:

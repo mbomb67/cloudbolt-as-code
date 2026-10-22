@@ -666,7 +666,7 @@
     "id": "XUI-iq65xgvr",
     "type": "extensions",
     "name": "Content Package Manager",
-    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, and standalone parameters, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, standalone parameters, and Runbooks workflows, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
     "path": "extensions/XUI-iq65xgvr",
     "readme": "extensions/XUI-iq65xgvr/README.md",
     "uses": [],
@@ -5793,7 +5793,7 @@
     "id": "SHM-nznzhpp0",
     "type": "shared_modules",
     "name": "runbook_workflows",
-    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them, and exports and imports workflows for content packages.",
     "path": "shared_modules/SHM-nznzhpp0",
     "readme": null,
     "uses": [

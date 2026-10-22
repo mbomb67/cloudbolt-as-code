@@ -37,6 +37,9 @@
   {% if has_parameters %}
   <div class="form-text">{% trans "Each parameter syncs after the actions, from its parameters/ folder on the branch: a job of this extension creates it, or updates the parameter with the same name (only when refreshing), then links its generated-options actions, which sync just before it. Environment and group assignments are not part of the package." %}</div>
   {% endif %}
+  {% if has_workflows %}
+  <div class="form-text">{% trans "Each Runbooks workflow syncs after the actions, from its runbook_workflows/ folder on the branch: a job of this extension creates it with the same ID, or updates it (only when refreshing), once the plugins its steps run have synced. A different workflow here with the same name is left unchanged and that job ends with a warning. Group, environment and configuration manager filters stay on each appliance; a new workflow whose source set them starts disabled. Needs the Runbooks content." %}</div>
+  {% endif %}
 </div>
 {% endblock form_content %}
 

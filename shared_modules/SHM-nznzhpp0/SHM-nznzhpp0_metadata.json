@@ -4,7 +4,7 @@
             "shared_modules/SHM-571l7249"
         ]
     },
-    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them, and exports and imports workflows for content packages.",
     "id": "SHM-nznzhpp0",
     "label": "Runbook Workflows",
     "max_retries": 0,

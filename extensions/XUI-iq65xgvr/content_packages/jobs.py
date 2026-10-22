@@ -15,11 +15,16 @@ run_parameter_sync() runs inside the job services.sync_package queues for a
 parameter member, once the jobs before it in the package's sync chain have
 finished. It reads the parameter's metadata from the branch and creates or
 updates the parameter through parameters.import_metadata.
+
+run_workflow_sync() does the same for a Runbooks workflow member through
+workflows.import_metadata. When another workflow here already has the name,
+it changes nothing and ends with WARNING, so the rest of the chain still
+runs (CloudBolt starts a job whose prerequisite ended SUCCESS or WARNING).
 """
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import hooks, parameters, services, store
+from xui.content_packages import hooks, parameters, services, store, workflows
 
 logger = ThreadLogger(__name__)
 
@@ -87,7 +92,7 @@ def run_export(job, package_id=None, source_code_repo_id=None, branch=None, comm
     except store.PackageError as exc:
         return "FAILURE", "", str(exc)
 
-    # Rows with "via" are generated-options actions pushed for a parameter.
+    # Rows with "via" are units pushed for a parameter or workflow.
     members = [r for r in outcome["results"] if r["prefix"] != "PKG" and not r.get("via")]
     exported = sum(1 for r in members if r["status"] == "success")
     failed = [r for r in outcome["results"] if r["status"] == "failure" and r["prefix"] != "PKG"]
@@ -116,7 +121,7 @@ def run_parameter_sync(job, package_id=None, ref=None, source_code_repo_id=None,
 
     try:
         member_type, global_id = store.parse_ref(ref)
-        if member_type.synced:
+        if member_type.dir != store.PARAMETERS_DIR:
             raise store.PackageError("{} is not a parameter.".format(ref))
         branch = services.check_branch(branch)
         repo, clone = services.branch_clone(services.get_repo(source_code_repo_id), branch)
@@ -138,3 +143,51 @@ def run_parameter_sync(job, package_id=None, ref=None, source_code_repo_id=None,
     if notes:
         return "WARNING", summary, " ".join(notes)
     return "SUCCESS", summary, ""
+
+
+def run_workflow_sync(job, package_id=None, ref=None, source_code_repo_id=None, branch=None,
+                      refresh_if_exists=True, ignore_action_enabled=False, **kwargs):
+    """Plugin entry point (via workflow_job.py) for one workflow member."""
+    def progress(message):
+        if job is not None:
+            job.set_progress(message)
+
+    profile = kwargs.get("profile") or getattr(job, "owner", None)
+    try:
+        member_type, global_id = store.parse_ref(ref)
+        if member_type.dir != store.WORKFLOWS_DIR:
+            raise store.PackageError("{} is not a workflow.".format(ref))
+        module = workflows.module()
+    except store.PackageError as exc:
+        return "FAILURE", "", str(exc)
+    try:
+        branch = services.check_branch(branch)
+        repo, clone = services.branch_clone(services.get_repo(source_code_repo_id), branch)
+        progress("Reading {} from {}, branch {}".format(workflows.metadata_path(global_id), repo.label, branch))
+        data = workflows.read_metadata(clone, branch, global_id)
+        progress("Creating or updating workflow {} ({})".format(data.get("name") or global_id, global_id))
+        workflow, outcome, notes = workflows.import_metadata(
+            module, data, refresh_if_exists, ignore_action_enabled, profile=profile
+        )
+    except store.PackageError as exc:
+        return "FAILURE", "", str(exc)
+    except module.WorkflowConflict as exc:
+        # A local workflow has the name: leave it alone and let the chain go on.
+        progress(exc.public_message)
+        return "WARNING", "Workflow {} was not synced.".format(global_id), exc.public_message
+    except module.WorkflowError as exc:
+        return "FAILURE", "", exc.public_message
+    except Exception as exc:
+        logger.exception("Sync of workflow %s failed", ref)
+        return "FAILURE", "", "Could not create or update the workflow: {}".format(str(exc) or type(exc).__name__)
+    summary = "Workflow {} ({}) {} from {}, branch {}.".format(
+        workflow["name"], workflow["id"], outcome, repo.label, branch
+    )
+    if not workflow.get("enabled", True):
+        summary += " It is disabled."
+    for note in notes:
+        progress(note)
+    if notes:
+        return "WARNING", summary, " ".join(notes)
+    return "SUCCESS", summary, ""
+

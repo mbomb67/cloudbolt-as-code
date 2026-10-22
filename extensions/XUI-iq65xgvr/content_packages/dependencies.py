@@ -7,10 +7,11 @@ show that closure without guessing it, each member is run through the same
 serializer call CloudBolt's own "Push to repository" uses
 (export_to_filesystem_as_unzipped_files_flattened, with the kwargs
 push_to_remote_source builds) into a throwaway directory, and every
-<GLOBAL_ID>_metadata.json the export writes is read back. A parameter member
-has no such export; its generated-options actions, which the package export
-pushes with it, are run through it instead. Nothing is cloned, committed or
-saved; the directory is deleted afterwards.
+<GLOBAL_ID>_metadata.json the export writes is read back. A parameter or
+workflow member has no such export; the units the package export pushes with
+it (a parameter's generated-options actions, a workflow's step plugins) are
+run through it instead. Nothing is cloned, committed or saved; the directory
+is deleted afterwards.
 """
 import json
 import os
@@ -23,7 +24,7 @@ from servicecatalog.models import ServiceBlueprint
 from source_code_repos.models import SourceCodeRepo
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import parameters, store
+from xui.content_packages import services, store
 
 logger = ThreadLogger(__name__)
 
@@ -122,8 +123,8 @@ def closure(package, repo=None):
                 if member_type.synced:
                     _export(obj, repo, root)
                 else:
-                    for action in parameters.gen_options_actions(obj):
-                        _export(action, repo, root)
+                    for _unit_type, unit in services.carried_units(member_type, obj):
+                        _export(unit, repo, root)
             except Exception as exc:
                 logger.exception("Dependency export of %s failed", ref)
                 errors.append({"ref": ref, "name": member_name, "error": str(exc) or type(exc).__name__})

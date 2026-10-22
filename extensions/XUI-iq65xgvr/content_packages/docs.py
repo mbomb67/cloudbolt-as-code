@@ -4,8 +4,9 @@ README files for the details page.
 A unit's documentation is the README.md in its own folder on the branch its
 Remote Source URL points at, the repository and branch it was last synced
 from or pushed to. Members and dependencies follow the same rule, except a
-parameter member: it has no Remote Source URL, so its folder is
-parameters/<CF-id>/ on its package's home branch. Files are
+parameter or workflow member: it has no Remote Source URL, so its folder is
+its ref (parameters/<CF-id>/, runbook_workflows/<SWF-id>/) on its package's
+home branch. Files are
 read from CloudBolt's global clone of that repository, the clone the branch
 pickers fetch, which is fetched at most once a minute here; nothing is
 written.
@@ -58,13 +59,16 @@ class NoReadme(Exception):
 # ---------------------------------------------------------------------------
 # Objects and where they live
 # ---------------------------------------------------------------------------
-def _querysets():
-    """Prefix -> queryset for every unit an export can write, including the
-    forms and form functions that only travel as dependencies."""
-    sets = OrderedDict((t.prefix, t.with_repo(t.resolvable())) for t in store.MEMBER_TYPES.values())
-    sets["FRM"] = CustomForm.objects.select_related("source_code_repo")
-    sets["FJS"] = CustomFormFunction.objects.select_related("source_code_repo")
-    return sets
+def _lookups():
+    """Prefix -> lookup(global_ids) for every unit an export can write,
+    including the forms and form functions that only travel as
+    dependencies."""
+    lookups = OrderedDict((t.prefix, t.lookup) for t in store.MEMBER_TYPES.values())
+    for prefix, model in (("FRM", CustomForm), ("FJS", CustomFormFunction)):
+        lookups[prefix] = (
+            lambda ids, model=model: model.objects.select_related("source_code_repo").filter(global_id__in=ids)
+        )
+    return lookups
 
 
 def resolve(global_ids):
@@ -73,13 +77,13 @@ def resolve(global_ids):
     for global_id in global_ids:
         if isinstance(global_id, str) and "-" in global_id:
             wanted.setdefault(global_id.split("-", 1)[0], []).append(global_id)
-    sets = _querysets()
+    lookups = _lookups()
     found = {}
     for prefix, ids in wanted.items():
-        queryset = sets.get(prefix)
-        if queryset is None:
+        lookup = lookups.get(prefix)
+        if lookup is None:
             continue
-        for obj in queryset.filter(global_id__in=ids):
+        for obj in lookup(ids):
             found[obj.global_id] = obj
     return found
 
@@ -116,14 +120,15 @@ def location(obj):
     return Location(repo, branch, folder)
 
 
-def parameter_location(package, ref, repo):
-    """Location of a parameter member's folder: parameters/<CF-id>/ on the
+def written_location(package, ref, repo):
+    """Location of a parameter or workflow member's folder, its ref, on the
     package's home branch of repo (its home repository), or None before the
     package has one."""
     branch = package["local"].get("branch") or ""
     if repo is None or not branch:
         return None
-    return Location(repo.cast(), branch, "{}/{}".format(store.PARAMETERS_DIR, ref.split("/", 1)[1]))
+    member_type, global_id = store.parse_ref(ref)
+    return Location(repo.cast(), branch, "{}/{}".format(member_type.dir, global_id))
 
 
 # ---------------------------------------------------------------------------
