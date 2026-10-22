@@ -93,6 +93,13 @@
             },
             "enabled": true,
             "label": "Manage GKE Namespace Pipeline Identity"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-ah76u4qg"
+            },
+            "enabled": true,
+            "label": "Deploy Test Workload"
         }
     ],
     "metadata_version": "2026.1.0",

@@ -173,6 +173,7 @@
       "resource_actions/RSA-0f3na70j",
       "resource_actions/RSA-0k2xcobm",
       "resource_actions/RSA-1qdgexp2",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-mucwia5b",
       "resource_actions/RSA-x1658l9r"
     ],
@@ -210,6 +211,7 @@
       "resource_actions/RSA-1amyol6t",
       "resource_actions/RSA-2f01ppuc",
       "resource_actions/RSA-7wdigcpr",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-nvwe7u4b",
       "resource_actions/RSA-rwaszep5"
     ],
@@ -231,6 +233,7 @@
       "plugins/OHK-ow9x0amc",
       "plugins/OHK-u9jm7p8h",
       "resource_actions/RSA-03qqsnft",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-j03ua3gm",
       "resource_actions/RSA-l59xsi54",
       "resource_actions/RSA-mr1clc5e",
@@ -488,6 +491,7 @@
       "plugins/OHK-mpe8fl3d",
       "plugins/OHK-prew0osh",
       "resource_actions/RSA-4e8lmj2r",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-kx7mdgva",
       "resource_actions/RSA-yj1c4b5s"
     ],
@@ -3262,6 +3266,26 @@
     ]
   },
   {
+    "id": "OHK-ljgoxser",
+    "type": "plugins",
+    "name": "Deploy Test Workload",
+    "description": "Deploys or removes a small nginx Deployment and Service in an EKS, AKS or GKE namespace or an OpenShift project so its Workloads tab has something to show.",
+    "path": "plugins/OHK-ljgoxser",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-kephq8iq",
+      "shared_modules/SHM-ptvp0km4",
+      "shared_modules/SHM-qmiweowv",
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "resource_actions/RSA-ah76u4qg"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-lvy5tj0y",
     "type": "plugins",
     "name": "Terraform Update",
@@ -4687,6 +4711,24 @@
     "enabled": true
   },
   {
+    "id": "RSA-ah76u4qg",
+    "type": "resource_actions",
+    "name": "Deploy Test Workload",
+    "description": "Deploys or removes a small nginx Deployment and Service in an EKS, AKS or GKE namespace or an OpenShift project so its Workloads tab has something to show.",
+    "path": "resource_actions/RSA-ah76u4qg",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ljgoxser"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827",
+      "blueprints/BP-e4c0q58z",
+      "blueprints/BP-c9ca1i3z",
+      "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-dhgwoj3z",
     "type": "resource_actions",
     "name": "Update EKS Version",
@@ -5438,6 +5480,7 @@
       "plugins/OHK-aaltlvmb",
       "plugins/OHK-cco2r73h",
       "plugins/OHK-qxdrryt6",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-ml7ee42y",
       "plugins/OHK-vtuzh4nh",
       "plugins/OHK-shr5y3i6",
@@ -5559,6 +5602,7 @@
       "plugins/OHK-735mhtvh",
       "plugins/OHK-vi009xb8",
       "plugins/OHK-kb4pv2yq",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-tybit8su",
       "plugins/OHK-t1r0y1yd",
       "plugins/OHK-cqkwd0mq",
@@ -5671,6 +5715,7 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-cco2r73h",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-ml7ee42y",
       "plugins/OHK-vtuzh4nh",
       "plugins/OHK-32pzj98f",
@@ -5726,6 +5771,7 @@
       "plugins/OHK-vi009xb8",
       "plugins/OHK-kb4pv2yq",
       "plugins/OHK-czexzrl1",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-tybit8su",
       "plugins/OHK-t1r0y1yd",
       "plugins/OHK-0fp008gh",
@@ -5748,6 +5794,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-e7albpni",
       "plugins/OHK-3w9nejn3",
       "plugins/OHK-9zzqqz7t",
@@ -5788,6 +5835,7 @@
       "plugins/OHK-u9jm7p8h",
       "plugins/OHK-7n4o0hox",
       "plugins/OHK-oguk4oad",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-ow9x0amc",
       "plugins/OHK-paad1c56",
       "plugins/OHK-3902mdky",
