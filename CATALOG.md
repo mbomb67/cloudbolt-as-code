@@ -15,7 +15,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [MCP tool actions](#mcp-tool-actions) | 9 |
 | [Plugins](#plugins) | 168 |
 | [Shared modules](#shared-modules) | 23 |
-| [UI extensions](#ui-extensions) | 12 |
+| [UI extensions](#ui-extensions) | 13 |
 | [Parameters](#parameters) | 2 |
 | [Forms](#forms) | 15 |
 | [Form functions](#form-functions) | 7 |
@@ -418,6 +418,7 @@ Django UI extensions (XUI). Each folder has a README.
 
 | Extension | ID | Description |
 |---|---|---|
+| Agent Activity | [XUI-y40h491l](extensions/XUI-y40h491l/README.md) | Adds an Agent Activity page, admin entry, per-session page and user profile tab listing the orders, jobs, history and tool calls AI agents made through CloudBolt's MCP server by user, agent, session, dates and text, with CSV and Excel export; admins and Global Viewers see every user's records, other users their own. |
 | AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, Workloads, and Groups tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, per-node and per-namespace workload figures, and management of the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
 | Azure AKS Cluster | [XUI-nr5iiu60](extensions/XUI-nr5iiu60/README.md) | Adds Cluster, Node pools, Workloads, and Groups tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules. |

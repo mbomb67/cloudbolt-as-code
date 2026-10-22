@@ -648,6 +648,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-y40h491l",
+    "type": "extensions",
+    "name": "Agent Activity",
+    "description": "Adds an Agent Activity page, admin entry, per-session page and user profile tab listing the orders, jobs, history and tool calls AI agents made through CloudBolt's MCP server by user, agent, session, dates and text, with CSV and Excel export; admins and Global Viewers see every user's records, other users their own.",
+    "path": "extensions/XUI-y40h491l",
+    "readme": "extensions/XUI-y40h491l/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-ycumvq8k",
     "type": "extensions",
     "name": "Io Cloudbolt Widgets",
