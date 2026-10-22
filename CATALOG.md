@@ -5,7 +5,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Packages](#packages) | 8 |
+| [Packages](#packages) | 9 |
 | [Blueprints](#blueprints) | 32 |
 | [Resource actions](#resource-actions) | 65 |
 | [Server actions](#server-actions) | 3 |
@@ -15,7 +15,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [MCP tool actions](#mcp-tool-actions) | 9 |
 | [Plugins](#plugins) | 188 |
 | [Shared modules](#shared-modules) | 25 |
-| [UI extensions](#ui-extensions) | 13 |
+| [UI extensions](#ui-extensions) | 14 |
 | [Parameters](#parameters) | 2 |
 | [Forms](#forms) | 15 |
 | [Form functions](#form-functions) | 7 |
@@ -32,6 +32,7 @@ Named sets of content that the Content Package Manager extension (`extensions/XU
 | Data Disks from a Disk Map | [PKG-zny1ynfs](packages/PKG-zny1ynfs/README.md) | Adds order-time data disks to Windows Server and Oracle Linux VMs through an environment disk_map parameter, a form function that turns it into a disk table, and Post-Provision orchestration actions that attach the disks and prepare them inside the guest. | 1.0.0 | [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) (blueprint), [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Oracle Linux)](orchestration_actions/HPA-4ptcwgg4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Windows)](orchestration_actions/HPA-42uy9dyo/README.md) (orchestration action), [Data Disks](parameters/CF-q3bexgap/README.md) (parameter) |
 | Google GKE | [PKG-xev1ob4t](packages/PKG-xev1ob4t/README.md) | Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [Google Kubernetes Engine](blueprints/BP-g8g8aecx/README.md) (blueprint), [GKE Namespace](blueprints/BP-c9ca1i3z/README.md) (blueprint), [Google GKE Cluster](extensions/XUI-8egdz3e9/README.md) (UI extension) |
 | HCP Terraform | [PKG-0bo7vlxp](packages/PKG-0bo7vlxp/README.md) | Provisions VMs and no-code modules through HCP Terraform in a workspace per deployment, optionally followed by Ansible job templates, with their day-2 actions, the form options webhook, and the UI extension that adds Terraform tabs. | 1.0.0 | [HCP Terraform VM](blueprints/BP-b0qm83lh/README.md) (blueprint), [HCP Terraform No-Code Module](blueprints/BP-00meiwwz/README.md) (blueprint), [HCP Terraform No-Code + Ansible](blueprints/BP-uh9v24v3/README.md) (blueprint), [Form Options](webhooks/IWH-yj93is5z/) (webhook), [HCP Terraform Workspace](extensions/XUI-ax1sluwi/README.md) (UI extension) |
+| OpenShift | [PKG-57ltvnbl](packages/PKG-57ltvnbl/README.md) | All OpenShift content: the project landing zone blueprint with its day-2 actions, and the Connect and Workloads tabs on each project. | 1.0.0 | [OpenShift Project](extensions/XUI-y9bdnzxt/README.md) (UI extension), [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) (blueprint) |
 | Runbooks | [PKG-v20qv308](packages/PKG-v20qv308/README.md) | Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, and an example blueprint that runs a workflow. | 1.0.0 | [Runbook Task Template (Windows)](plugins/OHK-lhm2916o/) (plugin), [Runbook Task Template (Linux)](plugins/OHK-iub9a2jg/) (plugin), [Manage Windows Service](plugins/OHK-01kmavro/) (plugin), [Manage Linux Service](plugins/OHK-5yh12jiq/) (plugin), [Run Installer from File Archive (Linux)](plugins/OHK-hgv6wp65/) (plugin), [Run Installer from File Archive (Windows)](plugins/OHK-ow68kerl/) (plugin), [Runbook Tasks](webhooks/IWH-cdf543g3/) (webhook), [Runbook Workflows](webhooks/IWH-xjlrmvc8/) (webhook), [Run Task](server_actions/SVA-4sin3s0q/README.md) (server action), [Run Workflow](server_actions/SVA-j7rbsh39/README.md) (server action), [Runbooks](extensions/XUI-jbm5ac9e/README.md) (UI extension), [VM with Workflow](blueprints/BP-vy9ytey6/README.md) (blueprint) |
 | Windows AD Domain Join | [PKG-nf407lm5](packages/PKG-nf407lm5/README.md) | Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission. | 1.0.0 | [Delete Windows Computer Object from AD](orchestration_actions/HPA-q181uofy/README.md) (orchestration action), [Join Windows Server to AD Domain](orchestration_actions/HPA-jjp1vlfi/README.md) (orchestration action), [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) (orchestration action), [Domain OU](parameters/CF-8pif9mbf/README.md) (parameter) |
 
@@ -467,6 +468,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |
+| OpenShift Project | [XUI-y9bdnzxt](extensions/XUI-y9bdnzxt/README.md) | Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage. |
 | Runbooks | [XUI-jbm5ac9e](extensions/XUI-jbm5ac9e/README.md) | Adds a Runbooks admin page with three tabs: Workflows, for building ordered runs of CloudBolt actions with filters, fixed or prompted inputs and outputs passed between steps; Actions, for creating Remote Scripts and plug-ins and seeing where each base action is used; and File Archives, for versioned files that scripts download through short-lived signed links. |
 | Ssm Inventory | [XUI-l43ailkn](extensions/XUI-l43ailkn/README.md) | Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager. |
 | Technology Reference | [XUI-vwrd15py](extensions/XUI-vwrd15py/README.md) | Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx. |
