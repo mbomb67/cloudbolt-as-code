@@ -1,0 +1,345 @@
+{% load i18n %}
+{% if error %}
+<div class="aks-card">
+  {% include "azure_aks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Essentials, in the Azure portal's order ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Essentials" %}</span>
+    <div class="aks-card-tools">
+      {% include "azure_aks_cluster/templates/_pill.html" with p=cluster.status %}
+      <span class="aks-pill" title="{% trans 'Pricing tier' %}"><i class="bi bi-tag" aria-hidden="true"></i> {{ cluster.tier }} {% trans "tier" %}</span>
+      {% if kubernetes.support %}
+      <span title="{{ kubernetes.support.hint }}">{% include "azure_aks_cluster/templates/_pill.html" with p=kubernetes.support.pill %}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if jobs %}
+  <div class="aks-banner aks-banner-info">
+    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+    <div class="aks-banner-body">
+      <div class="aks-banner-t">
+        {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
+      </div>
+      <ul class="aks-issues">
+        {% for job in jobs %}
+        <li>
+          <span class="aks-pill aks-pill-live"><i class="bi bi-arrow-repeat aks-spin" aria-hidden="true"></i> {{ job.status }}</span>
+          <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
+          {% if job.label %}<span class="aks-muted">&middot; {{ job.label }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="aks-ess">
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Resource group" %}</dt>
+        <dd>{% if cluster.resource_group_url %}<a href="{{ cluster.resource_group_url }}" target="_blank" rel="noopener">{{ cluster.resource_group }}</a>{% else %}{{ cluster.resource_group|default:"&mdash;" }}{% endif %}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Status" %}</dt>
+        <dd>{{ cluster.status.text }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Location" %}</dt>
+        <dd>{{ cluster.location|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Subscription" %}</dt>
+        <dd>
+          {{ cluster.subscription_name|default:cluster.subscription_id }}
+          {% if cluster.subscription_name %}<div class="aks-hint aks-mono">{{ cluster.subscription_id }}</div>{% endif %}
+        </dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Kubernetes version" %}</dt>
+        <dd>
+          {{ cluster.version|default:"&mdash;" }}
+          {% if upgrades.available %}<span class="aks-tag aks-tag-info">{% trans "Upgrade available" %}</span>{% endif %}
+        </dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "API server address" %}</dt>
+        <dd class="aks-mono">{{ cluster.api_server|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Network configuration" %}</dt>
+        <dd>{{ cluster.network|default:"&mdash;" }}{% if cluster.network_hint %}<div class="aks-hint">{{ cluster.network_hint }}</div>{% endif %}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Node pools" %}</dt>
+        <dd>{% blocktrans count n=cluster.pool_count %}{{ n }} node pool{% plural %}{{ n }} node pools{% endblocktrans %}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Pricing tier" %}</dt>
+        <dd>{{ cluster.tier }}{% if cluster.automatic %} <span class="aks-tag">{% trans "AKS Automatic" %}</span>{% endif %}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# ── Upgrades ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Upgrades" %}</span>
+    {% if upgrades.available %}
+      <span class="aks-pill aks-pill-live"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Upgrade available" %}</span>
+    {% elif cluster.version %}
+      <span class="aks-pill aks-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "No upgrade available" %}</span>
+    {% endif %}
+    <div class="aks-card-tools">
+      {% if upgrades.url %}
+      <a class="btn btn-sm {% if upgrades.available %}btn-primary{% else %}btn-outline-secondary{% endif %} open-dialog" href="{{ upgrades.url }}">
+        <i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade version" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="aks-ess">
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Kubernetes version" %}</dt>
+        <dd>
+          {{ cluster.version|default:"&mdash;" }}
+          {% if kubernetes.support %}<div class="aks-hint">{{ kubernetes.support.pill.text }} &middot; {{ kubernetes.support.hint }}</div>{% endif %}
+        </dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Available versions" %}</dt>
+        <dd>
+          {% if upgrades.targets %}
+          <div class="aks-versions">
+            {% for t in upgrades.targets %}<span class="aks-tag {% if t.preview %}aks-tag-warn{% else %}aks-tag-info{% endif %}">{{ t.version }}{% if t.preview %} &middot; {% trans "preview" %}{% endif %}</span>{% endfor %}
+          </div>
+          {% else %}
+          <span class="aks-muted">{% trans "None: the cluster runs the newest version AKS offers it" %}</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Automatic upgrade" %}</dt>
+        <dd>{{ kubernetes.upgrade_channel|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Node pools behind" %}</dt>
+        <dd>
+          {% if upgrades.pools_behind %}
+            <span class="aks-tag aks-tag-warn">{{ upgrades.pools_behind|length }}</span> {{ upgrades.pools_behind|join:", " }}
+            <div class="aks-hint">{% trans "Upgrade them from the Node pools tab." %}</div>
+          {% else %}
+            <span class="aks-muted">{% trans "None" %}</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+  <div class="aks-note">
+    {% if upgrades.auto %}
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      {% blocktrans with channel=kubernetes.upgrade_channel %}Automatic upgrade is {{ channel }}: AKS upgrades the control plane and every node pool together, so a control-plane-only upgrade is refused while a channel is set.{% endblocktrans %}
+    {% else %}
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      {% trans "AKS upgrades one minor version at a time (LTS clusters may skip), so only the versions it allows from here are listed. Node pools can follow the control plane later." %}
+    {% endif %}
+  </div>
+</div>
+
+{# ── Properties ── #}
+<div class="aks-props">
+  <div class="aks-card">
+    <div class="aks-card-h"><span class="aks-card-t">{% trans "Kubernetes" %}</span></div>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Kubernetes version" %}</dt>
+        <dd>
+          {{ cluster.version|default:"&mdash;" }}
+          {% if cluster.requested_version and cluster.requested_version != cluster.version %}<div class="aks-hint">{% trans "Requested" %} {{ cluster.requested_version }}</div>{% endif %}
+        </dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Version support" %}</dt>
+        <dd>
+          {% if kubernetes.support %}
+            {% include "azure_aks_cluster/templates/_pill.html" with p=kubernetes.support.pill %}
+            <div class="aks-hint">{{ kubernetes.support.hint }}</div>
+          {% else %}<span class="aks-muted">&mdash;</span>{% endif %}
+        </dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Support plan" %}</dt>
+        <dd>{{ kubernetes.support_plan|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Automatic upgrade" %}</dt>
+        <dd>{{ kubernetes.upgrade_channel|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Node security channel type" %}</dt>
+        <dd>{{ kubernetes.node_os_channel|default:"&mdash;" }}</dd>
+      </div>
+      {% if cluster.node_resource_group %}
+      <div class="aks-kv">
+        <dt>{% trans "Node resource group" %}</dt>
+        <dd>{{ cluster.node_resource_group }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+
+  <div class="aks-card">
+    <div class="aks-card-h"><span class="aks-card-t">{% trans "Networking" %}</span></div>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Private cluster" %}</dt>
+        <dd>{% if networking.private %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Authorized IP ranges" %}</dt>
+        <dd>
+          {% if networking.authorized_ranges %}
+            {% for r in networking.authorized_ranges %}<div class="aks-mono">{{ r }}</div>{% endfor %}
+          {% elif networking.private %}
+            <span class="aks-muted">{% trans "Not applicable" %}</span>
+          {% else %}
+            <span class="aks-muted">{% trans "Not set: the API server accepts any address" %}</span>
+          {% endif %}
+        </dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Network policy" %}</dt>
+        <dd>{{ networking.policy|default:"None" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Network dataplane" %}</dt>
+        <dd>{{ networking.dataplane|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Pod CIDR" %}</dt>
+        <dd class="aks-mono">{{ networking.pod_cidr|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Service CIDR" %}</dt>
+        <dd class="aks-mono">{{ networking.service_cidr|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "DNS service IP" %}</dt>
+        <dd class="aks-mono">{{ networking.dns_service_ip|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Load balancer" %}</dt>
+        <dd>{{ networking.load_balancer|default:"&mdash;" }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Outbound type" %}</dt>
+        <dd>{{ networking.outbound|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="aks-card">
+    <div class="aks-card-h"><span class="aks-card-t">{% trans "Security" %}</span></div>
+    <dl>
+      <div class="aks-kv">
+        <dt>{% trans "Authentication and Authorization" %}</dt>
+        <dd>{{ security.authentication }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Local accounts" %}</dt>
+        <dd>{{ security.local_accounts }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "Workload identity" %}</dt>
+        <dd>{{ security.workload_identity }}</dd>
+      </div>
+      <div class="aks-kv">
+        <dt>{% trans "OIDC issuer" %}</dt>
+        <dd>
+          {% if security.oidc_enabled %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}
+          {% if security.oidc_issuer %}<div class="aks-hint aks-mono">{{ security.oidc_issuer }}</div>{% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# ── Integrations: managed add-ons, then cluster extensions ── #}
+<div class="aks-card">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Integrations" %}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Add-on" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Details" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in integrations %}
+        <tr>
+          <td>{{ a.name }}</td>
+          <td>
+            {% if a.enabled %}
+              <span class="aks-pill aks-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Enabled" %}</span>
+            {% else %}
+              <span class="aks-pill"><i class="bi bi-dash-circle" aria-hidden="true"></i> {% trans "Not enabled" %}</span>
+            {% endif %}
+          </td>
+          <td class="aks-muted">{{ a.detail|default:"" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="aks-sub-h">{% trans "Cluster extensions" %} &middot; {{ extensions|length }}</div>
+  {% if extensions %}
+  <div class="table-responsive">
+    <table class="aks-table">
+      <thead>
+        <tr>
+          <th>{% trans "Extension" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th>{% trans "Version" %}</th>
+          <th>{% trans "Provisioning state" %}</th>
+          <th>{% trans "Minor version auto-upgrade" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in extensions %}
+        <tr>
+          <td class="aks-mono">{{ e.name }}</td>
+          <td>{{ e.type|default:"&mdash;" }}{% if e.type != e.extension_type %}<div class="aks-hint aks-mono">{{ e.extension_type }}</div>{% endif %}</td>
+          <td class="aks-mono aks-nowrap">{{ e.version|default:"&mdash;" }}</td>
+          <td>{% include "azure_aks_cluster/templates/_pill.html" with p=e.status %}</td>
+          <td>{% if e.auto_upgrade %}{% trans "Enabled" %}{% if e.release_train %} <span class="aks-muted">&middot; {{ e.release_train }}</span>{% endif %}{% else %}{% trans "Disabled" %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="aks-empty">{% trans "No cluster extensions are installed." %}</div>
+  {% endif %}
+</div>
+
+{% if warnings %}
+<div class="aks-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% endif %}

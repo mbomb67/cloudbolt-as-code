@@ -100,6 +100,10 @@ def _ensure_custom_fields():
     )
 ```
 
+### Filter models by their own fields, not by custom field names
+
+`Environment`, `Group`, and `Server` use `CustomFieldAsAttributeManager` (`common/configuration.py`; `Resource` does not): a `filter()` keyword that matches a custom field's name is read as a parameter lookup, not as the model field. Content that creates a custom field named like a model attribute (the Kubernetes blueprints create `container_orchestrator_id` for their cluster resources) silently breaks queries on that attribute: `Environment.objects.filter(container_orchestrator_id=7)` returns nothing even though the environments point at orchestrator 7. Filter on the relation instead, `filter(container_orchestrator=orchestrator)` or `filter(container_orchestrator__id=7)`; `values_list("container_orchestrator_id")` is not affected. Found on 2026-10-19, when AKS Namespace discovery pinned a new environment on every run.
+
 ## RBAC-Aware Environment Selection
 
 **Standard — the only accepted pattern.** Build every Environment dropdown from `group.get_available_environments()`. It returns the environments explicitly entitled to the requesting group (and its ancestors) **plus** all unconstrained environments (no groups assigned), and users must be able to order into both. `Environment.objects.filter(group__in=[group])` is not an alternative: it silently drops unconstrained environments. Full rule and rationale: [rbac-and-security.md → Environment Dropdown Standard](rbac-and-security.md#environment-dropdown-standard).

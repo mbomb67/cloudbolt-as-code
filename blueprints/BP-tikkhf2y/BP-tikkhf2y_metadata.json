@@ -56,6 +56,13 @@
             },
             "enabled": true,
             "label": "Extend Expiration"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-ah76u4qg"
+            },
+            "enabled": true,
+            "label": "Deploy Test Workload"
         }
     ],
     "metadata_version": "2026.1.0",
