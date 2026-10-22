@@ -28,7 +28,9 @@ parameters/<CF-id>/ or runbook_workflows/<SWF-id>/ in the manifest commit
 after pushing what each one needs (a parameter's generated-options actions, a
 workflow's step plugins), and sync syncs those in their own jobs, then queues
 one job of this extension per parameter or workflow (jobs.run_parameter_sync,
-jobs.run_workflow_sync) in the same chain.
+jobs.run_workflow_sync) in the same chain. A workflow that a blueprint
+member's Run Workflow build item pins travels the same way without being
+listed (workflows.blueprint_pins).
 """
 import json
 import os
@@ -168,6 +170,44 @@ def _member_object(obj):
 # ---------------------------------------------------------------------------
 # Sync
 # ---------------------------------------------------------------------------
+def blueprint_metadata_path(repo, global_id):
+    """Where a blueprint's metadata sits in repo."""
+    folder = (getattr(repo, "path_to_blueprints", "") or "blueprints/").strip("/")
+    return "{0}/{1}/{1}_metadata.json".format(folder, global_id)
+
+
+def branch_reader(clone, branch):
+    """read(path) for files on branch of a fetched global clone: the file's
+    text, or None when it is not there."""
+    def read(path):
+        try:
+            return clone.git.show("origin/{}:{}".format(branch, path))
+        except Exception:
+            return None
+    return read
+
+
+def _pinned_refs(repo, clone, branch, blueprint_id, local_workflows):
+    """Refs of the runbook_workflows/ folders on branch that blueprint
+    blueprint_id pins. A pin with no folder there is left out when this
+    appliance already has the workflow; otherwise PackageError, before any
+    job exists."""
+    found = []
+    pins = workflows.blueprint_pins(branch_reader(clone, branch), blueprint_metadata_path(repo, blueprint_id))
+    for value in pins:
+        ids = workflows.branch_workflow_ids(clone, branch, value)
+        if ids:
+            found.extend("{}/{}".format(store.WORKFLOWS_DIR, global_id) for global_id in ids)
+        elif workflows.find_workflow(value, local_workflows) is None:
+            raise store.PackageError(
+                "Blueprint {} pins workflow {}, which branch {} does not carry and this appliance does not "
+                "have. Export the package again from an appliance that has the workflow.".format(
+                    blueprint_id, value, branch
+                )
+            )
+    return found
+
+
 def _carried_refs(member_type, clone, branch, global_id):
     """Refs of the units a written member needs synced before it, read from
     its metadata on branch: a parameter's generated-options actions, a
@@ -189,22 +229,35 @@ def sync_order(refs):
 
 
 def _sync_plan(refs, repo, branch):
-    """[(ref, via)] in run order: every member (via None), plus each
-    generated-options action of a parameter member and each step plugin of a
-    workflow member that their metadata on the branch references and the
-    package does not list (via is that member's ref), run with the other
-    actions. Reads that metadata, so a parameter or workflow that was never
-    exported fails here, before any job exists."""
-    extra = OrderedDict()
-    if any(not store.parse_ref(ref)[0].synced for ref in refs):
+    """[(ref, via)] in run order: every member (via None), plus what the
+    package does not list but its members need, each with via the ref that
+    needs it: the generated-options actions of a parameter member and the
+    step plugins of a workflow, with the other actions, then the workflows a
+    blueprint member pins, before the members that come after the actions.
+    Reads the members' metadata on the branch, so a parameter or workflow that
+    was never exported fails here, before any job exists."""
+    carried = OrderedDict()  # actions and plugins
+    pinned = OrderedDict()  # workflows blueprint members pin
+    workflow_type = store.MEMBER_TYPES[store.WORKFLOWS_DIR]
+    if any(not store.parse_ref(ref)[0].synced or store.parse_ref(ref)[0].dir == "blueprints" for ref in refs):
         repo, clone = branch_clone(repo, branch)
+        local_workflows = None
         for ref in refs:
             member_type, global_id = store.parse_ref(ref)
-            if member_type.synced:
-                continue
-            for unit_ref in _carried_refs(member_type, clone, branch, global_id):
+            if member_type.dir == "blueprints":
+                if local_workflows is None:
+                    local_workflows = list(workflow_type.resolvable())
+                for workflow_ref in _pinned_refs(repo, clone, branch, global_id, local_workflows):
+                    if workflow_ref not in refs:
+                        pinned.setdefault(workflow_ref, ref)
+            elif not member_type.synced:
+                for unit_ref in _carried_refs(member_type, clone, branch, global_id):
+                    if unit_ref not in refs:
+                        carried.setdefault(unit_ref, ref)
+        for workflow_ref in pinned:
+            for unit_ref in _carried_refs(workflow_type, clone, branch, store.parse_ref(workflow_ref)[1]):
                 if unit_ref not in refs:
-                    extra.setdefault(unit_ref, ref)
+                    carried.setdefault(unit_ref, workflow_ref)
     else:
         require_branch(repo, branch)
     ordered = sync_order(refs)
@@ -215,7 +268,8 @@ def _sync_plan(refs, repo, branch):
     )
     return (
         [(ref, None) for ref in ordered[:split]]
-        + list(extra.items())
+        + list(carried.items())
+        + list(pinned.items())
         + [(ref, None) for ref in ordered[split:]]
     )
 
@@ -478,13 +532,73 @@ def carried_units(member_type, obj):
     return [(action_type, hpa) for hpa in parameters.gen_options_actions(obj)]
 
 
+def _export_pinned(service, package, repo, branch, commit_message, report, blueprint_rows, listed, pushed, written):
+    """Export the workflows that the pushed blueprints of blueprint_rows pin
+    and the package does not list, as workflow members are: push their step
+    plugins (unless pushed already or listed, both sets of global IDs), and
+    add their folders to written for the manifest commit. The pins are read
+    from the branch after the blueprints' pushes, the files a sync reads.
+    Returns the result rows; via is the pinning blueprint's ref."""
+    workflow_type = store.MEMBER_TYPES[store.WORKFLOWS_DIR]
+    try:
+        _repo, clone = branch_clone(repo, branch)
+    except store.PackageError as exc:
+        report("Could not read the pinned workflows from {}: {}".format(branch, exc.public_message))
+        return [{"ref": store.WORKFLOWS_DIR, "type_title": workflow_type.singular, "prefix": workflow_type.prefix,
+                 "name": "Pinned workflows", "via": None, "status": "failure", "message": exc.public_message}]
+    read = branch_reader(clone, branch)
+    local_workflows = list(workflow_type.resolvable())
+    rows, done = [], set()
+    for blueprint_row in blueprint_rows:
+        blueprint_id = store.parse_ref(blueprint_row["ref"])[1]
+        for value in workflows.blueprint_pins(read, blueprint_metadata_path(repo, blueprint_id)):
+            workflow = workflows.find_workflow(value, local_workflows)
+            if workflow is None:
+                message = "{} pins workflow {}, which is not on this appliance.".format(blueprint_row["name"], value)
+                report(message)
+                rows.append({
+                    "ref": "{}/{}".format(store.WORKFLOWS_DIR, value) if workflows.WORKFLOW_ID_RE.match(value)
+                    else store.WORKFLOWS_DIR,
+                    "type_title": workflow_type.singular, "prefix": workflow_type.prefix, "name": value,
+                    "via": blueprint_row["ref"], "status": "failure", "message": message,
+                })
+                continue
+            if workflow.global_id in listed or workflow.global_id in done:
+                continue
+            done.add(workflow.global_id)
+            ref = store.ref_for(workflow_type, workflow)
+            row = {"ref": ref, "type_title": workflow_type.singular, "prefix": workflow_type.prefix,
+                   "name": workflow.name, "via": blueprint_row["ref"], "status": "pending", "message": ""}
+            rows.append(row)
+            report("{} pins workflow {} ({})".format(blueprint_row["name"], workflow.name, workflow.global_id))
+            try:
+                for unit_type, unit in carried_units(workflow_type, workflow):
+                    if unit.global_id in listed or unit.global_id in pushed:
+                        continue
+                    pushed.add(unit.global_id)
+                    rows.append(_push(
+                        service, package, unit_type, unit, store.ref_for(unit_type, unit), branch,
+                        commit_message, report, via=ref,
+                    ))
+                written.append((row, _written_files(workflow_type, workflow, repo, workflow.global_id)))
+            except Exception as exc:
+                logger.exception("Export of pinned workflow %s failed", ref)
+                message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
+                row.update(status="failure", message=strip_tags(message or "") or type(exc).__name__)
+                report("Could not export pinned workflow {}: {}".format(ref, row["message"]))
+            else:
+                report("Writing pinned workflow {} ({}) with the manifest".format(workflow.name, ref))
+    return rows
+
+
 def export_package(package, repo, branch, commit_message, profile, progress=None):
     """Push every member with CloudBolt's own per-object push, then commit the
     manifest and the README (written whole the first time, then with only its
     member table rebuilt) to packages/<PKG-id>/, together
     with each parameter and workflow member's folder and the READMEs the
     pushes deleted. A parameter's generated-options actions and a workflow's
-    step plugins are pushed with it unless the package lists them. A member
+    step plugins are pushed with it unless the package lists them, and so are
+    the workflows blueprint members pin (with their step plugins). A member
     that fails does not stop the others. progress, when given, is called with
     one line per step (the export job passes job.set_progress). Returns the
     outcome: one result per member, per unit pushed for a parameter or
@@ -544,6 +658,12 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
             report("Could not export {} {}: {}".format(kind, ref, row["message"]))
         else:
             report("Writing {} {} ({}) with the manifest".format(kind, row["name"], ref))
+
+    blueprint_rows = [row for row in results if row["prefix"] == "BP" and row["status"] == "success"]
+    if blueprint_rows:
+        results.extend(_export_pinned(
+            service, package, repo, branch, commit_message, report, blueprint_rows, listed, carried_pushed, written
+        ))
 
     folder = "{}/{}".format(PACKAGES_DIR, package["id"])
     manifest_path = "{}/{}_metadata.json".format(folder, package["id"])

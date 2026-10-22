@@ -10,8 +10,10 @@ push_to_remote_source builds) into a throwaway directory, and every
 <GLOBAL_ID>_metadata.json the export writes is read back. A parameter or
 workflow member has no such export; the units the package export pushes with
 it (a parameter's generated-options actions, a workflow's step plugins) are
-run through it instead. Nothing is cloned, committed or saved; the directory
-is deleted afterwards.
+run through it instead. A blueprint member's export is also read for the
+workflows its Run Workflow build items pin, which the package export writes
+too, and their step plugins are run through it. Nothing is cloned, committed
+or saved; the directory is deleted afterwards.
 """
 import json
 import os
@@ -24,7 +26,7 @@ from servicecatalog.models import ServiceBlueprint
 from source_code_repos.models import SourceCodeRepo
 from utilities.logger import ThreadLogger
 
-from xui.content_packages import services, store
+from xui.content_packages import services, store, workflows
 
 logger = ThreadLogger(__name__)
 
@@ -92,6 +94,33 @@ def _written(root):
     return found
 
 
+def _dir_reader(root):
+    """read(path) for repository-relative files under an export root."""
+    def read(path):
+        try:
+            with open(os.path.join(root, *path.split("/"))) as stream:
+                return stream.read()
+        except OSError:
+            return None
+    return read
+
+
+def _pinned(blueprint, repo, root, local_workflows):
+    """Export the step plugins of the workflows blueprint pins into root (its
+    scratch export) and return (workflows, unknown pins)."""
+    found, unknown = [], []
+    pins = workflows.blueprint_pins(_dir_reader(root), services.blueprint_metadata_path(repo, blueprint.global_id))
+    for value in pins:
+        workflow = workflows.find_workflow(value, local_workflows)
+        if workflow is None:
+            unknown.append(value)
+            continue
+        found.append(workflow)
+        for hook in workflows.step_hooks(workflow):
+            _export(hook, repo, root)
+    return found, unknown
+
+
 def closure(package, repo=None):
     """What exporting package writes besides its members' own folders.
 
@@ -111,6 +140,8 @@ def closure(package, repo=None):
 
     dependencies = OrderedDict()
     errors = []
+    workflow_type = store.MEMBER_TYPES[store.WORKFLOWS_DIR]
+    local_workflows = None
     with tempfile.TemporaryDirectory(prefix="content-package-") as scratch:
         for index, ref in enumerate(refs):
             obj = resolved.get(ref)
@@ -119,6 +150,7 @@ def closure(package, repo=None):
             member_type = store.parse_ref(ref)[0]
             member_name = member_type.name_of(obj)
             root = os.path.join(scratch, str(index))
+            pinned = []
             try:
                 if member_type.synced:
                     _export(obj, repo, root)
@@ -129,7 +161,32 @@ def closure(package, repo=None):
                 logger.exception("Dependency export of %s failed", ref)
                 errors.append({"ref": ref, "name": member_name, "error": str(exc) or type(exc).__name__})
                 continue
-            for global_id, unit in sorted(_written(root).items()):
+            if member_type.dir == "blueprints":
+                # Its pins are listed apart, so a problem with one still lists
+                # what the blueprint's own export writes.
+                try:
+                    if local_workflows is None:
+                        local_workflows = list(workflow_type.resolvable())
+                    pinned, unknown = _pinned(obj, repo, root, local_workflows)
+                except Exception as exc:
+                    logger.exception("Could not work out the workflows %s pins", ref)
+                    message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
+                    errors.append({"ref": ref, "name": member_name, "error": message or type(exc).__name__})
+                    pinned, unknown = [], []
+                for value in unknown:
+                    errors.append({"ref": ref, "name": member_name, "error": (
+                        "pins workflow {}, which is not on this appliance, so the export cannot carry it.".format(value)
+                    )})
+            units = _written(root)
+            for workflow in pinned:
+                units[workflow.global_id] = {
+                    "global_id": workflow.global_id,
+                    "prefix": workflow_type.prefix,
+                    "type_title": workflow_type.singular,
+                    "name": workflow.name,
+                    "path": "{}/{}".format(store.WORKFLOWS_DIR, workflow.global_id),
+                }
+            for global_id, unit in sorted(units.items()):
                 if global_id == obj.global_id:
                     continue
                 entry = dependencies.setdefault(global_id, dict(unit, via=[], member=global_id in member_ids))
