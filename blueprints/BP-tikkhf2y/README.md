@@ -30,3 +30,5 @@ Creates a governed OpenShift project for a team: a namespace with a tiered Resou
 - Teardown deletes the namespace and everything in it, then removes the CloudBolt environment. It refuses to run while CloudBolt still tracks active servers in that environment; decommission them first. Already-deleted namespaces return WARNING.
 - Discovery imports only namespaces labeled `cloudbolt.io/landing-zone=true` across all OpenShift Virtualization handlers; plain namespaces are ignored.
 - `any_group_can_deploy` is true, so every group can order this blueprint.
+- API calls verify the cluster's certificate when the handler's SSL verification is on, against the certificates in Admin > SSL Certificates.
+- The OpenShift Project extension ([XUI-y9bdnzxt](../../extensions/XUI-y9bdnzxt/)) adds Connect and Workloads tabs to each project.

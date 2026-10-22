@@ -15,7 +15,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [MCP tool actions](#mcp-tool-actions) | 9 |
 | [Plugins](#plugins) | 187 |
 | [Shared modules](#shared-modules) | 25 |
-| [UI extensions](#ui-extensions) | 13 |
+| [UI extensions](#ui-extensions) | 14 |
 | [Parameters](#parameters) | 2 |
 | [Forms](#forms) | 15 |
 | [Form functions](#form-functions) | 7 |
@@ -465,6 +465,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
 | Io Cloudbolt Widgets | [XUI-ycumvq8k](extensions/XUI-ycumvq8k/README.md) | Adds nine dashboard widgets covering server counts, cloud availability, and other operational summaries. |
 | Openscap | [XUI-i4kzuy3y](extensions/XUI-i4kzuy3y/README.md) | Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports. |
+| OpenShift Project | [XUI-y9bdnzxt](extensions/XUI-y9bdnzxt/README.md) | Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage. |
 | Runbooks | [XUI-jbm5ac9e](extensions/XUI-jbm5ac9e/README.md) | Adds a Runbooks admin page with three tabs: Workflows, for building ordered runs of CloudBolt actions with filters, fixed or prompted inputs and outputs passed between steps; Actions, for creating Remote Scripts and plug-ins and seeing where each base action is used; and File Archives, for versioned files that scripts download through short-lived signed links. |
 | Ssm Inventory | [XUI-l43ailkn](extensions/XUI-l43ailkn/README.md) | Adds Inventory and Patching server tabs for EC2 instances managed by AWS Systems Manager. |
 | Technology Reference | [XUI-vwrd15py](extensions/XUI-vwrd15py/README.md) | Adds a read-only Technology Reference tab to Resource Handler and Environment pages listing the technology's custom fields, actions, and field dependencies, discovered live from the instance and exportable as one .xlsx. |

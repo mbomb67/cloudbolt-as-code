@@ -711,6 +711,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-y9bdnzxt",
+    "type": "extensions",
+    "name": "OpenShift Project",
+    "description": "Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage.",
+    "path": "extensions/XUI-y9bdnzxt",
+    "readme": "extensions/XUI-y9bdnzxt/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-ycumvq8k",
     "type": "extensions",
     "name": "Io Cloudbolt Widgets",
