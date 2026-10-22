@@ -11,6 +11,7 @@ Creates a governed OpenShift project for a team: a namespace with a tiered Resou
 | Day-2 action | RSA-yj1c4b5s | Manage Team Access (hook OHK-9zzqqz7t) |
 | Day-2 action | RSA-4e8lmj2r | Request Quota Change (hook OHK-ug53cdbx) |
 | Day-2 action | RSA-kx7mdgva | Extend Expiration (hook OHK-3w9nejn3) |
+| Day-2 action | RSA-ah76u4qg | Deploy Test Workload (hook OHK-ljgoxser) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | Shared module | SHM-qmiweowv | openshift_landing_zone |
 
@@ -24,6 +25,7 @@ Creates a governed OpenShift project for a team: a namespace with a tiered Resou
 
 ## Notes
 - Project names must be 1-63 lowercase letters, digits, or hyphens; names starting with `openshift-` or `kube-` and the built-in namespaces are refused.
+- **Deploy Test Workload** runs a two-pod unprivileged nginx Deployment and a ClusterIP Service named `cb-test-workload` in the namespace, to give the project something to show, or removes them. The same action serves the EKS, AKS and GKE namespace and OpenShift project blueprints.
 - Expiration Date defaults to 7 days out and is mirrored to the namespace as the `cloudbolt.io/lease-expires` annotation. Extend Expiration adds days to the current date, or to today if it has passed or was never set.
 - Request Quota Change requires approval from the group's approvers. Kubernetes accepts a quota below current usage; CloudBolt's environment quota refuses to drop below what is in use and reports a warning.
 - Manage Team Access works on two planes: CloudBolt group entitlement to the environment, and an OpenShift RoleBinding (admin, edit, or view) for a Group, User, or ServiceAccount. Supply either or both.

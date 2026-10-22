@@ -1,0 +1,37 @@
+{% load i18n %}
+{% include "google_gke_cluster/templates/_assets.html" %}
+
+<div id="gkex-workloads" class="gkex">
+  <div class="gke-card">
+    <div class="gke-hero-top">
+      <div>
+        <div class="gke-eyebrow">{% trans "Workloads" %}</div>
+        <div class="gke-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-sub">
+          {% if orchestrator_name %}{% trans "Read with the credentials of container orchestrator" %} {{ orchestrator_name }}{% else %}{% trans "No container orchestrator is linked to this resource" %}{% endif %}
+        </div>
+      </div>
+      <div class="gke-tools">
+        {% if create_namespace_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ create_namespace_url }}" title="{% trans 'Create a namespace landing zone for a CloudBolt group' %}">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Create namespace" %}
+        </a>
+        {% endif %}
+        {% if orchestrator_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ orchestrator_url }}">
+          <i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Open orchestrator" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-gke-panel="workloads" data-gke-src="{{ workloads_url }}" data-gke-loading="the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.gkexInit("gkex-workloads"); });
+</script>
