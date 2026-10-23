@@ -10,7 +10,7 @@ Take a new CloudBolt appliance through the POC Test Plan with the connected Clou
 
 ## Required reading
 
-Before the first phase, read [references/bootstrap.md](references/bootstrap.md). Read the other references when their phase starts: [resource-handlers.md](references/resource-handlers.md) (Phase 1), [phases.md](references/phases.md) (Phases 2 to 9), [troubleshooting.md](references/troubleshooting.md) (on any failure), [test-plan-map.md](references/test-plan-map.md) (what each item needs and whether it can be skipped).
+Before the first phase, read [references/bootstrap.md](references/bootstrap.md). Read the other references when their phase starts: [resource-handlers.md](references/resource-handlers.md) and [handler-forms.md](references/handler-forms.md) (Phase 1: the procedure, and what each technology's handler form asks on both screens), [phases.md](references/phases.md) (Phases 2 to 9), [troubleshooting.md](references/troubleshooting.md) (on any failure), [test-plan-map.md](references/test-plan-map.md) (what each item needs and whether it can be skipped).
 
 ## Hard rules
 

@@ -23,6 +23,7 @@ SECTIONS = {
     "index": ("SKILL.md", "The skill itself: hard rules, the phase loop, when to call which tool"),
     "bootstrap": ("references/bootstrap.md", "Phase 0: connect the MCP client, install the toolkit, first status"),
     "resource-handlers": ("references/resource-handlers.md", "Phase 1: per-technology handler creation, verification and diagnosis"),
+    "handler-forms": ("references/handler-forms.md", "Phase 1: what each technology's Add resource handler form asks on both screens"),
     "phases": ("references/phases.md", "Phases 2 to 9: environments, first order, self-service, RBAC, lifecycle, extensibility, wrap-up"),
     "troubleshooting": ("references/troubleshooting.md", "Root-cause playbook: which tool for which failure, common causes and fixes"),
     "test-plan-map": ("references/test-plan-map.md", "Every POC test plan item with its phase, evidence, documentation link and whether it can be skipped"),
