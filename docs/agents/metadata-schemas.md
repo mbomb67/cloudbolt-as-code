@@ -1115,6 +1115,7 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 - **Serializer:** `CustomFormSerializer` at `customforms/api/v3/serializers/custom_forms.py:35`.
 - **Top-level sync target?** No — transitive import only.
 - **Colocated files:** Optional `<FRM-id>_css.css` (named by metadata `css_file`, basename only). Form functions are NOT inlined — referenced via `dependencies.form_functions`.
+- **Dark mode:** CloudBolt renders every form with SurveyJS's light `defaultV2` theme plus light inline CSS (`templates/customforms/custom_form_base.html`), even when the user's Branded Theme is dark. Each form in this repo ships a CSS file whose dark-mode section maps SurveyJS's `--sjs-*` variables to the theme tokens in `/portal.css` under `html[data-bs-theme="dark"]`; copy it from `forms/FRM-1dxfulvq` for any new form.
 
 ### Required fields
 

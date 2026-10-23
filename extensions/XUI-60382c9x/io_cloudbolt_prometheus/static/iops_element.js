@@ -2,6 +2,7 @@ import { html, render } from "https://unpkg.com/lit-html";
 import { GraphElement } from "./graph_element.js";
 import {
     PROM_CHART_HEIGHT,
+    PROM_COLORS,
     promCredits,
     promChartCommon,
     promLegendCompact,
@@ -60,7 +61,7 @@ export class IopsGraphElement extends GraphElement {
                 opposite: true,
                 maxPadding: 0.02,
                 labels: {
-                    style: { fontSize: "10px", color: "#64748b" },
+                    style: { fontSize: "10px", color: PROM_COLORS.textMuted },
                     x: 4,
                 },
                 gridLineColor: "rgba(148, 163, 184, 0.2)",
