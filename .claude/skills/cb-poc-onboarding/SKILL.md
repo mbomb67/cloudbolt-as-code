@@ -14,17 +14,18 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
 
 ## Hard rules
 
-1. **Secrets never pass through the agent.** Passwords, access keys, client secrets, service-account JSON, API tokens: the user enters them in the UI. Give the exact link from `onb_ui_link` (or the `editUrl` and `setPasswordUrl` fields the tools return) and list the non-secret values to type. Never ask for a secret in chat, never accept one that is pasted (say so and move on), never put one in a tool call.
-2. **Root cause before retry.** When anything fails: read the tool's `error_message` and `hints`; for an order or job call `onb_failure_trace`, then `fetch_job_log` on the job it names; for a UI failure call `onb_recent_errors` for the last few minutes; then apply [troubleshooting.md](references/troubleshooting.md). State the cause and the fix before anyone retries.
-3. **Status first.** Start every phase with `onb_status`. Never assume what is configured; the appliance is the source of truth.
-4. **Echo and confirm every write.** Before a tool that changes the appliance or orders infrastructure, state what will change and wait for a clear yes. For `order_catalog_item` follow the server's echo-and-confirm text verbatim. `onb_remove_environment` is destructive: name the environment and get an explicit yes.
-5. **Every step is skippable.** When the customer cannot or does not want to do an item (no SMTP, no LDAP, no SSO, no DNS record, no Terraform or Ansible), offer to skip it, record it with `onb_set_item_status` as `not_applicable` with the reason, and move on. The scorecard reports it as not applicable, never as failed.
-6. **Record progress.** When an item's evidence exists (a successful order, a verified handler, a user who logged in), record it `done` with `onb_set_item_status`. The scorecard is built from these records plus live evidence.
-7. **Scope is the test plan.** Up to two resource handlers, one or two environments each, the Custom Server and POC Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
-8. **Two response shapes.** A synchronous tool answers inline: read `outputs`. An asynchronous tool answers `{"success": true, "ids": ["JOB-..."]}`: poll `fetch_job` (or `fetch_job_log`) on that id every five seconds and read its `outputs`. The asynchronous tools are the ones that call a cloud, a directory, a mail relay or the internet: `onb_verify_resource_handler`, `onb_sync_images`, `onb_handler_locations`, `onb_import_environments`, `onb_import_os_build`, `onb_verify_ldap`, `onb_smtp_test`, `onb_install_content_library_item`, `onb_install`. Start the long ones (`onb_sync_images`) and keep working; check them before the step that needs their result. If any other tool answers with a job id, `onb_install` has not run; run it and tell the user to reconnect the client.
-9. **Reconnect after install.** Tool lists are cached per client session. After `onb_install` changes anything, the user reconnects the MCP client before the next phase.
-10. **Links, not hostnames.** Every URL comes from a tool. Never compose an appliance URL from memory.
-11. **Nothing is pinned to a value the user has not seen.** `onb_trim_environment` pins key pairs, security groups, resource groups, datastores and subnets to one value: show the `actions` list and let the user change a pin (`onb_pin field=value`) before the first order.
+1. **One ask per message.** Lead the user one step at a time. Each message carries exactly one question or one action for the user, then stops and waits for the answer. Never send a numbered list of questions, never preview the questions coming later, and never ask about a prerequisite before the step that needs it starts. Give the default inside the question ("say skip if there is none") so a one-word answer works. Keep the context to a sentence or two: what this step is for, the ask, and the link when there is one. An action that fills a form is still one ask: give the link and the values the form wants. When something finishes, say what happened in a sentence and give the next single ask.
+2. **Secrets never pass through the agent.** Passwords, access keys, client secrets, service-account JSON, API tokens: the user enters them in the UI. Give the exact link from `onb_ui_link` (or the `editUrl` and `setPasswordUrl` fields the tools return) and list the non-secret values to type. Never ask for a secret in chat, never accept one that is pasted (say so and move on), never put one in a tool call.
+3. **Root cause before retry.** When anything fails: read the tool's `error_message` and `hints`; for an order or job call `onb_failure_trace`, then `fetch_job_log` on the job it names; for a UI failure call `onb_recent_errors` for the last few minutes; then apply [troubleshooting.md](references/troubleshooting.md). State the cause and the fix before anyone retries.
+4. **Status first.** Start every phase with `onb_status`. Never assume what is configured; the appliance is the source of truth.
+5. **Echo and confirm every write.** Before a tool that changes the appliance or orders infrastructure, state what will change and wait for a clear yes. For `order_catalog_item` follow the server's echo-and-confirm text verbatim. `onb_remove_environment` is destructive: name the environment and get an explicit yes.
+6. **Every step is skippable.** When the customer cannot or does not want to do an item (no SMTP, no LDAP, no SSO, no DNS record, no Terraform or Ansible), offer to skip it, record it with `onb_set_item_status` as `not_applicable` with the reason, and move on. The scorecard reports it as not applicable, never as failed.
+7. **Record progress.** When an item's evidence exists (a successful order, a verified handler, a user who logged in), record it `done` with `onb_set_item_status`. The scorecard is built from these records plus live evidence.
+8. **Scope is the test plan.** Up to two resource handlers, one or two environments each, the Custom Server and POC Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
+9. **Two response shapes.** A synchronous tool answers inline: read `outputs`. An asynchronous tool answers `{"success": true, "ids": ["JOB-..."]}`: poll `fetch_job` (or `fetch_job_log`) on that id every five seconds and read its `outputs`. The asynchronous tools are the ones that call a cloud, a directory, a mail relay or the internet: `onb_verify_resource_handler`, `onb_sync_images`, `onb_handler_locations`, `onb_import_environments`, `onb_import_os_build`, `onb_verify_ldap`, `onb_smtp_test`, `onb_install_content_library_item`, `onb_install`. Start the long ones (`onb_sync_images`) and keep working; check them before the step that needs their result. If any other tool answers with a job id, `onb_install` has not run; run it and tell the user to reconnect the client.
+10. **Reconnect after install.** Tool lists are cached per client session. After `onb_install` changes anything, the user reconnects the MCP client before the next phase.
+11. **Links, not hostnames.** Every URL comes from a tool. Never compose an appliance URL from memory.
+12. **Nothing is pinned to a value the user has not seen.** `onb_trim_environment` pins key pairs, security groups, resource groups, datastores and subnets to one value: show the `actions` list and let the user change a pin (`onb_pin field=value`) before the first order.
 
 ## Tools
 
@@ -56,7 +57,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 5 | `onb_action_approval` | sync | Turn Requires approval on or off for a server or resource action |
 | 6 | `onb_verify_ldap` | async | Verify an LDAP utility and get the real bind error |
 | 6 | `onb_ldap_mapping` | sync | Map a directory group DN to a CloudBolt group with roles |
-| 0, 8 | `onb_smtp`, `onb_smtp_test` | sync, async | Set the non-secret mail settings (password on the returned link) and send a test |
+| 5, 8 | `onb_smtp`, `onb_smtp_test` | sync, async | Set the non-secret mail settings (password on the returned link) and send a test |
 | 8 | `onb_install_content_library_item` | async | List a Content Library collection or install one item |
 | 8 | `onb_cit_from_order` | sync | Turn a finished order into a CIT test |
 | 9 | `onb_scorecard` | sync | The test plan with recorded statuses, live evidence and points |
@@ -68,15 +69,15 @@ Phases follow the customer's natural order: self-service first (handlers, enviro
 
 For every phase:
 
-1. `onb_status`. Summarize what exists and the `nextSteps` relevant to this phase in two or three sentences.
-2. For each step: if a toolkit or built-in tool does it, echo, confirm, call it, read the result. If only the UI can do it (anything with a secret, SSO, the branded portal, email templates), give the `onb_ui_link` link, the non-secret values to enter, and the documentation link from [test-plan-map.md](references/test-plan-map.md). Then verify the outcome with a tool.
-3. On failure, rule 2. Stop after three attempts at one step, record the item `pending` with what is known, and continue with steps that do not depend on it.
+1. `onb_status`. Tell the user in a sentence or two where things stand for this phase, then give the first ask.
+2. For each step, one at a time (rule 1): if a toolkit or built-in tool does it, echo, confirm, call it, read the result. If only the UI can do it (anything with a secret, SSO, the branded portal, email templates), give the `onb_ui_link` link, the non-secret values to enter, and the documentation link from [test-plan-map.md](references/test-plan-map.md). Then verify the outcome with a tool.
+3. On failure, rule 3. Stop after three attempts at one step, record the item `pending` with what is known, and continue with steps that do not depend on it.
 4. Record the phase's items with `onb_set_item_status`.
-5. Close the phase with a short report: what is now configured, what was recorded (done, not applicable), what is pending, and the first step of the next phase.
+5. Close the phase in a few lines: what is now configured and what was recorded (done, not applicable, pending). End with the single first ask of the next phase.
 
 | Phase | Covers | Reference |
 |---|---|---|
-| 0 Bootstrap | MCP connection, admin check, toolkit install, prerequisites P1 to P12 | bootstrap.md |
+| 0 Bootstrap | MCP connection, admin check, toolkit install, the prerequisites the appliance already proves (each other one is asked by the step that needs it) | bootstrap.md |
 | 1 Handlers | Up to two resource handlers, verified | resource-handlers.md |
 | 2 Environments | One or two environments per handler, image, network, trimmed order form, hostname template | phases.md |
 | 3 First order | Custom Server ordered through MCP in each environment, lifecycle actions | phases.md |
@@ -89,4 +90,4 @@ For every phase:
 
 ## Wrap-up report
 
-`onb_scorecard` gives every test-plan item with its weight and status (done, not applicable with reason, pending), the points possible per category, and the prerequisites. Read the pending items to the user, record each outcome, call it again, and present the final table with the evidence (order ids, job ids, object names) next to each item. The score column is the customer's judgement; the agent supplies the evidence. Then list the follow-ups the customer asked about that were out of scope.
+`onb_scorecard` gives every test-plan item with its weight and status (done, not applicable with reason, pending), the points possible per category, and the prerequisites. Take the pending items one at a time: name the item and its evidence, ask whether it is done or not applicable, record it, then the next. Call it again, and present the final table with the evidence (order ids, job ids, object names) next to each item. The score column is the customer's judgement; the agent supplies the evidence. Then list the follow-ups the customer asked about that were out of scope.

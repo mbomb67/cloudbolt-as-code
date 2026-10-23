@@ -1,6 +1,6 @@
 # Phase 0: Bootstrap
 
-Goal: the agent is connected to the appliance as a CloudBolt admin with write scope, the POC Onboarding Toolkit is installed and synchronous, and the prerequisites sheet is reviewed.
+Goal: the agent is connected to the appliance as a CloudBolt admin with write scope, the POC Onboarding Toolkit is installed and synchronous, and the prerequisites the appliance already proves are recorded.
 
 ## 1. Connection
 
@@ -19,27 +19,22 @@ Later toolkit updates: the user clicks Sync on the package (Admin > Admin Extens
 
 ## 3. First status
 
-Call `onb_status`. Read it to the user as a short inventory: licence and days left, SMTP and proxy, Content Library reachable or not, handlers and environments, Custom Server blueprint, groups and users, LDAP or SSO, and the toolkit. Then the `nextSteps`.
+Call `onb_status`. Tell the user in two sentences what is already in place and what comes next. Do not read the whole inventory unless they ask for it.
 
-## 4. Prerequisites review
+## 4. Prerequisites
 
-Walk the prerequisites with the user and record each with `onb_set_item_status` (`done`, or `not_applicable` with a reason):
+Record what the appliance already proves, without asking, and mention it in one sentence: P1 from `onb_status.license`, P2 because `fetch_identity` works, P5 from `onb_status.contentLibrary.reachable`, P6 from `preferences.proxy` (not applicable when no proxy is needed). When P5 is false, that becomes the next single ask: the proxy link (`onb_ui_link proxy`), or skip, which shrinks Phase 8.
 
-| Id | Prerequisite | Evidence or skip |
+Ask nothing else up front. Each remaining prerequisite is one question, asked when the step that needs it starts (rule 1 in [SKILL.md](../SKILL.md)), and recorded with `onb_set_item_status` right after the answer:
+
+| Id | Prerequisite | Asked or proven at |
 |---|---|---|
-| P1 | CMP license key installed | `onb_status.license.installed` and `daysLeft` |
-| P2 | Appliance deployed and initial configuration done | `fetch_identity` works |
-| P3 | Up to two resource handlers, one or two environments each | Phases 1 and 2 |
-| P4 | Custom Server deployed once in each environment | Phase 3 |
-| P5 | Outbound 443 to content.cloudbolt.app | `onb_status.contentLibrary.reachable`; if false, `onb_install.egress` and the proxy link (`onb_ui_link proxy`); skip only if the customer accepts no Content Library items (Phase 8 shrinks) |
-| P6 | Web proxy configured if required | `preferences.proxy.configured`; not applicable when no proxy is needed |
-| P7 | SMTP configured | `onb_smtp` reports the settings; set the non-secret ones with it, the password on its `editUrl`, then `onb_smtp_test`. Not applicable when the POC has no relay, which also makes 2.4.1 email notification and 4.2.3, 4.2.6 partial |
-| P8 | DNS A record for the portal | Needed for 2.2.1 only; not applicable otherwise |
-| P9 | SSO application and an SSO SME on the call | Needed for 2.1.3 only |
-| P10 | AD or LDAP service account and the DN of a mapping group | Needed for 2.1.1 and 2.1.2 |
-| P11 | Ansible or Ansible Automation Platform ready | Needed for 3.2.2 and 4.3.5 (both weight 0) |
-| P12 | Terraform scripts in a git repository | Needed for 4.3.4 (weight 0) |
+| P3 | One or two resource handlers, one or two environments each | Phase 1 asks for the first cloud, and for a second only after the first is verified; Phase 2 records it |
+| P4 | Custom Server deployed once in each environment | Phase 3, from the order |
+| P7 | SMTP relay | Phase 5, before the first approval email |
+| P8 | DNS record for a branded portal | Phase 6, branded portal step |
+| P9 | SSO application and an SSO SME | Phase 6, SSO step |
+| P10 | AD or LDAP service account and a mapping group DN | Phase 6, LDAP step |
+| P11, P12 | Ansible, Terraform in a git repository | Phase 8, last step (both weight 0) |
 
-Also confirm the two clouds for the POC (the Prerequisites sheet names POC Cloud 1 and 2) and that the user has the minimum-permission credentials for each ready, without asking what they are.
-
-Then start Phase 1 ([resource-handlers.md](resource-handlers.md)).
+Then start Phase 1 ([resource-handlers.md](resource-handlers.md)) with its first ask.
