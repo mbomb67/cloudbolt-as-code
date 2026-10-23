@@ -4,6 +4,12 @@
 {% load rh_tags %}
 {% load tag_tags %}
 {% load static %}
+<style>
+    /* Dark Branded Theme: the slate Versions icon would vanish on a dark panel */
+    html[data-bs-theme="dark"] #panel-openscap-details .panel-heading .fa-cog {
+        color: var(--fg-2) !important;
+    }
+</style>
 <div class="row">
     <div class="col-md-6">
         <div id="panel-openscap-details" class="panel panel-default">
