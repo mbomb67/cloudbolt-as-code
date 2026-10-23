@@ -1,0 +1,113 @@
+{
+    "dependencies": {
+        "hooks": [
+            "plugins/OHK-fct1gybi",
+            "plugins/OHK-4etpeg05",
+            "plugins/OHK-o30l8kjn"
+        ]
+    },
+    "description": "Checks a Linux VM against the limits in a config file from File Archives, creates the application's service account and directories, and sets up log retention and a host profile, every step reading the same config file.",
+    "enabled": true,
+    "files": [
+        {
+            "archive": "runbook-examples",
+            "file": "linux-app-host.conf",
+            "path": "files/runbook-examples/linux-app-host.conf",
+            "ref": "runbook-examples/linux-app-host.conf",
+            "sha256": "888626f652f4441db5bb96194e1a3f755e28199a428c360ed8eaaa20c816a42f",
+            "size": 749,
+            "version": 1
+        }
+    ],
+    "filters": {
+        "os_builds": [],
+        "os_families": [
+            "Linux"
+        ],
+        "resource_technologies": []
+    },
+    "id": "SWF-69r5mmdb",
+    "instance_filters": [],
+    "last_updated": "2026-10-23",
+    "name": "Prepare Linux app host",
+    "steps": [
+        {
+            "action": "OHK-fct1gybi",
+            "action_name": "Check Linux App Host",
+            "archives": [
+                "runbook-examples/linux-app-host.conf"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "linux-app-host.conf"
+                }
+            },
+            "key": "check_host",
+            "name": "Check host",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        },
+        {
+            "action": "OHK-4etpeg05",
+            "action_name": "Create Linux App Account",
+            "archives": [
+                "runbook-examples/linux-app-host.conf"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "linux-app-host.conf"
+                }
+            },
+            "key": "create_account",
+            "name": "Create app account",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        },
+        {
+            "action": "OHK-o30l8kjn",
+            "action_name": "Configure Linux App Host",
+            "archives": [
+                "runbook-examples/linux-app-host.conf"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "app_home": {
+                    "mode": "output",
+                    "output": "app_home",
+                    "step": "create_account"
+                },
+                "app_user": {
+                    "mode": "output",
+                    "output": "app_user",
+                    "step": "create_account"
+                },
+                "change_ticket": {
+                    "mode": "prompt"
+                },
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "linux-app-host.conf"
+                },
+                "os_name": {
+                    "mode": "output",
+                    "output": "os_name",
+                    "step": "check_host"
+                }
+            },
+            "key": "configure_host",
+            "name": "Configure app host",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        }
+    ]
+}

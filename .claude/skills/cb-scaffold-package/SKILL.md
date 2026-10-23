@@ -52,7 +52,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
    ```
 
    - A form or form function never syncs on its own; replace it with the blueprint or action that uses it.
-   - Drop anything another member carries: a blueprint brings its plugins, sub-blueprints, management actions, its own parameters, generated-options actions, form, form functions and shared modules; an action brings its plugin, form and shared modules; a parameter brings its generated-options actions; a Runbooks workflow brings the plugins its steps run; a blueprint also brings the workflows its Run Workflow items pin.
+   - Drop anything another member carries: a blueprint brings its plugins, sub-blueprints, management actions, its own parameters, generated-options actions, form, form functions and shared modules; an action brings its plugin, form and shared modules; a parameter brings its generated-options actions; a Runbooks workflow brings the plugins its steps run and the File Archives files they attach; a blueprint also brings the workflows its Run Workflow items pin.
    - A plugin or shared module is a member only when nothing in the package references it. When the user names one, add the parent that belongs to the subject, not every parent in `used_by`: a shared dependency such as `orchestration_actions/HPA-qb0w86mi` (used by seven blueprints) is already covered by any member that carries it.
 
 4. **Add what does not travel.** These must be listed or they stay behind:

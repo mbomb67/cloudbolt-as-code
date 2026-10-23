@@ -96,6 +96,22 @@
     "used_by": []
   },
   {
+    "id": "BP-6ddlyguv",
+    "type": "blueprints",
+    "name": "Windows VM with Workflow",
+    "description": "Deploys a Windows VM and then runs a Windows workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "path": "blueprints/BP-6ddlyguv",
+    "readme": "blueprints/BP-6ddlyguv/README.md",
+    "uses": [
+      "forms/FRM-s6h73usp",
+      "plugins/OHK-69gk5ne9"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
+  },
+  {
     "id": "BP-9ph7xcok",
     "type": "blueprints",
     "name": "Windows Server with Data Disks",
@@ -546,8 +562,8 @@
   {
     "id": "BP-vy9ytey6",
     "type": "blueprints",
-    "name": "VM with Workflow",
-    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "name": "Linux VM with Workflow",
+    "description": "Deploys a Linux VM and then runs a Linux workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
     "path": "blueprints/BP-vy9ytey6",
     "readme": "blueprints/BP-vy9ytey6/README.md",
     "uses": [
@@ -800,7 +816,8 @@
     "readme": null,
     "uses": [],
     "used_by": [
-      "forms/FRM-j7w530h7"
+      "forms/FRM-j7w530h7",
+      "forms/FRM-s6h73usp"
     ]
   },
   {
@@ -995,8 +1012,8 @@
   {
     "id": "FRM-j7w530h7",
     "type": "forms",
-    "name": "VM with Workflow",
-    "description": "Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it.",
+    "name": "Linux VM with Workflow",
+    "description": "Deploys a Linux VM, then runs the workflow you pick on it.",
     "path": "forms/FRM-j7w530h7",
     "readme": null,
     "uses": [
@@ -1046,6 +1063,20 @@
     ],
     "used_by": [
       "blueprints/BP-qo1stxre"
+    ]
+  },
+  {
+    "id": "FRM-s6h73usp",
+    "type": "forms",
+    "name": "Windows VM with Workflow",
+    "description": "Deploys a Windows VM, then runs the workflow you pick on it.",
+    "path": "forms/FRM-s6h73usp",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-hufo9zd4"
+    ],
+    "used_by": [
+      "blueprints/BP-6ddlyguv"
     ]
   },
   {
@@ -1629,12 +1660,12 @@
     "id": "PKG-v20qv308",
     "type": "packages",
     "name": "Runbooks",
-    "description": "Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, and an example blueprint that runs a workflow.",
+    "description": "Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, example Linux and Windows workflows whose scripts read a config file from File Archives, and Linux and Windows blueprints that run a workflow.",
     "path": "packages/PKG-v20qv308",
     "readme": "packages/PKG-v20qv308/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "plugins/OHK-lhm2916o",
       "plugins/OHK-iub9a2jg",
@@ -1647,7 +1678,10 @@
       "server_actions/SVA-4sin3s0q",
       "server_actions/SVA-j7rbsh39",
       "extensions/XUI-jbm5ac9e",
-      "blueprints/BP-vy9ytey6"
+      "blueprints/BP-vy9ytey6",
+      "blueprints/BP-6ddlyguv",
+      "runbook_workflows/SWF-69r5mmdb",
+      "runbook_workflows/SWF-7s01lyyk"
     ]
   },
   {
@@ -2058,6 +2092,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-4etpeg05",
+    "type": "plugins",
+    "name": "Create Linux App Account",
+    "description": "Creates the system group, no-login system user and home directory named in a config file from File Archives on a Linux VM, when they do not exist, and outputs the account and home directory.",
+    "path": "plugins/OHK-4etpeg05",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-4rucefwc",
     "type": "plugins",
     "name": "Manage AKS Namespace Pipeline Identity",
@@ -2238,8 +2285,9 @@
       "shared_modules/SHM-nznzhpp0"
     ],
     "used_by": [
+      "blueprints/BP-vy9ytey6",
       "server_actions/SVA-j7rbsh39",
-      "blueprints/BP-vy9ytey6"
+      "blueprints/BP-6ddlyguv"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2312,6 +2360,19 @@
       "recurring_jobs/RJB-z3cr1xra"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-7fxxufkt",
+    "type": "plugins",
+    "name": "Create Windows App Folders",
+    "description": "Creates the local operators group and application folders named in a config file from File Archives on a Windows VM, when they do not exist, gives the group Modify on them, and outputs the root and group.",
+    "path": "plugins/OHK-7fxxufkt",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-7i1fk0l5",
@@ -3083,6 +3144,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-fct1gybi",
+    "type": "plugins",
+    "name": "Check Linux App Host",
+    "description": "Checks a Linux VM's free disk space, memory and required commands against the limits in a config file from File Archives and outputs the OS name, free space, memory and package manager.",
+    "path": "plugins/OHK-fct1gybi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-fel441xh",
     "type": "plugins",
     "name": "Change SKU",
@@ -3418,6 +3492,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-lkmy7ij9",
+    "type": "plugins",
+    "name": "Configure Windows App Host",
+    "description": "Records application settings in the registry, schedules a daily log clean-up and writes an Application event on a Windows VM, from a config file in File Archives and the outputs of the earlier steps.",
+    "path": "plugins/OHK-lkmy7ij9",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
+  },
+  {
     "id": "OHK-lvy5tj0y",
     "type": "plugins",
     "name": "Terraform Update",
@@ -3549,6 +3636,19 @@
       "resource_actions/RSA-kbikieh7"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-o30l8kjn",
+    "type": "plugins",
+    "name": "Configure Linux App Host",
+    "description": "Writes a systemd-tmpfiles log retention rule and a host profile for an application account on a Linux VM, from a config file in File Archives and the outputs of the earlier steps.",
+    "path": "plugins/OHK-o30l8kjn",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-o4qmnffy",
@@ -4447,6 +4547,19 @@
       "mcp_tool_actions/MTA-lp8lgi7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ys68wsmf",
+    "type": "plugins",
+    "name": "Check Windows App Host",
+    "description": "Checks a Windows VM's free disk space, memory and required services against the limits in a config file from File Archives and outputs the OS caption, free space, memory and PowerShell version.",
+    "path": "plugins/OHK-ys68wsmf",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-yw0klpjg",
@@ -5555,6 +5668,42 @@
       "blueprints/BP-nszj7jop"
     ],
     "enabled": true
+  },
+  {
+    "id": "SWF-69r5mmdb",
+    "type": "runbook_workflows",
+    "name": "Prepare Linux app host",
+    "description": "Checks a Linux VM against the limits in a config file from File Archives, creates the application's service account and directories, and sets up log retention and a host profile, every step reading the same config file.",
+    "path": "runbook_workflows/SWF-69r5mmdb",
+    "readme": "runbook_workflows/SWF-69r5mmdb/README.md",
+    "uses": [
+      "plugins/OHK-4etpeg05",
+      "plugins/OHK-fct1gybi",
+      "plugins/OHK-o30l8kjn"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
+  },
+  {
+    "id": "SWF-7s01lyyk",
+    "type": "runbook_workflows",
+    "name": "Prepare Windows app host",
+    "description": "Checks a Windows VM against the limits in a config file from File Archives, creates the application's folders and operators group, and records its settings, a log clean-up task and an event, every step reading the same config file.",
+    "path": "runbook_workflows/SWF-7s01lyyk",
+    "readme": "runbook_workflows/SWF-7s01lyyk/README.md",
+    "uses": [
+      "plugins/OHK-7fxxufkt",
+      "plugins/OHK-lkmy7ij9",
+      "plugins/OHK-ys68wsmf"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "SVA-4sin3s0q",
