@@ -23,7 +23,9 @@ Inputs (declared in OHK-69gk5ne9_metadata.json):
   workflow         (STR, required)  the workflow's SWF- id (its exact name also
                                     works). generate_options_for_workflow lists
                                     the enabled workflows whose filters match
-                                    the VM.
+                                    the VM, or on a blueprint order form those
+                                    whose OS filters fit the blueprint's VM
+                                    items.
   workflow_inputs  (TXT, optional)  the values of the step inputs the workflow
                                     asks for. The custom form
                                     (forms/FRM-ecw50rd0) sends them as a
@@ -64,12 +66,58 @@ def _targets(server=None, servers=None):
     return targets
 
 
-def generate_options_for_workflow(field=None, server=None, servers=None, **kwargs):
+def _lineage(os_family):
+    """The OS family and its parents (Amazon Linux -> Linux)."""
+    families = []
+    while os_family is not None and os_family not in families:
+        families.append(os_family)
+        os_family = os_family.parent
+    return families
+
+
+def _blueprint_os_families(blueprint):
     """
-    The enabled workflows offered on the VM, or on every VM of a bulk
-    run; every enabled one on a blueprint order form, where no VM exists yet.
+    The OS families the blueprint's VM items can build: each item's pinned OS
+    build's family, else its allowed OS families (CloudBolt also offers builds
+    of a family under one of them). None when an item allows any OS family or
+    the blueprint has no VM item.
     """
-    return swf.workflow_options(_targets(server, servers))
+    families = set()
+    for item in blueprint.pssis():
+        if item.os_build_id and item.os_build.os_family_id:
+            allowed = {item.os_build.os_family}
+        else:
+            allowed = set(item.allowable_os_families.all())
+        if not allowed:
+            return None
+        families |= allowed
+    return families or None
+
+
+def _fits_os_families(workflow, families):
+    """Whether a VM of one of families, or of a family under one, can pass the workflow's OS filters."""
+    resolved = swf.resolve_filters(workflow.get("filters"))
+    wanted = set(resolved["os_families"]) | {build.os_family for build in resolved["os_builds"] if build.os_family_id}
+    if not wanted:
+        return True
+    return any(want in _lineage(family) or family in _lineage(want) for want in wanted for family in families)
+
+
+def generate_options_for_workflow(field=None, server=None, servers=None, blueprint=None, **kwargs):
+    """
+    The enabled workflows offered on the VM, or on every VM of a bulk run.
+    On a blueprint order form, where no VM exists yet, the enabled workflows
+    whose OS family and OS build filters fit what the blueprint's VM items
+    can build, so a Linux blueprint offers no Windows workflow.
+    """
+    targets = _targets(server, servers)
+    if targets or blueprint is None:
+        return swf.workflow_options(targets)
+    workflows = swf.workflows_for_servers([])
+    families = _blueprint_os_families(blueprint)
+    if families:
+        workflows = [wf for wf in workflows if _fits_os_families(wf, families)]
+    return [(wf["id"], wf["name"]) for wf in workflows]
 
 
 def generate_options_for_workflow_inputs(field=None, control_value=None, **kwargs):

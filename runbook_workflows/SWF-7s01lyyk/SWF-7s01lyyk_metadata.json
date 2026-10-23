@@ -1,0 +1,102 @@
+{
+    "dependencies": {
+        "hooks": [
+            "plugins/OHK-ys68wsmf",
+            "plugins/OHK-7fxxufkt",
+            "plugins/OHK-lkmy7ij9"
+        ]
+    },
+    "description": "Checks a Windows VM against the limits in a config file from File Archives, creates the application's folders and operators group, and records its settings, a log clean-up task and an event, every step reading the same config file.",
+    "enabled": true,
+    "filters": {
+        "os_builds": [],
+        "os_families": [
+            "Windows"
+        ],
+        "resource_technologies": []
+    },
+    "id": "SWF-7s01lyyk",
+    "instance_filters": [],
+    "last_updated": "2026-10-23",
+    "name": "Prepare Windows app host",
+    "steps": [
+        {
+            "action": "OHK-ys68wsmf",
+            "action_name": "Check Windows App Host",
+            "archives": [
+                "runbook-examples/windows-app-host.json"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "windows-app-host.json"
+                }
+            },
+            "key": "check_host",
+            "name": "Check host",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        },
+        {
+            "action": "OHK-7fxxufkt",
+            "action_name": "Create Windows App Folders",
+            "archives": [
+                "runbook-examples/windows-app-host.json"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "windows-app-host.json"
+                }
+            },
+            "key": "create_folders",
+            "name": "Create app folders",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        },
+        {
+            "action": "OHK-lkmy7ij9",
+            "action_name": "Configure Windows App Host",
+            "archives": [
+                "runbook-examples/windows-app-host.json"
+            ],
+            "continue_on_error": false,
+            "inputs": {
+                "app_group": {
+                    "mode": "output",
+                    "output": "app_group",
+                    "step": "create_folders"
+                },
+                "app_root": {
+                    "mode": "output",
+                    "output": "app_root",
+                    "step": "create_folders"
+                },
+                "change_ticket": {
+                    "mode": "prompt"
+                },
+                "config_file": {
+                    "mode": "fixed",
+                    "value": "windows-app-host.json"
+                },
+                "os_caption": {
+                    "mode": "output",
+                    "output": "os_caption",
+                    "step": "check_host"
+                }
+            },
+            "key": "configure_host",
+            "name": "Configure app host",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        }
+    ]
+}
