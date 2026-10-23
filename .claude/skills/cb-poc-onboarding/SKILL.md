@@ -32,6 +32,22 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
 11. **Links, not hostnames.** Every URL comes from a tool. Never compose an appliance URL from memory.
 12. **Nothing is pinned to a value the user has not seen.** `onb_trim_environment` pins key pairs, security groups, resource groups, datastores and subnets to one value: show the `actions` list and let the user change a pin (`onb_pin field=value`) before the first order.
 
+13. **Prove each step before the next.** A tool's SUCCESS, or the user saying "done", is a claim, not proof. After every step, read the result back with a read-only call that checks what the next step depends on, and move on only when it holds; otherwise apply rule 3. Record an item `done` only after its proof, with the ids in the note. The proofs:
+
+    | Step | Proof before moving on |
+    |---|---|
+    | Handler created | `onb_verify_resource_handler` returns `verified: true` |
+    | Image cache | the `onb_sync_images` job is SUCCESS and `onb_status` shows `cachedImages` above 0 for the handler |
+    | Environments | `onb_status` lists each POC environment under its handler with `networks` at least 1 |
+    | OS build | `onb_import_os_build` returns `verified: true`: CloudBolt resolves the image in every environment, the lookup an order makes |
+    | Order form trimmed | `fetch_blueprint_item_parameters` for the environment shows only the fields in `visibleNow` |
+    | Custom Server configured | `fetch_catalog_items` lists it as orderable |
+    | Group | `fetch_group_details` shows the group with its environments |
+    | User | `fetch_group_details` lists the user in the POC group; the user's first login proves the password link worked |
+    | Parameter, tag or mapping | the field appears in `fetch_blueprint_item_parameters`, or the mapping in the tool's list output |
+    | Order | `fetch_order` is COMPLETE, the provision job is SUCCESS, and `fetch_server_list` shows the server |
+    | Anything done in the UI | the matching status or list call shows the change; never take the user's word alone |
+
 ## Tools
 
 Built-in CloudBolt MCP tools used here: `fetch_identity`, `fetch_dashboard_link`, `fetch_catalog_items`, `fetch_orderable_groups`, `fetch_blueprint_schema`, `fetch_orderable_environments`, `fetch_blueprint_item_parameters`, `fetch_blueprint_parameter_options`, `order_catalog_item`, `fetch_order`, `fetch_orders_pending_my_approval`, `approve_order`, `fetch_job`, `fetch_server_list`, `fetch_server_actions`, `run_server_action`, `fetch_groups`, `fetch_group_details`, `fetch_environment_list`, `fetch_environment_details`, `set_server_power_schedule`, `fetch_server_power_schedule`.
@@ -75,7 +91,7 @@ Phases follow the customer's natural order: self-service first (handlers, enviro
 For every phase:
 
 1. `onb_status`. Tell the user in a sentence or two where things stand for this phase, then give the first ask.
-2. For each step, one at a time (rule 1): if a toolkit or built-in tool does it, echo, confirm, call it, read the result. If only the UI can do it (anything with a secret, SSO, the branded portal, email templates), give the `onb_ui_link` link, the non-secret values to enter, and the documentation link from [test-plan-map.md](references/test-plan-map.md). Then verify the outcome with a tool.
+2. For each step, one at a time (rule 1): if a toolkit or built-in tool does it, echo, confirm, call it, read the result. If only the UI can do it (anything with a secret, SSO, the branded portal, email templates), give the `onb_ui_link` link, the non-secret values to enter, and the documentation link from [test-plan-map.md](references/test-plan-map.md). Then prove the outcome with the read-only check from rule 13 before the next step.
 3. On failure, rule 3. Stop after three attempts at one step, record the item `pending` with what is known, and continue with steps that do not depend on it.
 4. Record the phase's items with `onb_set_item_status`.
 5. Close the phase in a few lines: what is now configured and what was recorded (done, not applicable, pending). End with the single first ask of the next phase.
