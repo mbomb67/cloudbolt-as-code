@@ -79,13 +79,22 @@ Other MCP clients: add the certificate to the client's trusted certificates as i
 
 ## 3. Connect the agent
 
-Claude Code:
+1. **Get the skill.** Clone the repository and open a terminal in it. Claude Code loads the onboarding skill from the folder it starts in.
 
-```bash
-claude mcp add --transport http cloudbolt https://<appliance>/mcp
-```
+   ```bash
+   git clone https://github.com/mbomb67/cloudbolt-as-code
+   cd cloudbolt-as-code
+   ```
 
-Use the address the certificate from section 2 names. Then `/mcp`, choose the server, and sign in to CloudBolt in the browser window as the admin. Grant the `write` scope when asked; without it no custom tool runs. Any Streamable HTTP MCP client with OAuth support connects the same way with the same URL. Check: ask "Who am I according to CloudBolt?" and the answer names your admin user.
+2. **Add the MCP server** with the address the certificate from section 2 names. `--scope user` makes it available from every folder; without it the server is tied to the folder you ran the command in.
+
+   ```bash
+   claude mcp add --transport http --scope user cloudbolt https://<appliance>/mcp
+   ```
+
+3. **Sign in.** Start `claude` in the `cloudbolt-as-code` folder (in the Claude desktop app, choose that folder for the Code session). Run `/mcp`, choose `cloudbolt`, **Authenticate**, and sign in to CloudBolt in the browser window as the admin. Grant the `write` scope when asked; without it no custom tool runs.
+
+Check: ask "Who am I according to CloudBolt?" and the answer names your admin user. Any Streamable HTTP MCP client with OAuth support connects with the same URL.
 
 ## 4. Install the toolkit (once)
 
@@ -113,7 +122,7 @@ Ask the agent: "Run onb_install and tell me what changed." The importer leaves S
 
 ## 6. Start
 
-Say "Onboard CloudBolt for a POC" (in Claude Code with this repository open, `/cb-poc-onboarding`). Have the [POC Test Plan](https://docs.cloudbolt.io) prerequisites at hand: the licence, the two clouds you will connect, credentials with the minimum permissions for each (the agent never asks for them; it sends you to the page where they are entered), and whether SMTP, LDAP, SSO or a DNS record for a branded portal are available. Anything that is not available is recorded as not applicable, not as a failure.
+In Claude Code, started in the `cloudbolt-as-code` folder, run `/cb-poc-onboarding` or say "Onboard CloudBolt for a POC". Have the [POC Test Plan](https://docs.cloudbolt.io) prerequisites at hand: the licence, the two clouds you will connect, credentials with the minimum permissions for each (the agent never asks for them; it sends you to the page where they are entered), and whether SMTP, LDAP, SSO or a DNS record for a branded portal are available. Anything that is not available is recorded as not applicable, not as a failure.
 
 ## 7. Updating the toolkit
 
@@ -125,6 +134,8 @@ Admin > Admin Extensions > Content Packages > **POC Onboarding Toolkit** > **Syn
 |---|---|---|
 | `self signed certificate in certificate chain` when connecting | Claude does not trust the appliance's certificate | Section 2: replace it, set `NODE_EXTRA_CA_CERTS`, restart Claude |
 | `does not match certificate's altnames` or `ERR_TLS_CERT_ALTNAME_INVALID` | The address in the MCP URL is not in the certificate | Regenerate it with that IP or DNS name (section 2, option 1), or connect with the name the certificate carries |
+| `/mcp` does not list `cloudbolt` | The server was added without `--scope user`, from another folder | `claude mcp remove cloudbolt` in that folder, then add it again with `--scope user` (section 3) |
+| `/cb-poc-onboarding` is not available | Claude Code was started outside the repository folder | Start `claude` in the `cloudbolt-as-code` folder |
 | A tool is missing from the agent's list | Cached tool list, or not imported | Reconnect the client; check Actions > MCP Tool Actions |
 | Content Packages page missing or returns an error after the extension sync | The web server has not loaded the extension's URL paths | `systemctl restart httpd` as root on the appliance |
 | Every custom tool fails with a scope error | Token has `read` only | Reconnect and grant `write` |
