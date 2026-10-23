@@ -395,6 +395,23 @@
     "used_by": []
   },
   {
+    "id": "BP-ofwowhqd",
+    "type": "blueprints",
+    "name": "AWS Security Group",
+    "description": "Creates, deletes, and discovers AWS VPC security groups.",
+    "path": "blueprints/BP-ofwowhqd",
+    "readme": "blueprints/BP-ofwowhqd/README.md",
+    "uses": [
+      "plugins/OHK-62awc6bl",
+      "plugins/OHK-9y493oyz",
+      "plugins/OHK-jb16kobi"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-wik86fh7"
+    ]
+  },
+  {
     "id": "BP-p7zmh96m",
     "type": "blueprints",
     "name": "Azure Resource Group - Bicep",
@@ -726,6 +743,20 @@
     "enabled": true,
     "packages": [
       "packages/PKG-yrpqo1o0"
+    ]
+  },
+  {
+    "id": "XUI-oj60n72c",
+    "type": "extensions",
+    "name": "AWS Security Group Management",
+    "description": "Adds a Security Rules tab to AWS security group resources with the group's details, network interfaces, and inbound and outbound rules, which users with permission can add, edit, and delete.",
+    "path": "extensions/XUI-oj60n72c",
+    "readme": "extensions/XUI-oj60n72c/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-wik86fh7"
     ]
   },
   {
@@ -1654,6 +1685,21 @@
     ]
   },
   {
+    "id": "PKG-wik86fh7",
+    "type": "packages",
+    "name": "AWS Security Groups",
+    "description": "Orders, discovers, and deletes AWS VPC security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "path": "packages/PKG-wik86fh7",
+    "readme": "packages/PKG-wik86fh7/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "extensions/XUI-oj60n72c",
+      "blueprints/BP-ofwowhqd"
+    ]
+  },
+  {
     "id": "PKG-xev1ob4t",
     "type": "packages",
     "name": "Google GKE",
@@ -2201,6 +2247,19 @@
     ]
   },
   {
+    "id": "OHK-62awc6bl",
+    "type": "plugins",
+    "name": "AWS Security Group Sync",
+    "description": "Discovers AWS security groups in every region the AWS resource handlers' environments use.",
+    "path": "plugins/OHK-62awc6bl",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-67bw7wgu",
     "type": "plugins",
     "name": "Request Certificate (Windows CA)",
@@ -2539,6 +2598,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-e59s1v24"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9y493oyz",
+    "type": "plugins",
+    "name": "AWS Security Group Teardown",
+    "description": "Deletes the AWS security group behind the resource.",
+    "path": "plugins/OHK-9y493oyz",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3239,6 +3311,19 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-a38h23ms"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-jb16kobi",
+    "type": "plugins",
+    "name": "AWS Security Group Build",
+    "description": "Creates an AWS VPC security group.",
+    "path": "plugins/OHK-jb16kobi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

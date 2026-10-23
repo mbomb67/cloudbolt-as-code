@@ -1,0 +1,132 @@
+{% load i18n %}
+{% if error %}
+<div class="sg-card">
+  <div class="sg-alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div>{{ error }}</div>
+  </div>
+</div>
+{% else %}
+
+{# ── Details, in the AWS console's order ── #}
+<div class="sg-card">
+  <div class="sg-card-h">
+    <span class="sg-card-t">{% trans "Details" %}</span>
+    <div class="sg-card-tools">
+      {% if group.is_default %}
+      <span class="sg-tag" title="{% trans 'The VPC default security group cannot be deleted, but its rules can be changed' %}"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "VPC default" %}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="sg-ess">
+    <dl>
+      <div class="sg-kv">
+        <dt>{% trans "Security group name" %}</dt>
+        <dd>{{ group.name|default:"&mdash;" }}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "Security group ID" %}</dt>
+        <dd class="sg-mono">{{ group.id }}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "Description" %}</dt>
+        <dd>{{ group.description|default:"&mdash;" }}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "VPC ID" %}</dt>
+        <dd class="sg-mono">{% if group.vpc_url %}<a href="{{ group.vpc_url }}" target="_blank" rel="noopener">{{ group.vpc_id }}</a>{% else %}{{ group.vpc_id|default:"&mdash;" }}{% endif %}</dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="sg-kv">
+        <dt>{% trans "Owner" %}</dt>
+        <dd class="sg-mono">{{ group.owner|default:"&mdash;" }}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "Region" %}</dt>
+        <dd>{{ group.region|default:"&mdash;" }}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "Rules" %}</dt>
+        <dd>{{ inbound|length }} {% trans "inbound" %}, {{ outbound|length }} {% trans "outbound" %}</dd>
+      </div>
+      <div class="sg-kv">
+        <dt>{% trans "Tags" %}</dt>
+        <dd>
+          {% for key, value in group.tags %}<span class="sg-kvtag">{{ key }}: {{ value }}</span>{% empty %}<span class="sg-muted">{% trans "None" %}</span>{% endfor %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+  {% if group.arn %}
+  <div class="sg-ess-wide">
+    <dl>
+      <div class="sg-kv">
+        <dt>{% trans "ARN" %}</dt>
+        <dd class="sg-mono">{{ group.arn }}</dd>
+      </div>
+    </dl>
+  </div>
+  {% endif %}
+</div>
+
+{% trans "Inbound rules" as inbound_title %}
+{% trans "Source" as source_label %}
+{% include "aws_sg_management/templates/_sg_rules_table.html" with rows=inbound title=inbound_title icon="bi-box-arrow-in-right" peer_label=source_label table_id="sgx-inbound-table" add_url=add_inbound_url %}
+
+{% trans "Outbound rules" as outbound_title %}
+{% trans "Destination" as destination_label %}
+{% include "aws_sg_management/templates/_sg_rules_table.html" with rows=outbound title=outbound_title icon="bi-box-arrow-right" peer_label=destination_label table_id="sgx-outbound-table" add_url=add_outbound_url %}
+
+{# ── What the security group is attached to ── #}
+<div class="sg-card">
+  <div class="sg-card-h">
+    <span class="sg-card-t"><i class="bi bi-diagram-3" aria-hidden="true"></i> {% trans "Network interfaces" %} &middot; {{ interfaces|length }}</span>
+  </div>
+  {% if interfaces_error %}
+  <div class="sg-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ interfaces_error }}</div></div>
+  {% else %}
+  <div class="table-responsive">
+    <table class="sg-table">
+      <thead>
+        <tr>
+          <th>{% trans "Network interface" %}</th>
+          <th>{% trans "Instance" %}</th>
+          <th>{% trans "Private IP" %}</th>
+          <th>{% trans "Subnet" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th>{% trans "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for eni in interfaces %}
+        <tr>
+          <td class="sg-mono">
+            {% if eni.url %}<a href="{{ eni.url }}" target="_blank" rel="noopener">{{ eni.id }}</a>{% else %}{{ eni.id }}{% endif %}
+            {% if eni.description %}<div class="sg-hint">{{ eni.description }}</div>{% endif %}
+          </td>
+          <td class="sg-mono">{% if eni.instance_url %}<a href="{{ eni.instance_url }}" target="_blank" rel="noopener">{{ eni.instance_id }}</a>{% else %}<span class="sg-muted">&mdash;</span>{% endif %}</td>
+          <td class="sg-mono">{{ eni.private_ip|default:"&mdash;" }}</td>
+          <td class="sg-mono">{{ eni.subnet|default:"&mdash;" }}</td>
+          <td>{{ eni.type|default:"&mdash;" }}</td>
+          <td>{% if eni.status == "in-use" %}<span class="sg-pill sg-pill-ok">{{ eni.status }}</span>{% else %}<span class="sg-pill">{{ eni.status|default:"&mdash;" }}</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="sg-empty">{% trans "Not attached to any network interface." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="sg-note">
+  <i class="bi bi-info-circle" aria-hidden="true"></i>
+  {% if can_manage %}
+  {% trans "Changes apply in AWS as soon as you save them and are recorded in this resource's History. Security groups are stateful: responses to allowed traffic are always allowed back." %}
+  {% else %}
+  {% trans "Changing these rules needs the Change Resource Attributes permission on this resource." %}
+  {% endif %}
+</div>
+
+{% endif %}

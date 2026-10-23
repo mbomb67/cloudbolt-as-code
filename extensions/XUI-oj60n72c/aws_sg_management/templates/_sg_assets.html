@@ -1,0 +1,95 @@
+{% comment %}
+  Shared styles and panel loader for the Security Rules tab.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tab without an asset build.
+  Class names carry an sg- prefix so they never meet another extension's.
+{% endcomment %}
+<style>
+  .sgx {
+    --sg-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --sg-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --sg-line: var(--neutral-250, #E2E8ED);
+    --sg-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --sg-primary: var(--bs-primary, #0d6efd);
+    --sg-ok: var(--bs-success, #198754);
+    --sg-bad: var(--bs-danger, #dc3545);
+  }
+  .sgx .sg-card { background: var(--surface, #fff); border: 1px solid var(--sg-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .sgx .sg-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .sgx .sg-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--sg-muted); }
+  .sgx .sg-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .sgx .sg-title .bi { color: var(--sg-primary); }
+  .sgx .sg-sub { font-size: 12.5px; font-weight: 600; color: var(--sg-muted); margin-top: 2px; }
+  .sgx .sg-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .sgx .sg-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--sg-line); flex-wrap: wrap; }
+  .sgx .sg-card-t { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--sg-muted); }
+  .sgx .sg-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sgx .sg-card-tools .form-control { width: 220px; max-width: 100%; }
+  {# Details: two columns of label / value rows, like the console's Details pane #}
+  .sgx .sg-ess { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 40px; padding: 12px 22px 14px; }
+  {# CloudBolt's own stylesheet makes every dl a grid; these are plain lists of rows #}
+  .sgx .sg-ess dl { margin: 0; display: block; }
+  .sgx .sg-kv { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; padding: 6px 0; font-size: 13px; align-items: baseline; }
+  .sgx .sg-kv dt { font-weight: 600; color: var(--sg-muted); margin: 0; }
+  .sgx .sg-kv dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .sgx .sg-ess-wide { padding: 0 22px 14px; }
+  .sgx .sg-ess-wide dl { margin: 0; display: block; }
+  .sgx .sg-ess-wide .sg-kv { grid-template-columns: minmax(120px, 21%) minmax(0, 1fr); }
+  .sgx .sg-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .sgx .sg-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--sg-muted); padding: 10px 14px; border-bottom: 1px solid var(--sg-line); text-align: left; white-space: nowrap; }
+  .sgx .sg-table td { padding: 10px 14px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; overflow-wrap: break-word; }
+  .sgx .sg-table tbody tr:last-child td { border-bottom: 0; }
+  .sgx .sg-table tbody tr:hover td { background: var(--sg-surface-2); }
+  .sgx .sg-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--sg-soft); }
+  .sgx .sg-pill-ok { background: color-mix(in srgb, var(--sg-ok) 14%, transparent); color: var(--sg-ok); }
+  .sgx .sg-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--sg-soft); vertical-align: middle; white-space: nowrap; }
+  .sgx .sg-kvtag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin: 0 6px 4px 0; background: var(--sg-surface-2); border: 1px solid var(--sg-line); }
+  .sgx .sg-muted { color: var(--sg-muted); font-weight: 600; }
+  .sgx .sg-hint { font-size: 11.5px; color: var(--sg-muted); font-weight: 600; margin-top: 3px; }
+  .sgx .sg-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .sgx .sg-nowrap { white-space: nowrap; }
+  .sgx .sg-empty { color: var(--sg-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .sgx .sg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--sg-bad); overflow-wrap: anywhere; }
+  .sgx .sg-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .sgx .sg-note { padding: 8px 22px 12px; font-size: 12px; color: var(--sg-muted); font-weight: 600; }
+  .sgx .sg-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--sg-muted); display: flex; align-items: center; gap: 8px; }
+  .sgx .sg-spin { display: inline-block; animation: sg-spin 1s linear infinite; }
+  .sgx .sg-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  @keyframes sg-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-sg-panel] inside a tab root from its data-sg-src URL
+  // and wires the client-side table filters (data-sg-filter names the table)
+  // and the reload button (data-sg-refresh).
+  window.sgxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("sgx-ready")) { return; }
+    $root.data("sgx-ready", true);
+
+    function load($panel, url) {
+      $panel.html('<div class="sg-card"><div class="sg-loading"><i class="bi bi-arrow-repeat sg-spin" aria-hidden="true"></i> Loading from AWS…</div></div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="sg-card"><div class="sg-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load the security group rules (HTTP ' + xhr.status + ').</div></div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-sg-panel]").each(function () { load($(this), $(this).data("sg-src")); });
+    }
+    $root.on("input", "input[data-sg-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("sg-filter")).find("tbody tr[data-sg-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-sg-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    loadAll();
+  };
+})();
+</script>
