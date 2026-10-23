@@ -63,7 +63,10 @@ try {
     if (Get-LocalGroup -Name $group -ErrorAction SilentlyContinue) {
         Log "Local group $group exists."
     } else {
-        New-LocalGroup -Name $group -Description "Operators of $appName. Created by the CloudBolt Runbooks workflow Prepare Windows app host." | Out-Null
+        # A local group's description holds at most 48 characters.
+        $description = "Operators of $appName (CloudBolt Runbooks)"
+        if ($description.Length -gt 48) { $description = $description.Substring(0, 48) }
+        New-LocalGroup -Name $group -Description $description | Out-Null
         Log "Created local group $group."
         $created++
     }
