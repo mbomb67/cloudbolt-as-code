@@ -8,6 +8,17 @@
     },
     "description": "Checks a Linux VM against the limits in a config file from File Archives, creates the application's service account and directories, and sets up log retention and a host profile, every step reading the same config file.",
     "enabled": true,
+    "files": [
+        {
+            "archive": "runbook-examples",
+            "file": "linux-app-host.conf",
+            "path": "files/runbook-examples/linux-app-host.conf",
+            "ref": "runbook-examples/linux-app-host.conf",
+            "sha256": "888626f652f4441db5bb96194e1a3f755e28199a428c360ed8eaaa20c816a42f",
+            "size": 749,
+            "version": 1
+        }
+    ],
     "filters": {
         "os_builds": [],
         "os_families": [

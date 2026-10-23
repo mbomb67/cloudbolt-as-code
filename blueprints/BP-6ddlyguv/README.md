@@ -11,6 +11,6 @@ Deploys a Windows VM, then runs a Runbooks workflow on it with the shared Run Wo
 | Form function | FJS-hufo9zd4 | runbookWorkflowItems |
 
 ## Setup
-Sync the Runbooks package (`packages/PKG-v20qv308`) and give the groups that should order this blueprint deploy permission. The package brings the example workflow [Prepare Windows app host](../../runbook_workflows/SWF-7s01lyyk/); upload its config file as its README says before ordering with it.
+Sync the Runbooks package (`packages/PKG-v20qv308`) and give the groups that should order this blueprint deploy permission. The package brings the example workflow [Prepare Windows app host](../../runbook_workflows/SWF-7s01lyyk/), and its config file, which the sync stores in File Archives.
 
 The Workflow dropdown lists the enabled workflows whose OS family and OS build filters fit Windows VMs. To pin one instead, replace the dropdown in the custom form with a hidden text question named `plugin-bdi-5d8q0fy6.workflow` whose `defaultValue` is the workflow's name.

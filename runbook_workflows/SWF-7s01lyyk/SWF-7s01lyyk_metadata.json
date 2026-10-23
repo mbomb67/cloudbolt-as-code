@@ -8,6 +8,17 @@
     },
     "description": "Checks a Windows VM against the limits in a config file from File Archives, creates the application's folders and operators group, and records its settings, a log clean-up task and an event, every step reading the same config file.",
     "enabled": true,
+    "files": [
+        {
+            "archive": "runbook-examples",
+            "file": "windows-app-host.json",
+            "path": "files/runbook-examples/windows-app-host.json",
+            "ref": "runbook-examples/windows-app-host.json",
+            "sha256": "6fefc005d39dc9133e09319aee20858fc4b23cef67d30a550fff90417b6ecab9",
+            "size": 849,
+            "version": 1
+        }
+    ],
     "filters": {
         "os_builds": [],
         "os_families": [

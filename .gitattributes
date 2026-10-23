@@ -1,0 +1,4 @@
+# Files a content package carries for a Runbooks workflow are stored in File
+# Archives byte for byte and checked against the SHA-256 in the workflow's
+# metadata, so git must never convert their line endings.
+runbook_workflows/*/files/** -text

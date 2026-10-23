@@ -5,9 +5,7 @@ Example Runbooks workflow: three Linux task scripts that read one config file fr
 Runbooks workflow `SWF-69r5mmdb`, a member of the Runbooks package (`packages/PKG-v20qv308`). Source Control Repos does not sync workflows; the package's Sync creates it with this ID.
 
 ## Setup
-1. Sync the Runbooks package from Admin > Admin Extensions > Content Packages.
-2. On Admin > Admin Extensions > Runbooks, open the **File Archives** tab, click **Add archive** and name it `runbook-examples`.
-3. Open the archive, click **Upload file** and upload [linux-app-host.conf](linux-app-host.conf) from this folder. Keep the file name: every step attaches `runbook-examples/linux-app-host.conf`.
+Sync the Runbooks package from Admin > Admin Extensions > Content Packages. The package carries the config file, [files/runbook-examples/linux-app-host.conf](files/runbook-examples/linux-app-host.conf): the sync stores it in File Archives as `runbook-examples/linux-app-host.conf` (creating the archive) before it creates the workflow.
 
 Run it with the **Run Workflow** server action on any Linux VM, or order the **Linux VM with Workflow** blueprint (`blueprints/BP-vy9ytey6`). The VM must be able to reach CloudBolt over HTTPS to download the file.
 
@@ -20,4 +18,4 @@ Run it with the **Run Workflow** server action on any Linux VM, or order the **L
 
 The third step writes `/etc/tmpfiles.d/demoapp.conf`, which deletes files in `/opt/demoapp/logs` older than the retention period, and `/opt/demoapp/conf/host-profile.conf`, which records the settings and the config file's SHA-256. Every step also outputs `archive_linux_app_host_conf_version`, the version of the file it read.
 
-To change a setting, edit the file and upload it again under the same name: File Archives keeps it as a new version, and the next run uses it. Running the workflow again on the same VM changes only what differs.
+To change a setting, upload an edited copy to `runbook-examples` under the same name on the File Archives tab (Admin > Admin Extensions > Runbooks), or edit the file here and sync the package again; either way File Archives keeps it as a new version, and the next run uses it. The package's next export writes the newest version back to this folder. Running the workflow again on the same VM changes only what differs.

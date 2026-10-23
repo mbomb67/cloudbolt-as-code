@@ -11,7 +11,7 @@ Deploys a Linux VM, then runs a Runbooks workflow on it with the shared Run Work
 | Form function | FJS-hufo9zd4 | runbookWorkflowItems |
 
 ## Setup
-Sync the Runbooks package (`packages/PKG-v20qv308`) and give the groups that should order this blueprint deploy permission. The package brings the example workflow [Prepare Linux app host](../../runbook_workflows/SWF-69r5mmdb/); upload its config file as its README says before ordering with it.
+Sync the Runbooks package (`packages/PKG-v20qv308`) and give the groups that should order this blueprint deploy permission. The package brings the example workflow [Prepare Linux app host](../../runbook_workflows/SWF-69r5mmdb/), and its config file, which the sync stores in File Archives.
 
 ## Choosing the workflow
 - **User's choice** (as shipped): the Workflow dropdown lists the enabled workflows whose OS family and OS build filters fit Linux VMs. Picking one shows a panel with just the inputs the workflow asks for. The form function `runbookWorkflowItems` loads that panel from the Runbook Workflows webhook and submits the answers as the item's Workflow inputs.

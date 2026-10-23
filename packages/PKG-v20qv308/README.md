@@ -22,4 +22,4 @@ Content package `PKG-v20qv308`, version 1.1.0. Sync it from the Content Packages
 | Runbook workflow | Prepare Linux app host | [runbook_workflows/SWF-69r5mmdb](../../runbook_workflows/SWF-69r5mmdb/) |
 | Runbook workflow | Prepare Windows app host | [runbook_workflows/SWF-7s01lyyk](../../runbook_workflows/SWF-7s01lyyk/) |
 
-The two example workflows read a config file from File Archives, which the package does not carry. After the sync, upload [linux-app-host.conf](../../runbook_workflows/SWF-69r5mmdb/linux-app-host.conf) and [windows-app-host.json](../../runbook_workflows/SWF-7s01lyyk/windows-app-host.json) to a File Archives archive named `runbook-examples`, as each workflow's README says; until then their sync jobs end in WARNING naming the missing file.
+The example workflows' config files travel in their workflow folders, and the sync stores them in File Archives, so the examples run without an upload.

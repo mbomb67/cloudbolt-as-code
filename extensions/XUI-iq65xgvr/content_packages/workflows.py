@@ -16,6 +16,12 @@ actions its steps run under dependencies.
   then a job of this extension runs runbook_workflows.import_workflow, which
   keeps the workflow's SWF- id. A different workflow with the same name is
   never overwritten: that job ends with a warning and the chain goes on.
+- Files: the File Archives files the steps attach travel in the workflow's
+  folder, files/<archive>/<file>, each up to MAX_FILE_MB, listed with their
+  SHA-256 under "files" in the metadata. Sync checks each file against its
+  checksum and CloudBolt's antivirus scan and stores it in File Archives
+  before it creates the workflow, so the workflow runs without an upload.
+  A larger file is listed by checksum only and has to be uploaded.
 - Pins: a blueprint member whose Run Workflow build item pins a workflow
   carries that workflow the same way, unless the package lists it.
   blueprint_pins reads the pins from the blueprint's exported metadata and
@@ -26,11 +32,13 @@ actions its steps run under dependencies.
 The Runbooks content does the work, so it has to be on the appliance; without
 it, workflows are neither offered nor exported nor synced.
 """
+import hashlib
 import importlib.util
 import json
 import os
 import posixpath
 import re
+from collections import OrderedDict
 from datetime import date
 
 from cbhooks.models import OrchestrationHook, SharedModule
@@ -52,6 +60,11 @@ PIN_DEFAULT_RE = re.compile(r"^workflow_a\d+$")
 # The custom form question for that input of build item BDI-<item>.
 PIN_QUESTION_RE = re.compile(r"^plugin-bdi-(?P<item>[a-z0-9]+)\.workflow$", re.IGNORECASE)
 WORKFLOW_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
+# Attached files up to this size travel in the workflow's folder; a larger one
+# is listed by checksum only, so binaries do not bloat the repository.
+MAX_FILE_MB = 10
+FILES_DIR = "files"
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def metadata_path(global_id):
@@ -120,11 +133,131 @@ def _plugin_ref(hook, repo):
 def export_metadata(workflow, repo):
     """The metadata file for workflow, as a dict. repo supplies the folder of
     the step plugins."""
+    return export_folder(workflow, repo)[0]
+
+
+def export_folder(workflow, repo):
+    """
+    (metadata, [(repo path, bytes)], notes) of workflow's folder: the
+    metadata with its files list, the contents of the attached files that
+    travel, and what could not be carried. repo supplies the folder of the
+    step plugins.
+    """
     runbooks = module()
     data = runbooks.export_workflow(workflow.data)
     data["dependencies"] = {"hooks": [_plugin_ref(hook, repo) for hook in step_hooks(workflow, runbooks)]}
+    files, contents, notes = export_files(data, posixpath.dirname(metadata_path(workflow.global_id)))
+    if files:
+        data["files"] = files
     data["last_updated"] = date.today().isoformat()
-    return data
+    return data, contents, notes
+
+
+# ---------------------------------------------------------------------------
+# Attached files
+# ---------------------------------------------------------------------------
+def _file_archives():
+    """The File Archives shared module, or None when that content is not here."""
+    try:
+        from shared_modules import file_archives
+    except ImportError:
+        return None
+    return file_archives
+
+
+def entry_ref(entry):
+    """The archive/file[@version] part of a step's file entry ("installers/agent.msi@3 extract")."""
+    parts = str(entry or "").split()
+    return parts[0] if parts else ""
+
+
+def attached_refs(data):
+    """The distinct archive/file[@version] refs the steps of a workflow's data attach, in step order."""
+    refs = []
+    for step in data.get("steps") or []:
+        for entry in (step if isinstance(step, dict) else {}).get("archives") or []:
+            ref = entry_ref(entry)
+            if ref and ref not in refs:
+                refs.append(ref)
+    return refs
+
+
+def sha256_of(content):
+    return hashlib.sha256(content).hexdigest()
+
+
+def export_files(data, folder):
+    """
+    The files the steps of data (export_workflow's form) attach, as
+    (files list for the metadata, [(repo path, bytes)], notes). Each entry
+    names the ref as the steps write it, the archive, file, version, SHA-256
+    and size of the stored file it resolves to here, and its path in the
+    workflow's folder: files/<archive>/<file>, or files/<archive>/<version>/<file>
+    when the steps attach two versions of one file; null when the file is
+    larger than MAX_FILE_MB.
+    """
+    refs = attached_refs(data)
+    if not refs:
+        return [], [], []
+    fa = _file_archives()
+    if fa is None:
+        return [], [], ["File Archives is not installed here, so the files the steps attach were not carried."]
+    found, notes = [], []
+    for ref in refs:
+        try:
+            found.append((ref, fa.resolve(ref)))
+        except fa.ArchiveError as exc:
+            notes.append("{} was not carried: {}".format(ref, exc))
+    versions_of = {}
+    for _ref, resolved in found:
+        versions_of.setdefault((resolved["archive"], resolved["file"]), set()).add(resolved["version"])
+    files, contents, written = [], [], set()
+    for ref, resolved in found:
+        entry = OrderedDict([
+            ("archive", resolved["archive"]),
+            ("file", resolved["file"]),
+            ("path", None),
+            ("ref", ref),
+            ("sha256", resolved["sha256"]),
+            ("size", resolved["size"]),
+            ("version", resolved["version"]),
+        ])
+        files.append(entry)
+        if resolved["size"] > MAX_FILE_MB * 1024 * 1024:
+            notes.append("{} is larger than {} MB, so it is listed by checksum only; upload it to File Archives "
+                         "on the appliance that syncs the package.".format(ref, MAX_FILE_MB))
+            continue
+        if len(versions_of[(resolved["archive"], resolved["file"])]) > 1:
+            path = posixpath.join(FILES_DIR, resolved["archive"], str(resolved["version"]), resolved["file"])
+        else:
+            path = posixpath.join(FILES_DIR, resolved["archive"], resolved["file"])
+        if path not in written:
+            with open(resolved["path"], "rb") as stream:
+                content = stream.read()
+            if sha256_of(content) != resolved["sha256"]:
+                notes.append("{} was not carried: its stored copy no longer matches its checksum.".format(ref))
+                continue
+            contents.append((posixpath.join(folder, path), content))
+            written.add(path)
+        entry["path"] = path
+    return files, contents, notes
+
+
+def prune_files(working_dir, global_id, keep):
+    """Delete the files under the workflow's files/ folder in a checkout that
+    keep (repo paths) does not list: files its steps no longer attach."""
+    root = os.path.join(working_dir, store.WORKFLOWS_DIR, global_id, FILES_DIR)
+    removed = []
+    for current, dirs, names in os.walk(root, topdown=False):
+        for name in names:
+            path = os.path.join(current, name)
+            repo_path = os.path.relpath(path, working_dir).replace(os.sep, "/")
+            if repo_path not in keep:
+                os.remove(path)
+                removed.append(repo_path)
+        if current != root and not os.listdir(current):
+            os.rmdir(current)
+    return removed
 
 
 def readme(workflow, data):
@@ -296,12 +429,149 @@ def hook_ids(data):
     return ids
 
 
+def branch_file_reader(clone, branch):
+    """read(path): the exact bytes of a file on branch in a fetched clone, or
+    None. Read from the commit, so neither line endings nor a trailing newline
+    change."""
+    commit = clone.commit("origin/{}".format(branch))
+
+    def read(path):
+        try:
+            return (commit.tree / path).data_stream.read()
+        except KeyError:
+            return None
+
+    return read
+
+
+def _scan(content):
+    """Why CloudBolt's antivirus refuses content, or "" when it passes: the
+    scan File Archives uploads get. Fails closed."""
+    try:
+        from utilities.upload_handlers import av_service
+    except Exception:
+        return "CloudBolt's antivirus service could not be loaded"
+    try:
+        found = av_service.scan_stream(content)
+    except Exception as exc:
+        return "CloudBolt's antivirus service could not scan it ({})".format(str(exc) or type(exc).__name__)
+    return "CloudBolt's antivirus scan found malicious content in it" if found else ""
+
+
+def _username(profile):
+    user = getattr(profile, "user", None)
+    return getattr(user, "username", "") or "content-package-manager"
+
+
+def _renumbered(data, renumber):
+    """data with every step file entry whose ref renumber maps rewritten, options kept."""
+    if not renumber:
+        return data
+    steps = []
+    for step in data.get("steps") or []:
+        if isinstance(step, dict) and step.get("archives"):
+            entries = []
+            for entry in step["archives"]:
+                ref = entry_ref(entry)
+                entries.append(str(entry).replace(ref, renumber[ref], 1) if ref in renumber else entry)
+            step = dict(step, archives=entries)
+        steps.append(step)
+    return dict(data, steps=steps)
+
+
+def import_files(read, data, refresh_if_exists, profile=None, source=""):
+    """
+    Store the files data's files list carries in File Archives before the
+    workflow is created, so its steps find them. read(path) returns a file's
+    bytes on the branch, or None; source names the package and branch for
+    each new version's note.
+
+    - An unpinned ref (archive/file or @latest) needs the newest version here
+      to be the carried copy. A pinned one (@N) needs any version that is,
+      and its step entries are renumbered to that version, because File
+      Archives numbers versions per appliance.
+    - The copy is stored as a new version only when no suitable version has
+      its checksum and, for a file that already exists here, while refreshing
+      existing content is on.
+    - It must match the checksum in the metadata and pass CloudBolt's
+      antivirus scan, or it is not stored.
+
+    Returns (data, with pinned entries renumbered, progress lines, notes on
+    the files that were not stored).
+    """
+    entries = [entry for entry in data.get("files") or [] if isinstance(entry, dict)]
+    if not entries:
+        return data, [], []
+    fa = _file_archives()
+    if fa is None:
+        return data, [], ["File Archives is not installed here, so the files the steps attach were not stored."]
+    folder = posixpath.dirname(metadata_path(data.get("id") or ""))
+    who = _username(profile)
+    renumber, lines, notes = {}, [], []
+    for entry in entries:
+        ref = str(entry.get("ref") or "")
+        archive, name = str(entry.get("archive") or ""), str(entry.get("file") or "")
+        sha256 = str(entry.get("sha256") or "").lower()
+        label = "{}/{}".format(archive, name)
+        match = fa.REF.match(ref)
+        if not match or (match.group("archive"), match.group("file")) != (archive, name) or not SHA256_RE.match(sha256):
+            notes.append("Files entry {} is malformed, so it was not stored.".format(ref or label))
+            continue
+        pinned = match.group("version") not in (None, "latest")
+        try:
+            history = fa.versions(archive, name)
+            newest = history[-1] if history else None
+            same = next((meta for meta in reversed(history) if meta.get("sha256") == sha256), None)
+            if pinned and same is not None:
+                renumber[ref] = "{}@{}".format(label, same["version"])
+                lines.append("{} is already here as version {}.".format(label, same["version"]))
+                continue
+            if not pinned and newest is not None and newest.get("sha256") == sha256:
+                lines.append("{} is already here as version {}.".format(label, newest["version"]))
+                continue
+            if history and not refresh_if_exists:
+                notes.append("{} here differs from the package's copy and was left unchanged because refreshing "
+                             "existing content was off.".format(label))
+                continue
+            path = entry.get("path")
+            if not path:
+                notes.append("{} travels by checksum only (larger than {} MB); upload it to File Archives "
+                             "before running the workflow.".format(label, MAX_FILE_MB))
+                continue
+            content = read(posixpath.join(folder, path))
+            if content is None:
+                notes.append("{}/{} is missing on the branch, so {} was not stored.".format(folder, path, label))
+                continue
+            if sha256_of(content) != sha256:
+                notes.append("{}/{} does not match the SHA-256 in the metadata, so {} was not stored. Export the "
+                             "package again, or fix the files entry.".format(folder, path, label))
+                continue
+            refused = _scan(content)
+            if refused:
+                notes.append("{} was not stored: {}.".format(label, refused))
+                continue
+            if fa.archive_info(archive) is None:
+                fa.create_archive(archive, "Created by the Content Package Manager.", who)
+            meta = fa.add_version(archive, name, [content], who, note="From {}".format(source) if source else "")
+        except fa.ArchiveError as exc:
+            notes.append("{} was not stored: {}".format(label, exc))
+            continue
+        try:
+            fa.record(label, "uploaded", "version {} from {}".format(meta["version"], source or "a content package"), who)
+        except Exception:
+            logger.exception("Could not record the File Archives activity of %s", label)
+        if pinned:
+            renumber[ref] = "{}@{}".format(label, meta["version"])
+        lines.append("Stored {} as version {} in File Archives.".format(label, meta["version"]))
+    return _renumbered(data, renumber), lines, notes
+
+
 def import_metadata(runbooks, data, refresh_if_exists, ignore_enabled, profile=None):
     """Create or update the workflow data describes with runbooks (module()).
     Returns (workflow, outcome, notes) as runbook_workflows.import_workflow
     does; raises runbooks.WorkflowConflict when another workflow here has the
     name."""
-    carried = {key: value for key, value in data.items() if key not in ("dependencies", "last_updated")}
+    carried = {key: value for key, value in data.items() if key not in ("dependencies", "files", "last_updated")}
     return runbooks.import_workflow(
         carried, profile=profile, refresh_if_exists=refresh_if_exists, ignore_enabled=ignore_enabled
     )
