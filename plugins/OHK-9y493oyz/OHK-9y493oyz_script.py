@@ -77,7 +77,7 @@ def run(job, **kwargs):
         code = _error_code(exc)
         if code == "InvalidGroup.NotFound":
             return "WARNING", f"Security group '{name}' ({group_id}) was already gone from AWS.", ""
-        message = f"AWS could not delete security group '{name}' ({group_id}): {_aws_message(exc)}"
+        message = f"AWS could not delete security group '{name}' ({group_id}): {_aws_message(exc)}."
         if code == "DependencyViolation":
             interfaces = _interfaces_using(client, group_id)
             if interfaces:

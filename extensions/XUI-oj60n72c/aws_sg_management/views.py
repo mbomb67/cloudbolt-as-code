@@ -235,6 +235,14 @@ def _port_range(protocol, key, low, high):
     return str(low) if low == high else f"{low} - {high}"
 
 
+def _port_phrase(protocol, key, low, high):
+    """The ports in a sentence: 'port 443', 'all ports', 'ICMP type 8, code 0'."""
+    port = _port_range(protocol, key, low, high)
+    if protocol in ("icmp", "icmpv6"):
+        return "all ICMP types" if port == "All" else "ICMP " + port[0].lower() + port[1:]
+    return "all ports" if port == "All" else f"port {port}"
+
+
 def _peer_cell(rule, region, group_names, prefix_names):
     """(text, hint, url) for the Source or Destination column."""
     kind, value = peer_of(rule)
@@ -489,9 +497,9 @@ def _form_extras(client, group, list_id):
 def _summary(form, direction):
     data = form.cleaned_data
     key = data["rule_type"]
-    port = _port_range(protocol_name(data["protocol"]), key, data["from_port"], data["to_port"])
+    ports = _port_phrase(protocol_name(data["protocol"]), key, data["from_port"], data["to_port"])
     peers = ", ".join(value for _, value in data["peers"])
-    return f"{TYPES[key][0]}, port {port}, {'from' if direction == 'Inbound' else 'to'} {peers}"
+    return f"{TYPES[key][0]}, {ports}, {'from' if direction == 'Inbound' else 'to'} {peers}"
 
 
 def _authorize(client, group_id, form):
@@ -543,9 +551,9 @@ def add_rule(request, resource_id, direction):
             except (BotoCoreError, ClientError) as exc:
                 form.add_error(None, f"AWS rejected the rule: {_aws_message(exc)}")
             else:
-                ids = ", ".join(created) or "rule"
-                _record(resource, profile, f"{direction} rule {ids} added ({_summary(form, direction)}).")
-                messages.success(request, f"{direction} rule {ids} added.")
+                rules = f"{direction} {'rules' if len(created) > 1 else 'rule'} {', '.join(created)}"
+                _record(resource, profile, f"{rules} added ({_summary(form, direction)}).")
+                messages.success(request, f"{rules} added.")
                 return _redirect_back(request, resource)
     else:
         form = SecurityGroupRuleForm(direction=direction, peer_list=list_id)
@@ -691,7 +699,7 @@ def delete_rule(request, resource_id, rule_id):
     outbound = bool(rule.get("IsEgress"))
     direction = "Outbound" if outbound else "Inbound"
     key = rule_type_key(rule.get("IpProtocol"), rule.get("FromPort"), rule.get("ToPort"))
-    port = _port_range(protocol_name(rule.get("IpProtocol")), key, rule.get("FromPort"), rule.get("ToPort"))
+    ports = _port_phrase(protocol_name(rule.get("IpProtocol")), key, rule.get("FromPort"), rule.get("ToPort"))
     _, peer = peer_of(rule)
 
     if request.method == "POST":
@@ -702,7 +710,7 @@ def delete_rule(request, resource_id, rule_id):
             except (BotoCoreError, ClientError) as exc:
                 form.add_error(None, f"AWS could not delete the rule: {_aws_message(exc)}")
             else:
-                _record(resource, profile, f"{direction} rule {rule_id} deleted ({TYPES[key][0]}, port {port}, "
+                _record(resource, profile, f"{direction} rule {rule_id} deleted ({TYPES[key][0]}, {ports}, "
                                            f"{'from' if direction == 'Inbound' else 'to'} {peer}).")
                 messages.success(request, f"{direction} rule {rule_id} deleted.")
                 return _redirect_back(request, resource)
@@ -712,9 +720,9 @@ def delete_rule(request, resource_id, rule_id):
     return {
         "title": title,
         "content": format_html(
-            "<p>Delete the {} rule <b>{}</b> ({}, port {}, {} {}) from security group <b>{}</b>? "
+            "<p>Delete the {} rule <b>{}</b> ({}, {}, {} {}) from security group <b>{}</b>? "
             "AWS applies this at once and it cannot be undone.</p>",
-            direction.lower(), rule_id, TYPES[key][0], port,
+            direction.lower(), rule_id, TYPES[key][0], ports,
             "from" if direction == "Inbound" else "to", peer, group.get("GroupName", ""),
         ),
         "form": form,
