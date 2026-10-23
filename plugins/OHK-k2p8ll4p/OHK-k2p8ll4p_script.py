@@ -213,6 +213,13 @@ def _import_aws(handler, image, region, os_build_name, existing_osb, job):
     already = AmazonMachineImage.objects.filter(resourcehandler=handler, ami_id=ami_id, region=region).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
+    # An AMI stored by an earlier run of this tool has no region, so the environment's lookup
+    # (AWSHandler.get_osba_for_osb_and_region) cannot see it. Give it the region and reuse it.
+    stale = AmazonMachineImage.objects.filter(resourcehandler=handler, ami_id=ami_id, region="").order_by("-id").first()
+    if stale is not None and stale.os_build is not None:
+        AmazonMachineImage.objects.filter(pk=stale.pk).update(region=region)
+        _progress(job, "Set region {} on the image {} imported earlier without one".format(region, ami_id))
+        return stale.os_build, None
     discovered, _not_in_cb, _only = handler.discover_templates(region, ami_ids=[ami_id])
     discovered = list(discovered or [])
     if not discovered:
@@ -223,6 +230,15 @@ def _import_aws(handler, image, region, os_build_name, existing_osb, job):
     osba = AmazonMachineImage.objects.filter(resourcehandler=handler, ami_id=ami_id).order_by("-id").first()
     if osba is None or osba.os_build is None:
         return None, "The image was imported but no OS build attribute for {} was found afterwards.".format(ami_id)
+    # AWSHandler.add_template_attrs creates the record without its region; CloudBolt's own
+    # import (resourcehandlers/aws/services.py) fills it afterwards from the image dict. The
+    # region is what an environment uses to find the image, so set it here the same way.
+    fields = {"region": region}
+    if isinstance(image_dict.get("description"), str) and image_dict["description"]:
+        fields["description"] = image_dict["description"]
+    if isinstance(image_dict.get("owner_alias"), str) and image_dict["owner_alias"]:
+        fields["owner_alias"] = image_dict["owner_alias"][:100]
+    AmazonMachineImage.objects.filter(pk=osba.pk).update(**fields)
     return osba.os_build, None
 
 
@@ -402,10 +418,19 @@ def run(job, *args, **kwargs):
         return _failure(error)
 
     attached = []
+    unresolved = []
     for env in envs:
         if not osb.environments.filter(id=env.id).exists():
             osb.environments.add(env)
         attached.append({"id": env.global_id, "name": env.name})
+        try:
+            resolved = osb.osba_for_resource_handler(handler, environment=env)
+        except Exception as exc:
+            resolved = None
+            unresolved.append("{}: {}".format(env.name, str(exc)[:300]))
+        else:
+            if resolved is None:
+                unresolved.append("{}: no image of OS build '{}' for this environment".format(env.name, osb.name))
 
     outputs = {
         "handler": {"id": handler.global_id, "name": handler.name, "technologySlug": slug},
@@ -436,4 +461,17 @@ def run(job, *args, **kwargs):
         )
     if notes:
         outputs["notes"] = notes
-    return _success("OS build '{}' holds {} and is attached to {} environment(s).".format(osb.name, inputs["image"], len(attached)), outputs)
+    outputs["verified"] = not unresolved
+    if unresolved:
+        outputs["unresolved"] = unresolved
+        message = (
+            "OS build '{}' is attached, but CloudBolt cannot resolve its image for {} environment(s), so an order there "
+            "would fail: {}. Run this tool again for the image (it repairs an image stored without a region), or check "
+            "the image's region against the environment's.".format(osb.name, len(unresolved), "; ".join(unresolved))
+        )
+        return {"status": "FAILURE", "output_message": "", "error_message": message, "outputs": outputs}
+    return _success(
+        "OS build '{}' holds {} and is attached to {} environment(s); verified that each environment resolves the image.".format(
+            osb.name, inputs["image"], len(attached)),
+        outputs,
+    )
