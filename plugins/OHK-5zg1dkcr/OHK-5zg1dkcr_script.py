@@ -421,9 +421,9 @@ def _next_steps(report, base):
     if not handlers:
         steps.append(
             {
-                "step": "Create the first resource handler in the UI (credentials are entered there), then run onb_verify_resource_handler.",
+                "step": "Create the first resource handler in the UI (credentials are entered there): the link opens the technology chooser. Then run onb_verify_resource_handler.",
                 "item": "P3",
-                "url": base + "/admin/resourcehandlers/add/",
+                "url": base + "/setup/add-resource-handler/",
             }
         )
     for handler in handlers:
