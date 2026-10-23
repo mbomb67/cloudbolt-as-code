@@ -1,0 +1,11 @@
+{
+    "description": "Fills the POC Application Tier dropdown from Python (web, app, db), dropping the database tier for production groups, to show Python-backed parameter options.",
+    "id": "OHK-f1ol9j5k",
+    "max_retries": 0,
+    "name": "Generate options for 'POC Application Tier'",
+    "resource_technologies": [],
+    "script_filename": "OHK-f1ol9j5k_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

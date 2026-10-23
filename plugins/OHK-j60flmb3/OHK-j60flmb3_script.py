@@ -18,7 +18,7 @@ import html
 import json
 from datetime import datetime, timezone
 
-TOOLKIT_VERSION = "0.1.0"
+TOOLKIT_VERSION = "1.0.0"
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 
@@ -47,10 +47,16 @@ TOOLS = {
     "onb_verify_ldap": False,
     "onb_smtp": True,
     "onb_smtp_test": False,
+    "onb_install_content_library_item": False,
+    "onb_cit_from_order": True,
+    "onb_scorecard": True,
+    "onb_sync_images": False,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,
     "manage_blueprint_permissions": True,
+    "run_recurring_job": True,
+    "run_cit_tests": True,
 }
 PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-poc-onboarding/SKILL.md"
 

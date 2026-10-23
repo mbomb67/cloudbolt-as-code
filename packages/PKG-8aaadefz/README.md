@@ -1,8 +1,8 @@
 # POC Onboarding Toolkit
 
-Installs the MCP tools the POC onboarding skill drives: appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, the playbook text, the install step and POC item tracking, plus the repository sync, job log and blueprint permission tools they reuse.
+Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.
 
-Content package `PKG-8aaadefz`, version 0.3.0. Sync it from the Content Packages admin page (Content Package Manager UI extension). After the first import run the `onb_install` tool (asynchronous; poll the job) to turn Synchronous Action on for the inline tools, then reconnect the MCP client. Setup for a customer appliance: [docs/poc-onboarding-setup.md](../../docs/poc-onboarding-setup.md); the procedure the agent follows: [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Content package `PKG-8aaadefz`, version 0.5.0. Sync it from the Content Packages admin page (Content Package Manager UI extension). After the first import run the `onb_install` tool (asynchronous; poll the job) to turn Synchronous Action on for the inline tools, then reconnect the MCP client. Setup for a customer appliance: [docs/poc-onboarding-setup.md](../../docs/poc-onboarding-setup.md); the procedure the agent follows: [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
 
 | Type | Name | Folder |
 |---|---|---|
@@ -14,6 +14,7 @@ Content package `PKG-8aaadefz`, version 0.3.0. Sync it from the Content Packages
 | MCP tool action | POC Onboarding: Verify Resource Handler | [mcp_tool_actions/MTA-r5v1eblg](../../mcp_tool_actions/MTA-r5v1eblg/) |
 | MCP tool action | POC Onboarding: Playbook | [mcp_tool_actions/MTA-92b836jb](../../mcp_tool_actions/MTA-92b836jb/) |
 | MCP tool action | POC Onboarding: Set Item Status | [mcp_tool_actions/MTA-p72v9y76](../../mcp_tool_actions/MTA-p72v9y76/) |
+| MCP tool action | POC Onboarding: Sync Images | [mcp_tool_actions/MTA-po1gmnou](../../mcp_tool_actions/MTA-po1gmnou/) |
 | MCP tool action | POC Onboarding: Handler Locations | [mcp_tool_actions/MTA-89dxppus](../../mcp_tool_actions/MTA-89dxppus/) |
 | MCP tool action | POC Onboarding: Import Environments | [mcp_tool_actions/MTA-i6p4j2l7](../../mcp_tool_actions/MTA-i6p4j2l7/) |
 | MCP tool action | POC Onboarding: Trim Environment Order Form | [mcp_tool_actions/MTA-iyknuxox](../../mcp_tool_actions/MTA-iyknuxox/) |
@@ -29,6 +30,13 @@ Content package `PKG-8aaadefz`, version 0.3.0. Sync it from the Content Packages
 | MCP tool action | POC Onboarding: Verify LDAP | [mcp_tool_actions/MTA-kw8krevn](../../mcp_tool_actions/MTA-kw8krevn/) |
 | MCP tool action | POC Onboarding: SMTP Settings | [mcp_tool_actions/MTA-89w58iux](../../mcp_tool_actions/MTA-89w58iux/) |
 | MCP tool action | POC Onboarding: SMTP Test | [mcp_tool_actions/MTA-qab6r2gk](../../mcp_tool_actions/MTA-qab6r2gk/) |
+| MCP tool action | POC Onboarding: Install Content Library Item | [mcp_tool_actions/MTA-znqpide5](../../mcp_tool_actions/MTA-znqpide5/) |
+| MCP tool action | POC Onboarding: CIT Test from Order | [mcp_tool_actions/MTA-ckumouj0](../../mcp_tool_actions/MTA-ckumouj0/) |
+| MCP tool action | POC Onboarding: Scorecard | [mcp_tool_actions/MTA-zfoxwh12](../../mcp_tool_actions/MTA-zfoxwh12/) |
 | MCP tool action | Sync From Source Control Repo | [mcp_tool_actions/MTA-543b19sa](../../mcp_tool_actions/MTA-543b19sa/) |
 | MCP tool action | Fetch Job Log | [mcp_tool_actions/MTA-8j9c0tb0](../../mcp_tool_actions/MTA-8j9c0tb0/) |
 | MCP tool action | Manage Blueprint Permissions | [mcp_tool_actions/MTA-ntmcnvv7](../../mcp_tool_actions/MTA-ntmcnvv7/) |
+| MCP tool action | Run Recurring Job | [mcp_tool_actions/MTA-thkvyt0v](../../mcp_tool_actions/MTA-thkvyt0v/) |
+| MCP tool action | Run CIT Tests | [mcp_tool_actions/MTA-gnx1ckno](../../mcp_tool_actions/MTA-gnx1ckno/) |
+| Blueprint | POC Server | [blueprints/BP-x78p48gz](../../blueprints/BP-x78p48gz/) |
+| Inbound webhook | POC Echo | [webhooks/IWH-f16qxnhm](../../webhooks/IWH-f16qxnhm/) |

@@ -1,67 +1,40 @@
 # Phase 0: Bootstrap
 
-Goal: the agent is connected to the appliance as a CloudBolt admin with write scope, the POC Onboarding Toolkit is installed and synchronous, and the prerequisites sheet is reviewed.
+Goal: the agent is connected to the appliance as a CloudBolt admin with write scope, the POC Onboarding Toolkit is installed and synchronous, and the prerequisites the appliance already proves are recorded.
 
 ## 1. Connection
 
-1. Call `fetch_identity`. It must return a user with `superAdmin` or `cmpAdmin` true. If it fails, the client is not connected or not authenticated: the appliance's MCP endpoint is `https://<appliance>/mcp` (no trailing slash), Streamable HTTP, OAuth 2.1 with browser login. In Claude Code: `claude mcp add --transport http cloudbolt https://<appliance>/mcp`, then `/mcp`, choose the server, authenticate as the admin. Other clients: add the same URL as a remote MCP server and complete the OAuth login.
+1. Call `fetch_identity`. It must return a user with `superAdmin` or `cmpAdmin` true. If it fails, the client is not connected or not authenticated: the appliance's MCP endpoint is `https://<appliance>/mcp` (no trailing slash), Streamable HTTP, OAuth 2.1 with browser login. In Claude Code: `claude mcp add --transport http --scope user cloudbolt https://<appliance>/mcp`, then `/mcp`, choose the server, authenticate as the admin. Without `--scope user` the server is tied to the folder the command ran in and is missing from `/mcp` elsewhere: re-add it with `--scope user`. Other clients: add the same URL as a remote MCP server and complete the OAuth login. A TLS error (`self signed certificate in certificate chain`, a certificate altnames mismatch) means the appliance certificate is not trusted yet; the agent cannot fix it over MCP. Send the user to section 2 of [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md): replace the certificate as root on the appliance, set `NODE_EXTRA_CA_CERTS`, restart the client.
 2. The token must carry `write` scope. If every write or custom tool fails with a scope error, the client requested `read` only; reconnect and grant write when the consent page asks.
 3. The API token on the user profile page and the `/api/v3/cmp/apiToken/` token do not work for `/mcp`; only the OAuth login does.
 4. `fetch_dashboard_link` gives the portal base URL; confirm with the user that it is the appliance they mean.
 
 ## 2. Toolkit install (one-time manual step, then agent-driven)
 
-Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not installed. The sync tool cannot install itself, so the user does one of these in the UI, once:
+Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not installed. The sync tool cannot install itself, so the user installs it once in the UI through the Content Package Manager. Walk them through section 4 of [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md): add the Source Code Repository `https://github.com/mbomb67/cloudbolt-as-code` (GitHub, no credentials), add the UI extension `extensions/XUI-iq65xgvr` from it, restart httpd as root, then Import from repository and Sync the package **POC Onboarding Toolkit** (`PKG-8aaadefz`). Every tool, the POC Server blueprint and the echo webhook arrive together. If the Content Packages page is missing after the extension sync, httpd has not been restarted.
 
-**A. Content Package Manager** (when the extension is installed): Admin > Content Packages > Import from repository > repository `https://github.com/mbomb67/cloudbolt-as-code.git`, branch `main`, package **POC Onboarding Toolkit** (`PKG-8aaadefz`) > Sync. One step; every tool and its plugin arrives together.
+After the import every tool is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Tell the user to reconnect the MCP client (tool lists are cached per session), then call `fetch_mcp_tool_actions` again: every `onb_` name from [SKILL.md](../SKILL.md) must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
 
-**B. Source Control Repository**: Admin > All Admin > CloudBolt > Source Code Repositories > Add: label of their choice, URL `https://github.com/mbomb67/cloudbolt-as-code.git`, auth method none (public repository), leave the path fields at their defaults. Then Actions > MCP Tool Actions > Create from Repository, branch `main`, and pick each metadata file under `mcp_tool_actions/`:
-
-| Tool | Folder |
-|---|---|
-| `onb_install` | `mcp_tool_actions/MTA-6zxrhdls` |
-| `onb_status` | `mcp_tool_actions/MTA-1985b88g` |
-| `onb_ui_link` | `mcp_tool_actions/MTA-zpohocjt` |
-| `onb_recent_errors` | `mcp_tool_actions/MTA-hwg74btd` |
-| `onb_failure_trace` | `mcp_tool_actions/MTA-jzscq0mk` |
-| `onb_verify_resource_handler` | `mcp_tool_actions/MTA-r5v1eblg` |
-| `onb_playbook` | `mcp_tool_actions/MTA-92b836jb` |
-| `onb_set_item_status` | `mcp_tool_actions/MTA-p72v9y76` |
-| `sync_from_source_control_repo` | `mcp_tool_actions/MTA-543b19sa` |
-| `fetch_job_log` | `mcp_tool_actions/MTA-8j9c0tb0` |
-| `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` |
-
-The dialog takes one item at a time; the one-call REST alternative is in [docs/poc-onboarding-setup.md](../../../../docs/poc-onboarding-setup.md).
-
-**C. No internet from the appliance**: build one zip per tool with `python tools/package_zip.py mcp_tool_actions/MTA-...` from a clone and upload each at Actions > MCP Tool Actions > Import.
-
-After the import, the tools exist but every one is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (it is asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Then tell the user to reconnect the MCP client (tool lists are cached per session) and call `fetch_mcp_tool_actions` again: all eleven names must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
-
-Later toolkit updates: `sync_from_source_control_repo` with `sync_branch: main` and the folders above as `sync_paths`, then `onb_install`, then reconnect.
+Later toolkit updates: the user clicks Sync on the package (Admin > Admin Extensions > Content Packages), then `onb_install`, then reconnect.
 
 ## 3. First status
 
-Call `onb_status`. Read it to the user as a short inventory: licence and days left, SMTP and proxy, Content Library reachable or not, handlers and environments, Custom Server blueprint, groups and users, LDAP or SSO, and the toolkit. Then the `nextSteps`.
+Call `onb_status`. Tell the user in two sentences what is already in place and what comes next. Do not read the whole inventory unless they ask for it.
 
-## 4. Prerequisites review
+## 4. Prerequisites
 
-Walk the prerequisites with the user and record each with `onb_set_item_status` (`done`, or `not_applicable` with a reason):
+Record what the appliance already proves, without asking, and mention it in one sentence: P1 from `onb_status.license`, P2 because `fetch_identity` works, P5 from `onb_status.contentLibrary.reachable`, P6 from `preferences.proxy` (not applicable when no proxy is needed). When P5 is false, that becomes the next single ask: the proxy link (`onb_ui_link proxy`), or skip, which shrinks Phase 8.
 
-| Id | Prerequisite | Evidence or skip |
+Ask nothing else up front. Each remaining prerequisite is one question, asked when the step that needs it starts (rule 1 in [SKILL.md](../SKILL.md)), and recorded with `onb_set_item_status` right after the answer:
+
+| Id | Prerequisite | Asked or proven at |
 |---|---|---|
-| P1 | CMP license key installed | `onb_status.license.installed` and `daysLeft` |
-| P2 | Appliance deployed and initial configuration done | `fetch_identity` works; `setupWizard.hasResourceHandler` is not required yet |
-| P3 | Up to two resource handlers, one or two environments each | Phases 1 and 2 |
-| P4 | Custom Server deployed once in each environment | Phase 3 |
-| P5 | Outbound 443 to content.cloudbolt.app | `onb_status.contentLibrary.reachable`; if false, `onb_install.egress` and the proxy link; skip only if the customer accepts no Content Library items (Phase 8 shrinks) |
-| P6 | Web proxy configured if required | `preferences.proxy.configured`; not applicable when no proxy is needed |
-| P7 | SMTP configured | `preferences.smtp.configured`; link `email_settings` (password entered there), test with link `email_test`; not applicable when the POC has no relay, which also makes 2.4.1 email notification and 4.2.3, 4.2.6 partial |
-| P8 | DNS A record for the portal | Needed for 2.2.1 only; not applicable otherwise |
-| P9 | SSO application and an SSO SME on the call | Needed for 2.1.3 only |
-| P10 | AD or LDAP service account and the DN of a mapping group | Needed for 2.1.1 and 2.1.2 |
-| P11 | Ansible or Ansible Automation Platform ready | Needed for 3.2.2 and 4.3.5 (both weight 0) |
-| P12 | Terraform scripts in a git repository | Needed for 4.3.4 (weight 0) |
+| P3 | One or two resource handlers, one or two environments each | Phase 1 asks for the first cloud, and for a second only after the first is verified; Phase 2 records it |
+| P4 | Custom Server deployed once in each environment | Phase 3, from the order |
+| P7 | SMTP relay | Phase 5, before the first approval email |
+| P8 | DNS record for a branded portal | Phase 6, branded portal step |
+| P9 | SSO application and an SSO SME | Phase 6, SSO step |
+| P10 | AD or LDAP service account and a mapping group DN | Phase 6, LDAP step |
+| P11, P12 | Ansible, Terraform in a git repository | Phase 8, last step (both weight 0) |
 
-Also confirm the two clouds for the POC (the Prerequisites sheet names POC Cloud 1 and 2) and that the user has the minimum-permission credentials for each ready, without asking what they are.
-
-Then start Phase 1 ([resource-handlers.md](resource-handlers.md)).
+Then start Phase 1 ([resource-handlers.md](resource-handlers.md)) with its first ask.

@@ -64,15 +64,23 @@ FALLBACK_PATHS = {
     "ConnectionInfo": "/admin/connectioninfo/{pk}/edit/",
 }
 
+# The Setup Wizard's Add infrastructure page: the resource handler list with the technology
+# chooser opened on load. The list page's add_by_tech/<slug>/ URL is meant to open the
+# technology's form directly, but its auto-open script does not fire, so new handlers start
+# here and the user clicks the technology. Older releases without the Setup Wizard page get
+# the add_by_tech URL instead (_handler_chooser).
+SETUP_ADD_HANDLER = "/setup/add-resource-handler/"
+
 # Named pages. {arg} is the text after the colon in the target.
 PAGES = {
     "dashboard": ("/dashboard/", "CloudBolt dashboard"),
     "setup_wizard": ("/setup/", "First-run Setup Wizard"),
     "resource_handlers": ("/admin/resourcehandlers/", "Resource handler list"),
-    "new_resource_handler": ("/admin/resourcehandlers/add/", "Add a resource handler (pick the technology)"),
+    "new_resource_handler": (SETUP_ADD_HANDLER, "Resource handler list with the technology chooser open"),
     "new_resource_handler:{arg}": (
-        "/admin/resourcehandlers/add_by_tech/{arg}/",
-        "Add a resource handler of one technology (aws, azure_arm, vmware, scvmm, gcp, acropolis, openstack)",
+        SETUP_ADD_HANDLER,
+        "Technology chooser for a new handler; the user clicks the technology in clickTechnology "
+        "(aws, azure_arm, vmware, scvmm, gcp, acropolis, openstack)",
     ),
     "handler_verify:{arg}": ("/admin/resourcehandlers/{pk}/verify_connection/", "Verify Connection dialog of a handler (RH- id)"),
     "handler_edit:{arg}": ("/admin/resourcehandlers/{pk}/edit/", "Edit a handler, including its credentials (RH- id)"),
@@ -197,6 +205,38 @@ def _pk_for(arg):
     return None, "'{}' is neither a global id nor a numeric id.".format(arg)
 
 
+def _handler_chooser(arg, outputs):
+    """Point a new-handler link at the Setup Wizard chooser, or at add_by_tech on older releases.
+
+    Returns the path to use. With a technology slug, adds clickTechnology: the name the
+    chooser shows for that technology, so the agent can tell the user which tile to click.
+    """
+    from django.urls import NoReverseMatch, reverse
+    from resourcehandlers.models import ResourceTechnology
+
+    try:
+        path = reverse("quick_setup_add_resource_handler")
+    except NoReverseMatch:
+        path = "/admin/resourcehandlers/add_by_tech/{}/".format(arg) if arg else "/admin/resourcehandlers/add/"
+        outputs["note"] = "This release has no Setup Wizard handler page; the link goes to the older add page."
+    if not arg:
+        return path
+    name = None
+    for tech in ResourceTechnology.objects.all():
+        try:
+            if tech.type_slug == arg:
+                name = tech.name
+                break
+        except Exception:
+            continue
+    if name:
+        outputs["clickTechnology"] = name
+        outputs.setdefault("note", "The link opens the technology chooser; click {}.".format(name))
+    else:
+        outputs.setdefault("note", "No technology has the slug '{}'; the user picks it in the chooser.".format(arg))
+    return path
+
+
 def _pages_help():
     return [{"page": key, "meaning": meaning} for key, (_path, meaning) in PAGES.items()]
 
@@ -252,7 +292,9 @@ def run(job, *args, **kwargs):
         return _failure(
             "Unknown page '{}'. Pass a global id or one of: {}.".format(target, ", ".join(PAGES))
         )
+    if key == "new_resource_handler":
+        path = _handler_chooser(arg, outputs)
     outputs.update({"page": key, "argument": arg or None, "meaning": meaning, "url": base + path})
     if not base:
-        outputs["note"] = "The default portal has no domain, so the URL is relative; prefix it with the appliance's https address."
+        outputs["relativeNote"] = "The default portal has no domain, so the URL is relative; prefix it with the appliance's https address."
     return _success("{} -> {}".format(target, outputs["url"]), outputs)
