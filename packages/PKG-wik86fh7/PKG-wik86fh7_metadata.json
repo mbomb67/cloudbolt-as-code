@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "extensions/XUI-oj60n72c",
+        "blueprints/BP-ofwowhqd"
+    ],
+    "description": "Orders, discovers, and deletes AWS VPC security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "id": "PKG-wik86fh7",
+    "last_updated": "2026-10-23",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "AWS Security Groups",
+    "version": "1.0.0"
+}

@@ -5,17 +5,17 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 
 | Type | Count |
 |---|---|
-| [Packages](#packages) | 10 |
-| [Blueprints](#blueprints) | 32 |
+| [Packages](#packages) | 11 |
+| [Blueprints](#blueprints) | 33 |
 | [Resource actions](#resource-actions) | 65 |
 | [Server actions](#server-actions) | 3 |
 | [Orchestration actions](#orchestration-actions) | 21 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
 | [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 188 |
+| [Plugins](#plugins) | 191 |
 | [Shared modules](#shared-modules) | 25 |
-| [UI extensions](#ui-extensions) | 14 |
+| [UI extensions](#ui-extensions) | 15 |
 | [Parameters](#parameters) | 2 |
 | [Forms](#forms) | 15 |
 | [Form functions](#form-functions) | 7 |
@@ -27,6 +27,7 @@ Named sets of content that the Content Package Manager extension (`extensions/XU
 | Package | ID | Description | Version | Contents |
 |---|---|---|---|---|
 | AWS EKS | [PKG-bo8ensty](packages/PKG-bo8ensty/README.md) | Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [AWS EKS](blueprints/BP-r5apcf7e/README.md) (blueprint), [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) (blueprint), [AWS EKS Cluster](extensions/XUI-8a1jocmr/README.md) (UI extension) |
+| AWS Security Groups | [PKG-wik86fh7](packages/PKG-wik86fh7/README.md) | Orders, discovers, and deletes AWS VPC security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules. | 1.0.0 | [AWS Security Group Management](extensions/XUI-oj60n72c/README.md) (UI extension), [AWS Security Group](blueprints/BP-ofwowhqd/README.md) (blueprint) |
 | Azure AKS | [PKG-yrpqo1o0](packages/PKG-yrpqo1o0/README.md) | Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs. | 1.0.0 | [Azure Kubernetes Service](blueprints/BP-20q58q9z/README.md) (blueprint), [AKS Namespace](blueprints/BP-dogqi827/README.md) (blueprint), [Azure AKS Cluster](extensions/XUI-nr5iiu60/README.md) (UI extension) |
 | Azure Network Security Groups | [PKG-gqw2jqgj](packages/PKG-gqw2jqgj/README.md) | Orders, discovers, and deletes Azure network security groups, adds a Security Rules tab for viewing and editing their rules, and can attach new Azure VMs to a chosen network security group at provisioning. | 1.0.0 | [Azure NSG - Generate Options](plugins/OHK-vswf8b1m/) (plugin), [Azure NSG Management](extensions/XUI-0jdk7t6h/README.md) (UI extension), [Azure NSG - Attach VM to NSG](orchestration_actions/HPA-vo2ghe4x/README.md) (orchestration action), [Azure Network Security Group](blueprints/BP-3fdhnw54/README.md) (blueprint) |
 | Data Disk Blueprints | [PKG-t1k7drin](packages/PKG-t1k7drin/README.md) | Deploys Windows Server and Oracle Linux VMs with order-time data disks through the Windows, Oracle Linux, and disk map blueprints, with the Post-Provision orchestration actions that attach the disk map's disks and prepare them inside the guest. | 1.0.0 | [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) (orchestration action), [Configure Data Disks from Disk Map (Windows)](orchestration_actions/HPA-42uy9dyo/README.md) (orchestration action), [Configure Data Disks from Disk Map (Oracle Linux)](orchestration_actions/HPA-4ptcwgg4/README.md) (orchestration action), [Windows Server with Data Disks](blueprints/BP-9ph7xcok/README.md) (blueprint), [Oracle Linux Server with Data Disks](blueprints/BP-rgdg9gho/README.md) (blueprint), [Server with Data Disks](blueprints/BP-g9zwqjoa/README.md) (blueprint) |
@@ -46,6 +47,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | AKS Namespace | [BP-dogqi827](blueprints/BP-dogqi827/README.md) | Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access. |
 | AWS EKS | [BP-r5apcf7e](blueprints/BP-r5apcf7e/README.md) | Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones. |
 | AWS EKS Namespace | [BP-e4c0q58z](blueprints/BP-e4c0q58z/README.md) | Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it. |
+| AWS Security Group | [BP-ofwowhqd](blueprints/BP-ofwowhqd/README.md) | Creates, deletes, and discovers AWS VPC security groups. |
 | Azure Cross-Tenant Subscription | [BP-5pei9cno](blueprints/BP-5pei9cno/README.md) | Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections. |
 | Azure Kubernetes Service | [BP-20q58q9z](blueprints/BP-20q58q9z/README.md) | Creates, deletes, and discovers Azure Kubernetes Service clusters with Microsoft Entra ID and Azure RBAC, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster. |
 | Azure Network Security Group | [BP-3fdhnw54](blueprints/BP-3fdhnw54/README.md) | Creates, deletes, and discovers Azure network security groups. |
@@ -252,6 +254,9 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Attach Data Disks from Disk Map | [OHK-jzkblrv7](plugins/OHK-jzkblrv7/) | Adds the data disks in each provisioned server's disk_map parameter through its resource handler and records each disk's controller, SCSI address, and serial on data_disk_layout. | CloudBolt Plug-in | [Attach Data Disks from Disk Map](orchestration_actions/HPA-n67skws4/README.md) |
 | AWS EKS Namespace | [OHK-u9jm7p8h](plugins/OHK-u9jm7p8h/) | Creates a namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, then pins a CloudBolt environment to it and entitles the ordering group. | CloudBolt Plug-in | [AWS EKS Namespace](blueprints/BP-e4c0q58z/README.md) |
 | AWS EKS Namespace Connection Details | [OHK-7n4o0hox](plugins/OHK-7n4o0hox/) | Shows the commands that connect kubectl to an EKS namespace and which IAM roles and users have access to it. | CloudBolt Plug-in | [Namespace Connection Details](resource_actions/RSA-j03ua3gm/) |
+| AWS Security Group Build | [OHK-jb16kobi](plugins/OHK-jb16kobi/) | Creates an AWS VPC security group. | CloudBolt Plug-in | [AWS Security Group](blueprints/BP-ofwowhqd/README.md) |
+| AWS Security Group Sync | [OHK-62awc6bl](plugins/OHK-62awc6bl/) | Discovers AWS security groups in every region the AWS resource handlers' environments use. | CloudBolt Plug-in | [AWS Security Group](blueprints/BP-ofwowhqd/README.md) |
+| AWS Security Group Teardown | [OHK-9y493oyz](plugins/OHK-9y493oyz/) | Deletes the AWS security group behind the resource. | CloudBolt Plug-in | [AWS Security Group](blueprints/BP-ofwowhqd/README.md) |
 | Azure CMK - Per-VM Disk Encryption Set | [OHK-vklpnqhq](plugins/OHK-vklpnqhq/) | Creates a per-VM Key Vault key and disk encryption set and re-encrypts a provisioned Azure VM's disks with it. | CloudBolt Plug-in | [Azure CMK - Per-VM Disk Encryption Set](orchestration_actions/HPA-w1dmx20b/README.md) |
 | Azure CMK - Remove Per-VM Disk Encryption Set | [OHK-2vpg4pff](plugins/OHK-2vpg4pff/) | Deletes the per-VM disk encryption set, revokes its key grant, and soft-deletes the key recorded on a decommissioned Azure server. | CloudBolt Plug-in | [Azure CMK - Remove Per-VM Disk Encryption Set](orchestration_actions/HPA-h7g0i0dx/README.md) |
 | Azure Network Security Group Build | [OHK-7987st2p](plugins/OHK-7987st2p/) | Creates an Azure network security group. | CloudBolt Plug-in | [Azure Network Security Group](blueprints/BP-3fdhnw54/README.md) |
@@ -460,6 +465,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Extension | ID | Description |
 |---|---|---|
 | AWS EKS Cluster | [XUI-8a1jocmr](extensions/XUI-8a1jocmr/README.md) | Adds Cluster, Node groups, Workloads, and Groups tabs to AWS EKS cluster resources with live cluster and add-on status, a Kubernetes upgrade banner, node group scaling and deletion, per-node and per-namespace workload figures, and management of the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to Kubernetes namespace landing zones with kubectl access details and a live inventory. |
+| AWS Security Group Management | [XUI-oj60n72c](extensions/XUI-oj60n72c/README.md) | Adds a Security Rules tab to AWS security group resources with the group's details, network interfaces, and inbound and outbound rules, which users with permission can add, edit, and delete. |
 | Azure AKS Cluster | [XUI-nr5iiu60](extensions/XUI-nr5iiu60/README.md) | Adds Cluster, Node pools, Workloads, and Groups tabs to Azure Kubernetes Service cluster resources with the portal's essentials and properties, upgrades, integrations, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to AKS namespace landing zones with kubectl access details and a live inventory. |
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |

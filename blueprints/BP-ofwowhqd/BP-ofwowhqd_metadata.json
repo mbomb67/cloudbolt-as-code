@@ -1,0 +1,95 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "AWS Security Group Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-jb16kobi"
+            },
+            "deploy_seq": 1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-nth0fwg8",
+            "name": "AWS Security Group Build",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates, deletes, and discovers AWS VPC security groups.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-62awc6bl"
+        },
+        "href": "/api/v3/cmp/actions/OHK-62awc6bl/",
+        "title": "AWS Security Group Sync"
+    },
+    "favorited": false,
+    "icon": "aws_security_group_icon.png",
+    "id": "BP-ofwowhqd",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": "rgba(244,226,143,1)",
+            "id": "TAG-6spb5ltg",
+            "image": null,
+            "name": "AWS",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-aw7tulo8",
+            "image": null,
+            "name": "Networks",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-23",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "AWS Security Group",
+    "resource_name_template": "",
+    "resource_type": {
+        "icon": "",
+        "id": "RT-3vsv1jd0",
+        "internal_only": false,
+        "label": "Network",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "Network",
+        "plural_label": "Networks"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "AWS Security Group Teardown",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-9y493oyz"
+            },
+            "deploy_seq": -1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-8asyx4pg",
+            "name": "AWS Security Group Teardown",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

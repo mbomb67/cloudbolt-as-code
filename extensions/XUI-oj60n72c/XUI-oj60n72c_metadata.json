@@ -1,0 +1,23 @@
+{
+    "description": "Adds a Security Rules tab to AWS security group resources with the group's details, network interfaces, and inbound and outbound rules, which users with permission can add, edit, and delete.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-oj60n72c",
+    "label": "AWS Security Group Management",
+    "last_updated": "2026-10-23",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "aws_sg_management",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "forms.py",
+        "templates/_sg_assets.html",
+        "templates/_sg_rules_table.html",
+        "templates/_sg_rule_form_script.html",
+        "templates/sg_rules_tab.html",
+        "templates/sg_rules_panel.html"
+    ],
+    "version": ""
+}
