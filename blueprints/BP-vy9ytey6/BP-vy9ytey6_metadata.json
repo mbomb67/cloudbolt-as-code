@@ -8,8 +8,7 @@
         {
             "all_environments_enabled": true,
             "allowed_os_families": [
-                "Oracle Enterprise Linux",
-                "Windows"
+                "Linux"
             ],
             "applications": null,
             "deploy_seq": 1,
@@ -32,7 +31,7 @@
                 "hook": "plugins/OHK-69gk5ne9"
             },
             "deploy_seq": 2,
-            "description": "Runs a workflow on the VM this order built. Give the Workflow input a default to pin one; without it the user picks.",
+            "description": "Runs a workflow on the VM this order built. The order form lists the enabled workflows whose filters fit Linux VMs; give the Workflow input a default to pin one.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-l252miz4",
@@ -45,17 +44,17 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "description": "Deploys a Linux VM and then runs a Linux workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
     "favorited": false,
     "has_custom_form": true,
     "icon": "workflow.png",
     "id": "BP-vy9ytey6",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-10-17",
+    "last_updated": "2026-10-23",
     "management_actions": [],
     "metadata_version": "2026.1.0",
-    "name": "VM with Workflow",
+    "name": "Linux VM with Workflow",
     "parameters": [],
     "resource_name_template": null,
     "sequence": 0,

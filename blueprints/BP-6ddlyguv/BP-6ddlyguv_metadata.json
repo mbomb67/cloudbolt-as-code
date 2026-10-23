@@ -1,0 +1,63 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "dependencies": {
+        "custom_form": "forms/FRM-s6h73usp"
+    },
+    "deployment_items": [
+        {
+            "all_environments_enabled": true,
+            "allowed_os_families": [
+                "Windows"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "wfl-{{ group.name|lower|slice:\":3\"}}-{{ os_family.get_base_name|lower|first }}-00X",
+            "id": "BDI-d54scsxz",
+            "name": "VM",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Run Workflow",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-69gk5ne9"
+            },
+            "deploy_seq": 2,
+            "description": "Runs a workflow on the VM this order built. The order form lists the enabled workflows whose filters fit Windows VMs; give the Workflow input a default to pin one.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-5d8q0fy6",
+            "name": "Run Workflow",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Deploys a Windows VM and then runs a Windows workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "favorited": false,
+    "has_custom_form": true,
+    "icon": "workflow.png",
+    "id": "BP-6ddlyguv",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-10-23",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "Windows VM with Workflow",
+    "parameters": [],
+    "resource_name_template": null,
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}

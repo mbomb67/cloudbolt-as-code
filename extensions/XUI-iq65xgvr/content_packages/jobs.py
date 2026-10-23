@@ -17,7 +17,8 @@ finished. It reads the parameter's metadata from the branch and creates or
 updates the parameter through parameters.import_metadata.
 
 run_workflow_sync() does the same for a Runbooks workflow member through
-workflows.import_metadata. When another workflow here already has the name,
+workflows.import_metadata, after storing the File Archives files its steps
+attach (workflows.import_files). When another workflow here already has the name,
 it changes nothing and ends with WARNING, so the rest of the chain still
 runs (CloudBolt starts a job whose prerequisite ended SUCCESS or WARNING).
 """
@@ -165,10 +166,23 @@ def run_workflow_sync(job, package_id=None, ref=None, source_code_repo_id=None, 
         repo, clone = services.branch_clone(services.get_repo(source_code_repo_id), branch)
         progress("Reading {} from {}, branch {}".format(workflows.metadata_path(global_id), repo.label, branch))
         data = workflows.read_metadata(clone, branch, global_id)
+        file_notes = []
+        name = (data.get("name") or "").lower()
+        # A local workflow with the name makes import_metadata refuse; store no files for it either.
+        clash = any(wf["id"] != global_id and (wf.get("name") or "").lower() == name for wf in module.list_workflows())
+        if data.get("files") and not clash:
+            progress("Storing the files its steps attach in File Archives")
+            source = "content package {} ({}, branch {})".format(package_id or "", repo.label, branch)
+            data, lines, file_notes = workflows.import_files(
+                workflows.branch_file_reader(clone, branch), data, refresh_if_exists, profile=profile, source=source
+            )
+            for line in lines:
+                progress(line)
         progress("Creating or updating workflow {} ({})".format(data.get("name") or global_id, global_id))
         workflow, outcome, notes = workflows.import_metadata(
             module, data, refresh_if_exists, ignore_action_enabled, profile=profile
         )
+        notes = file_notes + list(notes)
     except store.PackageError as exc:
         return "FAILURE", "", str(exc)
     except module.WorkflowConflict as exc:

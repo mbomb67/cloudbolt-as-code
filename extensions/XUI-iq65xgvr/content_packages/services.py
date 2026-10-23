@@ -26,7 +26,8 @@ Parameters and Runbooks workflows are the exceptions, because Source Control
 Repos has no folder for them (parameters.py, workflows.py): export writes
 parameters/<CF-id>/ or runbook_workflows/<SWF-id>/ in the manifest commit
 after pushing what each one needs (a parameter's generated-options actions, a
-workflow's step plugins), and sync syncs those in their own jobs, then queues
+workflow's step plugins; a workflow's attached File Archives files are written
+into its folder), and sync syncs those in their own jobs, then queues
 one job of this extension per parameter or workflow (jobs.run_parameter_sync,
 jobs.run_workflow_sync) in the same chain. A workflow that a blueprint
 member's Run Workflow build item pins travels the same way without being
@@ -504,14 +505,18 @@ def _push(service, package, member_type, obj, ref, branch, commit_message, repor
     return row
 
 
-def _written_files(member_type, obj, repo, global_id):
-    """[(repo path, text, replace)] of a parameter or workflow member's
-    folder: its metadata, rewritten on every export, and a README written
-    only when the folder has none."""
+def _written_files(member_type, obj, repo, global_id, report=None):
+    """[(repo path, text or bytes, replace)] of a parameter or workflow
+    member's folder: its metadata, rewritten on every export, a README written
+    only when the folder has none, and a workflow's attached files (bytes).
+    report, when given, gets a line per file a workflow could not carry."""
+    contents = []
     if member_type.dir == store.WORKFLOWS_DIR:
-        data = workflows.export_metadata(obj, repo)
+        data, contents, notes = workflows.export_folder(obj, repo)
         path = workflows.metadata_path(global_id)
         text, readme = workflows.dumps(data), workflows.readme(obj, data)
+        for note in notes:
+            (report or (lambda message: None))("  {}".format(note))
     else:
         data = parameters.export_metadata(obj, repo, global_id)
         path = parameters.metadata_path(global_id)
@@ -519,7 +524,7 @@ def _written_files(member_type, obj, repo, global_id):
     return [
         (path, text, True),
         (posixpath.join(posixpath.dirname(path), "README.md"), readme, False),
-    ]
+    ] + [(file_path, content, True) for file_path, content in contents]
 
 
 def carried_units(member_type, obj):
@@ -580,7 +585,7 @@ def _export_pinned(service, package, repo, branch, commit_message, report, bluep
                         service, package, unit_type, unit, store.ref_for(unit_type, unit), branch,
                         commit_message, report, via=ref,
                     ))
-                written.append((row, _written_files(workflow_type, workflow, repo, workflow.global_id)))
+                written.append((row, _written_files(workflow_type, workflow, repo, workflow.global_id, report)))
             except Exception as exc:
                 logger.exception("Export of pinned workflow %s failed", ref)
                 message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
@@ -650,7 +655,7 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                     service, package, unit_type, unit, store.ref_for(unit_type, unit), branch,
                     commit_message, report, via=ref,
                 ))
-            written.append((row, _written_files(member_type, obj, repo, global_id)))
+            written.append((row, _written_files(member_type, obj, repo, global_id, report)))
         except Exception as exc:
             logger.exception("Export of %s failed", ref)
             message = exc.public_message if isinstance(exc, store.PackageError) else str(exc)
@@ -694,8 +699,15 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
                 if not replace and os.path.exists(target):
                     continue
                 os.makedirs(os.path.dirname(target), exist_ok=True)
-                with open(target, "w") as stream:
+                # A workflow's attached files are bytes, written exactly as File Archives holds them.
+                with open(target, "wb" if isinstance(text, bytes) else "w") as stream:
                     stream.write(text)
+            # Drop the files a workflow's steps no longer attach.
+            kept = {path for path, _text, _replace in files}
+            for row, _files in written:
+                if row["ref"].startswith(store.WORKFLOWS_DIR + "/"):
+                    for path in workflows.prune_files(clone.working_dir, store.parse_ref(row["ref"])[1], kept):
+                        report("  removing {}, which no step attaches any more".format(path))
             # The package README is written whole the first time. Afterwards only
             # its member table is rebuilt, so new members appear and the text
             # around the table is kept.
