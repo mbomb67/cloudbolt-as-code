@@ -46,4 +46,4 @@ To support another handler, subclass `DiskProvider` in `shared_modules/SHM-iobsa
 - Re-running the build is safe: attached rows are not added again, and letters that already carry the requested label are reported as already configured.
 - On vCenter, disks go on the VM's `vmware_datastore` (or the OS disk's datastore) with the server's `vmware_disk_type` (thin by default), on the first SCSI controller with a free unit.
 - Each Azure VM size caps its data disks (Standard_B1s takes 2), so pick a size that holds the rows ordered.
-- No teardown items; deleting the resource deletes the VM and its disks.
+- The blueprint has no resource type, so an order creates only the server, with no resource around it. Deleting the server deletes the VM and its disks.

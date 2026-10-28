@@ -6,7 +6,7 @@ the server tier has built and powered on the VM, and before the in-guest
 Configure Data Disks (Oracle Linux) script.
 
 It validates the order form's Data Disks table (mount point, size in GB, volume
-name), then, for every Linux server of the resource, adds one disk per row in row
+name), then, for every Linux server the order built, adds one disk per row in row
 order and saves the rows on the server's data_disk_layout parameter. The
 data_disk_mapping shared module does the adding and records, through a provider
 per resource handler (vCenter, Azure, Nutanix AHV), what the guest can use to
@@ -109,16 +109,29 @@ def _describe(disk):
     return f"{disk['mount_point']} {disk['size_gb']} GB '{disk['volume_name']}'"
 
 
-def run(job, resource=None, **kwargs):
+def _order_servers(job):
+    """
+    The active VMs this order built. The blueprint creates no resource, so the
+    build item gets no servers: each VM item runs as a job under the same deploy
+    job as this one, and CloudBolt links each VM to the job that built it.
+    """
+    parent = getattr(job, "parent_job", None)
+    if parent is None:
+        return []
+    from infrastructure.models import Server
+
+    return list(Server.objects.filter(jobs__parent_job=parent, status="ACTIVE").distinct().order_by("hostname"))
+
+
+def run(job, **kwargs):
     try:
         disks = _validate_rows(_parse_rows(DATA_DISKS))
     except (ValueError, SyntaxError) as err:
         return "FAILURE", "", f"Data Disks table: {err}"
 
-    servers = list(resource.server_set.exclude(status="HISTORICAL")) if resource else []
-    servers = [s for s in servers if not s.is_windows()]
+    servers = [s for s in _order_servers(job) if not s.is_windows()]
     if not servers:
-        return "FAILURE", "", "The resource has no Linux server to attach data disks to."
+        return "FAILURE", "", "The order built no Linux server to attach data disks to."
 
     ddm.ensure_layout_field()
     summary = []
