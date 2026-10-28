@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "true also enables the technology's Fetch and Cache recurring job and rule, and Execute all Rules.",
+            "description": "true also enables the technology's Fetch and Cache recurring job and rule plus Execute all Rules, with their use_whitelist input mapped to false.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

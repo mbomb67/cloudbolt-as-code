@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "index, bootstrap, resource-handlers, phases, troubleshooting or test-plan-map.",
+            "description": "index, bootstrap, resource-handlers, handler-forms, phases, troubleshooting or test-plan-map.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
