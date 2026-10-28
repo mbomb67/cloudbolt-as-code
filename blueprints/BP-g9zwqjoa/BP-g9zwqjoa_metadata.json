@@ -38,19 +38,7 @@
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "Server with Data Disks",
-    "resource_name_template": "disk-00X",
-    "resource_type": {
-        "categories": [],
-        "description": null,
-        "icon": "bi bi-hdd-stack",
-        "id": "RT-t9dg6h2q",
-        "internal_only": false,
-        "label": "Server with Data Disks",
-        "lifecycle": "ACTIVE",
-        "list_view_columns": [],
-        "name": "server_with_data_disks",
-        "plural_label": "Servers with Data Disks"
-    },
+    "resource_name_template": null,
     "sequence": 0,
     "show_recipient_field_on_order_form": false,
     "teardown_items": []
