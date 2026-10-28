@@ -17,7 +17,8 @@ each member's and dependency's README from its repository (docs.py).
 Export and Sync both run as CloudBolt jobs and return at once: Export through
 the self-registering plugin in hooks.py, Sync as one sourcecodereposync job per
 member, except a parameter or workflow, which gets one of the extension's
-own jobs.
+own jobs. Sync takes the members from the package's manifest on the branch
+before it creates them.
 Everything here requires CB Admin.
 """
 import functools
@@ -677,10 +678,24 @@ def package_export(request, pkg_id):
     return context
 
 
+def _manifest_note(changes, branch):
+    """What a sync took from the package's manifest on the branch, for its
+    success message."""
+    if changes is None:
+        return " Branch {} has no manifest for this package, so the members listed here were synced.".format(branch)
+    parts = []
+    if changes["added"]:
+        parts.append("added {}".format(", ".join(changes["added"])))
+    if changes["removed"]:
+        parts.append("removed {} (their content stays on this appliance)".format(", ".join(changes["removed"])))
+    return " From the package's manifest on {}: {}.".format(branch, "; ".join(parts)) if parts else ""
+
+
 @dialog_view(template_name=TEMPLATES + "sync_dialog.html")
 @cbadmin_required
 def package_sync(request, pkg_id):
-    """Create one CloudBolt sync job per member from a repository branch."""
+    """Read the package's manifest on a repository branch, then create one
+    CloudBolt sync job per member."""
     package = _get_or_404(pkg_id)
     title = "Sync {}".format(package["name"])
     repos = _repo_choices()
@@ -696,7 +711,7 @@ def package_sync(request, pkg_id):
             "ignore_action_enabled": bool(request.POST.get("ignore_action_enabled")),
         }
         try:
-            created = services.sync_package(
+            created, changes = services.sync_package(
                 package, services.get_repo(values["repo"]), values["branch"],
                 values["refresh_if_exists"], values["ignore_action_enabled"], request.get_user_profile(),
             )
@@ -706,9 +721,10 @@ def package_sync(request, pkg_id):
             extra = sum(1 for _ref, _job, via in created if via)
             messages.success(
                 request,
-                "Started {} sync job{} for {}, one per member{}; they run one after another.".format(
+                "Started {} sync job{} for {}, one per member{}; they run one after another.{}".format(
                     len(created), "" if len(created) == 1 else "s", package["name"],
                     " plus {} for the actions, plugins and workflows its members need".format(extra) if extra else "",
+                    _manifest_note(changes, values["branch"].strip()),
                 ),
             )
             return HttpResponseRedirect(_detail_url(package["id"]))
@@ -721,7 +737,6 @@ def package_sync(request, pkg_id):
         "values": values,
         "error": error,
         "notice": request.GET.get("imported") == "1",
-        "member_count": len(package.get("contents") or []),
         "has_blueprints": any(ref.startswith("blueprints/") for ref in package.get("contents") or []),
         "has_extensions": any(ref.startswith("extensions/") for ref in package.get("contents") or []),
         "has_parameters": any(
@@ -903,8 +918,11 @@ def api_export(request, pkg_id):
 @cbadmin_required
 def api_sync(request, pkg_id):
     """POST {source_code_repo_id?, branch?, refresh_if_exists?,
-    ignore_action_enabled?}: one sync job per member, chained. Repository and
-    branch default to the package's home."""
+    ignore_action_enabled?}: read the package's manifest on the branch, then
+    one sync job per member, chained. Repository and branch default to the
+    package's home. manifest in the response is null when the branch has no
+    manifest for the package, else its path and the members it added or
+    removed."""
     if request.method != "POST":
         return _method_not_allowed(["POST"])
     data = _body(request)
@@ -916,7 +934,7 @@ def api_sync(request, pkg_id):
         if repo is None:
             raise store.PackageError("The package has no home repository yet; pass source_code_repo_id.")
     branch = data.get("branch") or package["local"].get("branch")
-    created = services.sync_package(
+    created, changes = services.sync_package(
         package, repo, branch,
         data.get("refresh_if_exists", True), data.get("ignore_action_enabled", False),
         request.get_user_profile(),
@@ -927,6 +945,7 @@ def api_sync(request, pkg_id):
              "url": job.get_absolute_url()}
             for ref, job, via in created
         ],
+        "manifest": changes,
     }, status=201)
 
 

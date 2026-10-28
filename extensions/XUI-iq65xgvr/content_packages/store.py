@@ -14,7 +14,8 @@ content_packages Namespace. A namespaced field stays off the Parameters list
 and the blueprint parameter picker. Each package is one CustomFieldValue
 attached to no object, holding the full package JSON: the manifest an export
 will write to packages/<PKG-id>/ in a repository, plus a "local" block (home
-repository and branch, export and sync history) that stays on this appliance.
+repository and branch, export and sync history, and the name, description,
+version and members the repository last had) that stays on this appliance.
 The PKG- id inside the JSON is the key; the CustomFieldValue pk is only a
 local handle, and rows are updated in place. Re-syncing or removing the
 extension leaves the definitions alone; deleting the CustomField deletes them
@@ -447,6 +448,7 @@ def _empty_local():
         "last_export_repo_id": None,
         "last_export_branch": "",
         "aliases": {},
+        "repo_manifest": None,
     }
 
 
@@ -625,12 +627,17 @@ def _now():
     return datetime.now(dt_timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def import_manifest(data, source_code_repo_id, branch, remote_source_url):
-    """Register a manifest read from a repository, keyed by its PKG id: a
-    package with that id is updated in place (name, description, version and
-    members are replaced by the manifest's), otherwise one is created. Members
-    need not exist yet; the sync creates them. The package's home becomes the
-    repository and branch it came from. Returns (package, created)."""
+# The manifest fields an edit on the appliance changes, compared to tell a
+# local edit from a change made in the repository.
+COMPARED_FIELDS = ("name", "description", "version", "contents")
+
+
+def _compared(package):
+    return {key: package.get(key) for key in COMPARED_FIELDS}
+
+
+def _checked_manifest(data):
+    """(PKG id, contents) of a manifest read from a repository, or PackageError."""
     if not isinstance(data, dict):
         raise PackageError("The manifest is not a JSON object.")
     pkg_id = data.get("id")
@@ -639,34 +646,98 @@ def import_manifest(data, source_code_repo_id, branch, remote_source_url):
     contents, problems = _check_refs(data.get("contents"))
     if problems:
         raise PackageError(" ".join(problems))
+    return pkg_id, contents
+
+
+def _manifest_fields(data, contents, others):
+    """The compared fields as storing data would set them."""
+    cleaned = _clean_fields(
+        {
+            "name": data.get("name"),
+            "description": data.get("description") or "",
+            "version": data.get("version") or DEFAULT_VERSION,
+        },
+        others=others,
+    )
+    return dict(cleaned, contents=contents)
+
+
+def _apply_manifest(cfv, package, data, fields, source_code_repo_id, branch, remote_source_url):
+    """Replace package's manifest with data's (fields already cleaned) and
+    store it, with that repository and branch as its home. local.repo_manifest
+    records what the repository had, so a later sync can tell an edit made
+    here from one made there. Returns the stored package."""
+    package.update(fields)
+    package["minimum_version_required"] = data.get("minimum_version_required") or ""
+    package["last_updated"] = data.get("last_updated") or date.today().isoformat()
+    package["metadata_version"] = data.get("metadata_version") or METADATA_VERSION
+    package["local"].update(
+        source_code_repo_id=source_code_repo_id, branch=branch, remote_source_url=remote_source_url,
+        repo_manifest=_compared(package),
+    )
+    ordered = manifest(package)
+    ordered["local"] = package["local"]
+    _store(cfv, ordered)
+    return ordered
+
+
+def import_manifest(data, source_code_repo_id, branch, remote_source_url):
+    """Register a manifest read from a repository, keyed by its PKG id: a
+    package with that id is updated in place (name, description, version and
+    members are replaced by the manifest's), otherwise one is created. Members
+    need not exist yet; the sync creates them. The package's home becomes the
+    repository and branch it came from. Returns (package, created)."""
+    pkg_id, contents = _checked_manifest(data)
     with _locked() as field:
         rows = _rows(field)
         current = next(((cfv, p) for cfv, p in rows if p["id"] == pkg_id), None)
-        others = [p for _, p in rows if p["id"] != pkg_id]
-        cleaned = _clean_fields(
-            {
-                "name": data.get("name"),
-                "description": data.get("description") or "",
-                "version": data.get("version") or DEFAULT_VERSION,
-            },
-            others=others,
-        )
+        fields = _manifest_fields(data, contents, others=[p for _, p in rows if p["id"] != pkg_id])
         if current:
             cfv, package = current
         else:
             cfv, package = CustomFieldValue(field=field), OrderedDict([("id", pkg_id), ("local", _empty_local())])
-        package.update(cleaned)
-        package["contents"] = contents
-        package["minimum_version_required"] = data.get("minimum_version_required") or ""
-        package["last_updated"] = data.get("last_updated") or date.today().isoformat()
-        package["metadata_version"] = data.get("metadata_version") or METADATA_VERSION
-        package["local"].update(
-            source_code_repo_id=source_code_repo_id, branch=branch, remote_source_url=remote_source_url
-        )
-        ordered = manifest(package)
-        ordered["local"] = package["local"]
-        _store(cfv, ordered)
+        ordered = _apply_manifest(cfv, package, data, fields, source_code_repo_id, branch, remote_source_url)
     return ordered, current is None
+
+
+def sync_manifest(pkg_id, data, source_code_repo_id, branch, remote_source_url):
+    """
+    Bring package pkg_id up to date with data, its manifest on the branch a
+    sync reads, before any sync job exists: name, description, version and
+    members become the manifest's, as Import does, so members added in the
+    repository since the package was imported sync too. A member the manifest
+    dropped leaves the package; its content stays on the appliance.
+
+    Changes nothing and raises PackageError when the package was edited here
+    since its last import, export or sync and the manifest differs, since
+    replacing it would lose those edits. A package stored before the
+    repository's copy was recorded counts as unedited.
+
+    Returns (package, added refs, removed refs).
+    """
+    manifest_id, contents = _checked_manifest(data)
+    if manifest_id != pkg_id:
+        raise PackageError("The manifest on branch {} names package {}, not {}.".format(branch, manifest_id, pkg_id))
+    with _locked() as field:
+        rows = _rows(field)
+        cfv, package = _find(rows, pkg_id)
+        fields = _manifest_fields(data, contents, others=[p for _, p in rows if p["id"] != pkg_id])
+        current = _compared(package)
+        if fields == current:
+            if dict(package["local"].get("repo_manifest") or {}) != current:
+                package["local"]["repo_manifest"] = current
+                _store(cfv, package)
+            return package, [], []
+        base = package["local"].get("repo_manifest")
+        if base and dict(base) != current:
+            raise PackageError(
+                "{} was edited on this appliance after it was last exported, imported or synced, and branch {} "
+                "has a different version of it. Export the package to keep the edits, or import it from the "
+                "repository to replace them with the branch's, then sync.".format(package["name"], branch)
+            )
+        old = list(package.get("contents") or [])
+        package = _apply_manifest(cfv, package, data, fields, source_code_repo_id, branch, remote_source_url)
+    return package, [ref for ref in contents if ref not in old], [ref for ref in old if ref not in contents]
 
 
 def _update_local(pkg_id, **values):
@@ -677,14 +748,16 @@ def _update_local(pkg_id, **values):
     return package
 
 
-def record_export(pkg_id, source_code_repo_id, branch, remote_source_url):
-    """The package was pushed: that repository and branch become its home."""
+def record_export(pkg_id, source_code_repo_id, branch, remote_source_url, exported):
+    """The package was pushed: that repository and branch become its home.
+    exported is the package as the export wrote its manifest."""
     return _update_local(
         pkg_id,
         source_code_repo_id=source_code_repo_id,
         branch=branch,
         remote_source_url=remote_source_url,
         last_exported=_now(),
+        repo_manifest=_compared(exported),
     )
 
 

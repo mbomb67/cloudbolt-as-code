@@ -121,14 +121,14 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 
 The extension must be installed first: sync `extensions/XUI-iq65xgvr` like any UI extension and restart the web server (`systemctl restart httpd`), because it adds URL paths. Push the package on a branch whose name has no slash, or merge it to `main`.
 
-- **UI:** Admin > Custom Extensions > Content Packages > **Import from repository**. Pick the repository and branch, then the package. It registers under its PKG id (updating the package if that id is already registered) and opens **Sync**, which starts one sync job per member, chained.
+- **UI:** Admin > Custom Extensions > Content Packages > **Import from repository**. Pick the repository and branch, then the package. It registers under its PKG id (updating the package if that id is already registered) and opens **Sync**, which starts one sync job per member, chained. Import once; afterwards **Sync** on the package reads its manifest from the branch, so members added to it in the repository sync without another import.
 - **JSON API** (CB Admin, session cookie plus the `X-CSRFToken` header; `<repo>` is the Source Code Repository's numeric id or `SCR-` global id):
 
   | Call | Body | Returns |
   |---|---|---|
   | `GET /xui/content_packages/api/repos/<repo>/packages/?branch=<branch>` | | The manifests under `packages/` on that branch |
   | `POST /xui/content_packages/api/repos/<repo>/packages/import/` | `{"branch": "<branch>", "ref": "packages/PKG-<id>"}` | The registered package, `created` true or false |
-  | `POST /xui/content_packages/api/packages/PKG-<id>/sync/` | `{"refresh_if_exists": true, "ignore_action_enabled": false}`; repository and branch default to where it was imported from | `{"jobs": [{"ref", "via", "job_id", "url"}, ...]}`, in run order; `via` names the parameter a generated-options action syncs for |
+  | `POST /xui/content_packages/api/packages/PKG-<id>/sync/` | `{"refresh_if_exists": true, "ignore_action_enabled": false}`; repository and branch default to where it was imported from | `{"jobs": [{"ref", "via", "job_id", "url"}, ...], "manifest": {"path", "added", "removed"}}`, jobs in run order; `via` names the parameter a generated-options action syncs for; `manifest` is null when the branch has no manifest for the package |
 
 Do not create the package with **Add** or `POST /xui/content_packages/api/packages/`: the appliance mints its own PKG id, so the repo manifest and the appliance definition would be two packages.
 
