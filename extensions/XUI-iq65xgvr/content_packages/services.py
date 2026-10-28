@@ -13,11 +13,13 @@ one member at a time rather than reimplementing them:
   which removes hand-written READMEs; the manifest commit puts back every
   markdown file those pushes deleted, and any file such a README links to,
   as it was on the branch before the export.
-- Sync creates one sourcecodereposync job per member, the job the
-  syncFromRepo API and "Create from Repository" run, chained with prereq_job
-  so members import one at a time and shared dependencies are never created
-  twice. A member whose job fails stops the chain; CloudBolt's Rerun on that
-  job moves the waiting jobs onto the rerun.
+- Sync first reads the package's manifest on the branch and takes its
+  members, so members added in the repository since the import sync too
+  without importing again. It then creates one sourcecodereposync job per
+  member, the job the syncFromRepo API and "Create from Repository" run,
+  chained with prereq_job so members import one at a time and shared
+  dependencies are never created twice. A member whose job fails stops the
+  chain; CloudBolt's Rerun on that job moves the waiting jobs onto the rerun.
 - Import reads packages/*/PKG-*_metadata.json from the repository's global
   clone after a fetch, the technique behind the metadata file picker, and
   registers the manifest locally keyed by its PKG id.
@@ -140,10 +142,9 @@ def _branches(repo):
         raise store.PackageError("Could not read {}: {}".format(repo.label, strip_tags(str(exc)) or type(exc).__name__))
 
 
-def require_branch(repo, branch):
-    """The branch must already exist in the repository (fetches first)."""
-    if branch not in _branches(repo.cast()):
-        raise store.PackageError("{} has no branch {}.".format(repo.label, branch))
+def manifest_path(pkg_id):
+    """Where a package's manifest sits in a repository."""
+    return "{0}/{1}/{1}_metadata.json".format(PACKAGES_DIR, pkg_id)
 
 
 def _clone(repo):
@@ -229,38 +230,35 @@ def sync_order(refs):
     return [ref for _, _, ref in sorted(ranked)]
 
 
-def _sync_plan(refs, repo, branch):
+def _sync_plan(refs, repo, clone, branch):
     """[(ref, via)] in run order: every member (via None), plus what the
     package does not list but its members need, each with via the ref that
     needs it: the generated-options actions of a parameter member and the
     step plugins of a workflow, with the other actions, then the workflows a
     blueprint member pins, before the members that come after the actions.
-    Reads the members' metadata on the branch, so a parameter or workflow that
-    was never exported fails here, before any job exists."""
+    Reads the members' metadata on the branch of the fetched clone, so a
+    parameter or workflow that was never exported fails here, before any job
+    exists."""
     carried = OrderedDict()  # actions and plugins
     pinned = OrderedDict()  # workflows blueprint members pin
     workflow_type = store.MEMBER_TYPES[store.WORKFLOWS_DIR]
-    if any(not store.parse_ref(ref)[0].synced or store.parse_ref(ref)[0].dir == "blueprints" for ref in refs):
-        repo, clone = branch_clone(repo, branch)
-        local_workflows = None
-        for ref in refs:
-            member_type, global_id = store.parse_ref(ref)
-            if member_type.dir == "blueprints":
-                if local_workflows is None:
-                    local_workflows = list(workflow_type.resolvable())
-                for workflow_ref in _pinned_refs(repo, clone, branch, global_id, local_workflows):
-                    if workflow_ref not in refs:
-                        pinned.setdefault(workflow_ref, ref)
-            elif not member_type.synced:
-                for unit_ref in _carried_refs(member_type, clone, branch, global_id):
-                    if unit_ref not in refs:
-                        carried.setdefault(unit_ref, ref)
-        for workflow_ref in pinned:
-            for unit_ref in _carried_refs(workflow_type, clone, branch, store.parse_ref(workflow_ref)[1]):
+    local_workflows = None
+    for ref in refs:
+        member_type, global_id = store.parse_ref(ref)
+        if member_type.dir == "blueprints":
+            if local_workflows is None:
+                local_workflows = list(workflow_type.resolvable())
+            for workflow_ref in _pinned_refs(repo, clone, branch, global_id, local_workflows):
+                if workflow_ref not in refs:
+                    pinned.setdefault(workflow_ref, ref)
+        elif not member_type.synced:
+            for unit_ref in _carried_refs(member_type, clone, branch, global_id):
                 if unit_ref not in refs:
-                    carried.setdefault(unit_ref, workflow_ref)
-    else:
-        require_branch(repo, branch)
+                    carried.setdefault(unit_ref, ref)
+    for workflow_ref in pinned:
+        for unit_ref in _carried_refs(workflow_type, clone, branch, store.parse_ref(workflow_ref)[1]):
+            if unit_ref not in refs:
+                carried.setdefault(unit_ref, workflow_ref)
     ordered = sync_order(refs)
     split = next(
         (i for i, ref in enumerate(ordered)
@@ -322,18 +320,42 @@ def _written_sync_job(package, ref, repo, branch, refresh_if_exists, ignore_acti
     )
 
 
+def refresh_from_branch(package, repo, clone, branch):
+    """The package as branch has it. Its manifest there, when there is one,
+    replaces the stored name, description, version and members
+    (store.sync_manifest), so members added in the repository since the
+    package was imported sync too. Returns (package, changes): changes is
+    None when the branch has no manifest for the package (the stored members
+    are synced), otherwise {"path", "added", "removed"}."""
+    path = manifest_path(package["id"])
+    text = branch_reader(clone, branch)(path)
+    if text is None:
+        return package, None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        raise store.PackageError("{} on branch {} is not valid JSON.".format(path, branch))
+    package, added, removed = store.sync_manifest(
+        package["id"], data, repo.id, branch, repo.get_repo_url_for_file(branch, path)
+    )
+    return package, {"path": path, "added": added, "removed": removed}
+
+
 def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled, profile):
-    """Create one job per member, each waiting for the one before it, and
-    make the repository and branch the package's home: the OOB
-    sourcecodereposync job for each unit, and for a parameter or workflow the
-    extension's own job, preceded by OOB sync jobs for the generated-options
-    actions or step plugins it needs. Returns [(ref, Job, via)] in run
-    order."""
+    """Read the package's manifest on the branch (refresh_from_branch), then
+    create one job per member, each waiting for the one before it, and make
+    the repository and branch the package's home: the OOB sourcecodereposync
+    job for each unit, and for a parameter or workflow the extension's own
+    job, preceded by OOB sync jobs for the generated-options actions or step
+    plugins it needs. Returns ([(ref, Job, via)] in run order, changes from
+    refresh_from_branch)."""
     branch = check_branch(branch)
+    cast, clone = branch_clone(repo, branch)
+    package, changes = refresh_from_branch(package, cast, clone, branch)
     refs = list(package.get("contents") or [])
     if not refs:
         raise store.PackageError("The package has no members to sync.")
-    plan = _sync_plan(refs, repo, branch)
+    plan = _sync_plan(refs, cast, clone, branch)
 
     created, previous = [], None
     for ref, via in plan:
@@ -348,7 +370,7 @@ def sync_package(package, repo, branch, refresh_if_exists, ignore_action_enabled
         created.append((ref, job, via))
         previous = job
     store.record_sync(package["id"], repo.id, branch, [(ref, job.id, via) for ref, job, via in created])
-    return created
+    return created, changes
 
 
 # ---------------------------------------------------------------------------
@@ -742,7 +764,7 @@ def export_package(package, repo, branch, commit_message, profile, progress=None
         manifest_row.update(status="success", message="Committed {}.".format(manifest_path))
         for row, parameter_files in written:
             row.update(status="success", message="Committed {}.".format(parameter_files[0][0]))
-        store.record_export(package["id"], repo.id, branch, remote_url)
+        store.record_export(package["id"], repo.id, branch, remote_url, package)
     results.append(manifest_row)
 
     try:
@@ -809,7 +831,7 @@ def import_repo_package(repo, branch, ref):
     if not match:
         raise store.PackageError('Pick a package folder such as "packages/PKG-abcd1234".')
     pkg_id = match.group(1)
-    path = "{}/{}/{}_metadata.json".format(PACKAGES_DIR, pkg_id, pkg_id)
+    path = manifest_path(pkg_id)
     repo, clone = branch_clone(repo, branch)
     try:
         data = json.loads(clone.git.show("origin/{}:{}".format(branch, path)))

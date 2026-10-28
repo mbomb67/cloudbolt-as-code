@@ -26,7 +26,10 @@
     </div>
   </div>
   <div class="form-text mt-3">
-    {% blocktrans count n=member_count %}Starts {{ n }} CloudBolt sync job for the member, which brings its plugins, shared modules and forms with it.{% plural %}Starts {{ n }} CloudBolt sync jobs, one per member, run one after another (shared modules and plugins first, blueprints last). Each member brings its plugins, shared modules and forms with it. If a job fails, the ones after it wait: fix the content, push it, then Rerun the failed job from its page and the rest continue, or cancel them.{% endblocktrans %}
+    {% trans "Reads the package's manifest on the branch first, so members added to the package in the repository sync too; the member list here becomes the branch's (a member the branch dropped leaves the package, and its content stays on this appliance)." %}
+  </div>
+  <div class="form-text">
+    {% trans "Then starts one CloudBolt sync job per member, run one after another (shared modules and plugins first, blueprints last). Each member brings its plugins, shared modules and forms with it. If a job fails, the ones after it wait: fix the content, push it, then Rerun the failed job from its page and the rest continue, or cancel them." %}
   </div>
   {% if has_blueprints %}
   <div class="form-text">{% trans "A blueprint sync sets the blueprint's group permissions to what its metadata lists; restore them afterwards if they were set on this appliance." %}</div>

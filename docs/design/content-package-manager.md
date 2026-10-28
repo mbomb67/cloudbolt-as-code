@@ -433,6 +433,14 @@ Pins and Remote Scripts (phases 2 and 3, 2026-10-21):
 
 ### Sync (refresh the appliance from the package's home branch)
 
+0. Read `packages/<PKG-id>/<PKG-id>_metadata.json` on the branch and take its
+   name, description, version and `contents` (`store.sync_manifest`), so a
+   member added in the repository after the import syncs without importing
+   again. `local.repo_manifest` keeps what the repository last had (set by
+   import, export and sync); when the appliance's definition differs from it
+   and from the branch's, the package was edited here, and Sync refuses
+   rather than drop the edit. A branch without the manifest syncs the stored
+   `contents`.
 1. Group `contents` by top-level dir and map to the sync keys:
    `blueprints→blueprints`, `resource_actions→resource_actions`,
    `server_actions→server_actions`,
