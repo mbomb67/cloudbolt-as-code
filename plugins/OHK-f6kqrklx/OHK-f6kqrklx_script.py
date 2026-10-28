@@ -175,6 +175,11 @@ def run(job, *args, **kwargs):
         return _failure("onb_param_name is required: the parameter's internal name, for example application_tier.")
     if not NAME_RE.match(inputs["name"]):
         return _failure("onb_param_name must be lowercase letters, digits and underscores, starting with a letter.")
+    if inputs["name"] == "hostname_template":
+        return _failure(
+            "Set hostname templates with onb_configure_custom_server (onb_environments for per-environment ones): "
+            "it checks the template has CloudBolt's zeros-and-X sequence, for example poc-00X."
+        )
     if inputs["type"] and inputs["type"] not in TYPES:
         return _failure("onb_param_type must be one of: {}.".format(", ".join(TYPES)))
 
