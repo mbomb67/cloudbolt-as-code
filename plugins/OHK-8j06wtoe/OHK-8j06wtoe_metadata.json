@@ -41,7 +41,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "One location per line: AWS <region> or <region>|<vpc-id>; Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
+            "description": "One location per line: AWS <region>|<vpc-id> (the region alone only when it has one VPC); Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

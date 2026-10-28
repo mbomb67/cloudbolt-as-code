@@ -13,10 +13,10 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | Input | Type | Meaning |
 |---|---|---|
 | `onb_handler` | string, required | The handler, by global id or name. |
-| `onb_region` | string | AWS only: also list the VPCs of this region, with the default VPC flagged. |
+| `onb_region` | string | AWS only: also list the VPCs of this region with their CIDR, subnet count and default flag. |
 
 ## Output
-locationKind, locations[] (name, display, imported), existingEnvironments[], vpcs[] for an AWS region, subscriptions[] for a tenant-level Azure handler, next.
+locationKind, locations[] (name, display, imported), existingEnvironments[], vpcs[] (id, name, cidr, subnets, isDefault) and recommendedVpc for an AWS region, subscriptions[] for a tenant-level Azure handler, next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

@@ -528,7 +528,7 @@ def _next_steps(report, base):
         if not handler["environments"]:
             steps.append(
                 {
-                    "step": "Import one or two environments for '{}' with onb_handler_locations and onb_import_environments.".format(
+                    "step": "Import the one environment the POC needs for '{}' with onb_handler_locations and onb_import_environments (AWS: the one VPC the user picks).".format(
                         handler["name"]
                     ),
                     "item": "P3",

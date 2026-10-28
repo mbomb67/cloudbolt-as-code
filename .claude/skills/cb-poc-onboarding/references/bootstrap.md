@@ -29,7 +29,7 @@ Ask nothing else up front. Each remaining prerequisite is one question, asked wh
 
 | Id | Prerequisite | Asked or proven at |
 |---|---|---|
-| P3 | One or two resource handlers, one or two environments each | Phase 1 asks for the first cloud, and for a second only after the first is verified; Phase 2 records it |
+| P3 | One or two resource handlers, one environment each | Phase 1 asks for the first cloud, and for a second only after the first is verified; Phase 2 records it |
 | P4 | Custom Server deployed once in each environment | Phase 3, from the order |
 | P7 | SMTP relay | Phase 5, before the first approval email |
 | P8 | DNS record for a branded portal | Phase 6, branded portal step |

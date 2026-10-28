@@ -26,7 +26,7 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
 5. **Echo and confirm every write.** Before a tool that changes the appliance or orders infrastructure, state what will change and wait for a clear yes. For `order_catalog_item` follow the server's echo-and-confirm text verbatim. `onb_remove_environment` is destructive: name the environment and get an explicit yes.
 6. **Every step is skippable.** When the customer cannot or does not want to do an item (no SMTP, no LDAP, no SSO, no DNS record, no Terraform or Ansible), offer to skip it, record it with `onb_set_item_status` as `not_applicable` with the reason, and move on. The scorecard reports it as not applicable, never as failed.
 7. **Record progress.** When an item's evidence exists (a successful order, a verified handler, a user who logged in), record it `done` with `onb_set_item_status`. The scorecard is built from these records plus live evidence.
-8. **Scope is the test plan.** Up to two resource handlers, one or two environments each, the Custom Server and POC Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
+8. **Scope is the test plan.** Up to two resource handlers, one environment each, the Custom Server and POC Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
 9. **Two response shapes.** A synchronous tool answers inline: read `outputs`. An asynchronous tool answers `{"success": true, "ids": ["JOB-..."]}`: poll `fetch_job` (or `fetch_job_log`) on that id every five seconds and read its `outputs`. The asynchronous tools are the ones that call a cloud, a directory, a mail relay or the internet: `onb_verify_resource_handler`, `onb_sync_images`, `onb_handler_locations`, `onb_import_environments`, `onb_environment_networks`, `onb_network_addressing`, `onb_import_os_build`, `onb_verify_ldap`, `onb_smtp_test`, `onb_install_content_library_item`, `onb_install`. Start the long ones (`onb_sync_images`) and keep working; check them before the step that needs their result. If any other tool answers with a job id, `onb_install` has not run; run it and tell the user to reconnect the client.
 10. **Reconnect after install.** Tool lists are cached per client session. After `onb_install` changes anything, the user reconnects the MCP client before the next phase.
 11. **Links, not hostnames.** Every URL comes from a tool. Never compose an appliance URL from memory.
@@ -38,7 +38,7 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
     |---|---|
     | Handler created | `onb_verify_resource_handler` returns `verified: true` |
     | Image cache | the `onb_sync_images` job is SUCCESS and `onb_status` shows `cachedImages` above 0 for the handler |
-    | Environments | `onb_status` lists each POC environment under its handler with `networks` at least 1 |
+    | Environments | `onb_status` lists the one POC environment under each handler, with `networks` at least 1 and no environment the POC does not use |
     | Networks | `onb_environment_networks` returns `verified: true` with exactly the chosen networks on NIC 1, every `onb_network_addressing` call returns `verified: true`, and `onb_status` shows no `networkProblems` |
     | OS build | `onb_import_os_build` returns `verified: true`: CloudBolt resolves the image in every environment, the lookup an order makes |
     | Order form trimmed | `fetch_blueprint_item_parameters` for the environment shows only the fields in `visibleNow` |
@@ -66,8 +66,8 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 0 | `onb_playbook` | sync | Fetch this skill's text by section for clients without skills |
 | 1 | `onb_verify_resource_handler` | async | Run Verify Connection on a handler and get the real error plus a technology hint |
 | 1 | `onb_sync_images` | async | Fill the handler's image cache now without the whitelist and enable the cache job and rule with the whitelist off; start it right after verify and let it run |
-| 2 | `onb_handler_locations` | async | List regions, locations or clusters (and an AWS region's VPCs) with what is already imported |
-| 2 | `onb_import_environments` | async | Create environments for the chosen locations with their subnets or networks |
+| 1, 2 | `onb_handler_locations` | async | List regions, locations or clusters (and an AWS region's VPCs with CIDR, subnet count and a recommended one) with what is already imported |
+| 1, 2 | `onb_import_environments` | async | Create the environment for the chosen location (AWS: one VPC) with its subnets or networks |
 | 2 | `onb_environment_networks` | async | List an environment's networks, or set up to five as its only NIC 1 choices (removing every other NIC) and verify |
 | 2 | `onb_network_addressing` | async | Set a network to DHCP, or static with gateway and netmask (DNS optional) plus an IP pool, an IPAM endpoint or a typed IP, and verify it the way an order resolves it |
 | 2 | `onb_import_os_build` | async | List the cached images for a location, or import an AMI, Azure image or vCenter template into an OS build attached to the environments |
@@ -103,7 +103,7 @@ For every phase:
 |---|---|---|
 | 0 Bootstrap | MCP connection, admin check, toolkit install, the prerequisites the appliance already proves (each other one is asked by the step that needs it) | bootstrap.md |
 | 1 Handlers | Up to two resource handlers, verified | resource-handlers.md |
-| 2 Environments | One or two environments per handler, image, network, trimmed order form, hostname template | phases.md |
+| 2 Environments | One environment per handler, image, network, trimmed order form, hostname template | phases.md |
 | 3 First order | Custom Server ordered through MCP in each environment, lifecycle actions | phases.md |
 | 4 Self-service | Parameters, generated options, tags, cross-cloud visibility | phases.md |
 | 5 RBAC and governance | Groups, roles, users, entitlements, approvals, quota | phases.md |

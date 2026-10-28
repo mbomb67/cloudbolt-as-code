@@ -42,7 +42,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "One location per line: AWS <region> or <region>|<vpc-id>; Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
+            "description": "One location per line: AWS <region>|<vpc-id> (the region alone only when it has one VPC); Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -71,7 +71,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Create one environment per location on a resource handler, exactly as the handler page's Import locations dialog does: one AWS region plus VPC (pass <region> for the region's default VPC or <region>|<vpc-id>), one Azure location, one vCenter, SCVMM or Nutanix cluster, one GCP project. AWS subnets are imported with the environment and Azure subnets are synced; for every technology, choose the NIC 1 networks next with onb_environment_networks. A location that already has an environment is reported as existing. At most four locations per call; a POC needs one or two per handler. Echo the locations to the user and confirm before calling. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Create one environment per location on a resource handler, exactly as the handler page's Import locations dialog does: one AWS VPC (pass <region>|<vpc-id>; the region alone works only when it has one VPC, and a VPC without subnets is refused), one Azure location, one vCenter, SCVMM or Nutanix cluster, one GCP project. AWS subnets are imported with the environment and Azure subnets are synced; for every technology, choose the NIC 1 networks next with onb_environment_networks. A handler's first AWS environment also adds the Name and Annotation tags that the handler form's Done would add. A location that already has an environment is reported as existing. At most four locations per call; a POC needs one per handler. Echo the locations to the user and confirm before calling. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_import_environments",
     "mcp_tool_title": ""
 }
