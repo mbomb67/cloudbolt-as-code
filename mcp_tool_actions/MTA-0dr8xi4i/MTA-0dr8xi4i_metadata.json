@@ -105,7 +105,7 @@
             "global-options": [],
             "hide-if-default-value": true,
             "id": "CF-jlhhvju6",
-            "label": "Replace the handler's existing image (true/false, default false)",
+            "label": "Replace existing image (true/false)",
             "name": "onb_replace_existing",
             "placeholder": "false",
             "relevant-osfamilies": [],
