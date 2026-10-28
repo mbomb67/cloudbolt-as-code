@@ -15,7 +15,7 @@ Call `fetch_mcp_tool_actions`. If `onb_status` is missing, the toolkit is not in
 
 After the import every tool is asynchronous (the importer leaves Synchronous Action off). Run `onb_install` (asynchronous itself, so it works now): `run_mcp_tool_action("onb_install", {})`, poll the job id with `fetch_job`, read `outputs.changed`, `outputs.missing`, `outputs.egress`. Tell the user to reconnect the MCP client (tool lists are cached per session), then call `fetch_mcp_tool_actions` again: every `onb_` name from [SKILL.md](../SKILL.md) must be present. Check: `run_mcp_tool_action("onb_status", {})` answers inline.
 
-Later toolkit updates: the user clicks Sync on the package (Admin > Admin Extensions > Content Packages), then `onb_install`, then reconnect.
+Later toolkit updates: the user runs Import from repository again for POC Onboarding Toolkit (Sync alone uses the member list saved at the last import and misses new tools), then Sync with Refresh checked (section 7 of the setup doc), then `onb_install`, then reconnects the MCP client.
 
 ## 3. First status
 

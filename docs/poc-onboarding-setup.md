@@ -126,7 +126,11 @@ In Claude Code, started in the `cloudbolt-as-code` folder, run `/cb-poc-onboardi
 
 ## 7. Updating the toolkit
 
-Admin > Admin Extensions > Content Packages > **POC Onboarding Toolkit** > **Sync**, with **Refresh content that already exists** checked. Then ask the agent to run `onb_install`, and reconnect the MCP client.
+Sync uses the member list saved at import, so import the package again first; that picks up tools added since.
+
+1. Admin > Admin Extensions > Content Packages > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **POC Onboarding Toolkit**, then **Import**. The message says the package was updated from the repository.
+2. The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**.
+3. Ask the agent to run `onb_install`, then reconnect the MCP client so it lists the new tools.
 
 ## Troubleshooting
 
