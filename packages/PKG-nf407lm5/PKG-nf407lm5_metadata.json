@@ -3,13 +3,15 @@
         "orchestration_actions/HPA-q181uofy",
         "orchestration_actions/HPA-jjp1vlfi",
         "orchestration_actions/HPA-0zcrvpwu",
-        "parameters/CF-8pif9mbf"
+        "orchestration_actions/HPA-g8pqv6uv",
+        "parameters/CF-8pif9mbf",
+        "parameters/CF-yqmreb5m"
     ],
-    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission.",
+    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, optionally switching their CloudBolt credentials to a domain service account, and deletes the computer object at decommission.",
     "id": "PKG-nf407lm5",
-    "last_updated": "2026-10-16",
+    "last_updated": "2026-10-26",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "Windows AD Domain Join",
-    "version": "1.0.0"
+    "version": "1.1.0"
 }

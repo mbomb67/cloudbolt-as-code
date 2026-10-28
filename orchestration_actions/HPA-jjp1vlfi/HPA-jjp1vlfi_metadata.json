@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-9oqn6pur"
     },
-    "description": "Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision.",
+    "description": "Joins newly provisioned Windows servers to the Active Directory OU their domain_ou names at Post-Provision, switching their CloudBolt credentials to the domain_service_account connection info when one is picked.",
     "enabled": true,
     "hook_point": "Post-Provision",
     "id": "HPA-jjp1vlfi",

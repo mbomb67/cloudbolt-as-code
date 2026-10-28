@@ -4,10 +4,19 @@ Join Windows Server to AD Domain
 Post-Provision orchestration action. It joins each Windows server in the job
 to Active Directory in the OU its domain_ou parameter names, a distinguished
 name. The domain is the OU's DC components, and the join account is the
-service account of the LDAP Utility that serves that domain (ad_domain.resolve).
-domain_to_join is optional: without an OU it names the domain to join (into
-the default Computers container), and it chooses between several LDAP
-Utilities for one domain. A server with neither parameter is skipped.
+service account of the one LDAP Utility that serves that domain. A server
+without domain_ou is skipped: domain_to_join is not read here, because
+CloudBolt's own guest customization joins servers that have it.
+
+domain_service_account optionally names, by ID, a connection info labeled
+domain_service_account. When this action joins a server, it makes that
+connection info's username and password the server's CloudBolt credentials
+(its username and password parameters) as soon as the restart is scheduled,
+because the local account it used so far may stop working once the computer
+is in the domain. A server that was already in the domain keeps its
+credentials. The connection info is checked before the join, so a missing
+one, or one without a password or a domain in its username, fails the server
+before anything changes.
 
 Steps per server:
   1. Run JOIN_SCRIPT in the guest through Server.execute_script, the call a
@@ -24,10 +33,13 @@ Steps per server:
      already in the domain under another name is renamed with Rename-Computer
      and the join account. The restart is scheduled 15 seconds out so the call
      returns first.
-  2. Wait for the restart and run VERIFY_SCRIPT until the guest has booted
+  2. When the script joined the computer and domain_service_account is set,
+     switch the server's credentials to the service account.
+  3. Wait for the restart and run VERIFY_SCRIPT until the guest has booted
      again, is in the domain under the CloudBolt hostname, and passes
-     Test-ComputerSecureChannel.
-  3. Look the computer object up over LDAP and record its objectGUID and DN on
+     Test-ComputerSecureChannel. After a switch it runs as the service
+     account, so this also proves CloudBolt can sign in with it.
+  4. Look the computer object up over LDAP and record its objectGUID and DN on
      the server (ad_computer_object_guid, ad_computer_object_dn), so the
      cleanup action at Pre-Delete deletes exactly that object.
 
@@ -37,7 +49,11 @@ _join_server keeps them out if the filter is edited.
 Security: the join password reaches the guest inside the script body, base64
 encoded for quoting only, and is decoded straight into a SecureString. It is
 scrubbed from everything this plug-in logs or returns. On AWS the script body
-stays in Systems Manager command history; see the README.
+stays in Systems Manager command history; see the README. The service
+account's password is written only to the server's encrypted password
+parameter, and only its username is logged. Only connection infos with the
+domain_service_account label are accepted, so an order cannot copy another
+connection info's credentials onto its server.
 
 The scripts write only to stdout and report through exit codes, because
 VMware Tools fails a Windows script on any stderr output and drops Write-Host.
@@ -59,6 +75,7 @@ import time
 from common.methods import set_progress
 from infrastructure.models import CustomField
 from utilities.logger import ThreadLogger
+from utilities.models import ConnectionInfo
 
 from shared_modules import ad_domain
 
@@ -66,6 +83,8 @@ logger = ThreadLogger(__name__)
 
 GUID_FIELD = "ad_computer_object_guid"
 DN_FIELD = "ad_computer_object_dn"
+# The parameter and the connection info label share this name.
+SERVICE_ACCOUNT = "domain_service_account"
 
 JOIN_TIMEOUT = 600
 GUEST_READY_WAIT = 600
@@ -268,6 +287,52 @@ def _wait_for_restart(server, domain, name, boot_ticks):
         time.sleep(CHECK_INTERVAL)
 
 
+def _resolve_ou(server):
+    """
+    (LDAP Utility, domain, OU DN) from the server's domain_ou, or (None, "", "")
+    without one. Raises ValueError when the OU has no DC components or not
+    exactly one LDAP Utility serves its domain.
+    """
+    ou = str(server.get_value_for_custom_field("domain_ou") or "").strip()
+    if not ou:
+        return None, "", ""
+    domain = ad_domain.dn_domain(ou)
+    if not domain:
+        raise ValueError("%s is not a distinguished name with DC components" % ou)
+    matches = [u for u in ad_domain.utilities() if ad_domain.utility_domain(u) == domain]
+    if not matches:
+        raise ValueError("no LDAP Utility serves %s, the domain of %s" % (domain, ou))
+    if len(matches) > 1:
+        raise ValueError("%d LDAP Utilities serve %s; keep one per domain" % (len(matches), domain))
+    return matches[0], domain, ou
+
+
+def _service_account(server):
+    """
+    The connection info domain_service_account names, or None when it is not
+    set. Raises ValueError when it is not a labeled connection info with a
+    password and a username that includes its domain.
+    """
+    value = str(server.get_value_for_custom_field(SERVICE_ACCOUNT) or "").strip()
+    if not value:
+        return None
+    account = None
+    if value.isdigit():
+        account = ConnectionInfo.objects.filter(labels__name=SERVICE_ACCOUNT, id=int(value)).first()
+    if account is None:
+        raise ValueError("domain_service_account %s is not the ID of a connection info labeled %s"
+                         % (value, SERVICE_ACCOUNT))
+    username = (account.username or "").strip()
+    # A UPN (user@corp.example.com) or a down-level name (CORP\user). A bare
+    # name would sign in to a local account, so the domain is never guessed.
+    if "@" not in username and "\\" not in username:
+        raise ValueError("the username of connection info '%s' must include its domain, as "
+                         "user@corp.example.com" % account.name)
+    if not account.password:
+        raise ValueError("connection info '%s' has no password" % account.name)
+    return account
+
+
 def _record_computer_object(server, ldap_utility, name):
     """Store the computer object's GUID and DN on the server. Returns a warning, or '' when recorded."""
     try:
@@ -294,11 +359,11 @@ def _join_server(server):
         return "SKIPPED", "%s: the VM was not created, skipped." % hostname
 
     try:
-        ldap_utility, domain, ou = ad_domain.resolve(server)
+        ldap_utility, domain, ou = _resolve_ou(server)
     except ValueError as err:
         return "FAILURE", "%s: cannot tell which domain to join: %s." % (hostname, err)
     if ldap_utility is None:
-        return "SKIPPED", "%s: no domain_ou or domain_to_join, skipped." % hostname
+        return "SKIPPED", "%s: no domain_ou, skipped." % hostname
 
     user = (ldap_utility.serviceaccount or "").strip()
     password = ldap_utility.servicepasswd or ""
@@ -313,8 +378,13 @@ def _join_server(server):
         return "FAILURE", ("%s: '%s' cannot be a Windows computer name: use at most 15 letters, digits, "
                            "and hyphens, not only digits." % (hostname, name))
 
-    set_progress("%s: joining Active Directory domain %s%s as %s" % (
-        hostname, domain, " in " + ad_domain.canonical_name(ou) if ou else "", name))
+    try:
+        account = _service_account(server)
+    except ValueError as err:
+        return "FAILURE", "%s: not joined, %s." % (hostname, err)
+
+    set_progress("%s: joining Active Directory domain %s in %s as %s" % (
+        hostname, domain, ad_domain.canonical_name(ou), name))
     script = (JOIN_SCRIPT.replace("__CB_DOMAIN__", _b64(domain))
               .replace("__CB_USER__", _b64(user))
               .replace("__CB_OU__", _b64(ou))
@@ -346,22 +416,39 @@ def _join_server(server):
     markers = _markers(output)
     result = markers.get("CB_AD_RESULT")
     old_name = markers.get("CB_AD_COMPUTER_NAME", "")
+    switched = ""
     if result == "ALREADY_JOINED":
         set_progress("%s: already in domain %s as %s." % (hostname, domain, name))
     else:
         renamed = " (renamed from %s)" % old_name if old_name and old_name.lower() != name.lower() else ""
         done = "renamed in" if result == "RENAMED" else "joined"
         set_progress("%s: %s %s as %s%s, waiting for the restart." % (hostname, done, domain, name, renamed))
+        if result == "JOINED" and account is not None:
+            # The restart is under way; switch now so the check after it, and
+            # every script after this action, signs in as the domain account.
+            server.set_value_for_custom_field("username", account.username.strip())
+            server.set_value_for_custom_field("password", account.password)
+            switched = account.username.strip()
+            set_progress("%s: CloudBolt now signs in to it as %s, from connection info '%s'." % (
+                hostname, switched, account.name))
         boot_ticks = markers.get("CB_AD_BOOT_TICKS", "")
         ok, problem = _wait_for_restart(server, domain, name, boot_ticks if boot_ticks.isdigit() else "0")
         if not ok:
+            if switched:
+                problem = _scrub(problem, account.password) + (
+                    " CloudBolt now signs in to this server as %s, so that account must be allowed to sign in "
+                    "to it remotely, for example as a member of its local Administrators group." % switched)
             return "FAILURE", "%s: %s %s, but the check after the restart failed: %s" % (
                 hostname, done, domain, _scrub(problem, password))
+    if account is not None and not switched:
+        set_progress("%s: was already in the domain, so it keeps its credentials; domain_service_account "
+                     "applies only to a server this action joins." % hostname)
 
     warning = _record_computer_object(server, ldap_utility, name)
     if warning:
         set_progress("%s: %s; the cleanup action will look it up by name instead." % (hostname, warning))
-    return "SUCCESS", "%s: in Active Directory domain %s as %s." % (hostname, domain, name)
+    signs_in = " CloudBolt signs in to it as %s." % switched if switched else ""
+    return "SUCCESS", "%s: in Active Directory domain %s as %s.%s" % (hostname, domain, name, signs_in)
 
 
 def run(job, *args, **kwargs):
@@ -384,5 +471,5 @@ def run(job, *args, **kwargs):
     if failures:
         return "FAILURE", "\n".join(joined), "\n".join(failures)
     if not joined:
-        return "SUCCESS", "No Windows server in this job has a domain_ou or domain_to_join.", ""
+        return "SUCCESS", "No Windows server in this job has a domain_ou.", ""
     return "SUCCESS", "\n".join(joined), ""

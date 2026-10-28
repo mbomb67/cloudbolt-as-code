@@ -1345,6 +1345,25 @@
     "enabled": false
   },
   {
+    "id": "HPA-g8pqv6uv",
+    "type": "orchestration_actions",
+    "name": "Generate Options for Domain Service Account",
+    "description": "Lists every connection info labeled domain_service_account as the choices for the domain_service_account parameter.",
+    "path": "orchestration_actions/HPA-g8pqv6uv",
+    "readme": "orchestration_actions/HPA-g8pqv6uv/README.md",
+    "uses": [
+      "plugins/OHK-ww524a3e"
+    ],
+    "used_by": [
+      "parameters/CF-yqmreb5m"
+    ],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-nf407lm5"
+    ]
+  },
+  {
     "id": "HPA-h7g0i0dx",
     "type": "orchestration_actions",
     "name": "Azure CMK - Remove Per-VM Disk Encryption Set",
@@ -1390,7 +1409,7 @@
     "id": "HPA-jjp1vlfi",
     "type": "orchestration_actions",
     "name": "Join Windows Server to AD Domain",
-    "description": "Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision.",
+    "description": "Joins newly provisioned Windows servers to the Active Directory OU their domain_ou names at Post-Provision, switching their CloudBolt credentials to the domain_service_account connection info when one is picked.",
     "path": "orchestration_actions/HPA-jjp1vlfi",
     "readme": "orchestration_actions/HPA-jjp1vlfi/README.md",
     "uses": [
@@ -1624,17 +1643,19 @@
     "id": "PKG-nf407lm5",
     "type": "packages",
     "name": "Windows AD Domain Join",
-    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission.",
+    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, optionally switching their CloudBolt credentials to a domain service account, and deletes the computer object at decommission.",
     "path": "packages/PKG-nf407lm5",
     "readme": "packages/PKG-nf407lm5/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "orchestration_actions/HPA-q181uofy",
       "orchestration_actions/HPA-jjp1vlfi",
       "orchestration_actions/HPA-0zcrvpwu",
-      "parameters/CF-8pif9mbf"
+      "orchestration_actions/HPA-g8pqv6uv",
+      "parameters/CF-8pif9mbf",
+      "parameters/CF-yqmreb5m"
     ]
   },
   {
@@ -1779,6 +1800,23 @@
     "parameter_type": "TXT",
     "packages": [
       "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
+    "id": "CF-yqmreb5m",
+    "type": "parameters",
+    "name": "Domain Service Account",
+    "description": "Connection info whose domain account CloudBolt signs in to the server with after the Join Windows Server to AD Domain action joins it to its Domain OU.",
+    "path": "parameters/CF-yqmreb5m",
+    "readme": "parameters/CF-yqmreb5m/README.md",
+    "uses": [
+      "orchestration_actions/HPA-g8pqv6uv"
+    ],
+    "used_by": [],
+    "parameter_name": "domain_service_account",
+    "parameter_type": "STR",
+    "packages": [
+      "packages/PKG-nf407lm5"
     ]
   },
   {
@@ -2574,7 +2612,7 @@
     "id": "OHK-9oqn6pur",
     "type": "plugins",
     "name": "Join Windows Server to AD Domain",
-    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, then waits for the restart and verifies the name and secure channel.",
+    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, switches its CloudBolt credentials to the domain_service_account connection info when set, then waits for the restart and verifies the name and secure channel.",
     "path": "plugins/OHK-9oqn6pur",
     "readme": null,
     "uses": [
@@ -4389,6 +4427,19 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-9tfwebk7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ww524a3e",
+    "type": "plugins",
+    "name": "Generate Options for Domain Service Account",
+    "description": "Lists every connection info labeled domain_service_account, by name and username, with its ID as the value, for the domain_service_account parameter.",
+    "path": "plugins/OHK-ww524a3e",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-g8pqv6uv"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
