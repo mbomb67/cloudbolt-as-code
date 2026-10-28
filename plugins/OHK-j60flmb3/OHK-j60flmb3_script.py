@@ -51,6 +51,8 @@ TOOLS = {
     "onb_cit_from_order": True,
     "onb_scorecard": True,
     "onb_sync_images": False,
+    "onb_environment_networks": False,
+    "onb_network_addressing": False,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,

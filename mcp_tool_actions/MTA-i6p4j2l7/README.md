@@ -1,6 +1,6 @@
 # POC Onboarding: Import Environments
 
-MCP Tool Action published to agents as `custom_onb_import_environments`. Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.
+MCP Tool Action published to agents as `custom_onb_import_environments`. Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced; vCenter networks are chosen afterwards with onb_environment_networks), and reports existing environments instead of duplicating them.
 Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
 
 ## Contents

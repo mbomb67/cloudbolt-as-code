@@ -4,8 +4,9 @@ POC Onboarding: Import Environments (MCP Tool Action plugin).
 Creates one environment per listed location on a resource handler, the
 same way the handler page's Import locations dialog does
 (create_location_specific_env), then brings the networks over: AWS VPC
-subnets are imported with the environment, Azure subnets are synced, and
-vCenter networks of the cluster are attached to NIC 1. A location that
+subnets are imported with the environment and Azure subnets are synced.
+vCenter networks are not attached here: the user chooses them, up to five,
+with onb_environment_networks. A location that
 already has an environment is reported, not duplicated. Runs as a job
 because it calls the cloud API. Admin only.
 
@@ -18,7 +19,6 @@ import re
 
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
 MAX_LOCATIONS = 4
-MAX_VMWARE_NETWORKS = 20
 SPECIAL_FIELD = {
     "aws": "aws_region",
     "aws_govcloud": "aws_region",
@@ -226,20 +226,9 @@ def _import_vmware(handler, cluster, prefix, base, job):
         _progress(job, "Creating vCenter environment for cluster {}".format(cluster))
         env = handler.create_location_specific_env(cluster, env_name=env_name)
         status = "created"
-    attached = []
-    try:
-        if not env.networks():
-            _progress(job, "Syncing vCenter networks")
-            try:
-                handler.sync_networks()
-            except Exception as exc:
-                attached.append("network sync failed: {}".format(str(exc)[:200]))
-            for network in list(handler.get_possible_networks(env))[:MAX_VMWARE_NETWORKS]:
-                env.add_network(network, nic_position=1)
-                attached.append(network.name)
-    except Exception as exc:
-        attached.append("network attach failed: {}".format(str(exc)[:200]))
-    return _env_row(env, base, status, location=cluster, networksAttached=attached)
+    note = ("Choose the networks servers in this environment use (up to five) with onb_environment_networks, then set "
+            "each one's addressing with onb_network_addressing.")
+    return _env_row(env, base, status, location=cluster, note=note)
 
 
 def _import_generic(handler, slug, location, prefix, base, job):

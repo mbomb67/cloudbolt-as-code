@@ -71,7 +71,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Create one environment per location on a resource handler, exactly as the handler page's Import locations dialog does: one AWS region plus VPC (pass <region> for the region's default VPC or <region>|<vpc-id>), one Azure location, one vCenter, SCVMM or Nutanix cluster, one GCP project. Networks come with it: AWS subnets are imported with the environment, Azure subnets are synced, vCenter networks of the cluster are attached to NIC 1. A location that already has an environment is reported as existing. At most four locations per call; a POC needs one or two per handler. Echo the locations to the user and confirm before calling. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Create one environment per location on a resource handler, exactly as the handler page's Import locations dialog does: one AWS region plus VPC (pass <region> for the region's default VPC or <region>|<vpc-id>), one Azure location, one vCenter, SCVMM or Nutanix cluster, one GCP project. AWS subnets are imported with the environment and Azure subnets are synced; for every technology, choose the NIC 1 networks next with onb_environment_networks. A location that already has an environment is reported as existing. At most four locations per call; a POC needs one or two per handler. Echo the locations to the user and confirm before calling. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_import_environments",
     "mcp_tool_title": ""
 }

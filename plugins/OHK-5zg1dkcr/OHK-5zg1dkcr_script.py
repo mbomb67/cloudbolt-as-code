@@ -49,6 +49,8 @@ TOOLKIT_TOOLS = [
     "onb_cit_from_order",
     "onb_scorecard",
     "onb_sync_images",
+    "onb_environment_networks",
+    "onb_network_addressing",
     "sync_from_source_control_repo",
     "fetch_job_log",
     "manage_blueprint_permissions",
@@ -217,6 +219,55 @@ def _setup_wizard(base):
         return {"available": False, "error": str(exc)[:200]}
 
 
+# Technologies whose networks carry addressing CloudBolt sends to the guest (the others let the cloud assign IPs).
+ADDRESSING_TECH = {"vmware", "vmc_aws", "scvmm", "hyperv", "acropolis", "h3ccas", "vcloud_director", "azurelocal"}
+NO_NETWORK_TECH = {"proxmox", "metalsoft", "orka", "ipmi"}
+
+
+def _network_problems(env):
+    """What would make an order's NIC 1 fail: no network, too many, static without gateway and netmask, a full pool."""
+    problems = []
+    handler = env.resource_handler
+    tech = getattr(handler, "resource_technology", None) if handler else None
+    slug = (getattr(tech, "slug", None) or "") if tech else ""
+    if slug in NO_NETWORK_TECH:
+        return problems
+    nets = []
+    for cfv in env.custom_field_options.filter(field__name="sc_nic_0").select_related("network_value"):
+        if cfv.network_value is not None:
+            nets.append(cfv.network_value)
+    if not nets:
+        problems.append("no network on NIC 1")
+        return problems
+    if len(nets) > 5:
+        problems.append("{} networks on NIC 1; choose up to 5".format(len(nets)))
+    if env.custom_field_options.filter(field__name__regex=r"^sc_nic_([1-9]|[1-9][0-9])$").exists():
+        problems.append("networks on more than one NIC")
+    if slug not in ADDRESSING_TECH:
+        return problems
+    for net in nets:
+        try:
+            provider = net.determine_ip_provider()
+        except Exception:
+            provider = None
+        if provider in ("user_static", "user_static_or_dhcp", "pool", "ipam") and not (net.gateway and net.netmask):
+            problems.append("network '{}' is static without gateway and netmask".format(net.name))
+        if provider == "pool":
+            try:
+                rp = net.get_resource_pool()
+                if rp is not None and not rp.get_values().filter(server=None, resource=None).exists():
+                    problems.append("network '{}' has a full IP pool".format(net.name))
+            except Exception:
+                pass
+        if provider == "ipam":
+            try:
+                if net.ipam_network.ipam_set.first() is None:
+                    problems.append("network '{}' is mapped to an IPAM network with no IPAM endpoint".format(net.name))
+            except Exception:
+                pass
+    return problems
+
+
 def _environment_row(env, base):
     try:
         network_count = len(env.networks())
@@ -240,6 +291,7 @@ def _environment_row(env, base):
         "name": env.name,
         "osBuilds": env.os_builds.count(),
         "osBuildProblems": problems,
+        "networkProblems": _network_problems(env),
         "networks": network_count,
         "groups": env.groups_served.count(),
         "lifecycleParameters": sorted(flags),
@@ -495,6 +547,16 @@ def _next_steps(report, base):
                         "url": handler["url"],
                     }
                 )
+            for problem in env.get("networkProblems") or []:
+                steps.append(
+                    {
+                        "step": "Environment '{}': {}. Choose its networks with onb_environment_networks and set their addressing with onb_network_addressing.".format(
+                            env["name"], problem),
+                        "item": "P4",
+                        "environment": env["id"],
+                        "url": env["url"],
+                    }
+                )
             if env["osBuilds"] == 0:
                 steps.append(
                     {
@@ -502,15 +564,6 @@ def _next_steps(report, base):
                         "item": "P4",
                         "environment": env["id"],
                         "url": handler["url"],
-                    }
-                )
-            if env["networks"] == 0:
-                steps.append(
-                    {
-                        "step": "Attach a network (sc_nic_0) to environment '{}'.".format(env["name"]),
-                        "item": "P4",
-                        "environment": env["id"],
-                        "url": env["url"],
                     }
                 )
     custom = report["customServerBlueprint"]

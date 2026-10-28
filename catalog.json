@@ -944,6 +944,23 @@
     ]
   },
   {
+    "id": "MTA-20u1ney4",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Environment Networks",
+    "description": "Lists the networks an environment can offer on its first NIC and makes the chosen ones, up to five, its only NIC 1 choices, removing networks from every other NIC.",
+    "path": "mcp_tool_actions/MTA-20u1ney4",
+    "readme": "mcp_tool_actions/MTA-20u1ney4/README.md",
+    "uses": [
+      "plugins/OHK-0u7aonmo"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_environment_networks",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
     "id": "MTA-543b19sa",
     "type": "mcp_tool_actions",
     "name": "Sync From Source Control Repo",
@@ -1213,7 +1230,7 @@
     "id": "MTA-i6p4j2l7",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: Import Environments",
-    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.",
+    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced; vCenter networks are chosen afterwards with onb_environment_networks), and reports existing environments instead of duplicating them.",
     "path": "mcp_tool_actions/MTA-i6p4j2l7",
     "readme": "mcp_tool_actions/MTA-i6p4j2l7/README.md",
     "uses": [
@@ -1230,7 +1247,7 @@
     "id": "MTA-iyknuxox",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: Trim Environment Order Form",
-    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.",
+    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size, the NIC 1 networks chosen with onb_environment_networks and, where needed, the password; the report profile only lists the current form.",
     "path": "mcp_tool_actions/MTA-iyknuxox",
     "readme": "mcp_tool_actions/MTA-iyknuxox/README.md",
     "uses": [
@@ -1437,6 +1454,23 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "onb_user",
+    "packages": [
+      "packages/PKG-8aaadefz"
+    ]
+  },
+  {
+    "id": "MTA-z3h0o9t3",
+    "type": "mcp_tool_actions",
+    "name": "POC Onboarding: Network Addressing",
+    "description": "Sets how servers on a network get their IP address (DHCP, static with gateway and netmask, a CloudBolt IP pool, an IPAM endpoint, or an IP typed per order) and verifies it with the network's IP provider.",
+    "path": "mcp_tool_actions/MTA-z3h0o9t3",
+    "readme": "mcp_tool_actions/MTA-z3h0o9t3/README.md",
+    "uses": [
+      "plugins/OHK-gjfc20pv"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "onb_network_addressing",
     "packages": [
       "packages/PKG-8aaadefz"
     ]
@@ -1860,46 +1894,48 @@
     "id": "PKG-8aaadefz",
     "type": "packages",
     "name": "POC Onboarding Toolkit",
-    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
+    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, environment networks and their addressing (DHCP, static, IP pool, IPAM), Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
     "path": "packages/PKG-8aaadefz",
     "readme": "packages/PKG-8aaadefz/README.md",
     "uses": [],
     "used_by": [],
-    "version": "0.5.0",
+    "version": "0.6.0",
     "contents": [
-      "mcp_tool_actions/MTA-6zxrhdls",
+      "blueprints/BP-x78p48gz",
+      "mcp_tool_actions/MTA-0689nxjy",
+      "mcp_tool_actions/MTA-0dr8xi4i",
       "mcp_tool_actions/MTA-1985b88g",
-      "mcp_tool_actions/MTA-zpohocjt",
-      "mcp_tool_actions/MTA-hwg74btd",
-      "mcp_tool_actions/MTA-jzscq0mk",
-      "mcp_tool_actions/MTA-r5v1eblg",
-      "mcp_tool_actions/MTA-92b836jb",
-      "mcp_tool_actions/MTA-p72v9y76",
-      "mcp_tool_actions/MTA-po1gmnou",
+      "mcp_tool_actions/MTA-20u1ney4",
+      "mcp_tool_actions/MTA-543b19sa",
+      "mcp_tool_actions/MTA-6zxrhdls",
+      "mcp_tool_actions/MTA-70aez9bm",
       "mcp_tool_actions/MTA-89dxppus",
+      "mcp_tool_actions/MTA-89w58iux",
+      "mcp_tool_actions/MTA-8j9c0tb0",
+      "mcp_tool_actions/MTA-92b836jb",
+      "mcp_tool_actions/MTA-bp0rkcq9",
+      "mcp_tool_actions/MTA-ckumouj0",
+      "mcp_tool_actions/MTA-cpq7bvz4",
+      "mcp_tool_actions/MTA-e5qv0zay",
+      "mcp_tool_actions/MTA-gnx1ckno",
+      "mcp_tool_actions/MTA-hwg74btd",
+      "mcp_tool_actions/MTA-i1kmy5fd",
       "mcp_tool_actions/MTA-i6p4j2l7",
       "mcp_tool_actions/MTA-iyknuxox",
-      "mcp_tool_actions/MTA-0dr8xi4i",
-      "mcp_tool_actions/MTA-i1kmy5fd",
-      "mcp_tool_actions/MTA-pz5o2gjl",
-      "mcp_tool_actions/MTA-70aez9bm",
-      "mcp_tool_actions/MTA-cpq7bvz4",
-      "mcp_tool_actions/MTA-tuzkb8h4",
-      "mcp_tool_actions/MTA-bp0rkcq9",
-      "mcp_tool_actions/MTA-0689nxjy",
-      "mcp_tool_actions/MTA-e5qv0zay",
+      "mcp_tool_actions/MTA-jzscq0mk",
       "mcp_tool_actions/MTA-kw8krevn",
-      "mcp_tool_actions/MTA-89w58iux",
-      "mcp_tool_actions/MTA-qab6r2gk",
-      "mcp_tool_actions/MTA-znqpide5",
-      "mcp_tool_actions/MTA-ckumouj0",
-      "mcp_tool_actions/MTA-zfoxwh12",
-      "mcp_tool_actions/MTA-543b19sa",
-      "mcp_tool_actions/MTA-8j9c0tb0",
       "mcp_tool_actions/MTA-ntmcnvv7",
+      "mcp_tool_actions/MTA-p72v9y76",
+      "mcp_tool_actions/MTA-po1gmnou",
+      "mcp_tool_actions/MTA-pz5o2gjl",
+      "mcp_tool_actions/MTA-qab6r2gk",
+      "mcp_tool_actions/MTA-r5v1eblg",
       "mcp_tool_actions/MTA-thkvyt0v",
-      "mcp_tool_actions/MTA-gnx1ckno",
-      "blueprints/BP-x78p48gz",
+      "mcp_tool_actions/MTA-tuzkb8h4",
+      "mcp_tool_actions/MTA-z3h0o9t3",
+      "mcp_tool_actions/MTA-zfoxwh12",
+      "mcp_tool_actions/MTA-znqpide5",
+      "mcp_tool_actions/MTA-zpohocjt",
       "webhooks/IWH-f16qxnhm"
     ]
   },
@@ -2069,6 +2105,19 @@
       "blueprints/BP-122nbdt5"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-0u7aonmo",
+    "type": "plugins",
+    "name": "POC Onboarding: Environment Networks",
+    "description": "Lists the networks an environment can offer on its first NIC and makes the chosen ones, up to five, its only NIC 1 choices, removing networks from every other NIC.",
+    "path": "plugins/OHK-0u7aonmo",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-20u1ney4"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-0wtrj2wb",
@@ -2626,7 +2675,7 @@
     "id": "OHK-8j06wtoe",
     "type": "plugins",
     "name": "POC Onboarding: Import Environments",
-    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.",
+    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced; vCenter networks are chosen afterwards with onb_environment_networks), and reports existing environments instead of duplicating them.",
     "path": "plugins/OHK-8j06wtoe",
     "readme": null,
     "uses": [],
@@ -3333,6 +3382,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-gjfc20pv",
+    "type": "plugins",
+    "name": "POC Onboarding: Network Addressing",
+    "description": "Sets how servers on a network get their IP address (DHCP, static with gateway and netmask, a CloudBolt IP pool, an IPAM endpoint, or an IP typed per order) and verifies it with the network's IP provider.",
+    "path": "plugins/OHK-gjfc20pv",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-z3h0o9t3"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-gqvi9kv4",
     "type": "plugins",
     "name": "Deploy Bicep Template",
@@ -3984,7 +4046,7 @@
     "id": "OHK-qn4k1pme",
     "type": "plugins",
     "name": "POC Onboarding: Trim Environment Order Form",
-    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.",
+    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size, the NIC 1 networks chosen with onb_environment_networks and, where needed, the password; the report profile only lists the current form.",
     "path": "plugins/OHK-qn4k1pme",
     "readme": null,
     "uses": [],

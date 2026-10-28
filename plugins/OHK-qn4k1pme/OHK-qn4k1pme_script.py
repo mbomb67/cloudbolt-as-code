@@ -5,8 +5,9 @@ Shortens an environment's order form to what a POC user needs. CloudBolt
 hides a required parameter that has exactly one option, so the tool pins
 infrastructure choices (key pair, security group, resource group, storage
 type, datastore, disk type) to one value and removes the optional
-technology parameters a POC never touches, leaving the size and, where
-needed, the network and password visible. Pinned fields are protected from
+technology parameters a POC never touches, leaving the size, the NIC 1
+networks chosen with onb_environment_networks and, where needed, the
+password visible. Pinned fields are protected from
 the handler's sync jobs. The report profile only shows the current form.
 Synchronous. Admin only.
 
@@ -23,6 +24,7 @@ PROFILES = ("poc_minimal", "report")
 # Per technology: fields the user still sees (constrained to a short list of
 # sizes when those exist among the options), fields pinned to one value
 # (preferred values first; an empty list = first existing option), fields
+# NIC 1 (sc_nic_0) is never pinned here: onb_environment_networks sets its choices.
 # removed.
 TRIM = {
     "aws": {
@@ -33,7 +35,6 @@ TRIM = {
             "sec_groups": ["default"],
             "delete_ebs_volumes_on_termination": ["True", "true"],
             "ebs_volume_type": ["gp3", "gp2"],
-            "sc_nic_0": [],
         },
         "remove": ["aws_availability_zone", "aws_elastic_ip", "iops", "aws_host", "aws_host_group"],
     },
@@ -46,7 +47,6 @@ TRIM = {
             "create_public_ip": ["False", "false"],
             "availability_set_arm": [],
             "availability_zone_arm": [],
-            "sc_nic_0": [],
         },
         "remove": [
             "spot_instance_arm", "eviction_type_arm", "eviction_policy_arm", "max_price_arm",
@@ -58,7 +58,7 @@ TRIM = {
     "vmware": {
         "show": ["cpu_cnt", "mem_size"],
         "constrain": {"cpu_cnt": ["1", "2", "4"], "mem_size": ["2", "4", "8"]},
-        "pin": {"vmware_datastore": [], "vmware_disk_type": ["thin", "Thin"], "sc_nic_0": []},
+        "pin": {"vmware_datastore": [], "vmware_disk_type": ["thin", "Thin"]},
         "remove": ["vmware_resourcepool", "nsx_scope", "nsx_edge"],
     },
 }

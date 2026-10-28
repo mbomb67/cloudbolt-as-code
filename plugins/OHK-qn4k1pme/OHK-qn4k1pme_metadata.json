@@ -103,7 +103,7 @@
         "onb_keep",
         "onb_remove"
     ],
-    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.",
+    "description": "Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size, the NIC 1 networks chosen with onb_environment_networks and, where needed, the password; the report profile only lists the current form.",
     "id": "OHK-qn4k1pme",
     "max_retries": 0,
     "name": "POC Onboarding: Trim Environment Order Form",
