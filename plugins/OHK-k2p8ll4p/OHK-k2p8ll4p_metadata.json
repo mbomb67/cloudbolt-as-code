@@ -94,6 +94,25 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "true replaces this handler's other image in the OS build (CloudBolt allows one per handler, per region on AWS and Azure); the tool asks for this confirmation first.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-jlhhvju6",
+            "label": "Replace the handler's existing image (true/false, default false)",
+            "name": "onb_replace_existing",
+            "placeholder": "false",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
@@ -101,7 +120,8 @@
         "onb_image",
         "onb_os_build_name",
         "onb_environments",
-        "onb_region"
+        "onb_region",
+        "onb_replace_existing"
     ],
     "description": "Lists a handler's cached images for a location or imports one (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing a build of the same name so one build spans handlers, refreshing an empty cache without the whitelist, and attaching the build to the environments.",
     "id": "OHK-k2p8ll4p",
