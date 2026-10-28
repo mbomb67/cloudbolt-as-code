@@ -16,7 +16,8 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_param_label` | string | Display label; defaults to the name in title case. |
 | `onb_param_type` | string | Type for a new parameter; an existing parameter keeps its type. |
 | `onb_param_options` | text | Choices offered on the targets; replaces the current options there. |
-| `onb_param_required` | string | Whether a value is mandatory on the targets. |
+| `onb_param_required` | string | true makes the parameter required, false optional. CloudBolt has one required flag per parameter, so this applies everywhere it is offered, not only on the targets. |
+| `onb_param_confirm_global` | string | true confirms a required change that also reaches environments or groups outside the targets. |
 | `onb_param_targets` | text | Environments and groups to attach the parameter to. |
 | `onb_param_description` | string | Help text shown under the field. |
 | `onb_param_max` | integer | Upper bound on the targets; for DT parameters the number of days from today. |
@@ -24,9 +25,10 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_param_show_on_servers` | string | Whether the value appears on the server and can be mapped to a cloud tag. |
 
 ## Output
-parameter (id, name, type, created, changes, url), attached[] per target with options, constraints and status, notes[].
+parameter (id, name, type, required, created, changes, url), attached[] per target with options, constraints and status, notes[]. A required change that reaches beyond the targets returns confirmationRequired, alsoAffectsCount and alsoAffects[] instead, and changes nothing.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- Required is global: the order form and the API read the parameter's own flag and ignore a per-environment one, and API and MCP orders fill a single option in automatically only when the parameter is required.
 - Options on a group are shared by every environment the group orders into; options on an environment apply to that environment only.

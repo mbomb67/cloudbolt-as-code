@@ -8,6 +8,12 @@ test plan's user-defined parameter (1.1.2), cost center tag source (2.5.1),
 power schedule (3.1.1) and expiration date with a maximum lease (3.1.2).
 Synchronous. Admin only.
 
+Required is one flag on the parameter itself: the order form and the API
+(api/parameter_helper_methods.py) read CustomField.required and ignore the
+per-environment mapping's flag. So onb_param_required changes it for every
+environment and group that offers the parameter, and asks for
+onb_param_confirm_global=true when that reaches beyond the targets.
+
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
@@ -19,6 +25,7 @@ GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,99}$")
 TYPES = ("STR", "INT", "DEC", "BOOL", "TXT", "DT", "DTM", "IP", "URL", "EMAIL", "PWD", "CODE", "ETXT")
 MAX_OPTIONS = 100
+MAX_LISTED = 20
 
 
 def _text(value):
@@ -84,6 +91,7 @@ def _read_inputs():
         "onb_param_max": """{{ onb_param_max }}""",
         "onb_param_min": """{{ onb_param_min }}""",
         "onb_param_show_on_servers": """{{ onb_param_show_on_servers }}""",
+        "onb_param_confirm_global": """{{ onb_param_confirm_global }}""",
     }
     return {
         "name": _text(raw["onb_param_name"]),
@@ -96,6 +104,7 @@ def _read_inputs():
         "maximum": _int(raw["onb_param_max"]),
         "minimum": _int(raw["onb_param_min"]),
         "show_on_servers": _text(raw["onb_param_show_on_servers"]),
+        "confirm_global": _bool(raw["onb_param_confirm_global"], False),
     }
 
 
@@ -140,8 +149,23 @@ def _attach_group(group, cf, options):
             group.custom_field_options.add(cfv)
 
 
+def _other_uses(cf, targets):
+    """Environments and groups offering the parameter besides the targets; a required change reaches them too."""
+    from accounts.models import Group
+    from django.db.models import Q
+    from infrastructure.models import Environment
+
+    env_ids = [obj.id for _ref, kind, obj in targets if kind == "environment"]
+    group_ids = [obj.id for _ref, kind, obj in targets if kind == "group"]
+    envs = Environment.objects.filter(Q(custom_fields=cf) | Q(custom_field_options__field=cf)).exclude(id__in=env_ids).distinct()
+    groups = Group.objects.filter(Q(custom_fields=cf) | Q(custom_field_options__field=cf)).exclude(id__in=group_ids).distinct()
+    rows = [{"kind": "environment", "id": e.global_id, "name": e.name} for e in envs.order_by("name")[:MAX_LISTED]]
+    rows += [{"kind": "group", "id": g.global_id, "name": g.name} for g in groups.order_by("name")[:MAX_LISTED]]
+    return envs.count() + groups.count(), rows
+
+
 def _constraints(cf, inputs, env=None, group=None):
-    if inputs["maximum"] is None and inputs["minimum"] is None and not inputs["required"]:
+    if inputs["maximum"] is None and inputs["minimum"] is None:
         return None
     from behavior_mapping.models import CustomFieldMapping
 
@@ -156,9 +180,6 @@ def _constraints(cf, inputs, env=None, group=None):
     if inputs["minimum"] is not None:
         cfm.minimum = inputs["minimum"]
         changed.append("minimum={}".format(inputs["minimum"]))
-    if inputs["required"]:
-        cfm.required = _bool(inputs["required"], False)
-        changed.append("required={}".format(cfm.required))
     cfm.save()
     return changed
 
@@ -186,6 +207,30 @@ def run(job, *args, **kwargs):
     from infrastructure.models import CustomField
 
     cf = CustomField.objects.filter(name=inputs["name"]).first()
+    targets = [(ref,) + _resolve_target(ref) for ref in inputs["targets"]]
+    wanted_required = _bool(inputs["required"], False) if inputs["required"] else None
+    base = _portal_url()
+    if cf is not None and wanted_required is not None and bool(cf.required) != wanted_required:
+        count, others = _other_uses(cf, targets)
+        if count and not inputs["confirm_global"]:
+            outputs = {
+                "parameter": {"name": cf.name, "label": cf.label, "required": bool(cf.required),
+                              "url": base + "/admin/customfields/{}/".format(cf.id)},
+                "confirmationRequired": True,
+                "requiredWanted": wanted_required,
+                "alsoAffectsCount": count,
+                "alsoAffects": others,
+                "next": (
+                    "Nothing changed. CloudBolt has one required flag per parameter, so making '{}' {} applies to every "
+                    "order form, API and MCP order that offers it, including the {} other environment(s) and group(s) in "
+                    "alsoAffects. Ask the user whether to do that. Yes: call again with onb_param_confirm_global=true."
+                ).format(cf.name, "required" if wanted_required else "optional", count),
+            }
+            return _success(
+                "Confirmation needed: required on '{}' is global and also reaches {} other environment(s) or group(s).".format(
+                    cf.name, count),
+                outputs,
+            )
     created = False
     changes = []
     if cf is None:
@@ -194,7 +239,7 @@ def run(job, *args, **kwargs):
             label=inputs["label"] or inputs["name"].replace("_", " ").title(),
             type=inputs["type"] or "STR",
             description=inputs["description"],
-            required=_bool(inputs["required"], False),
+            required=bool(wanted_required),
             show_on_servers=_bool(inputs["show_on_servers"], True),
             show_as_attribute=True,
         )
@@ -212,15 +257,16 @@ def run(job, *args, **kwargs):
             if bool(cf.show_on_servers) != wanted:
                 cf.show_on_servers = wanted
                 changes.append("show_on_servers")
-        if inputs["type"] and cf.type != inputs["type"]:
-            changes.append("type left as {} (changing a parameter's type is a UI operation)".format(cf.type))
+        if wanted_required is not None and bool(cf.required) != wanted_required:
+            cf.required = wanted_required
+            changes.append("required={} (global)".format(wanted_required))
         if changes:
             cf.save()
+        if inputs["type"] and cf.type != inputs["type"]:
+            changes.append("type left as {} (changing a parameter's type is a UI operation)".format(cf.type))
 
-    base = _portal_url()
     attached = []
-    for ref in inputs["targets"]:
-        kind, obj = _resolve_target(ref)
+    for ref, kind, obj in targets:
         if obj is None:
             attached.append({"target": ref, "status": "failed", "error": "no environment or group matches"})
             continue
@@ -250,6 +296,7 @@ def run(job, *args, **kwargs):
             "label": cf.label,
             "type": cf.type,
             "required": bool(cf.required),
+            "requiredScope": "global",
             "showOnServers": bool(cf.show_on_servers),
             "created": created,
             "changes": changes,
@@ -258,6 +305,11 @@ def run(job, *args, **kwargs):
         "attached": attached,
     }
     notes = []
+    if cf.required:
+        notes.append(
+            "Required applies wherever this parameter is offered. Where an environment or group offers exactly one "
+            "option, API and MCP orders fill it in automatically; with several, the order must pick one."
+        )
     if cf.type in ("DT", "DTM") and inputs["maximum"] is not None:
         notes.append("For a date parameter the maximum is the number of days from today a user may pick.")
     if cf.name == "expiration_date":

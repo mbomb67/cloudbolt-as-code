@@ -74,7 +74,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 2 | `onb_trim_environment` | sync | Shorten an environment's order form to the size (and password or network where needed) |
 | 2 | `onb_configure_custom_server` | sync | Make the Custom Server blueprint orderable with a hostname template |
 | 2 | `onb_remove_environment` | sync | Undo a wrong environment import |
-| 4, 7 | `onb_parameter` | sync | Create a parameter and attach it to environments or groups with options and constraints |
+| 4, 7 | `onb_parameter` | sync | Create a parameter and attach it to environments or groups with options and constraints, or make it required (one flag for the whole appliance) |
 | 4, 5 | `onb_tag_mapping` | sync | List, add or remove a handler's attribute-to-cloud-tag mappings |
 | 5 | `onb_group` | sync | Create a group with entitled environments, auto-approval and a server quota |
 | 5 | `onb_user` | sync | Create a local user with no password (the admin sets it on the returned link) and assign roles |
