@@ -293,8 +293,26 @@ def run(job, *args, **kwargs):
     subnet = None
     if gateway and netmask:
         subnet = ipaddress.IPv4Network("{}/{}".format(gateway, netmask), strict=False)
+    pool_ips = None
+    if source == "pool" and inp["pool_range"]:
+        try:
+            pool_ips = _pool_ips(inp["pool_range"], subnet, gateway)
+        except ValueError as exc:
+            return _failure(str(exc))
+        if not pool_ips:
+            return _failure("onb_pool_range gave no usable address.")
+    elif source == "pool" and _pool_state(net) is None:
+        return _failure("onb_ip_source=pool needs onb_pool_range: a range such as 10.0.5.10-10.0.5.60 or a list of addresses.")
+    if source == "ipam" and not inp["ipam"]:
+        endpoints = _ipam_endpoints()
+        return _failure(
+            "onb_ip_source=ipam needs onb_ipam, the IPAM endpoint's name or id. "
+            + ("Endpoints: {}.".format(", ".join("{} ({}, id {})".format(e["name"], e["technology"], e["id"]) for e in endpoints))
+               if endpoints else "No IPAM endpoint exists: the user adds one at {}/setup/add-ipam/ (credentials are entered there).".format(base)),
+            {"ipamEndpoints": endpoints, "addIpamUrl": base + "/setup/add-ipam/"},
+        )
 
-    # Write the settings (the same fields as the network's edit page).
+    # Write the settings (the same fields as the network's edit page), only after every input is valid.
     for field, value in (("gateway", gateway), ("netmask", netmask)):
         if value and getattr(net, field) != value:
             setattr(net, field, value)
@@ -324,10 +342,8 @@ def run(job, *args, **kwargs):
             changes.append("IP pool removed ({} mapping)".format(removed))
         if want == "pool":
             pool = _pool_state(net)
-            if inp["pool_range"]:
-                ips = _pool_ips(inp["pool_range"], subnet, gateway)
-                if not ips:
-                    return _failure("onb_pool_range gave no usable address.")
+            if pool_ips:
+                ips = pool_ips
                 if pool is None:
                     net.add_ip_addresses(ips)
                     changes.append("IP pool created with {} address(es)".format(len(ips)))
