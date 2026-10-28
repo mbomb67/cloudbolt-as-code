@@ -223,11 +223,23 @@ def _environment_row(env, base):
     except Exception:
         network_count = None
     flags = list(env.custom_fields.filter(name__in=ENV_PARAM_FLAGS).values_list("name", flat=True))
+    problems = []
+    try:
+        handler = env.resource_handler.cast() if env.resource_handler else None
+        for osb in env.os_builds.all():
+            try:
+                if handler is not None and osb.osba_for_resource_handler(handler, environment=env) is None:
+                    problems.append({"osBuild": osb.name, "problem": "no image of this OS build for the environment"})
+            except Exception as exc:
+                problems.append({"osBuild": osb.name, "problem": str(exc)[:300]})
+    except Exception:
+        pass
     return {
         "id": env.global_id,
         "pk": env.id,
         "name": env.name,
         "osBuilds": env.os_builds.count(),
+        "osBuildProblems": problems,
         "networks": network_count,
         "groups": env.groups_served.count(),
         "lifecycleParameters": sorted(flags),
@@ -473,6 +485,16 @@ def _next_steps(report, base):
                 }
             )
         for env in handler["environments"]:
+            for problem in env.get("osBuildProblems") or []:
+                steps.append(
+                    {
+                        "step": "Orders in '{}' with OS build '{}' would fail: {}. Fix it with onb_import_os_build (onb_replace_existing=true replaces a duplicate image after the user agrees).".format(
+                            env["name"], problem["osBuild"], problem["problem"]),
+                        "item": "P4",
+                        "environment": env["id"],
+                        "url": handler["url"],
+                    }
+                )
             if env["osBuilds"] == 0:
                 steps.append(
                     {

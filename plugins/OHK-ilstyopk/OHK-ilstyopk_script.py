@@ -113,6 +113,24 @@ def _find_or_create_blueprint(name, default_name):
     return blueprint, created
 
 
+def _hostname_problem(template):
+    """A reason the hostname template would not give each server its own name, or None.
+
+    CloudBolt numbers names with a run of zeros followed by X: poc-00X becomes poc-001, poc-002
+    and so on (common.methods, the 0+X substitution). '#' is not part of that syntax and stays
+    literal, so every server would get the same name.
+    """
+    if not template:
+        return None
+    if "#" in template:
+        return "'#' is not CloudBolt hostname syntax and would be used literally; use a run of zeros and X, for example {}".format(
+            template.replace("#", "00X"))
+    if not re.search(r"0+X", template):
+        return "the template has no sequence, so every server would get the same name; add zeros and X, for example {}-00X".format(
+            template.rstrip("-"))
+    return None
+
+
 def run(job, *args, **kwargs):
     profile = _caller(job, kwargs)
     if profile is None:
@@ -124,6 +142,9 @@ def run(job, *args, **kwargs):
     envs, error = _resolve_envs(inputs["environments"])
     if error:
         return _failure(error)
+    problem = _hostname_problem(inputs["hostname_template"])
+    if problem:
+        return _failure("Hostname template '{}' was not applied: {}.".format(inputs["hostname_template"], problem))
 
     default_name = getattr(settings, "DEFAULT_NEW_SERVER_BLUEPRINT_NAME", "Custom Server")
     name = getattr(settings, "NEW_SERVER_BLUEPRINT_NAME", default_name) or default_name

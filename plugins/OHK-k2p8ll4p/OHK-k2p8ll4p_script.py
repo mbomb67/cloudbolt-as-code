@@ -77,6 +77,7 @@ def _read_inputs():
         "onb_os_build_name": """{{ onb_os_build_name }}""",
         "onb_environments": """{{ onb_environments }}""",
         "onb_region": """{{ onb_region }}""",
+        "onb_replace_existing": """{{ onb_replace_existing }}""",
     }
     return {
         "handler": _text(raw["onb_handler"]),
@@ -84,6 +85,7 @@ def _read_inputs():
         "os_build_name": _text(raw["onb_os_build_name"]),
         "environments": _lines(raw["onb_environments"]),
         "region": _text(raw["onb_region"]),
+        "replace_existing": _text(raw["onb_replace_existing"]).lower() in ("true", "1", "yes", "y"),
     }
 
 
@@ -148,6 +150,60 @@ def _existing_os_build(name):
     return OSBuild.objects.filter(name__iexact=name).order_by("id").first()
 
 
+# Set by run() for this execution: whether the caller allowed replacing a handler's other image
+# in the OS build, and what was removed.
+_STATE = {"replace": False, "removed": []}
+
+
+class NeedsReplace(Exception):
+    """The OS build already holds another image of this handler (in this region or location)."""
+
+    def __init__(self, osb, attrs):
+        super().__init__("OS build '{}' already holds another image on this handler".format(osb.name))
+        self.osb = osb
+        self.attrs = attrs
+
+
+def _describe_osba(attr):
+    row = {"id": attr.id, "template": getattr(attr, "template_name", None) or str(attr)}
+    for key in ("ami_id", "region"):
+        value = getattr(attr, key, None)
+        if value:
+            row[key] = value
+    return row
+
+
+def _conflicting_osbas(handler, osb, image):
+    """Images of this handler already in the OS build that the new image would collide with.
+
+    CloudBolt resolves exactly one image per OS build and handler, per region for AWS and per
+    location for Azure (osba_for_resource_handler raises "There should only be one OSBA in common
+    between a resource handler and an OSB" otherwise), so a second one breaks every order.
+    """
+    rows = []
+    try:
+        attrs = list(handler.os_build_attributes.filter(os_build=osb))
+    except Exception:
+        return rows
+    want_name = str(image.get("name") or "")
+    want_ami = str(image.get("ami_id") or "")
+    want_region = str(image.get("region") or "")
+    for attr in attrs:
+        try:
+            real = attr.cast()
+        except Exception:
+            real = attr
+        if want_ami and getattr(real, "ami_id", None) == want_ami:
+            continue
+        if not want_ami and want_name and (getattr(real, "template_name", "") or "") == want_name:
+            continue
+        region = getattr(real, "region", None)
+        if want_region and region and str(region) != want_region:
+            continue
+        rows.append(real)
+    return rows
+
+
 def _add_template(handler, image_dict, os_build_name, existing_osb):
     """What the handler service's create_osbuild_and_attributes does, without the abstract service."""
     from c2_wrapper import guess_os_family
@@ -159,6 +215,13 @@ def _add_template(handler, image_dict, os_build_name, existing_osb):
     image.pop("os_build_name", None)
     image.pop("os_build", None)
     if existing_osb is not None:
+        conflicts = _conflicting_osbas(handler, existing_osb, image)
+        if conflicts:
+            if not _STATE["replace"]:
+                raise NeedsReplace(existing_osb, conflicts)
+            for attr in conflicts:
+                _STATE["removed"].append(_describe_osba(attr))
+                handler.delete_osbuild_attribute(attr)
         # AWS and Azure add_template() require os_build_name positionally and reset os_build
         # unless the mapping flag says the caller chose the build on purpose.
         return handler.add_template(os_build_name=existing_osb.name, os_build=existing_osb,
@@ -291,6 +354,14 @@ def _import_azure(handler, image, location, os_build_name, existing_osb, job):
     already = AzureARMImage.objects.filter(resourcehandler=handler, template_name=template_name, region=location).order_by("-id").first()
     if already is not None and already.os_build is not None:
         return already.os_build, None
+    if existing_osb is not None:
+        conflicts = _conflicting_osbas(handler, existing_osb, {"name": template_name, "region": location})
+        if conflicts:
+            if not _STATE["replace"]:
+                raise NeedsReplace(existing_osb, conflicts)
+            for attr in conflicts:
+                _STATE["removed"].append(_describe_osba(attr))
+                handler.delete_osbuild_attribute(attr)
     from c2_wrapper import guess_os_family
 
     d = dict(match)
@@ -390,6 +461,8 @@ def run(job, *args, **kwargs):
     from externalcontent.models import OSBuild
 
     osb_ids_before = set(OSBuild.objects.values_list("id", flat=True))
+    _STATE["replace"] = inputs["replace_existing"]
+    _STATE["removed"] = []
 
     try:
         if slug.startswith("aws"):
@@ -400,6 +473,30 @@ def run(job, *args, **kwargs):
             osb, error = _import_vmware(handler, inputs["image"], inputs["os_build_name"], existing_osb, job)
         else:
             osb, error = _import_generic(handler, inputs["image"], inputs["os_build_name"], existing_osb, job)
+    except NeedsReplace as conflict:
+        existing = [_describe_osba(attr) for attr in conflict.attrs]
+        outputs = {
+            "handler": {"id": handler.global_id, "name": handler.name, "technologySlug": slug},
+            "image": inputs["image"],
+            "location": location,
+            "confirmationRequired": True,
+            "osBuild": {"id": conflict.osb.global_id, "name": conflict.osb.name},
+            "existingImages": existing,
+            "next": (
+                "Nothing changed. CloudBolt allows one image per OS build per handler{}. Ask the user whether to replace "
+                "{} with '{}' in '{}'. Yes: call again with onb_replace_existing=true, which removes the existing image "
+                "first. No: use another onb_os_build_name.".format(
+                    " in each region" if slug.startswith("aws") or slug == "azure_arm" else "",
+                    ", ".join("'{}'".format(row["template"]) for row in existing),
+                    inputs["image"], conflict.osb.name,
+                )
+            ),
+        }
+        return _success(
+            "Confirmation needed: OS build '{}' already holds {} on {}.".format(
+                conflict.osb.name, ", ".join("'{}'".format(row["template"]) for row in existing), handler.name),
+            outputs,
+        )
     except Choices as choices:
         outputs = {
             "handler": {"id": handler.global_id, "name": handler.name, "technologySlug": slug},
@@ -461,6 +558,8 @@ def run(job, *args, **kwargs):
         )
     if notes:
         outputs["notes"] = notes
+    if _STATE["removed"]:
+        outputs["replacedImages"] = list(_STATE["removed"])
     outputs["verified"] = not unresolved
     if unresolved:
         outputs["unresolved"] = unresolved

@@ -42,7 +42,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "CloudBolt hostname template, for example poc-# or a template using group and OS build names; see the hostname specification documentation.",
+            "description": "CloudBolt hostname template with a sequence: zeros followed by X, for example poc-00X (becomes poc-001, poc-002). A template with '#' or without a sequence is refused.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -50,7 +50,7 @@
             "id": "CF-4ciiaerz",
             "label": "Hostname template (optional)",
             "name": "onb_hostname_template",
-            "placeholder": "poc-#",
+            "placeholder": "poc-00X",
             "relevant-osfamilies": [],
             "required": false,
             "show-as-attribute": false,

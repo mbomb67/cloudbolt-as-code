@@ -17,9 +17,10 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_os_build_name` | string | Name of the OS build to create or reuse; required when onb_image names an image. |
 | `onb_environments` | text | ENV- ids or names, one per line; default every environment of the handler. |
 | `onb_region` | string | Region or location of the image when it cannot be read from the environments. |
+| `onb_replace_existing` | string | `true` replaces the handler's other image in the OS build after the user confirms; CloudBolt allows one per handler (per region on AWS and Azure). |
 
 ## Output
-When listing: images[] (ids, names, OS). When importing: osBuild (id, name, requestedName, osFamily, reused, url), image, location, attachedToEnvironments[], notes[], next.
+When listing: images[] (ids, names, OS). When importing: osBuild (id, name, requestedName, osFamily, reused, url), image, location, attachedToEnvironments[], replacedImages[], verified, unresolved[], notes[], next. When the build already holds another image of the handler: confirmationRequired, existingImages[], next, and nothing is changed.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
