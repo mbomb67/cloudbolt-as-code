@@ -640,7 +640,7 @@ def _next_steps(report, base):
         )
     if report["groupsAndUsers"]["groupCount"] == 0:
         steps.append({"step": "Create a POC group and a non-admin test user.", "item": "2.3.1", "url": base + "/groups/"})
-    for user in report["groupsAndUsers"]["users"]:
+    for user in reversed(report["groupsAndUsers"]["users"]):  # oldest first: the requestor is created before the approver
         if user["passwordNeeded"]:
             steps.append(
                 {
