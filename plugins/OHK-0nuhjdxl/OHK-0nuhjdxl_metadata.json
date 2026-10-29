@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "AWS only: also list the VPCs of this region, with the default VPC flagged.",
+            "description": "AWS only: also list the VPCs of this region with their CIDR, subnet count and default flag.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],

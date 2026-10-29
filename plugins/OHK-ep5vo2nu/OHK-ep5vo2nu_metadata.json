@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "SVR- ids to delete, separated by commas or spaces; only servers in Provision Failed state. Empty lists the failed servers.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-qemldj3g",
+            "label": "Servers to delete (SVR- ids)",
+            "name": "onb_delete_servers",
+            "placeholder": "SVR-abc12345, SVR-def67890",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_delete_servers"
+    ],
+    "description": "Lists servers left in Provision Failed state by failed orders and deletes the ones named, removing their VMs from the cloud when they exist.",
+    "id": "OHK-ep5vo2nu",
+    "max_retries": 0,
+    "name": "POC Onboarding: Failed Servers",
+    "resource_technologies": [],
+    "script_filename": "OHK-ep5vo2nu_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

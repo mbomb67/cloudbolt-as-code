@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Prints a hello message, the computer name and the user inside a Windows guest to prove agentless script execution.",
+    "execution_timeout": 600,
+    "id": "OHK-u7j8o0vm",
+    "max_retries": 0,
+    "name": "POC Hello World (Windows)",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-u7j8o0vm_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

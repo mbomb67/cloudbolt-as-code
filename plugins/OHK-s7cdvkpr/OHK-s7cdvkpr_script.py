@@ -239,9 +239,10 @@ def run(job, *args, **kwargs):
     slug = tech.slug if tech else ""
     links = {
         "detail": base + "/admin/resourcehandlers/{}/".format(handler.id),
-        "edit": base + "/admin/resourcehandlers/{}/edit/".format(handler.id),
-        "verifyDialog": base + "/admin/resourcehandlers/{}/verify_connection/".format(handler.id),
-        "importLocations": base + "/admin/resourcehandlers/{}/import_locations/".format(handler.id),
+        "edit": base + "/admin/resourcehandlers/{}/".format(handler.id),
+        "editClick": "Edit Credentials on the Overview tab",
+        "importLocations": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
+        "importLocationsClick": "Import Locations on the Locations tab",
         "permissionsDoc": PERMISSION_DOCS.get(slug, DEFAULT_DOC),
     }
     outputs = {
@@ -269,8 +270,8 @@ def run(job, *args, **kwargs):
         outputs.update({"verified": True, "checkedAt": when})
         message = "Connection to '{}' verified.".format(handler.name)
         outputs["next"] = (
-            "Import one or two environments for this handler (Import locations on the handler page), "
-            "then add an OS build with an image for each environment."
+            "Start onb_sync_images for this handler now (it fills the image cache without the whitelist and enables the "
+            "cache jobs; it runs for a while), then onb_handler_locations and onb_import_environments while it runs."
         )
     except Exception as exc:  # the cloud wrapper raises its own exception types
         error_text = "{}: {}".format(type(exc).__name__, str(exc))[:3000]
@@ -286,7 +287,7 @@ def run(job, *args, **kwargs):
         message = "Connection to '{}' failed: {}".format(handler.name, error_text[:300])
         outputs["next"] = (
             "Explain the error and the first hint to the user. Credentials and permissions are fixed on links.edit "
-            "(never ask for the secret in chat); connectivity, DNS, proxy and TLS are fixed on the appliance or network "
+            "with its Edit Credentials button (never ask for the secret in chat); connectivity, DNS, proxy and TLS are fixed on the appliance or network "
             "side. Then run this tool again. For appliance-side context call onb_recent_errors with "
             "onb_contains='{}'.".format(handler.name)
         )

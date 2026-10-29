@@ -18,7 +18,7 @@ import html
 import json
 from datetime import datetime, timezone
 
-TOOLKIT_VERSION = "0.1.0"
+TOOLKIT_VERSION = "1.0.0"
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 
@@ -38,6 +38,7 @@ TOOLS = {
     "onb_trim_environment": True,
     "onb_configure_custom_server": True,
     "onb_remove_environment": True,
+    "onb_failed_servers": True,
     "onb_parameter": True,
     "onb_group": True,
     "onb_user": True,
@@ -47,10 +48,18 @@ TOOLS = {
     "onb_verify_ldap": False,
     "onb_smtp": True,
     "onb_smtp_test": False,
+    "onb_install_content_library_item": False,
+    "onb_cit_from_order": True,
+    "onb_scorecard": True,
+    "onb_sync_images": False,
+    "onb_environment_networks": False,
+    "onb_network_addressing": False,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,
     "manage_blueprint_permissions": True,
+    "run_recurring_job": True,
+    "run_cit_tests": True,
 }
 PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-poc-onboarding/SKILL.md"
 
@@ -225,7 +234,7 @@ def run(job, *args, **kwargs):
             "isSynchronous": bool(tool.is_synchronous),
             "wantsSynchronous": wants_sync,
             "before": before,
-            "editUrl": base + "/actions/mcp_tool_actions/{}/edit/".format(tool.id),
+            "editUrl": base + "/actions/mcp_tool_action/{}/".format(tool.id),
         }
     missing = [name for name, row in rows.items() if not row["present"]]
 

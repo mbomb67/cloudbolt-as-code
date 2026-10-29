@@ -18,7 +18,7 @@ from datetime import date, datetime, timezone
 
 from django.conf import settings
 
-TOOLKIT_VERSION = "0.1.0"
+TOOLKIT_VERSION = "1.0.0"
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 TOOLKIT_TOOLS = [
@@ -36,6 +36,7 @@ TOOLKIT_TOOLS = [
     "onb_import_os_build",
     "onb_configure_custom_server",
     "onb_remove_environment",
+    "onb_failed_servers",
     "onb_parameter",
     "onb_group",
     "onb_user",
@@ -45,12 +46,25 @@ TOOLKIT_TOOLS = [
     "onb_verify_ldap",
     "onb_smtp",
     "onb_smtp_test",
+    "onb_install_content_library_item",
+    "onb_cit_from_order",
+    "onb_scorecard",
+    "onb_sync_images",
+    "onb_environment_networks",
+    "onb_network_addressing",
     "sync_from_source_control_repo",
     "fetch_job_log",
     "manage_blueprint_permissions",
+    "run_recurring_job",
+    "run_cit_tests",
 ]
 ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
+MAX_FAILED_SERVERS = 10
+MAX_USERS = 20
+PASSWORD_FIX_STEPS = (
+    "CloudBolt asks for the user's current password before it changes one, and this user has none. On the user's page click Delete and confirm, then on the Users list click Add, enter the user again with Password and Confirm password, and click Create."
+)
 
 
 def _failure(message):
@@ -151,12 +165,13 @@ def _preferences(base):
         "smtp": {
             "configured": bool(smtp_host),
             "host": smtp_host or None,
-            "editUrl": base + "/admin/email_settings/edit/",
-            "testUrl": base + "/admin/email_test/",
+            "editUrl": base + "/admin/email_settings/",
+            "editClick": "Edit on the Overview tab",
         },
         "proxy": {
             "configured": gp.web_proxy_id is not None,
-            "editUrl": base + "/admin/edit_web_proxy/",
+            "editUrl": base + "/admin/misc_settings/#web-proxy-pane",
+            "editClick": "Edit next to Settings on the Web Proxy tab",
         },
     }
 
@@ -211,23 +226,105 @@ def _setup_wizard(base):
         return {"available": False, "error": str(exc)[:200]}
 
 
+# Technologies whose networks carry addressing CloudBolt sends to the guest (the others let the cloud assign IPs).
+ADDRESSING_TECH = {"vmware", "vmc_aws", "scvmm", "hyperv", "acropolis", "h3ccas", "vcloud_director", "azurelocal"}
+NO_NETWORK_TECH = {"proxmox", "metalsoft", "orka", "ipmi"}
+
+
+def _network_problems(env):
+    """What would make an order's NIC 1 fail: no network, too many, static without gateway and netmask, a full pool."""
+    problems = []
+    handler = env.resource_handler
+    tech = getattr(handler, "resource_technology", None) if handler else None
+    slug = (getattr(tech, "slug", None) or "") if tech else ""
+    if slug in NO_NETWORK_TECH:
+        return problems
+    nets = []
+    for cfv in env.custom_field_options.filter(field__name="sc_nic_0").select_related("network_value"):
+        if cfv.network_value is not None:
+            nets.append(cfv.network_value)
+    if not nets:
+        problems.append("no network on NIC 1")
+        return problems
+    if len(nets) > 5:
+        problems.append("{} networks on NIC 1; choose up to 5".format(len(nets)))
+    if env.custom_field_options.filter(field__name__regex=r"^sc_nic_([1-9]|[1-9][0-9])$").exists():
+        problems.append("networks on more than one NIC")
+    if slug not in ADDRESSING_TECH:
+        return problems
+    for net in nets:
+        try:
+            provider = net.determine_ip_provider()
+        except Exception:
+            provider = None
+        if provider in ("user_static", "user_static_or_dhcp", "pool", "ipam") and not (net.gateway and net.netmask):
+            problems.append("network '{}' is static without gateway and netmask".format(net.name))
+        if provider == "pool":
+            try:
+                rp = net.get_resource_pool()
+                if rp is not None and not rp.get_values().filter(server=None, resource=None).exists():
+                    problems.append("network '{}' has a full IP pool".format(net.name))
+            except Exception:
+                pass
+        if provider == "ipam":
+            try:
+                if net.ipam_network.ipam_set.first() is None:
+                    problems.append("network '{}' is mapped to an IPAM network with no IPAM endpoint".format(net.name))
+            except Exception:
+                pass
+    return problems
+
+
 def _environment_row(env, base):
     try:
         network_count = len(env.networks())
     except Exception:
         network_count = None
     flags = list(env.custom_fields.filter(name__in=ENV_PARAM_FLAGS).values_list("name", flat=True))
+    problems = []
+    try:
+        handler = env.resource_handler.cast() if env.resource_handler else None
+        for osb in env.os_builds.all():
+            try:
+                if handler is not None and osb.osba_for_resource_handler(handler, environment=env) is None:
+                    problems.append({"osBuild": osb.name, "problem": "no image of this OS build for the environment"})
+            except Exception as exc:
+                problems.append({"osBuild": osb.name, "problem": str(exc)[:300]})
+    except Exception:
+        pass
     return {
         "id": env.global_id,
         "pk": env.id,
         "name": env.name,
         "osBuilds": env.os_builds.count(),
+        "osBuildProblems": problems,
+        "networkProblems": _network_problems(env),
         "networks": network_count,
         "groups": env.groups_served.count(),
         "lifecycleParameters": sorted(flags),
         "url": base + "/environments/{}/".format(env.id),
         "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),
     }
+
+
+def _cached_images(handler, slug):
+    """How many images the handler's cache holds; None when the technology keeps none."""
+    try:
+        if (slug or "").startswith("aws"):
+            from resourcehandlers.aws.models import AwsCachedAMI
+
+            return AwsCachedAMI.objects.for_resource_handler(resource_handler=handler).distinct().count()
+        if slug == "azure_arm":
+            from resourcehandlers.azure_arm.models import AzureARMAvailableImage
+
+            return AzureARMAvailableImage.objects.for_resource_handler(handler).distinct().count()
+        if slug == "vmware":
+            from resourcehandlers.vmware.models import VMWareAvailableImage
+
+            return VMWareAvailableImage.objects.filter(resource_handler=handler).count()
+    except Exception:
+        return None
+    return None
 
 
 def _handlers(base, state):
@@ -241,6 +338,7 @@ def _handlers(base, state):
         except Exception:
             pass
         tech = handler.resource_technology
+        slug = tech.slug if tech else None
         envs = [_environment_row(env, base) for env in handler.environment_set.all().order_by("id")]
         rows.append(
             {
@@ -248,13 +346,14 @@ def _handlers(base, state):
                 "pk": handler.id,
                 "name": handler.name,
                 "technology": tech.name if tech else None,
-                "technologySlug": tech.slug if tech else None,
+                "technologySlug": slug,
                 "endpoint": handler.ip,
                 "environments": envs,
+                "cachedImages": _cached_images(handler, slug),
                 "lastVerify": (verify_state.get(handler.global_id) or {}).get("lastVerify"),
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
-                "verifyUrl": base + "/admin/resourcehandlers/{}/verify_connection/".format(handler.id),
-                "importLocationsUrl": base + "/admin/resourcehandlers/{}/import_locations/".format(handler.id),
+                "editClick": "Edit Credentials on the Overview tab",
+                "importLocationsUrl": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
             }
         )
     return rows
@@ -303,6 +402,51 @@ def _custom_server(base):
     }
 
 
+def _failed_servers(base):
+    """Servers a failed order left in Provision Failed state; onb_failed_servers lists and deletes them."""
+    from infrastructure.models import Server
+
+    failed = Server.objects.filter(status="PROVFAILED").select_related("environment")
+    rows = [
+        {
+            "id": s.global_id,
+            "hostname": s.hostname,
+            "environment": s.environment.name if s.environment else None,
+            "created": _iso(s.add_date),
+            "url": base + "/servers/{}/".format(s.id),
+        }
+        for s in failed.order_by("-add_date")[:MAX_FAILED_SERVERS]
+    ]
+    return {"count": failed.count(), "servers": rows}
+
+
+def _users(base):
+    """Local users, newest first, each with its own page; passwordNeeded marks one an earlier onb_user created without a password."""
+    from accounts.models import GroupRoleMembership, UserProfile
+
+    rows = []
+    for up in UserProfile.objects.filter(ldap__isnull=True).select_related("user").order_by("-id")[:MAX_USERS]:
+        user = up.user
+        usable = user.has_usable_password()
+        rows.append(
+            {
+                "id": up.global_id,
+                "username": user.username,
+                "name": "{} {}".format(user.first_name, user.last_name).strip(),
+                "superAdmin": bool(up.super_admin),
+                "roles": [
+                    "{}: {}".format(m.group.name, m.role.name)
+                    for m in GroupRoleMembership.objects.filter(profile=up).select_related("group", "role")
+                ],
+                "passwordSet": usable,
+                # SSO users have no usable password either, but they have logged in.
+                "passwordNeeded": not usable and user.last_login is None,
+                "url": base + "/users/{}/".format(up.id),
+            }
+        )
+    return rows
+
+
 def _groups_users(base):
     from accounts.models import Group, UserProfile
 
@@ -323,8 +467,9 @@ def _groups_users(base):
         "groupsUrl": base + "/groups/",
         "userCount": users,
         "superAdminCount": admins,
+        "users": _users(base),
+        "passwordFixSteps": PASSWORD_FIX_STEPS,
         "usersUrl": base + "/users/",
-        "newUserUrl": base + "/users/create/",
     }
 
 
@@ -342,7 +487,7 @@ def _auth(base):
                 "port": ldap.port,
                 "protocol": ldap.protocol,
                 "url": base + "/admin/ldap_settings/{}/".format(ldap.id),
-                "verifyUrl": base + "/admin/ldap_settings/{}/verify_connection/".format(ldap.id),
+                "editClick": "Credentials for the bind password, Settings for the rest",
             }
         )
     sso_count = None
@@ -354,7 +499,8 @@ def _auth(base):
         pass
     return {
         "ldapUtilities": ldap_rows,
-        "newLdapUrl": base + "/admin/ldap_settings/add/",
+        "newLdapUrl": base + "/admin/ldap_settings/",
+        "newLdapClick": "Add",
         "ssoProviders": sso_count,
     }
 
@@ -368,7 +514,7 @@ def _toolkit(base):
             "id": action.global_id,
             "enabled": bool(action.enabled),
             "isSynchronous": bool(action.is_synchronous),
-            "editUrl": base + "/actions/mcp_tool_actions/{}/edit/".format(action.id),
+            "editUrl": base + "/actions/mcp_tool_action/{}/".format(action.id),
         }
     missing = [name for name in TOOLKIT_TOOLS if name not in present]
     return {"tools": present, "missing": missing, "listUrl": base + "/actions/mcp_tool_actions/"}
@@ -393,9 +539,9 @@ def _next_steps(report, base):
     if not handlers:
         steps.append(
             {
-                "step": "Create the first resource handler in the UI (credentials are entered there), then run onb_verify_resource_handler.",
+                "step": "Create the first resource handler in the UI (credentials are entered there): the link opens the technology chooser. Then run onb_verify_resource_handler.",
                 "item": "P3",
-                "url": base + "/admin/resourcehandlers/add/",
+                "url": base + "/setup/add-resource-handler/",
             }
         )
     for handler in handlers:
@@ -403,12 +549,13 @@ def _next_steps(report, base):
         if verify and not verify.get("ok"):
             steps.append(
                 {
-                    "step": "Fix the connection of resource handler '{}': the last verify failed with '{}'. Re-run onb_verify_resource_handler afterwards.".format(
+                    "step": "Fix the connection of resource handler '{}': the last verify failed with '{}'. On the handler's page, "
+                    "click Edit Credentials on the Overview tab. Re-run onb_verify_resource_handler afterwards.".format(
                         handler["name"], (verify.get("error") or "")[:160]
                     ),
                     "item": "P3",
                     "handler": handler["id"],
-                    "url": handler["url"] + "edit/",
+                    "url": handler["url"],
                 }
             )
         elif not verify:
@@ -422,10 +569,21 @@ def _next_steps(report, base):
                     "url": handler["url"],
                 }
             )
+        if verify.get("ok") and handler.get("cachedImages") == 0:
+            steps.append(
+                {
+                    "step": "Fill the image cache of '{}' with onb_sync_images (no whitelist; also enables the cache jobs); it runs for a while.".format(
+                        handler["name"]
+                    ),
+                    "item": "P4",
+                    "handler": handler["id"],
+                    "url": handler["url"],
+                }
+            )
         if not handler["environments"]:
             steps.append(
                 {
-                    "step": "Import one or two environments for '{}' (Import locations on the handler page).".format(
+                    "step": "Import the one environment the POC needs for '{}' with onb_handler_locations and onb_import_environments (AWS: the one VPC the user picks).".format(
                         handler["name"]
                     ),
                     "item": "P3",
@@ -434,24 +592,44 @@ def _next_steps(report, base):
                 }
             )
         for env in handler["environments"]:
-            if env["osBuilds"] == 0:
+            for problem in env.get("osBuildProblems") or []:
                 steps.append(
                     {
-                        "step": "Add an OS build with an image for environment '{}'.".format(env["name"]),
+                        "step": "Orders in '{}' with OS build '{}' would fail: {}. Fix it with onb_import_os_build (onb_replace_existing=true replaces a duplicate image after the user agrees).".format(
+                            env["name"], problem["osBuild"], problem["problem"]),
                         "item": "P4",
                         "environment": env["id"],
                         "url": handler["url"],
                     }
                 )
-            if env["networks"] == 0:
+            for problem in env.get("networkProblems") or []:
                 steps.append(
                     {
-                        "step": "Attach a network (sc_nic_0) to environment '{}'.".format(env["name"]),
+                        "step": "Environment '{}': {}. Choose its networks with onb_environment_networks and set their addressing with onb_network_addressing.".format(
+                            env["name"], problem),
                         "item": "P4",
                         "environment": env["id"],
                         "url": env["url"],
                     }
                 )
+            if env["osBuilds"] == 0:
+                steps.append(
+                    {
+                        "step": "Add an OS build with an image for environment '{}' (onb_import_os_build; empty onb_image lists the cache).".format(env["name"]),
+                        "item": "P4",
+                        "environment": env["id"],
+                        "url": handler["url"],
+                    }
+                )
+    failed = report["failedServers"]
+    if failed["count"]:
+        steps.append(
+            {
+                "step": "{} server(s) are left in Provision Failed state by failed orders. Once the cause is known, list them with "
+                "onb_failed_servers and offer the user to delete them (it removes their VMs from the cloud too).".format(failed["count"]),
+                "url": failed["servers"][0]["url"],
+            }
+        )
     custom = report["customServerBlueprint"]
     if not custom.get("exists"):
         steps.append({"step": "Restore the Custom Server blueprint.", "item": "P4", "url": custom.get("restoreUrl")})
@@ -467,6 +645,21 @@ def _next_steps(report, base):
         )
     if report["groupsAndUsers"]["groupCount"] == 0:
         steps.append({"step": "Create a POC group and a non-admin test user.", "item": "2.3.1", "url": base + "/groups/"})
+    for user in reversed(report["groupsAndUsers"]["users"]):  # oldest first: the requestor is created before the approver
+        if user["passwordNeeded"]:
+            steps.append(
+                {
+                    "step": "User '{}'{} has no password: {} Then run onb_user again with its group and roles to "
+                    "restore them. One user per message; check passwordSet here before sending the next.".format(
+                        user["username"],
+                        " ({})".format(", ".join(user["roles"])) if user["roles"] else "",
+                        PASSWORD_FIX_STEPS,
+                    ),
+                    "item": "2.3.1",
+                    "user": user["id"],
+                    "url": user["url"],
+                }
+            )
     if not report["preferences"]["smtp"]["configured"] and not skipped("P7"):
         steps.append(
             {
@@ -504,6 +697,7 @@ def run(job, *args, **kwargs):
         "setupWizard": _setup_wizard(base),
         "resourceHandlers": _handlers(base, state),
         "customServerBlueprint": _custom_server(base),
+        "failedServers": _failed_servers(base),
         "groupsAndUsers": _groups_users(base),
         "authentication": _auth(base),
         "toolkit": _toolkit(base),

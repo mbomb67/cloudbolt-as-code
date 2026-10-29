@@ -1,0 +1,13 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "description": "Returns the posted JSON or query fields with the calling user and the time, proving a synchronous authenticated call into CloudBolt.",
+    "id": "OHK-w78lalkx",
+    "max_retries": 0,
+    "name": "POC Echo",
+    "resource_technologies": [],
+    "script_filename": "OHK-w78lalkx_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

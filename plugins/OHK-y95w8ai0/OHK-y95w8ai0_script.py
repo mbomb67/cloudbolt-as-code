@@ -139,6 +139,23 @@ def _failed_descendants(job, base, depth=0, seen=None):
     return rows[:MAX_FAILED]
 
 
+def _failed_servers(job_ids, base):
+    """Servers the traced jobs left in Provision Failed state (re-running a failed job in the UI deletes its own)."""
+    from infrastructure.models import Server
+
+    servers = Server.objects.filter(jobs__id__in=job_ids, status="PROVFAILED").distinct().order_by("id")
+    return [
+        {
+            "id": s.global_id,
+            "hostname": s.hostname,
+            "environment": s.environment.name if s.environment else None,
+            "inCloud": bool(s.resource_handler_svr_id),
+            "url": base + "/servers/{}/".format(s.id),
+        }
+        for s in servers[:MAX_FAILED]
+    ]
+
+
 def _trace_order(order, base):
     try:
         jobs = list(order.list_of_jobs(recursive=True) or [])
@@ -156,6 +173,7 @@ def _trace_order(order, base):
         },
         "totalJobs": len(jobs),
         "failedJobs": failed,
+        "failedServers": _failed_servers([j.id for j in jobs], base),
     }
     if order.status == "PENDING":
         outputs["note"] = "The order is awaiting approval; approve it with approve_order (the caller must be an approver) and poll again."
@@ -173,6 +191,7 @@ def _trace_job(job, base):
         "target": dict(_summary(job, base), kind="job"),
         "failedJobs": _failed_descendants(job, base),
     }
+    outputs["failedServers"] = _failed_servers([job.id] + [row["pk"] for row in outputs["failedJobs"]], base)
     if job.status != "FAILURE" and not outputs["failedJobs"]:
         outputs["note"] = "Neither this job nor any job under it has failed (status {}).".format(job.status)
     return outputs
@@ -222,5 +241,10 @@ def run(job, *args, **kwargs):
             "For the traceback, call fetch_job_log with log_job_id={} and log_file_tail=200; for appliance-wide "
             "context call onb_recent_errors with onb_log=jobengine.".format(failed_ids[0])
         )
+    if outputs["failedServers"]:
+        outputs["next"] = (outputs.get("next", "") + " " + (
+            "{} server(s) were left in Provision Failed state ({}). Once the cause is explained, offer the user to delete "
+            "them with onb_failed_servers before ordering again; inCloud true means a VM exists in the cloud."
+        ).format(len(outputs["failedServers"]), ", ".join(s["hostname"] or s["id"] for s in outputs["failedServers"]))).strip()
     message = "{}: {} failed job(s).".format(target, len(failed_ids))
     return _success(message, outputs)

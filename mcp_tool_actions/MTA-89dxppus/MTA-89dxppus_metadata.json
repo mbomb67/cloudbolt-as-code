@@ -23,7 +23,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "AWS only: also list the VPCs of this region, with the default VPC flagged.",
+            "description": "AWS only: also list the VPCs of this region with their CIDR, subnet count and default flag.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -52,7 +52,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": true,
-    "mcp_tool_description": "List what a resource handler can turn into environments: AWS regions (pass onb_region to also list that region's VPCs), Azure locations, vCenter, SCVMM or Nutanix clusters, GCP projects, OpenStack locations. Each entry says whether an environment already exists for it, and the handler's existing environments are listed with their location. Call it after the handler is verified, before onb_import_environments, and let the user pick one or two locations. Runs as a job: poll the returned id with fetch_job and read outputs. Read-only on the appliance; requires a CloudBolt admin caller.",
+    "mcp_tool_description": "List what a resource handler can turn into environments: AWS regions (pass onb_region to also list that region's VPCs with CIDR, subnet count, default flag and recommendedVpc), Azure locations, vCenter, SCVMM or Nutanix clusters, GCP projects, OpenStack locations. Each entry says whether an environment already exists for it, and the handler's existing environments are listed with their location. Call it after the handler is verified, before onb_import_environments, and let the user pick the one location the POC needs; for AWS, ask which VPC when the region has several, because each VPC becomes its own environment. Runs as a job: poll the returned id with fetch_job and read outputs. Read-only on the appliance; requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_handler_locations",
     "mcp_tool_title": ""
 }

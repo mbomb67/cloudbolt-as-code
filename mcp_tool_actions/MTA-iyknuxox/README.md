@@ -1,6 +1,6 @@
 # POC Onboarding: Trim Environment Order Form
 
-MCP Tool Action published to agents as `custom_onb_trim_environment`. Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size and, where needed, the network and password; the report profile only lists the current form.
+MCP Tool Action published to agents as `custom_onb_trim_environment`. Shortens an environment's order form for a POC by pinning infrastructure parameters to one value (which hides a required field) and removing the optional technology parameters, leaving the size, the NIC 1 networks chosen with onb_environment_networks and, where needed, the password; the report profile only lists the current form.
 Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
 
 ## Contents

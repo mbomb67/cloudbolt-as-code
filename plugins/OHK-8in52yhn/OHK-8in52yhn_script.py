@@ -1,11 +1,14 @@
 """
 POC Onboarding: User (MCP Tool Action plugin).
 
-Creates a local user for the POC (a requestor, an approver, a resource
-admin) and assigns roles in a group, without ever handling a password: the
-user is created with no usable password and the response carries the edit
-link where the admin sets one. An existing user only gets the role
-assignments. Covers the test plan's role tests (2.3.1, 2.3.4) and approval
+Assigns roles in a group to a POC user (a requestor, an approver, a
+resource admin) without ever handling a password. A user that does not exist
+yet is not created here: CloudBolt's edit dialog asks for a user's current
+password before it changes one (Original Password Verification, on by
+default and hidden from the UI), so a user created without a password could
+never get one. The response instead says how the admin adds the user on the
+Users list, where the password is typed; calling again then assigns the
+roles. Covers the test plan's role tests (2.3.1, 2.3.4) and approval
 tests (2.4.1, 2.4.2). Synchronous. Admin only.
 
 Every declared input is read from its rendered template token in
@@ -17,6 +20,10 @@ import re
 
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9@.+_-]{1,150}$")
+CREATE_STEPS = "Click Add, fill in the values given, type the password in Password and Confirm password, then click Create."
+PASSWORD_FIX_STEPS = (
+    "CloudBolt asks for the user's current password before it changes one, and this user has none. On the user's page click Delete and confirm, then on the Users list click Add, enter the user again with Password and Confirm password, and click Create."
+)
 
 
 def _text(value):
@@ -81,6 +88,25 @@ def _read_inputs():
     }
 
 
+def _create_in_ui(inputs, base):
+    values = {"Username": inputs["username"]}
+    for label, key in (("Email", "email"), ("First Name", "first_name"), ("Last Name", "last_name")):
+        if inputs[key]:
+            values[label] = inputs[key]
+    outputs = {
+        "user": None,
+        "createInUi": {"url": base + "/users/", "click": "Add", "values": values, "steps": CREATE_STEPS},
+        "next": (
+            "Give the admin this as one step: the link, Add, the values, and that the password is typed in the form "
+            "(never in chat). Wait until they say it is created, then call onb_user again with the same inputs to "
+            "assign the roles."
+        ),
+    }
+    if not inputs["email"]:
+        outputs["note"] = "The form requires an Email; ask the admin which address to use."
+    return outputs
+
+
 def _resolve_group(ref):
     from accounts.models import Group
 
@@ -132,27 +158,21 @@ def run(job, *args, **kwargs):
     from django.contrib.auth.models import User
     from accounts.models import GroupRoleMembership, UserProfile
 
+    base = _portal_url()
     user = User.objects.filter(username__iexact=inputs["username"]).first()
-    created = False
-    changes = []
     if user is None:
-        user = User.objects.create_user(
-            username=inputs["username"],
-            email=inputs["email"] or "",
-            password=None,
-            first_name=inputs["first_name"],
-            last_name=inputs["last_name"],
+        return _success(
+            "User '{}' does not exist yet: the admin adds it in the UI, where the password is typed.".format(inputs["username"]),
+            _create_in_ui(inputs, base),
         )
-        created = True
-        changes.append("created with no usable password")
-    else:
-        for field in ("email", "first_name", "last_name"):
-            value = inputs[field]
-            if value and getattr(user, field) != value:
-                setattr(user, field, value)
-                changes.append(field)
-        if changes:
-            user.save()
+    changes = []
+    for field in ("email", "first_name", "last_name"):
+        value = inputs[field]
+        if value and getattr(user, field) != value:
+            setattr(user, field, value)
+            changes.append(field)
+    if changes:
+        user.save()
     user_profile = UserProfile.objects.filter(user=user).first()
     if user_profile is None:
         user_profile = UserProfile.objects.create(user=user)
@@ -170,7 +190,7 @@ def run(job, *args, **kwargs):
         if made:
             changes.append("role {} in {}".format(role.name, group.name))
 
-    base = _portal_url()
+    password_set = user.has_usable_password()
     outputs = {
         "user": {
             "id": user_profile.global_id,
@@ -179,16 +199,20 @@ def run(job, *args, **kwargs):
             "email": user.email,
             "name": "{} {}".format(user.first_name, user.last_name).strip(),
             "superAdmin": bool(user_profile.super_admin),
-            "created": created,
+            "passwordSet": password_set,
             "url": base + "/users/{}/".format(user_profile.id),
-            "setPasswordUrl": base + "/users/{}/edit/".format(user_profile.id),
         },
         "memberships": memberships,
         "changes": changes,
-        "next": (
-            "Send the admin setPasswordUrl to set the user's password in the UI (never in chat); the user has no "
-            "usable password until then. Then have the user log in to exercise the role."
-        ),
+        "next": "Have the user log in to exercise the role.",
     }
-    message = "User '{}' {}; {} role assignment(s).".format(user.username, "created" if created else "updated", len(memberships))
+    # Earlier versions of this tool created users without a password, which the UI cannot add later.
+    if not password_set and user.last_login is None and user_profile.ldap_id is None:
+        outputs["passwordFix"] = {"url": outputs["user"]["url"], "steps": PASSWORD_FIX_STEPS}
+        outputs["next"] = (
+            "This user has no password and CloudBolt cannot add one on the user's page. Give the admin passwordFix as one "
+            "step (deleting the user also drops its roles); once they have added it again, call onb_user with the same "
+            "inputs to restore the roles."
+        )
+    message = "User '{}' updated; {} role assignment(s).".format(user.username, len(memberships))
     return _success(message, outputs)

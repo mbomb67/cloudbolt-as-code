@@ -1,0 +1,18 @@
+{
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Prints a hello message, the host name and the user inside a Linux guest to prove agentless script execution.",
+    "execution_timeout": 600,
+    "id": "OHK-818zw61m",
+    "max_retries": 0,
+    "name": "POC Hello World (Linux)",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-818zw61m_script.sh",
+    "shared": false,
+    "target_os_families": [
+        "Linux"
+    ],
+    "type": "Remote Script"
+}

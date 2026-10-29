@@ -13,7 +13,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | Input | Type | Meaning |
 |---|---|---|
 | `onb_environments` | text | ENV- ids or names, one per line, that receive the hostname template; left empty the template goes on the server tier. |
-| `onb_hostname_template` | string | CloudBolt hostname template, for example poc-# or a template using group and OS build names; see the hostname specification documentation. |
+| `onb_hostname_template` | string | CloudBolt hostname template with a sequence: zeros followed by X, for example `poc-00X` (becomes poc-001, poc-002). A template with `#` or without a sequence is refused. |
 | `onb_all_environments` | string | true enables every environment on the server tier; false leaves the tier's environment setting unchanged. |
 
 ## Output

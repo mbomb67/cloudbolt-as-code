@@ -15,7 +15,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_ldap` | string | Which LDAP utility; optional when only one exists. |
 
 ## Output
-ldapUtility (server, port, protocol, serviceAccount), verified, error, hints[], links (detail, edit, verifyDialog, mappings), next.
+ldapUtility (server, port, protocol, serviceAccount), verified, error, hints[], links (detail, edit, mappings), click (the button for each form), next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

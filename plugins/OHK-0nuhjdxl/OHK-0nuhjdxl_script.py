@@ -157,21 +157,49 @@ def _rows(total, not_in_cb):
 
 
 def _vpcs(handler, region):
-    vpcs = handler.get_vpc_dicts_for_region(region)
-    rows = []
-    for vpc in list(vpcs)[:MAX_VPCS]:
-        if not isinstance(vpc, dict):
-            rows.append({"id": str(vpc)})
-            continue
-        rows.append(
-            {
-                "id": vpc.get("id") or vpc.get("VpcId") or vpc.get("vpc_id"),
-                "name": vpc.get("name") or vpc.get("Name") or "",
-                "cidr": vpc.get("cidr") or vpc.get("CidrBlock"),
-                "isDefault": bool(vpc.get("is_default") or vpc.get("IsDefault") or vpc.get("default")),
-            }
+    """
+    The region's VPCs with their default flag, CIDR and subnet count.
+    get_vpc_dicts_for_region returns only id and name, so read the EC2 Vpc
+    resources through the handler's own boto3 helper, the same call it makes.
+    Vpc attributes: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/vpc/index.html
+    """
+    try:
+        handler.connect(region_name=region)
+        ec2 = handler.resource_technology.work_class.get_boto3_resource(
+            handler.serviceaccount, handler.servicepasswd, region
         )
-    return rows
+        rows = []
+        for vpc in list(ec2.vpcs.all())[:MAX_VPCS]:
+            name = ""
+            for tag in vpc.tags or []:
+                if tag.get("Key") == "Name":
+                    name = tag.get("Value") or ""
+            try:
+                subnets = len(list(vpc.subnets.all()))
+            except Exception:
+                subnets = None
+            rows.append(
+                {"id": vpc.id, "name": name, "cidr": vpc.cidr_block, "isDefault": bool(vpc.is_default), "subnets": subnets}
+            )
+        return rows
+    except Exception:
+        return [
+            {"id": v.get("id"), "name": v.get("name") if v.get("name") != v.get("id") else "", "cidr": None,
+             "isDefault": False, "subnets": None}
+            for v in list(handler.get_vpc_dicts_for_region(region))[:MAX_VPCS]
+            if isinstance(v, dict)
+        ]
+
+
+def _recommended_vpc(rows):
+    """The VPC to offer first: the only one with subnets, else the default VPC when it has subnets."""
+    usable = [r for r in rows if r.get("subnets") != 0]
+    if len(usable) == 1:
+        return usable[0]["id"]
+    for row in usable:
+        if row.get("isDefault"):
+            return row["id"]
+    return None
 
 
 def run(job, *args, **kwargs):
@@ -204,15 +232,23 @@ def run(job, *args, **kwargs):
             outputs["locations"] = _rows(total, not_in_cb)
             if inputs["region"]:
                 outputs["region"] = inputs["region"]
-                outputs["vpcs"] = _vpcs(handler, inputs["region"])
-                outputs["next"] = (
-                    "Call onb_import_environments with onb_locations lines of the form <region>|<vpc-id>; "
-                    "without a VPC the default VPC of the region is used."
-                )
+                vpcs = _vpcs(handler, inputs["region"])
+                outputs["vpcs"] = vpcs
+                outputs["recommendedVpc"] = _recommended_vpc(vpcs)
+                if len(vpcs) == 1:
+                    outputs["next"] = (
+                        "The region has one VPC: call onb_import_environments with onb_locations {}|{}.".format(
+                            inputs["region"], vpcs[0]["id"])
+                    )
+                else:
+                    outputs["next"] = (
+                        "Ask the user which one VPC the POC uses (offer recommendedVpc first; a VPC with no subnets "
+                        "cannot build servers), then call onb_import_environments with <region>|<vpc-id> for that VPC only."
+                    )
             else:
                 outputs["next"] = (
-                    "Pick one or two regions. Call this tool again with onb_region to list that region's VPCs, or call "
-                    "onb_import_environments with the region alone to use its default VPC."
+                    "Pick one region. Call this tool again with onb_region to list that region's VPCs, then import the "
+                    "one VPC the POC uses with onb_import_environments (<region>|<vpc-id>)."
                 )
         elif slug == "azure_arm":
             total, not_in_cb, _only = handler.import_locations_helper()

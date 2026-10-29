@@ -4,6 +4,25 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
+            "description": "true confirms a required change that also reaches environments or groups outside the targets; set it only after the user agreed to the alsoAffects list.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-n8nzjeld",
+            "label": "Confirm global required change (true/false)",
+            "name": "onb_param_confirm_global",
+            "placeholder": "false",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
             "description": "Help text shown under the field.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
@@ -118,7 +137,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "Whether a value is mandatory on the targets.",
+            "description": "true makes the parameter required, false optional. CloudBolt has one required flag per parameter, so this applies everywhere it is offered, not only on the targets.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -204,7 +223,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Create or update a parameter (CustomField) and attach it to environments or groups with options and constraints, as the Parameters admin page and an environment's Parameters tab do. onb_param_name is the internal name (application_tier, cost_center, expiration_date, power_schedule); a new parameter gets onb_param_type (STR default; INT, DEC, BOOL, TXT, DT for a date) and onb_param_label. onb_param_targets lists ENV- or GRP- ids or names, one per line; onb_param_options the choices to offer there, one per line; onb_param_max and onb_param_min constrain numbers, or days from today for a date (expiration_date with onb_param_max=30 caps leases at 30 days). onb_param_required true makes it mandatory on those targets. Test plan 1.1.2, 2.5.1, 3.1.1, 3.1.2. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Create or update a parameter (CustomField) and attach it to environments or groups with options and constraints, as the Parameters admin page and an environment's Parameters tab do. onb_param_name is the internal name (application_tier, cost_center, expiration_date, power_schedule); a new parameter gets onb_param_type (STR default; INT, DEC, BOOL, TXT, DT for a date) and onb_param_label. onb_param_targets lists ENV- or GRP- ids or names, one per line; onb_param_options the choices to offer there, one per line; onb_param_max and onb_param_min constrain numbers, or days from today for a date (expiration_date with onb_param_max=30 caps leases at 30 days). onb_param_required true makes it required and false optional: CloudBolt has one required flag per parameter, honoured by the order form and by API and MCP orders (which fill a single option in automatically only for a required parameter), so it applies everywhere the parameter is offered. When that reaches environments or groups outside onb_param_targets, nothing changes and the result has confirmationRequired with alsoAffects; ask the user, then call again with onb_param_confirm_global=true. Test plan 1.1.2, 2.5.1, 3.1.1, 3.1.2. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_parameter",
     "mcp_tool_title": ""
 }

@@ -147,7 +147,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Create a local test user (a requestor, an approver, a resource admin) and assign roles in a group. The user is created with no usable password; the response's setPasswordUrl is where the admin sets one in the UI, so no password ever passes through the agent. An existing user only receives the role assignments. onb_user_roles are role names one per line (requestor, approver, resource_admin, viewer, or a custom role). Test plan 2.3.1, 2.3.4, 2.4.1, 2.4.2. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Assign roles in a group to a local test user (a requestor, an approver, a resource admin). When the user does not exist yet, nothing is created: createInUi gives the Users list link, the button (Add) and the values for the admin to type, the password included, because CloudBolt cannot add a password to a user later without the current one. Give the admin that one step, wait until they say it is created, then call again with the same inputs to assign the roles. passwordFix appears for a user an earlier version created without a password. onb_user_roles are role names one per line (requestor, approver, resource_admin, viewer, or a custom role). Test plan 2.3.1, 2.3.4, 2.4.1, 2.4.2. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_user",
     "mcp_tool_title": ""
 }

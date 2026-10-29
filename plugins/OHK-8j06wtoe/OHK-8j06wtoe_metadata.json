@@ -41,7 +41,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "One location per line: AWS <region> or <region>|<vpc-id>; Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
+            "description": "One location per line: AWS <region>|<vpc-id> (the region alone only when it has one VPC); Azure location name; vCenter, SCVMM or Nutanix cluster name; GCP project id.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -63,7 +63,7 @@
         "onb_locations",
         "onb_env_name"
     ],
-    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced, vCenter cluster networks attached to NIC 1), and reports existing environments instead of duplicating them.",
+    "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced; vCenter networks are chosen afterwards with onb_environment_networks), and reports existing environments instead of duplicating them.",
     "id": "OHK-8j06wtoe",
     "max_retries": 0,
     "name": "POC Onboarding: Import Environments",

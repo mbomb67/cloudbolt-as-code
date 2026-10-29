@@ -1,0 +1,58 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Name of the CIT test; defaults to the order's name.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-frgip09z",
+            "label": "Test name (optional)",
+            "name": "onb_cit_name",
+            "placeholder": "POC: Custom Server in AWS",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "The finished blueprint order to replay.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-an75eqvs",
+            "label": "Order (ORD- global id)",
+            "name": "onb_cit_order",
+            "placeholder": "ORD-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-yjow1qql"
+    },
+    "enabled": true,
+    "id": "MTA-ckumouj0",
+    "is_synchronous": true,
+    "label": "POC Onboarding: CIT Test from Order",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Turn a finished blueprint order (ORD- id, status SUCCESS, FAILURE or WARNING) into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action: CloudBolt replays the order on each test run and compares the result with the original status (test plan 4.2.4). An order that is already a test is reported, not duplicated. Run the test afterwards with run_cit_tests; each run provisions and decommissions a server. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_cit_from_order",
+    "mcp_tool_title": ""
+}

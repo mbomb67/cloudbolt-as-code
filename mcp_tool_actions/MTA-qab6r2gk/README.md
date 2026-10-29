@@ -15,7 +15,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_smtp_to` | string | Address to send the test to; defaults to the CloudBolt admin email. |
 
 ## Output
-recipient, settings, sent, error, hints[], editUrl.
+recipient, settings, sent, error, hints[], editUrl with editClick.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

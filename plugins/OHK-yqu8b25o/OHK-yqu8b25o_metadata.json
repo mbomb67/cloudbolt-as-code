@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "all (default), self-service, rbac, resource-management or extensibility.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-k29swycy",
+            "label": "Section (optional): all, self-service, rbac, ...",
+            "name": "onb_score_section",
+            "placeholder": "all",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_score_section"
+    ],
+    "description": "Builds the POC test plan scorecard from the recorded item statuses and live evidence on the appliance (orders, handlers, environments, groups, mappings, actions, jobs), per category with weights.",
+    "id": "OHK-yqu8b25o",
+    "max_retries": 0,
+    "name": "POC Onboarding: Scorecard",
+    "resource_technologies": [],
+    "script_filename": "OHK-yqu8b25o_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

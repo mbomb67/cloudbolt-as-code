@@ -15,7 +15,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_link_target` | string, required | A global id such as RH-abc12345, or a page key such as email_settings or user_edit:USR-abc12345. An unknown key returns the list of pages. |
 
 ## Output
-url (absolute when the default portal has a domain), plus model/pk/label for an object or page/meaning for a named page.
+url (absolute when the default portal has a domain), plus model/pk/label for an object or page/meaning for a named page, and click (the button that opens the form) when the form is a dialog.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

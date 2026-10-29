@@ -33,7 +33,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": true,
-    "mcp_tool_description": "Given an order (ORD-) or job (JOB-) global id, return every failed job under it with its errors, output, the tail of its progress messages, its failed children and a hint for the provisioning failures a new appliance hits most (no image in the region, no subnet, missing key pair, Windows password, datastore not pinned, permissions, TLS, connectivity). Call it when fetch_order or fetch_job reports FAILURE; then pass the job id it names to fetch_job_log with log_file_tail for the full traceback. Read-only; requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Given an order (ORD-) or job (JOB-) global id, return every failed job under it with its errors, output, the tail of its progress messages, its failed children and a hint for the provisioning failures a new appliance hits most (no image in the region, no subnet, missing key pair, Windows password, datastore not pinned, permissions, TLS, connectivity). Call it when fetch_order or fetch_job reports FAILURE; then pass the job id it names to fetch_job_log with log_file_tail for the full traceback. failedServers lists the servers the order left in Provision Failed state; once the cause is explained, offer to delete them with onb_failed_servers. Read-only; requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_failure_trace",
     "mcp_tool_title": ""
 }
