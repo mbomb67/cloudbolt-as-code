@@ -464,7 +464,8 @@ def _auth(base):
         pass
     return {
         "ldapUtilities": ldap_rows,
-        "newLdapUrl": base + "/admin/ldap_settings/add/",
+        "newLdapUrl": base + "/admin/ldap_settings/",
+        "newLdapClick": "Add",
         "ssoProviders": sso_count,
     }
 
