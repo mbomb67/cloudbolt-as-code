@@ -62,7 +62,9 @@ ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
 MAX_FAILED_SERVERS = 10
 MAX_USERS = 20
-SET_PASSWORD_STEPS = "Click Edit on the Overview tab, type the password in Change password and Confirm password, then Save changes."
+PASSWORD_FIX_STEPS = (
+    "CloudBolt asks for the user's current password before it changes one, and this user has none. On the user's page click Delete and confirm, then on the Users list click Add, enter the user again with Password and Confirm password, and click Create."
+)
 
 
 def _failure(message):
@@ -419,7 +421,7 @@ def _failed_servers(base):
 
 
 def _users(base):
-    """Local users, newest first, each with its own page; passwordNeeded marks one whose password the admin has not set yet."""
+    """Local users, newest first, each with its own page; passwordNeeded marks one an earlier onb_user created without a password."""
     from accounts.models import GroupRoleMembership, UserProfile
 
     rows = []
@@ -466,7 +468,7 @@ def _groups_users(base):
         "userCount": users,
         "superAdminCount": admins,
         "users": _users(base),
-        "setPasswordSteps": SET_PASSWORD_STEPS,
+        "passwordFixSteps": PASSWORD_FIX_STEPS,
         "usersUrl": base + "/users/",
     }
 
@@ -647,11 +649,11 @@ def _next_steps(report, base):
         if user["passwordNeeded"]:
             steps.append(
                 {
-                    "step": "Have the admin set the password of '{}'{} on the user's page: {} One user per message; "
-                    "check passwordSet here before sending the next.".format(
+                    "step": "User '{}'{} has no password: {} Then run onb_user again with its group and roles to "
+                    "restore them. One user per message; check passwordSet here before sending the next.".format(
                         user["username"],
                         " ({})".format(", ".join(user["roles"])) if user["roles"] else "",
-                        SET_PASSWORD_STEPS,
+                        PASSWORD_FIX_STEPS,
                     ),
                     "item": "2.3.1",
                     "user": user["id"],

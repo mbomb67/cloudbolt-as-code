@@ -20,7 +20,7 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
    - **Plain text** everywhere else: one question, with choices numbered so a number answers it.
 
    Never put a secret in a form or a picker: the answer lands in the transcript, so secrets keep the UI link of rule 2.
-2. **Secrets never pass through the agent.** Passwords, access keys, client secrets, service-account JSON, API tokens: the user enters them in the UI. Give the exact link from `onb_ui_link` (or the `editUrl` and `setPasswordUrl` fields the tools return), name the button that opens the form (`click`, `editClick`, `setPasswordSteps`), and list the non-secret values to type. Never ask for a secret in chat, never accept one that is pasted (say so and move on), never put one in a tool call.
+2. **Secrets never pass through the agent.** Passwords, access keys, client secrets, service-account JSON, API tokens: the user enters them in the UI. Give the exact link from `onb_ui_link` (or the `editUrl` and `createInUi` fields the tools return), name the button that opens the form (`click`, `editClick`, `createInUi.click`), and list the non-secret values to type. Never ask for a secret in chat, never accept one that is pasted (say so and move on), never put one in a tool call.
 3. **Root cause before retry.** When anything fails: read the tool's `error_message` and `hints`; for an order or job call `onb_failure_trace`, then `fetch_job_log` on the job it names; for a UI failure call `onb_recent_errors` for the last few minutes; then apply [troubleshooting.md](references/troubleshooting.md). State the cause and the fix before anyone retries.
 4. **Status first.** Start every phase with `onb_status`. Never assume what is configured; the appliance is the source of truth.
 5. **Echo and confirm every write.** Before a tool that changes the appliance or orders infrastructure, state what will change and wait for a clear yes. For `order_catalog_item` follow the server's echo-and-confirm text verbatim. `onb_remove_environment` is destructive: name the environment and get an explicit yes.
@@ -78,7 +78,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 4, 7 | `onb_parameter` | sync | Create a parameter and attach it to environments or groups with options and constraints, or make it required (one flag for the whole appliance) |
 | 4, 5 | `onb_tag_mapping` | sync | List, add or remove a handler's attribute-to-cloud-tag mappings |
 | 5 | `onb_group` | sync | Create a group with entitled environments, auto-approval and a server quota |
-| 5 | `onb_user` | sync | Create a local user with no password (the admin sets it on the returned link) and assign roles |
+| 5 | `onb_user` | sync | Assign a local user's roles; a user that does not exist yet comes back as `createInUi` for the admin to add with its password |
 | 5 | `onb_action_approval` | sync | Turn Requires approval on or off for a server or resource action |
 | 6 | `onb_verify_ldap` | async | Verify an LDAP utility and get the real bind error |
 | 6 | `onb_ldap_mapping` | sync | Map a directory group DN to a CloudBolt group with roles |

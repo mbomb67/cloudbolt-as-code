@@ -1462,7 +1462,7 @@
     "id": "MTA-tuzkb8h4",
     "type": "mcp_tool_actions",
     "name": "POC Onboarding: User",
-    "description": "Creates a local user with no usable password and assigns roles in a group, returning the edit link where the admin sets the password; an existing user only gets the roles.",
+    "description": "Assigns roles in a group to a local POC user; a user that does not exist yet is added by the admin on the Users list with its password, and the tool says how.",
     "path": "mcp_tool_actions/MTA-tuzkb8h4",
     "readme": "mcp_tool_actions/MTA-tuzkb8h4/README.md",
     "uses": [
@@ -2680,7 +2680,7 @@
     "id": "OHK-8in52yhn",
     "type": "plugins",
     "name": "POC Onboarding: User",
-    "description": "Creates a local user with no usable password and assigns roles in a group, returning the edit link where the admin sets the password; an existing user only gets the roles.",
+    "description": "Assigns roles in a group to a local POC user; a user that does not exist yet is added by the admin on the Users list with its password, and the tool says how.",
     "path": "plugins/OHK-8in52yhn",
     "readme": null,
     "uses": [],

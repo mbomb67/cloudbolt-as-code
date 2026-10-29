@@ -143,7 +143,7 @@
         "onb_user_roles",
         "onb_user_super_admin"
     ],
-    "description": "Creates a local user with no usable password and assigns roles in a group, returning the edit link where the admin sets the password; an existing user only gets the roles.",
+    "description": "Assigns roles in a group to a local POC user; a user that does not exist yet is added by the admin on the Users list with its password, and the tool says how.",
     "id": "OHK-8in52yhn",
     "max_retries": 0,
     "name": "POC Onboarding: User",
