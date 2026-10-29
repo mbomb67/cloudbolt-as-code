@@ -15,7 +15,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_target_id` | string, required | The order or job to trace. |
 
 ## Output
-target, failedJobs[] (errors, output, progressTail, hints, url), hints[], next.
+target, failedJobs[] (errors, output, progressTail, hints, url), failedServers[] (id, hostname, environment, inCloud, url) left in Provision Failed state, hints[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

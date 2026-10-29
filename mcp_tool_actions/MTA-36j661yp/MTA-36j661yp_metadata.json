@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "SVR- ids to delete, separated by commas or spaces; only servers in Provision Failed state. Empty lists the failed servers.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-qemldj3g",
+            "label": "Servers to delete (SVR- ids)",
+            "name": "onb_delete_servers",
+            "placeholder": "SVR-abc12345, SVR-def67890",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-ep5vo2nu"
+    },
+    "enabled": true,
+    "id": "MTA-36j661yp",
+    "is_synchronous": true,
+    "label": "POC Onboarding: Failed Servers",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": false,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "List the servers left in Provision Failed state by orders that failed (fetch_server_list shows only active servers, so they are invisible otherwise), or delete the ones named in onb_delete_servers. Each listed server has its hostname, environment, group, owner, created date, provision job, order and inCloud (true when a VM was created, so the delete also removes it from the cloud). Call it after a failed order once the cause is known, and before the wrap-up. Show the user the servers and get explicit agreement before deleting: the delete cannot be undone. A delete runs CloudBolt's own decommission and returns a delete job to poll with fetch_job, or an order when fast-track decommission is off. Only Provision Failed servers are accepted. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_failed_servers",
+    "mcp_tool_title": ""
+}

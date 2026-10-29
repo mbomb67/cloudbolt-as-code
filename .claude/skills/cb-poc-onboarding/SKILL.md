@@ -61,6 +61,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | all | `onb_ui_link` | sync | Get the UI link for a global id or a named page (`new_resource_handler:aws`, `email_settings`, `user_edit:USR-...`) |
 | all | `onb_recent_errors` | sync | Read the last minutes of application, jobengine, authentication or mcp log, grouped, with hints |
 | all | `onb_failure_trace` | sync | Walk a failed order or job down to the job that failed, with hints and the id for `fetch_job_log` |
+| all | `onb_failed_servers` | sync | List the servers failed orders left in Provision Failed state, or delete the ones the user agreed to (their VMs too) |
 | all | `onb_set_item_status` | sync | Record a test-plan item or prerequisite as done, skipped, not_applicable or pending |
 | 0 | `onb_install` | async | Finish the toolkit install (synchronous flags, enabled, egress checks) |
 | 0 | `onb_playbook` | sync | Fetch this skill's text by section for clients without skills |

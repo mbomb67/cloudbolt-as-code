@@ -1,8 +1,8 @@
 # POC Onboarding Toolkit
 
-Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.
+Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, failed-server cleanup, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.
 
-Content package `PKG-8aaadefz`, version 0.6.0. Sync it from the Content Packages admin page (Content Package Manager UI extension); for an update, run Import from repository again first, because Sync uses the member list saved at import. After the first import run the `onb_install` tool (asynchronous; poll the job) to turn Synchronous Action on for the inline tools, then reconnect the MCP client. Setup for a customer appliance: [docs/poc-onboarding-setup.md](../../docs/poc-onboarding-setup.md); the procedure the agent follows: [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Content package `PKG-8aaadefz`, version 0.7.0. Sync it from the Content Packages admin page (Content Package Manager UI extension); for an update, run Import from repository again first, because Sync uses the member list saved at import. After the first import run the `onb_install` tool (asynchronous; poll the job) to turn Synchronous Action on for the inline tools, then reconnect the MCP client. Setup for a customer appliance: [docs/poc-onboarding-setup.md](../../docs/poc-onboarding-setup.md); the procedure the agent follows: [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
 
 | Type | Name | Folder |
 |---|---|---|
@@ -23,6 +23,7 @@ Content package `PKG-8aaadefz`, version 0.6.0. Sync it from the Content Packages
 | MCP tool action | POC Onboarding: Import OS Build | [mcp_tool_actions/MTA-0dr8xi4i](../../mcp_tool_actions/MTA-0dr8xi4i/) |
 | MCP tool action | POC Onboarding: Configure Custom Server | [mcp_tool_actions/MTA-i1kmy5fd](../../mcp_tool_actions/MTA-i1kmy5fd/) |
 | MCP tool action | POC Onboarding: Remove Environment | [mcp_tool_actions/MTA-pz5o2gjl](../../mcp_tool_actions/MTA-pz5o2gjl/) |
+| MCP tool action | POC Onboarding: Failed Servers | [mcp_tool_actions/MTA-36j661yp](../../mcp_tool_actions/MTA-36j661yp/) |
 | MCP tool action | POC Onboarding: Parameter | [mcp_tool_actions/MTA-70aez9bm](../../mcp_tool_actions/MTA-70aez9bm/) |
 | MCP tool action | POC Onboarding: Group | [mcp_tool_actions/MTA-cpq7bvz4](../../mcp_tool_actions/MTA-cpq7bvz4/) |
 | MCP tool action | POC Onboarding: User | [mcp_tool_actions/MTA-tuzkb8h4](../../mcp_tool_actions/MTA-tuzkb8h4/) |

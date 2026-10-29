@@ -33,7 +33,7 @@ Fully through MCP. For each environment:
 3. `fetch_blueprint_schema`. For the server item, `fetch_orderable_environments`, then `fetch_blueprint_item_parameters` for the chosen environment, then `fetch_blueprint_parameter_options` for each parameter with dynamic options. Choose the smallest size. For NIC 1, use one of the networks chosen in Phase 2; when its `ipProvider` is `user_static` or `user_static_or_dhcp`, ask one question for the IP and pass it as `sc_nic_0_ip`.
 4. Echo the whole order verbatim (group, resource name, item slug, environment, OS build, every parameter) and wait for yes.
 5. `order_catalog_item`. Poll `fetch_order`; if `PENDING`, the group requires approval: `approve_order` as an approver (or that is test 2.4.1). Then `fetch_job` on the provision job.
-6. On `FAILURE`: `onb_failure_trace` with the order id, then [troubleshooting.md](troubleshooting.md).
+6. On `FAILURE`: `onb_failure_trace` with the order id, then [troubleshooting.md](troubleshooting.md). When it lists `failedServers`, explain the cause first, then ask one question before ordering again: "The failed order left <hostnames> behind; shall I delete them?" (say when `inCloud` is true that the VM is deleted from the cloud too). On a yes, `onb_failed_servers` with `onb_delete_servers` set to those ids, poll each `deleteJob` with `fetch_job`, and call `onb_failed_servers` again to confirm they are gone.
 7. Verify: `fetch_order` is COMPLETE, the provision job is SUCCESS, and `fetch_server_list` with `group_name` shows the new server. Only then record P4 and 1.1.1 `done` with the order id and the server id.
 8. `fetch_server_list` with `group_name` shows both clouds' servers in one list (1.2.3). `fetch_server_actions` on one server, then `run_server_action` for power off, on and reboot, polling each job (3.2.3). [Lifecycle actions](https://academy.university.cloudbolt.io/guides/019403d1-422e-7471-826c-4a6c12820e2a/tasks/0193e483-6d74-7c94-a8c4-464683bd3b51).
 
@@ -85,6 +85,7 @@ Content Library installs need P5. Each `onb_install_content_library_item` call i
 
 ## Phase 9: Wrap-up
 
-1. `onb_scorecard`. Take the `pending` items one at a time: name the item and its evidence line, ask, then record `done` with the evidence or `not_applicable` with the reason using `onb_set_item_status`.
-2. `onb_scorecard` again and present it: categories, items with weight and status, points possible (and applicable), prerequisites.
-3. List the follow-ups raised during the week that were out of scope. The customer fills the workbook's score column from the table.
+1. `onb_failed_servers`. When it lists servers, show them (hostname, environment, created) and ask one question, whether to delete them; on a yes, delete and verify as in Phase 3 step 6.
+2. `onb_scorecard`. Take the `pending` items one at a time: name the item and its evidence line, ask, then record `done` with the evidence or `not_applicable` with the reason using `onb_set_item_status`.
+3. `onb_scorecard` again and present it: categories, items with weight and status, points possible (and applicable), prerequisites.
+4. List the follow-ups raised during the week that were out of scope. The customer fills the workbook's score column from the table.

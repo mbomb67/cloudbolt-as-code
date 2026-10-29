@@ -5,6 +5,7 @@
         "mcp_tool_actions/MTA-0dr8xi4i",
         "mcp_tool_actions/MTA-1985b88g",
         "mcp_tool_actions/MTA-20u1ney4",
+        "mcp_tool_actions/MTA-36j661yp",
         "mcp_tool_actions/MTA-543b19sa",
         "mcp_tool_actions/MTA-6zxrhdls",
         "mcp_tool_actions/MTA-70aez9bm",
@@ -37,11 +38,11 @@
         "mcp_tool_actions/MTA-zpohocjt",
         "webhooks/IWH-f16qxnhm"
     ],
-    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, environment networks and their addressing (DHCP, static, IP pool, IPAM), Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
+    "description": "Installs the MCP tools the POC onboarding skill drives (appliance status with next steps, admin UI links, log and failure diagnosis, failed-server cleanup, resource handler verification, image cache sync and location import, environment creation, order-form trimming, OS build import, environment networks and their addressing (DHCP, static, IP pool, IPAM), Custom Server setup, parameters, groups, users, action approval, tag and LDAP mappings, SMTP, Content Library installs, CIT tests from orders, the scorecard, the playbook text, the install step and POC item tracking), the repository sync, job log and blueprint permission tools they reuse, and the POC Server blueprint and echo webhook that cover the test plan's scripting, generated-options and webhook items.",
     "id": "PKG-8aaadefz",
-    "last_updated": "2026-10-28",
+    "last_updated": "2026-10-29",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "POC Onboarding Toolkit",
-    "version": "0.6.0"
+    "version": "0.7.0"
 }

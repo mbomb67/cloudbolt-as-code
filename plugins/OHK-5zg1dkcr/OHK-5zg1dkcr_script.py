@@ -36,6 +36,7 @@ TOOLKIT_TOOLS = [
     "onb_import_os_build",
     "onb_configure_custom_server",
     "onb_remove_environment",
+    "onb_failed_servers",
     "onb_parameter",
     "onb_group",
     "onb_user",
@@ -59,6 +60,7 @@ TOOLKIT_TOOLS = [
 ]
 ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
+MAX_FAILED_SERVERS = 10
 
 
 def _failure(message):
@@ -395,6 +397,24 @@ def _custom_server(base):
     }
 
 
+def _failed_servers(base):
+    """Servers a failed order left in Provision Failed state; onb_failed_servers lists and deletes them."""
+    from infrastructure.models import Server
+
+    failed = Server.objects.filter(status="PROVFAILED").select_related("environment")
+    rows = [
+        {
+            "id": s.global_id,
+            "hostname": s.hostname,
+            "environment": s.environment.name if s.environment else None,
+            "created": _iso(s.add_date),
+            "url": base + "/servers/{}/".format(s.id),
+        }
+        for s in failed.order_by("-add_date")[:MAX_FAILED_SERVERS]
+    ]
+    return {"count": failed.count(), "servers": rows}
+
+
 def _groups_users(base):
     from accounts.models import Group, UserProfile
 
@@ -566,6 +586,15 @@ def _next_steps(report, base):
                         "url": handler["url"],
                     }
                 )
+    failed = report["failedServers"]
+    if failed["count"]:
+        steps.append(
+            {
+                "step": "{} server(s) are left in Provision Failed state by failed orders. Once the cause is known, list them with "
+                "onb_failed_servers and offer the user to delete them (it removes their VMs from the cloud too).".format(failed["count"]),
+                "url": failed["servers"][0]["url"],
+            }
+        )
     custom = report["customServerBlueprint"]
     if not custom.get("exists"):
         steps.append({"step": "Restore the Custom Server blueprint.", "item": "P4", "url": custom.get("restoreUrl")})
@@ -618,6 +647,7 @@ def run(job, *args, **kwargs):
         "setupWizard": _setup_wizard(base),
         "resourceHandlers": _handlers(base, state),
         "customServerBlueprint": _custom_server(base),
+        "failedServers": _failed_servers(base),
         "groupsAndUsers": _groups_users(base),
         "authentication": _auth(base),
         "toolkit": _toolkit(base),

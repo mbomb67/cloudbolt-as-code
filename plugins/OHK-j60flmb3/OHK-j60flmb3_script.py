@@ -38,6 +38,7 @@ TOOLS = {
     "onb_trim_environment": True,
     "onb_configure_custom_server": True,
     "onb_remove_environment": True,
+    "onb_failed_servers": True,
     "onb_parameter": True,
     "onb_group": True,
     "onb_user": True,
