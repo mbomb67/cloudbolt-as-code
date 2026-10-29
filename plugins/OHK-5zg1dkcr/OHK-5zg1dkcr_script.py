@@ -61,6 +61,8 @@ TOOLKIT_TOOLS = [
 ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
 MAX_FAILED_SERVERS = 10
+MAX_USERS = 20
+SET_PASSWORD_STEPS = "Click Edit on the Overview tab, type the password in Change password and Confirm password, then Save changes."
 
 
 def _failure(message):
@@ -415,6 +417,33 @@ def _failed_servers(base):
     return {"count": failed.count(), "servers": rows}
 
 
+def _users(base):
+    """Local users, newest first, each with its own page; passwordNeeded marks one whose password the admin has not set yet."""
+    from accounts.models import GroupRoleMembership, UserProfile
+
+    rows = []
+    for up in UserProfile.objects.filter(ldap__isnull=True).select_related("user").order_by("-id")[:MAX_USERS]:
+        user = up.user
+        usable = user.has_usable_password()
+        rows.append(
+            {
+                "id": up.global_id,
+                "username": user.username,
+                "name": "{} {}".format(user.first_name, user.last_name).strip(),
+                "superAdmin": bool(up.super_admin),
+                "roles": [
+                    "{}: {}".format(m.group.name, m.role.name)
+                    for m in GroupRoleMembership.objects.filter(profile=up).select_related("group", "role")
+                ],
+                "passwordSet": usable,
+                # SSO users have no usable password either, but they have logged in.
+                "passwordNeeded": not usable and user.last_login is None,
+                "url": base + "/users/{}/".format(up.id),
+            }
+        )
+    return rows
+
+
 def _groups_users(base):
     from accounts.models import Group, UserProfile
 
@@ -435,6 +464,8 @@ def _groups_users(base):
         "groupsUrl": base + "/groups/",
         "userCount": users,
         "superAdminCount": admins,
+        "users": _users(base),
+        "setPasswordSteps": SET_PASSWORD_STEPS,
         "usersUrl": base + "/users/",
     }
 
@@ -609,6 +640,21 @@ def _next_steps(report, base):
         )
     if report["groupsAndUsers"]["groupCount"] == 0:
         steps.append({"step": "Create a POC group and a non-admin test user.", "item": "2.3.1", "url": base + "/groups/"})
+    for user in report["groupsAndUsers"]["users"]:
+        if user["passwordNeeded"]:
+            steps.append(
+                {
+                    "step": "Have the admin set the password of '{}'{} on the user's page: {} One user per message; "
+                    "check passwordSet here before sending the next.".format(
+                        user["username"],
+                        " ({})".format(", ".join(user["roles"])) if user["roles"] else "",
+                        SET_PASSWORD_STEPS,
+                    ),
+                    "item": "2.3.1",
+                    "user": user["id"],
+                    "url": user["url"],
+                }
+            )
     if not report["preferences"]["smtp"]["configured"] and not skipped("P7"):
         steps.append(
             {

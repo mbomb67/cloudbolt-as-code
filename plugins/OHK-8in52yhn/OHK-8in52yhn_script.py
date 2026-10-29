@@ -182,13 +182,16 @@ def run(job, *args, **kwargs):
             "created": created,
             "url": base + "/users/{}/".format(user_profile.id),
             "setPasswordUrl": base + "/users/{}/".format(user_profile.id),
-            "setPasswordSteps": "Click Edit, type the password in Change password and Confirm password, then Save changes.",
+            "setPasswordSteps": "Click Edit on the Overview tab, type the password in Change password and Confirm password, then Save changes.",
+            "passwordSet": user.has_usable_password(),
         },
         "memberships": memberships,
         "changes": changes,
         "next": (
-            "Send the admin setPasswordUrl with setPasswordSteps to set the user's password in the UI (never in chat); "
-            "the user has no usable password until then. Then have the user log in to exercise the role."
+            "Give the admin this user's setPasswordUrl and setPasswordSteps as a step of its own (one user per message, "
+            "never the Users list) to set the password in the UI (never in chat), and wait until they say it is done; "
+            "onb_status then shows passwordSet true in groupsAndUsers.users, which also holds every user's link. "
+            "Then have the user log in to exercise the role."
         ),
     }
     message = "User '{}' {}; {} role assignment(s).".format(user.username, "created" if created else "updated", len(memberships))

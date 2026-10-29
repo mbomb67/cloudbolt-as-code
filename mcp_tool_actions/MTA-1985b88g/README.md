@@ -13,7 +13,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 None.
 
 ## Output
-One report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] with environments[], customServerBlueprint, failedServers (count, newest servers[]), groupsAndUsers, authentication, toolkit, pocItems, install, nextSteps[].
+One report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] with environments[], customServerBlueprint, failedServers (count, newest servers[]), groupsAndUsers (groups[], users[] with roles, passwordSet, passwordNeeded and their own url, setPasswordSteps), authentication, toolkit, pocItems, install, nextSteps[].
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
