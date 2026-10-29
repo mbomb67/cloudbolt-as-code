@@ -20,7 +20,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_group_description` | string | Group description. |
 
 ## Output
-group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl), environments[], serverQuota, changes[], next.
+group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl, quotasClick), environments[], serverQuota, changes[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

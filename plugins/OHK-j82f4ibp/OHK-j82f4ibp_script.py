@@ -102,9 +102,14 @@ def run(job, *args, **kwargs):
         },
         "links": {
             "detail": base + "/admin/ldap_settings/{}/".format(utility.id),
-            "edit": base + "/admin/ldap_settings/{}/edit/".format(utility.id),
-            "verifyDialog": base + "/admin/ldap_settings/{}/verify_connection/".format(utility.id),
-            "mappings": base + "/admin/ldap_settings/{}/group_mappings/add/".format(utility.id),
+            "edit": base + "/admin/ldap_settings/{}/".format(utility.id),
+            "mappings": base + "/admin/ldap_settings/{}/#tab-group-mappings".format(utility.id),
+        },
+        "click": {
+            "password": "Credentials on links.edit",
+            "settings": "Settings on links.edit",
+            "verify": "Verify Connection on links.edit",
+            "mappings": "New LDAP Mapping on links.mappings",
         },
     }
     try:
@@ -116,5 +121,5 @@ def run(job, *args, **kwargs):
         error_text = "{}: {}".format(type(exc).__name__, str(exc))[:3000]
         hints = [hint for pattern, hint in HINTS if pattern.search(error_text)]
         outputs.update({"verified": False, "error": error_text, "hints": hints or ["Compare the server, port, protocol, base DN and service account on the edit page with the directory's values."]})
-        outputs["next"] = "Explain the error and the first hint; credentials are fixed on links.edit (never in chat). Then run this tool again."
+        outputs["next"] = "Explain the error and the first hint; credentials are fixed on links.edit with its Credentials button (never in chat). Then run this tool again."
         return _success("LDAP utility '{}' failed: {}".format(outputs["ldapUtility"]["name"], error_text[:300]), outputs)

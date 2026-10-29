@@ -239,9 +239,10 @@ def run(job, *args, **kwargs):
     slug = tech.slug if tech else ""
     links = {
         "detail": base + "/admin/resourcehandlers/{}/".format(handler.id),
-        "edit": base + "/admin/resourcehandlers/{}/edit/".format(handler.id),
-        "verifyDialog": base + "/admin/resourcehandlers/{}/verify_connection/".format(handler.id),
-        "importLocations": base + "/admin/resourcehandlers/{}/import_locations/".format(handler.id),
+        "edit": base + "/admin/resourcehandlers/{}/".format(handler.id),
+        "editClick": "Edit Credentials on the Overview tab",
+        "importLocations": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
+        "importLocationsClick": "Import Locations on the Locations tab",
         "permissionsDoc": PERMISSION_DOCS.get(slug, DEFAULT_DOC),
     }
     outputs = {
@@ -286,7 +287,7 @@ def run(job, *args, **kwargs):
         message = "Connection to '{}' failed: {}".format(handler.name, error_text[:300])
         outputs["next"] = (
             "Explain the error and the first hint to the user. Credentials and permissions are fixed on links.edit "
-            "(never ask for the secret in chat); connectivity, DNS, proxy and TLS are fixed on the appliance or network "
+            "with its Edit Credentials button (never ask for the secret in chat); connectivity, DNS, proxy and TLS are fixed on the appliance or network "
             "side. Then run this tool again. For appliance-side context call onb_recent_errors with "
             "onb_contains='{}'.".format(handler.name)
         )

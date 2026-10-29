@@ -161,12 +161,13 @@ def _preferences(base):
         "smtp": {
             "configured": bool(smtp_host),
             "host": smtp_host or None,
-            "editUrl": base + "/admin/email_settings/edit/",
-            "testUrl": base + "/admin/email_test/",
+            "editUrl": base + "/admin/email_settings/",
+            "editClick": "Edit on the Overview tab",
         },
         "proxy": {
             "configured": gp.web_proxy_id is not None,
-            "editUrl": base + "/admin/edit_web_proxy/",
+            "editUrl": base + "/admin/misc_settings/#web-proxy-pane",
+            "editClick": "Edit next to Settings on the Web Proxy tab",
         },
     }
 
@@ -347,8 +348,7 @@ def _handlers(base, state):
                 "cachedImages": _cached_images(handler, slug),
                 "lastVerify": (verify_state.get(handler.global_id) or {}).get("lastVerify"),
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
-                "verifyUrl": base + "/admin/resourcehandlers/{}/verify_connection/".format(handler.id),
-                "importLocationsUrl": base + "/admin/resourcehandlers/{}/import_locations/".format(handler.id),
+                "importLocationsUrl": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
             }
         )
     return rows
@@ -436,7 +436,6 @@ def _groups_users(base):
         "userCount": users,
         "superAdminCount": admins,
         "usersUrl": base + "/users/",
-        "newUserUrl": base + "/users/create/",
     }
 
 
@@ -454,7 +453,6 @@ def _auth(base):
                 "port": ldap.port,
                 "protocol": ldap.protocol,
                 "url": base + "/admin/ldap_settings/{}/".format(ldap.id),
-                "verifyUrl": base + "/admin/ldap_settings/{}/verify_connection/".format(ldap.id),
             }
         )
     sso_count = None
@@ -480,7 +478,7 @@ def _toolkit(base):
             "id": action.global_id,
             "enabled": bool(action.enabled),
             "isSynchronous": bool(action.is_synchronous),
-            "editUrl": base + "/actions/mcp_tool_actions/{}/edit/".format(action.id),
+            "editUrl": base + "/actions/mcp_tool_action/{}/".format(action.id),
         }
     missing = [name for name in TOOLKIT_TOOLS if name not in present]
     return {"tools": present, "missing": missing, "listUrl": base + "/actions/mcp_tool_actions/"}

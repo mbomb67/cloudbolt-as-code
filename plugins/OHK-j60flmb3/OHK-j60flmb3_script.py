@@ -234,7 +234,7 @@ def run(job, *args, **kwargs):
             "isSynchronous": bool(tool.is_synchronous),
             "wantsSynchronous": wants_sync,
             "before": before,
-            "editUrl": base + "/actions/mcp_tool_actions/{}/edit/".format(tool.id),
+            "editUrl": base + "/actions/mcp_tool_action/{}/".format(tool.id),
         }
     missing = [name for name, row in rows.items() if not row["present"]]
 

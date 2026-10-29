@@ -72,7 +72,8 @@ def run(job, *args, **kwargs):
     outputs = {
         "recipient": recipient or None,
         "settings": {"host": gp.smtp_host or None, "port": gp.smtp_port or None, "userSet": bool(gp.smtp_user), "useTls": bool(gp.smtp_use_tls), "passwordSet": bool(gp.smtp_password)},
-        "editUrl": base + "/admin/email_settings/edit/",
+        "editUrl": base + "/admin/email_settings/",
+        "editClick": "Edit on the Overview tab",
     }
     if not gp.smtp_host:
         return _failure("No SMTP host is configured; set it with onb_smtp (and the password on the Email Settings page) first.")

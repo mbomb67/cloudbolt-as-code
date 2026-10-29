@@ -21,7 +21,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_user_super_admin` | string | Grant or remove the super admin flag. |
 
 ## Output
-user (id, username, created, url, setPasswordUrl), memberships[], changes[], next.
+user (id, username, created, url, setPasswordUrl, setPasswordSteps), memberships[], changes[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

@@ -15,7 +15,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_handler` | string, required | The handler to verify, by global id or name. |
 
 ## Output
-verified (true/false), error, hints[], links (detail, edit, verifyDialog, importLocations, permissionsDoc), next.
+verified (true/false), error, hints[], links (detail, edit with editClick, importLocations with importLocationsClick, permissionsDoc), next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

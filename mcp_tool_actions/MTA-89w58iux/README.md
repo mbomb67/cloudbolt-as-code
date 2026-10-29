@@ -20,7 +20,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_smtp_admin_email` | string | Where test emails and admin notifications go. |
 
 ## Output
-settings (host, port, user, useTls, fromAddress, adminEmail, passwordSet), changes[], editUrl, testUrl, next.
+settings (host, port, user, useTls, fromAddress, adminEmail, passwordSet), changes[], editUrl with editClick (the button that opens the form), next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

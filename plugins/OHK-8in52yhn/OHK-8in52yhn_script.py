@@ -181,13 +181,14 @@ def run(job, *args, **kwargs):
             "superAdmin": bool(user_profile.super_admin),
             "created": created,
             "url": base + "/users/{}/".format(user_profile.id),
-            "setPasswordUrl": base + "/users/{}/edit/".format(user_profile.id),
+            "setPasswordUrl": base + "/users/{}/".format(user_profile.id),
+            "setPasswordSteps": "Click Edit, type the password in Change password and Confirm password, then Save changes.",
         },
         "memberships": memberships,
         "changes": changes,
         "next": (
-            "Send the admin setPasswordUrl to set the user's password in the UI (never in chat); the user has no "
-            "usable password until then. Then have the user log in to exercise the role."
+            "Send the admin setPasswordUrl with setPasswordSteps to set the user's password in the UI (never in chat); "
+            "the user has no usable password until then. Then have the user log in to exercise the role."
         ),
     }
     message = "User '{}' {}; {} role assignment(s).".format(user.username, "created" if created else "updated", len(memberships))

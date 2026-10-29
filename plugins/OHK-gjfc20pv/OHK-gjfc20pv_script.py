@@ -373,7 +373,7 @@ def run(job, *args, **kwargs):
             try:
                 real.verify_connection()
             except Exception as exc:
-                return _failure("IPAM '{}' does not answer: {}: {}. Fix it on {}/ipam/{}/edit/ and verify there.".format(
+                return _failure("IPAM '{}' does not answer: {}: {}. Fix it on {}/ipam/{}/ (Edit Credentials) and verify there.".format(
                     ipam.name, type(exc).__name__, str(exc)[:300], base, ipam.id))
             if (ipam.ipam_technology.modulename or "").startswith("ipam.infoblox") and not net.dns_domain:
                 return _failure("Infoblox creates a host record under the network's DNS domain; pass onb_dns_domain.")
