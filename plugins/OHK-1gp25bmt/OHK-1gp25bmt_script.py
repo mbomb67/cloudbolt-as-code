@@ -242,8 +242,8 @@ def _handler_chooser(arg, outputs):
     try:
         path = reverse("quick_setup_add_resource_handler")
     except NoReverseMatch:
-        path = "/admin/resourcehandlers/add_by_tech/{}/".format(arg) if arg else "/admin/resourcehandlers/add/"
-        outputs["note"] = "This release has no Setup Wizard handler page; the link goes to the older add page."
+        path = "/admin/resourcehandlers/"
+        outputs["note"] = "This release has no Setup Wizard handler page; the link goes to the Resource Handlers list, where the handler is added."
     if not arg:
         return path
     name = None

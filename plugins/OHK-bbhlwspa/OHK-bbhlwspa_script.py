@@ -235,7 +235,7 @@ def _enable_jobs(family, base):
             rj.save()
             changed = True
         row = {"kind": "recurring job", "name": name, "schedule": rj.schedule, "status": "enabled" if changed else "already enabled",
-               "url": base + "/recurring_jobs/"}
+               "url": base + rj.get_absolute_url()}
         if name != RULES_RUNNER:
             real = rj.cast()
             hook = getattr(real, "hook", None)
@@ -255,7 +255,7 @@ def _enable_jobs(family, base):
             rule.enabled = True
             rule.save()
             changed = True
-        row = {"kind": "rule", "name": name, "status": "enabled" if changed else "already enabled", "url": base + "/actions/rules/"}
+        row = {"kind": "rule", "name": name, "status": "enabled" if changed else "already enabled", "url": base + rule.get_absolute_url()}
         results = []
         for action in HookPointAction.objects.filter(hook_point_id=rule.pk):
             results.append(_whitelist_off(action, action.hook))

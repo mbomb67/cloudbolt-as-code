@@ -350,6 +350,7 @@ def _handlers(base, state):
                 "cachedImages": _cached_images(handler, slug),
                 "lastVerify": (verify_state.get(handler.global_id) or {}).get("lastVerify"),
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
+                "editClick": "Edit Credentials on the Overview tab",
                 "importLocationsUrl": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
             }
         )
@@ -484,6 +485,7 @@ def _auth(base):
                 "port": ldap.port,
                 "protocol": ldap.protocol,
                 "url": base + "/admin/ldap_settings/{}/".format(ldap.id),
+                "editClick": "Credentials for the bind password, Settings for the rest",
             }
         )
     sso_count = None
@@ -545,12 +547,13 @@ def _next_steps(report, base):
         if verify and not verify.get("ok"):
             steps.append(
                 {
-                    "step": "Fix the connection of resource handler '{}': the last verify failed with '{}'. Re-run onb_verify_resource_handler afterwards.".format(
+                    "step": "Fix the connection of resource handler '{}': the last verify failed with '{}'. On the handler's page, "
+                    "click Edit Credentials on the Overview tab. Re-run onb_verify_resource_handler afterwards.".format(
                         handler["name"], (verify.get("error") or "")[:160]
                     ),
                     "item": "P3",
                     "handler": handler["id"],
-                    "url": handler["url"] + "edit/",
+                    "url": handler["url"],
                 }
             )
         elif not verify:
