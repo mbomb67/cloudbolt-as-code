@@ -732,6 +732,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-n5xgfdqd",
+    "type": "extensions",
+    "name": "Credentials Manager",
+    "description": "Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests.",
+    "path": "extensions/XUI-n5xgfdqd",
+    "readme": "extensions/XUI-n5xgfdqd/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-nr5iiu60",
     "type": "extensions",
     "name": "Azure AKS Cluster",

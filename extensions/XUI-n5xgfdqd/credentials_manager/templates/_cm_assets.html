@@ -1,0 +1,581 @@
+{% comment %}
+  Styles and page script for the Credentials Manager page. Same visual
+  language as the Content Packages and AWS EKS Cluster extensions: tokens
+  derive from --bs-primary / --bs-body-color / --surface / --neutral-* so
+  Branded Themes re-theme the page without an asset build.
+{% endcomment %}
+<style>
+  .cmx {
+    --cmx-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --cmx-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --cmx-line: var(--neutral-250, #E2E8ED);
+    --cmx-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --cmx-primary: var(--bs-primary, #0d6efd);
+    --cmx-ok: var(--bs-success, #198754);
+    --cmx-warn: var(--bs-warning, #ffc107);
+    --cmx-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --cmx-bad: var(--bs-danger, #dc3545);
+  }
+  .cmx .cmx-card { background: var(--surface, #fff); border: 1px solid var(--cmx-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .cmx .cmx-hero { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .cmx .cmx-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--cmx-muted); }
+  .cmx .cmx-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .cmx .cmx-title .bi { color: var(--cmx-primary); }
+  .cmx .cmx-sub { font-size: 12.5px; font-weight: 600; color: var(--cmx-muted); margin-top: 2px; max-width: 900px; }
+  .cmx .cmx-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--cmx-line); flex-wrap: wrap; }
+  .cmx .cmx-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--cmx-muted); }
+  .cmx .cmx-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cmx .cmx-card-b { padding: 16px 18px; }
+  .cmx .cmx-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 18px; }
+  .cmx .cmx-field label, .cmx .k { display: block; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--cmx-muted); margin-bottom: 4px; }
+  .cmx .cmx-hint { font-size: 11.5px; color: var(--cmx-muted); font-weight: 600; margin-top: 4px; }
+  .cmx .cmx-hint a { font-weight: 700; }
+  .cmx .cmx-bad-text { color: var(--cmx-bad); }
+  .cmx .cmx-scope { display: flex; gap: 22px; flex-wrap: wrap; }
+  .cmx .cmx-scope .form-check-label { font-weight: 700; font-size: 13.5px; }
+  .cmx .cmx-note { font-size: 12px; color: var(--cmx-muted); font-weight: 600; padding: 0 18px 14px; }
+  .cmx .cmx-note .bi { margin-right: 4px; }
+  .cmx select[multiple].cmx-native { min-height: 96px; }
+  .cmx .cmx-tabs { margin-bottom: 16px; }
+  .cmx .cmx-tabs .nav-link { font-weight: 700; font-size: 13.5px; }
+  .cmx .cmx-empty { color: var(--cmx-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .cmx .cmx-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--cmx-bad); overflow-wrap: anywhere; }
+  .cmx .cmx-alert-ok { color: var(--cmx-ok); }
+  .cmx .cmx-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .cmx .cmx-loading { padding: 16px 18px; font-size: 12.5px; font-weight: 600; color: var(--cmx-muted); display: flex; align-items: center; gap: 8px; }
+  .cmx .cmx-spin { display: inline-block; animation: cmx-spin 1s linear infinite; }
+  @keyframes cmx-spin { to { transform: rotate(360deg); } }
+  /* Preview */
+  .cmx .cmx-kind { border-top: 1px solid var(--cmx-line); }
+  .cmx .cmx-kind:first-child { border-top: 0; }
+  .cmx .cmx-kind-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 16px 18px 4px; font-size: 14px; font-weight: 700; }
+  .cmx .cmx-kind-h .bi { color: var(--cmx-primary); }
+  .cmx .cmx-big { font-size: 22px; font-weight: 800; }
+  .cmx .cmx-kind-h .cmx-muted { font-size: 13px; }
+  .cmx .cmx-muted { color: var(--cmx-muted); font-weight: 600; }
+  .cmx .cmx-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 24px; padding: 10px 18px; }
+  .cmx .cmx-line { display: flex; align-items: center; gap: 8px; padding: 4px 6px; margin: 0 -6px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+  .cmx .cmx-line .cmx-count { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .cmx button.cmx-line { width: calc(100% + 12px); background: none; border: 0; color: inherit; text-align: left; }
+  .cmx button.cmx-line:hover, .cmx button.cmx-line.active { background: var(--cmx-surface-2); }
+  .cmx button.cmx-line.active { box-shadow: inset 2px 0 0 var(--cmx-primary); }
+  .cmx .cmx-line-warn .bi { color: var(--cmx-warn-text); }
+  .cmx .cmx-facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 4px 18px 14px; }
+  .cmx .cmx-facet { border: 1px solid var(--cmx-line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .cmx .cmx-facet .cmx-line { font-size: 12.5px; position: relative; }
+  .cmx .cmx-facet .cmx-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .cmx .cmx-bar { position: absolute; left: 0; bottom: 1px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--cmx-primary) 45%, transparent); }
+  .cmx .cmx-more { padding: 0; font-size: 12px; font-weight: 700; text-decoration: none; margin-top: 2px; }
+  .cmx .cmx-table-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 18px 10px; }
+  .cmx .cmx-table-tools .form-control, .cmx .cmx-table-tools .form-select { width: auto; min-width: 180px; }
+  .cmx .cmx-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 4px 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--cmx-primary) 13%, transparent); color: var(--cmx-primary); }
+  .cmx .cmx-chip button { border: 0; background: none; color: inherit; padding: 0 4px; line-height: 1; }
+  .cmx .cmx-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .cmx .cmx-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--cmx-muted); padding: 9px 12px; border-top: 1px solid var(--cmx-line); border-bottom: 1px solid var(--cmx-line); text-align: left; white-space: nowrap; }
+  .cmx .cmx-table th:first-child, .cmx .cmx-table td:first-child { padding-left: 18px; }
+  .cmx .cmx-table td { padding: 9px 12px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
+  .cmx .cmx-table tbody tr:hover td { background: var(--cmx-surface-2); }
+  .cmx .cmx-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--cmx-primary) 13%, transparent); color: var(--cmx-primary); white-space: nowrap; margin: 0 4px 2px 0; }
+  .cmx .cmx-warn-icon { color: var(--cmx-warn-text); cursor: help; }
+  .cmx .cmx-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 18px; font-size: 12.5px; font-weight: 600; color: var(--cmx-muted); }
+  .cmx .cmx-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--cmx-soft); }
+  .cmx .cmx-pill-ok { background: color-mix(in srgb, var(--cmx-ok) 14%, transparent); color: var(--cmx-ok); }
+  .cmx .cmx-pill-warn { background: color-mix(in srgb, var(--cmx-warn) 22%, transparent); color: var(--cmx-warn-text); }
+  .cmx .cmx-pill-bad { background: color-mix(in srgb, var(--cmx-bad) 12%, transparent); color: var(--cmx-bad); }
+  .cmx .cmx-pill-live { background: color-mix(in srgb, var(--cmx-primary) 13%, transparent); color: var(--cmx-primary); }
+  /* Apply */
+  .cmx .cmx-apply { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .cmx .cmx-apply .form-control { width: 160px; }
+  .cmx .cmx-apply-total { font-size: 13.5px; font-weight: 700; }
+</style>
+<script>
+(function () {
+  "use strict";
+  var FILTERS = ["technologies", "handlers", "os_builds", "os_families", "environments", "groups", "blueprints", "usernames"];
+  var CHANGE_LABELS = { username: "Username", password: "Password", ssh_key: "SSH key", new_vm_password: "New VM password" };
+  var COLUMNS = {
+    server: [["name", "Server"], ["handler", "Resource handler"], ["os_build", "OS build"], ["environment", "Environment"],
+             ["group", "Group"], ["blueprint", "Blueprint"], ["username", "Current username"], ["power", "Power"]],
+    image: [["name", "Image"], ["handler", "Resource handler"], ["os_build", "OS build"], ["username", "Current username"]]
+  };
+  var FACETS_SHOWN = 5;
+  var PAGE_SIZE = 50;
+
+  function esc(value) {
+    var map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+    return String(value === null || value === undefined ? "" : value).replace(/[&<>"']/g, function (c) { return map[c]; });
+  }
+  function num(n) { return Number(n || 0).toLocaleString(); }
+
+  window.cmxInit = function (rootId) {
+    var root = document.getElementById(rootId);
+    if (!root || root.getAttribute("data-cmx-ready") || !root.getAttribute("data-options-url")) { return; }
+    root.setAttribute("data-cmx-ready", "1");
+    var $root = $(root);
+    var csrf = root.getAttribute("data-csrf");
+    var urls = {
+      options: root.getAttribute("data-options-url"),
+      preview: root.getAttribute("data-preview-url"),
+      rows: root.getAttribute("data-rows-url"),
+      csv: root.getAttribute("data-csv-url"),
+      apply: root.getAttribute("data-apply-url"),
+      history: root.getAttribute("data-history-url")
+    };
+    var options = null;
+    var pickers = {};
+    var cascading = false;
+    var previewSeq = 0;
+    var timer = null;
+    var requested = "";   // signature of the last preview requested
+    var current = null;   // {signature, token, body, data} of the preview on screen
+    var tables = {};      // kind -> {page, search, facet, warning, status}
+    var $preview = $root.find("#cmx-preview");
+    var $applyCard = $root.find("#cmx-apply-card");
+
+    function request(method, url, body) {
+      var init = { method: method, credentials: "same-origin", headers: { "Accept": "application/json", "X-CSRFToken": csrf } };
+      if (body !== undefined) {
+        init.headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(body);
+      }
+      return fetch(url, init).then(function (response) {
+        return response.json().catch(function () { return { error: "HTTP " + response.status }; }).then(function (data) {
+          if (!response.ok) { throw new Error(data.error || ("HTTP " + response.status)); }
+          return data;
+        });
+      });
+    }
+
+    // ---- inputs ----------------------------------------------------------
+    function val(name) {
+      var el = root.querySelector('[name="' + name + '"]');
+      return el ? el.value : "";
+    }
+    function scope() {
+      return { servers: $root.find("#cmx-apply-servers").prop("checked"), images: $root.find("#cmx-apply-images").prop("checked") };
+    }
+    function pickerValues(key) {
+      var p = pickers[key];
+      if (!p) { return []; }
+      if (p.sel) {
+        var v = p.sel.getValue();
+        return Array.isArray(v) ? v : (v ? [v] : []);
+      }
+      return Array.prototype.filter.call(p.el.options, function (o) { return o.selected; }).map(function (o) { return o.value; });
+    }
+    function filters() {
+      var out = {};
+      FILTERS.forEach(function (key) { out[key] = pickerValues(key); });
+      return out;
+    }
+    function previewBody() {
+      return {
+        apply_to: scope(),
+        filters: filters(),
+        changes: {
+          username: val("username").trim(),
+          password: !!val("password"),
+          ssh_key: val("ssh_key") || null,
+          new_vm_password: scope().images && !!val("new_vm_password")
+        }
+      };
+    }
+    function problem(body) {
+      if (!body.apply_to.servers && !body.apply_to.images) { return "Choose existing servers, images, or both."; }
+      var c = body.changes;
+      if (!c.username && !c.password && !c.ssh_key && !c.new_vm_password) {
+        return "Enter a username, a password or an SSH key to see what would change.";
+      }
+      return "";
+    }
+    function passwordsMatch() {
+      var ok = val("password") === val("password_confirm");
+      var okVm = !scope().images || val("new_vm_password") === val("new_vm_password_confirm");
+      $root.find("#cmx-password-mismatch").toggleClass("d-none", ok);
+      $root.find("#cmx-vm-password-mismatch").toggleClass("d-none", okVm);
+      return ok && okVm;
+    }
+
+    // ---- filter pickers --------------------------------------------------
+    function buildPicker(key, items) {
+      var el = root.querySelector('select[data-cmx-filter="' + key + '"]');
+      items.forEach(function (it) {
+        var o = document.createElement("option");
+        o.value = String(it.id);
+        o.textContent = it.name;
+        el.appendChild(o);
+      });
+      var sel = null;
+      if ($.fn.selectize) {
+        try {
+          sel = $(el).selectize({ plugins: ["remove_button"], placeholder: "Any", closeAfterSelect: true })[0].selectize;
+        } catch (e) {
+          try { sel = $(el).selectize({ placeholder: "Any" })[0].selectize; } catch (e2) { sel = null; }
+        }
+      }
+      if (!sel) { el.classList.add("cmx-native"); }
+      pickers[key] = { el: el, sel: sel };
+      if (sel) { sel.on("change", function () { filterChanged(key); }); } else { el.addEventListener("change", function () { filterChanged(key); }); }
+    }
+    function setPickerItems(key, items) {
+      var p = pickers[key];
+      var ids = items.map(function (it) { return String(it.id); });
+      var kept = pickerValues(key).filter(function (v) { return ids.indexOf(v) > -1; });
+      if (p.sel) {
+        p.sel.clear(true);
+        p.sel.clearOptions(true);
+        items.forEach(function (it) { p.sel.addOption({ value: String(it.id), text: it.name }); });
+        p.sel.refreshOptions(false);
+        p.sel.setValue(kept, true);
+        p.sel.close();
+      } else {
+        p.el.innerHTML = "";
+        items.forEach(function (it) {
+          var o = document.createElement("option");
+          o.value = String(it.id);
+          o.textContent = it.name;
+          o.selected = kept.indexOf(o.value) > -1;
+          p.el.appendChild(o);
+        });
+      }
+    }
+    // Technology narrows the handlers; handlers (or, without any, the
+    // technology's handlers) narrow environments and OS builds.
+    function cascade() {
+      var techs = pickerValues("technologies").map(Number);
+      var handlers = options.handlers.filter(function (h) { return !techs.length || techs.indexOf(h.technology) > -1; });
+      setPickerItems("handlers", handlers);
+      var chosen = pickerValues("handlers").map(Number);
+      var ids = chosen.length ? chosen : handlers.map(function (h) { return h.id; });
+      var all = !techs.length && !chosen.length;
+      setPickerItems("environments", options.environments.filter(function (e) { return all || ids.indexOf(e.handler) > -1; }));
+      setPickerItems("os_builds", options.os_builds.filter(function (b) {
+        return all || b.handlers.some(function (h) { return ids.indexOf(h) > -1; });
+      }));
+    }
+    function filterChanged(key) {
+      if (cascading) { return; }
+      if (key === "technologies" || key === "handlers") {
+        cascading = true;
+        try { cascade(); } finally { cascading = false; }
+      }
+      schedule();
+    }
+
+    // ---- preview -----------------------------------------------------------
+    function placeholder(text, isError) {
+      current = null;
+      $preview.html('<div class="' + (isError ? "cmx-alert" : "cmx-empty") + '">' +
+        (isError ? '<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>' : "") + "<div>" + esc(text) + "</div></div>");
+      updateApply();
+    }
+    function schedule() {
+      passwordsMatch();
+      updateApply();
+      clearTimeout(timer);
+      timer = setTimeout(runPreview, 450);
+    }
+    function runPreview(force) {
+      var body = previewBody();
+      var signature = JSON.stringify(body);
+      if (!force && signature === requested) { updateApply(); return; }
+      requested = signature;
+      var why = problem(body);
+      if (why) { placeholder(why); return; }
+      var seq = ++previewSeq;
+      current = null;
+      updateApply();
+      $preview.html('<div class="cmx-loading"><i class="bi bi-arrow-repeat cmx-spin" aria-hidden="true"></i> Working out what would change…</div>');
+      request("POST", urls.preview, body).then(function (data) {
+        if (seq !== previewSeq) { return; }
+        current = { signature: signature, token: data.token, body: body, data: data };
+        renderPreview(data);
+      }).catch(function (err) {
+        if (seq === previewSeq) { requested = ""; placeholder(err.message, true); }
+      });
+    }
+    function facetHtml(kind, facet, total) {
+      var html = '<div class="cmx-facet"><div class="k">' + esc(facet.label) + " &middot; " + num(facet.values.length) + "</div>";
+      facet.values.forEach(function (v, i) {
+        html += '<button type="button" class="cmx-line' + (i >= FACETS_SHOWN ? " cmx-extra d-none" : "") + '" data-cmx-facet="' + esc(facet.key) +
+          '" data-cmx-value="' + esc(v.value) + '" data-cmx-kind="' + kind + '"><span class="cmx-name" title="' + esc(v.value) + '">' + esc(v.value) +
+          '</span><span class="cmx-count">' + num(v.count) + '</span><span class="cmx-bar" style="width:' + Math.max(2, Math.round(100 * v.count / Math.max(total, 1))) + '%"></span></button>';
+      });
+      if (facet.values.length > FACETS_SHOWN) {
+        html += '<button type="button" class="btn btn-link btn-sm cmx-more" data-cmx-more>+' + num(facet.values.length - FACETS_SHOWN) + " more</button>";
+      }
+      return html + "</div>";
+    }
+    function kindHtml(kind, summary) {
+      var label = kind === "server" ? "Servers" : "Images";
+      var icon = kind === "server" ? "bi-hdd-stack" : "bi-disc";
+      var html = '<div class="cmx-kind" data-cmx-section="' + kind + '">';
+      html += '<div class="cmx-kind-h"><i class="bi ' + icon + '" aria-hidden="true"></i> ' + label +
+        ' <span class="cmx-big">' + num(summary.changing) + '</span> <span>will change</span>' +
+        '<span class="cmx-muted">&middot; ' + num(summary.unchanged) + " matched with nothing to change &middot; " + num(summary.total) + " matched</span></div>";
+      if (!summary.total) {
+        return html + '<div class="cmx-empty">No ' + label.toLowerCase() + " match these filters.</div></div>";
+      }
+      html += '<div class="cmx-cols"><div><div class="k">Changes</div>';
+      summary.changes.forEach(function (c) {
+        html += '<div class="cmx-line' + (c.muted ? " cmx-muted" : "") + '"><i class="bi ' + (c.muted ? "bi-dash-circle" : "bi-check2-circle") +
+          '" aria-hidden="true"></i><span>' + esc(c.text) + '</span><span class="cmx-count">' + num(c.count) + "</span></div>";
+      });
+      if (!summary.changes.length) { html += '<div class="cmx-muted">Nothing changes.</div>'; }
+      html += '</div><div><div class="k">Warnings</div>';
+      summary.warnings.forEach(function (w) {
+        html += '<button type="button" class="cmx-line cmx-line-warn" data-cmx-warning="' + esc(w.code) + '" data-cmx-kind="' + kind +
+          '"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><span>' + esc(w.text) + '</span><span class="cmx-count">' + num(w.count) + "</span></button>";
+      });
+      if (!summary.warnings.length) { html += '<div class="cmx-muted">None.</div>'; }
+      html += '</div></div><div class="cmx-facets">';
+      summary.facets.forEach(function (f) { html += facetHtml(kind, f, summary.total); });
+      html += "</div>";
+      html += '<div class="cmx-table-tools">' +
+        '<input class="form-control form-control-sm" type="search" placeholder="Search" aria-label="Search ' + label.toLowerCase() + '" data-cmx-search="' + kind + '">' +
+        '<select class="form-select form-select-sm" aria-label="Show" data-cmx-status="' + kind + '"><option value="">All matched</option>' +
+        '<option value="changing">Will change</option><option value="unchanged">Nothing to change</option></select>' +
+        '<span data-cmx-chips="' + kind + '"></span>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-cmx-csv="' + kind + '"><i class="bi bi-download" aria-hidden="true"></i> Download CSV</button>' +
+        "</div>";
+      html += '<div class="table-responsive"><table class="cmx-table"><thead><tr>';
+      COLUMNS[kind].forEach(function (col) { html += "<th>" + esc(col[1]) + "</th>"; });
+      html += '<th>Changes</th><th></th></tr></thead><tbody data-cmx-rows="' + kind + '"></tbody></table></div>';
+      html += '<div class="cmx-pager" data-cmx-pager="' + kind + '"></div></div>';
+      return html;
+    }
+    function renderPreview(data) {
+      var html = "";
+      if (data.server_only_filters && data.server_only_filters.length) {
+        html += '<div class="cmx-note pt-3"><i class="bi bi-info-circle" aria-hidden="true"></i>Group and blueprint filters narrow servers only; images are not narrowed by them.</div>';
+      }
+      tables = {};
+      if (data.servers) { html += kindHtml("server", data.servers); tables.server = { page: 1, search: "", facet: null, warning: "", status: "" }; }
+      if (data.images) { html += kindHtml("image", data.images); tables.image = { page: 1, search: "", facet: null, warning: "", status: "" }; }
+      $preview.html(html);
+      Object.keys(tables).forEach(function (kind) {
+        if ((kind === "server" ? data.servers : data.images).total) { loadRows(kind); }
+      });
+      updateApply();
+    }
+    function rowsBody(kind) {
+      var t = tables[kind];
+      return $.extend({}, current.body, {
+        kind: kind, page: t.page, page_size: PAGE_SIZE, search: t.search,
+        facet: t.facet, warning: t.warning, status: t.status
+      });
+    }
+    function loadRows(kind) {
+      if (!current) { return; }
+      var $tbody = $preview.find('[data-cmx-rows="' + kind + '"]');
+      var signature = current.signature;
+      $tbody.html('<tr><td colspan="' + (COLUMNS[kind].length + 2) + '" class="cmx-muted">Loading…</td></tr>');
+      request("POST", urls.rows, rowsBody(kind)).then(function (data) {
+        if (!current || current.signature !== signature) { return; }
+        renderRows(kind, data);
+      }).catch(function (err) {
+        $tbody.html('<tr><td colspan="' + (COLUMNS[kind].length + 2) + '" class="cmx-bad-text">' + esc(err.message) + "</td></tr>");
+      });
+    }
+    function renderRows(kind, data) {
+      var $tbody = $preview.find('[data-cmx-rows="' + kind + '"]');
+      var cols = COLUMNS[kind];
+      if (!data.rows.length) {
+        $tbody.html('<tr><td colspan="' + (cols.length + 2) + '" class="cmx-muted">No rows match.</td></tr>');
+      } else {
+        $tbody.html(data.rows.map(function (r) {
+          var cells = cols.map(function (col) {
+            if (col[0] === "name") { return '<td><a href="' + esc(r.url) + '">' + esc(r.name) + "</a></td>"; }
+            return "<td>" + esc(r[col[0]]) + "</td>";
+          }).join("");
+          var changes = r.changes.length ? r.changes.map(function (c) { return '<span class="cmx-tag">' + esc(CHANGE_LABELS[c] || c) + "</span>"; }).join("")
+            : '<span class="cmx-muted">Nothing</span>';
+          var warns = r.warnings.length ? '<i class="bi bi-exclamation-triangle-fill cmx-warn-icon" title="' + esc(r.warnings.join("\n")) + '" aria-label="' + esc(r.warnings.join(" ")) + '"></i>' : "";
+          return "<tr>" + cells + "<td>" + changes + "</td><td>" + warns + "</td></tr>";
+        }).join(""));
+      }
+      var $pager = $preview.find('[data-cmx-pager="' + kind + '"]').empty();
+      if (data.total > data.page_size) {
+        var first = (data.page - 1) * data.page_size + 1;
+        var last = Math.min(data.total, first + data.page_size - 1);
+        var pages = Math.ceil(data.total / data.page_size);
+        $pager.append($("<span>").text(num(first) + "–" + num(last) + " of " + num(data.total)));
+        $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>')
+          .attr("data-cmx-page", kind).attr("data-cmx-step", "-1").prop("disabled", data.page <= 1));
+        $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>')
+          .attr("data-cmx-page", kind).attr("data-cmx-step", "1").prop("disabled", data.page >= pages));
+      } else if (data.total) {
+        $pager.append($("<span>").text(num(data.total) + " row" + (data.total === 1 ? "" : "s")));
+      }
+    }
+    function renderChips(kind) {
+      var t = tables[kind];
+      var html = "";
+      if (t.facet) { html += '<span class="cmx-chip">' + esc(t.facet.label + ": " + t.facet.value) + '<button type="button" aria-label="Clear" data-cmx-clear="facet" data-cmx-kind="' + kind + '"><i class="bi bi-x" aria-hidden="true"></i></button></span> '; }
+      if (t.warning) { html += '<span class="cmx-chip">Warning<button type="button" aria-label="Clear" data-cmx-clear="warning" data-cmx-kind="' + kind + '"><i class="bi bi-x" aria-hidden="true"></i></button></span>'; }
+      $preview.find('[data-cmx-chips="' + kind + '"]').html(html);
+      $preview.find('[data-cmx-section="' + kind + '"] [data-cmx-facet]').each(function () {
+        $(this).toggleClass("active", !!t.facet && t.facet.key === this.getAttribute("data-cmx-facet") && t.facet.value === this.getAttribute("data-cmx-value"));
+      });
+      $preview.find('[data-cmx-section="' + kind + '"] [data-cmx-warning]').each(function () {
+        $(this).toggleClass("active", t.warning === this.getAttribute("data-cmx-warning"));
+      });
+    }
+
+    // ---- apply -------------------------------------------------------------
+    function changingTotal() {
+      if (!current) { return 0; }
+      return (current.data.servers ? current.data.servers.changing : 0) + (current.data.images ? current.data.images.changing : 0);
+    }
+    function updateApply() {
+      var fresh = !!current && current.signature === JSON.stringify(previewBody());
+      var total = changingTotal();
+      $applyCard.toggleClass("d-none", !fresh || !total);
+      $root.find("#cmx-apply-total").text(num(total));
+      $root.find("#cmx-confirm").attr("placeholder", String(total));
+      var typed = parseInt(String($root.find("#cmx-confirm").val() || "").replace(/,/g, ""), 10);
+      $root.find("#cmx-apply").prop("disabled", !(fresh && total && typed === total && passwordsMatch()));
+    }
+    function apply() {
+      var body = $.extend(true, {}, current.body);
+      body.changes.password = val("password");
+      body.changes.password_confirm = val("password_confirm");
+      body.changes.new_vm_password = scope().images ? val("new_vm_password") : "";
+      body.changes.new_vm_password_confirm = scope().images ? val("new_vm_password_confirm") : "";
+      body.token = current.token;
+      body.confirm = $root.find("#cmx-confirm").val();
+      var $btn = $root.find("#cmx-apply").prop("disabled", true);
+      var $result = $root.find("#cmx-apply-result").empty();
+      request("POST", urls.apply, body).then(function (data) {
+        ["password", "password_confirm", "new_vm_password", "new_vm_password_confirm"].forEach(function (name) {
+          var el = root.querySelector('[name="' + name + '"]');
+          if (el) { el.value = ""; }
+        });
+        $root.find("#cmx-confirm").val("");
+        $result.html('<div class="cmx-alert cmx-alert-ok px-0"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><div>Started job ' +
+          '<a href="' + esc(data.url) + '">' + esc(data.job_id) + "</a> to update " + num(data.total) +
+          ' object(s). Progress and results are on the History tab.</div></div>');
+        requested = "";
+        runPreview(true);
+        loadHistory();
+      }).catch(function (err) {
+        $result.html('<div class="cmx-alert px-0"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>' + esc(err.message) + "</div></div>");
+        // The targets may have moved on since the preview; show the current ones.
+        requested = "";
+        runPreview(true);
+      });
+    }
+
+    // ---- history -----------------------------------------------------------
+    function loadHistory() {
+      var $panel = $root.find("#cmx-history");
+      $panel.html('<div class="cmx-loading"><i class="bi bi-arrow-repeat cmx-spin" aria-hidden="true"></i> Loading…</div>');
+      $panel.load(urls.history, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="cmx-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load the history (HTTP ' + Number(xhr.status) + ").</div></div>");
+        }
+      });
+    }
+
+    // ---- events ------------------------------------------------------------
+    $root.on("input change", "#cmx-form input, #cmx-form select:not([data-cmx-filter])", function () {
+      if (this.id === "cmx-apply-images") {
+        $root.find("[data-cmx-images-only]").toggleClass("d-none", !this.checked);
+      }
+      schedule();
+    });
+    $root.on("input", "#cmx-confirm", updateApply);
+    $root.on("click", "#cmx-apply", function () { if (current) { apply(); } });
+    $root.on("click", "[data-cmx-more]", function () {
+      var $extra = $(this).closest(".cmx-facet").find(".cmx-extra");
+      var open = $extra.first().hasClass("d-none");
+      $extra.toggleClass("d-none", !open);
+      $(this).text(open ? "Show fewer" : "+" + num($extra.length) + " more");
+    });
+    $root.on("click", "[data-cmx-facet]", function () {
+      var kind = this.getAttribute("data-cmx-kind");
+      var t = tables[kind];
+      var key = this.getAttribute("data-cmx-facet");
+      var value = this.getAttribute("data-cmx-value");
+      var label = $(this).closest(".cmx-facet").find(".k").first().text().split(" · ")[0];
+      t.facet = (t.facet && t.facet.key === key && t.facet.value === value) ? null : { key: key, value: value, label: label };
+      t.page = 1;
+      renderChips(kind);
+      loadRows(kind);
+    });
+    $root.on("click", "[data-cmx-warning]", function () {
+      var kind = this.getAttribute("data-cmx-kind");
+      var t = tables[kind];
+      var code = this.getAttribute("data-cmx-warning");
+      t.warning = t.warning === code ? "" : code;
+      t.page = 1;
+      renderChips(kind);
+      loadRows(kind);
+    });
+    $root.on("click", "[data-cmx-clear]", function () {
+      var kind = this.getAttribute("data-cmx-kind");
+      tables[kind][this.getAttribute("data-cmx-clear")] = this.getAttribute("data-cmx-clear") === "facet" ? null : "";
+      tables[kind].page = 1;
+      renderChips(kind);
+      loadRows(kind);
+    });
+    var searchTimer = null;
+    $root.on("input", "[data-cmx-search]", function () {
+      var kind = this.getAttribute("data-cmx-search");
+      var value = this.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () { tables[kind].search = value; tables[kind].page = 1; loadRows(kind); }, 300);
+    });
+    $root.on("change", "[data-cmx-status]", function () {
+      var kind = this.getAttribute("data-cmx-status");
+      tables[kind].status = this.value;
+      tables[kind].page = 1;
+      loadRows(kind);
+    });
+    $root.on("click", "[data-cmx-page]", function () {
+      var kind = this.getAttribute("data-cmx-page");
+      tables[kind].page += parseInt(this.getAttribute("data-cmx-step"), 10);
+      loadRows(kind);
+    });
+    $root.on("click", "[data-cmx-csv]", function () {
+      if (!current) { return; }
+      var kind = this.getAttribute("data-cmx-csv");
+      var form = document.createElement("form");
+      form.method = "POST";
+      form.action = urls.csv;
+      form.style.display = "none";
+      [["csrfmiddlewaretoken", csrf], ["payload", JSON.stringify(rowsBody(kind))]].forEach(function (pair) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = pair[0];
+        input.value = pair[1];
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    });
+    $root.on("shown.bs.tab", '[data-bs-target="#cmx-tab-history"]', loadHistory);
+    $root.on("click", "#cmx-history-refresh", loadHistory);
+
+    // ---- start -------------------------------------------------------------
+    request("GET", urls.options).then(function (data) {
+      options = data;
+      FILTERS.forEach(function (key) { buildPicker(key, data[key] || []); });
+      var keySelect = root.querySelector('select[name="ssh_key"]');
+      (data.ssh_keys || []).forEach(function (k) {
+        var o = document.createElement("option");
+        o.value = String(k.id);
+        o.textContent = k.name;
+        keySelect.appendChild(o);
+      });
+      $root.find("#cmx-filters-loading").remove();
+      $root.find("#cmx-filters").removeClass("d-none");
+      $root.find("[data-cmx-images-only]").toggleClass("d-none", !scope().images);
+      placeholder("Enter a username, a password or an SSH key to see what would change.");
+    }).catch(function (err) {
+      $root.find("#cmx-filters-loading").html('<div class="cmx-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load the filters: ' + esc(err.message) + "</div></div>");
+    });
+  };
+})();
+</script>

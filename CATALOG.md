@@ -15,7 +15,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [MCP tool actions](#mcp-tool-actions) | 9 |
 | [Plugins](#plugins) | 198 |
 | [Shared modules](#shared-modules) | 25 |
-| [UI extensions](#ui-extensions) | 15 |
+| [UI extensions](#ui-extensions) | 16 |
 | [Parameters](#parameters) | 3 |
 | [Runbook workflows](#runbook-workflows) | 2 |
 | [Forms](#forms) | 16 |
@@ -480,6 +480,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | Content Package Manager | [XUI-iq65xgvr](extensions/XUI-iq65xgvr/README.md) | Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, standalone parameters, and Runbooks workflows, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync. |
+| Credentials Manager | [XUI-n5xgfdqd](extensions/XUI-n5xgfdqd/README.md) | Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests. |
 | Google GKE Cluster | [XUI-8egdz3e9](extensions/XUI-8egdz3e9/README.md) | Adds Cluster, Node pools, Workloads, and Groups tabs to Google Kubernetes Engine cluster resources with the console's basics, networking and security, upgrades, features, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to GKE namespace landing zones with kubectl access details and a live inventory. |
 | HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
