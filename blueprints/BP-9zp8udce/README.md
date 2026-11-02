@@ -56,7 +56,9 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 2. In CloudBolt, go to **Admin > Custom Extensions > Runbooks > File Archives**:
    - **Settings:** set **Largest upload** to 1100 MB or more, and set a download base URL the lab's VPC can reach.
    - Create archive `scvmm` and upload `SCVMM_2025.zip` unchanged.
-3. On the AWS environment's **Parameters** tab, add instance types that support nested virtualization to **Instance type**, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
+3. On the AWS environment's **Parameters** tab:
+   - Add instance types that support nested virtualization to **Instance type**, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
+   - Add **Quantity** with minimum 1 and maximum 8. Without it the order form has no host count and an order with more than one host is refused. Adding it to the ordering group instead works too.
 4. Sync the blueprint, then open it in **Catalog**:
    - Both tiers have all environments enabled. The tier's OS build limits them to environments that offer it; re-point both tiers to your Windows Server 2025 build (`OSB-bocl2o1o` is instance-specific), or restrict their environments.
    - If you uploaded under another name, change the `scvmm_media` option.
