@@ -63,6 +63,11 @@
   .cfax .cfa-name { text-transform: none; letter-spacing: normal; }
   .cfax .cfa-nowrap { white-space: nowrap; }
   .cfax .cfa-desc { font-size: 12px; font-weight: 600; color: var(--cfa-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .cfax .cfa-upload { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--cfa-line); border-radius: 8px; background: var(--cfa-surface-2); }
+  .cfax .cfa-upload-h { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .cfax .cfa-upload-pct { color: var(--cfa-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cfax .cfa-upload .progress { --bs-progress-height: 8px; --bs-progress-border-radius: 999px; --bs-progress-bg: color-mix(in srgb, var(--bs-body-color, #212529) 10%, transparent); --bs-progress-bar-bg: var(--cfa-primary); }
+  .cfax .cfa-upload .cfa-hint { margin-top: 6px; font-variant-numeric: tabular-nums; }
 </style>
 <script>
 (function () {

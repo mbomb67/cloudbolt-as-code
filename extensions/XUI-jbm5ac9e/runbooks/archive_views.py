@@ -382,6 +382,7 @@ def _upload(request, archive, name=None):
         "archive": archive,
         "name": name,
         "note": note,
+        "max_upload_mb": fa.get_settings()["max_upload_mb"],
         "error": error,
     }
 
