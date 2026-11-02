@@ -10,10 +10,12 @@ be re-run.
      has room, and restart the server first if Windows has a restart pending
      (SQL Server setup refuses to run then).
   2. SQL Server 2022 Developer, default instance, Database Engine only, as a
-     SYSTEM scheduled task. The installer bootstrapper (SSEI) downloads the
-     media from Microsoft. Its /Action=Download, /MediaPath, /MediaType and
-     /Quiet switches are not documented; they are the ones the bootstrapper
-     itself lists. The domain service account and BUILTIN\\Administrators
+     SYSTEM scheduled task. It downloads the Developer ISO (SQL_ISO_URL, the
+     file Microsoft's installer offers under Download Media), mounts it and
+     copies setup to the lab volume. Microsoft's installer bootstrapper
+     (SSEI) is not used: its download switches are undocumented and it hung
+     with no output under SYSTEM in testing. If Microsoft moves the ISO,
+     update SQL_ISO_URL. The domain service account and BUILTIN\\Administrators
      become sysadmins, because SCVMM setup runs as that account and needs
      sysadmin. The services keep setup's default virtual accounts. SCVMM
      2025 lists Standard, Enterprise and Datacenter editions; Developer is the
@@ -40,6 +42,7 @@ References:
   SQL Server from the command prompt:  https://learn.microsoft.com/en-us/sql/database-engine/install-windows/install-sql-server-from-the-command-prompt?view=sql-server-ver16
   SQL Server service accounts:         https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/configure-windows-service-accounts-and-permissions?view=sql-server-ver16
   SQL Server 2022 downloads:           https://www.microsoft.com/en-us/sql-server/sql-server-downloads
+  Mount-DiskImage:                     https://learn.microsoft.com/en-us/powershell/module/storage/mount-diskimage
   Windows ADK downloads:               https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install
   ADK silent install:                  https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-offline-install
   ADK command-line options:            https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-8.1-and-8/dn621910(v=win.10)
@@ -53,7 +56,9 @@ from common.methods import set_progress
 from shared_modules import scvmm_lab
 from shared_modules.scvmm_lab import LabError
 
-SQL_SSEI_URL = "https://go.microsoft.com/fwlink/p/?linkid=2215158"
+# The SQL Server 2022 Developer ISO on Microsoft's download server (checked 2026-11-02: 1,163,053,056 bytes).
+SQL_ISO_URL = ("https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/"
+               "SQLServer2022-x64-ENU-Dev.iso")
 ADK_URL = "https://go.microsoft.com/fwlink/?linkid=2289980"
 WINPE_URL = "https://go.microsoft.com/fwlink/?linkid=2289981"
 MIN_FREE_C_GB = 25
@@ -81,24 +86,27 @@ INSTALL_SQL = r"""
     # SQL Server setup takes DOMAIN\user; resolve a UPN through its SID.
     $account = (New-Object Security.Principal.NTAccount (Decode '__CB_SYSADMIN__')).Translate([Security.Principal.SecurityIdentifier]).Translate([Security.Principal.NTAccount]).Value
     $media = Join-Path $root 'Media\SQL'
-    New-Item -ItemType Directory -Force -Path $media | Out-Null
-    $ssei = Join-Path $media 'SQL2022-SSEI-Dev.exe'
-    if (-not (Test-Path -LiteralPath $ssei)) {
-        Log 'Downloading the SQL Server 2022 Developer installer'
-        Invoke-WebRequest -Uri (Decode '__CB_SSEI_URL__') -OutFile $ssei -UseBasicParsing
-    }
-    $box = Get-ChildItem -LiteralPath $media -Filter 'SQLServer2022-DEV-x64-*.exe' | Select-Object -First 1
-    if (-not $box) {
-        Log 'Downloading the SQL Server 2022 Developer media (CAB)'
-        $p = Start-Process -FilePath $ssei -ArgumentList '/Action=Download', "/MediaPath=`"$media`"", '/MediaType=CAB', '/Quiet' -Wait -PassThru
-        $box = Get-ChildItem -LiteralPath $media -Filter 'SQLServer2022-DEV-x64-*.exe' | Select-Object -First 1
-        if (-not $box) { throw "The SQL Server installer did not download the media (exit code $($p.ExitCode)); the server needs internet access to download.microsoft.com." }
-    }
     $setupDir = Join-Path $media 'setup'
     if (-not (Test-Path -LiteralPath (Join-Path $setupDir 'setup.exe'))) {
-        Log 'Extracting the SQL Server media'
-        $p = Start-Process -FilePath $box.FullName -ArgumentList '/q', "/x:`"$setupDir`"" -Wait -PassThru
-        if (-not (Test-Path -LiteralPath (Join-Path $setupDir 'setup.exe'))) { throw "Extracting $($box.Name) failed (exit code $($p.ExitCode))." }
+        New-Item -ItemType Directory -Force -Path $media | Out-Null
+        $iso = Join-Path $media 'SQLServer2022-x64-ENU-Dev.iso'
+        if (-not (Test-Path -LiteralPath $iso)) {
+            Log 'Downloading the SQL Server 2022 Developer ISO'
+            & curl.exe -sSL --fail -o $iso (Decode '__CB_SQL_ISO_URL__')
+            if ($LASTEXITCODE) {
+                Remove-Item -LiteralPath $iso -Force -ErrorAction SilentlyContinue
+                throw "Downloading the SQL Server ISO failed (curl exit $LASTEXITCODE); the server needs internet access to download.microsoft.com."
+            }
+        }
+        Log 'Copying the SQL Server media from the ISO'
+        $image = Mount-DiskImage -ImagePath $iso -PassThru
+        try {
+            & robocopy.exe ('{0}:\' -f ($image | Get-Volume).DriveLetter) $setupDir /E /NFL /NDL /NJH /NJS /NP | Out-Null
+            if ($LASTEXITCODE -ge 8) { throw "Copying the SQL Server media failed (robocopy exit $LASTEXITCODE)." }
+        } finally {
+            Dismount-DiskImage -ImagePath $iso | Out-Null
+        }
+        Remove-Item -LiteralPath $iso -Force
     }
     Log "Installing SQL Server 2022 Developer (MSSQLSERVER) with sysadmins $account and BUILTIN\Administrators"
     $arguments = @('/Q', '/ACTION=Install', '/FEATURES=SQLENGINE', '/INSTANCENAME=MSSQLSERVER',
@@ -214,7 +222,7 @@ def run(job, resource=None, **kwargs):
             set_progress(f"{vmm.hostname}: SQL Server is already installed")
         else:
             scvmm_lab.run_task(vmm, INSTALL_SQL, "install SQL Server 2022 Developer", tokens=dict(
-                tokens, SYSADMIN=lab.username, SSEI_URL=SQL_SSEI_URL), timeout=3600, temp_dir=temp)
+                tokens, SYSADMIN=lab.username, SQL_ISO_URL=SQL_ISO_URL), timeout=3600, temp_dir=temp)
         if state["ADK"] == "1" and state["WINPE"] == "1":
             set_progress(f"{vmm.hostname}: the Windows ADK and WinPE add-on are already installed")
         else:

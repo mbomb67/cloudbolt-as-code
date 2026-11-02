@@ -78,7 +78,7 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 None of this has run on a live appliance yet:
 - **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. If the cluster name does not move with the core group, keep only the first host's address and pin the group to that host.
 - **Nested virtualization request without CPU counts.** The plug-in sends `NestedVirtualization` without `CoreCount`/`ThreadsPerCore` (all optional in the API) and retries with them on `MissingParameter`. A dry run from the appliance succeeded with the counts.
-- **SQL Server media download.** It uses the installer's own `/Action=Download /MediaType=CAB /Quiet` switches, which Microsoft does not document.
+- **SQL Server media download.** The ISO URL in Install SCVMM (`SQL_ISO_URL`) is Microsoft's file, but no Microsoft page documents it, so it can move.
 - **SQL Server edition.** SCVMM 2025 lists Standard, Enterprise and Datacenter. Developer is the Enterprise engine, for test use only.
 - **SCVMM settings.** `SqlInstanceName=MSSQLSERVER` for the default instance, and no DKM settings with a Local System service.
 - **SCSI-3 persistent reservations** on the iSCSI target are not validated: `Test-Cluster` is not run. Run cluster validation in Failover Cluster Manager for a supported configuration.
