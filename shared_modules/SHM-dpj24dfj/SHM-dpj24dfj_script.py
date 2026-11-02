@@ -14,7 +14,8 @@ joins to an existing domain. Its build plug-ins then call this module for:
     script, not its output. A script too long for WinRM's one command line
     is uploaded in pieces and run from the guest (_stage);
   - long steps, and steps that must run as the domain account, as a one-off
-    scheduled task (run_task) polled every POLL_INTERVAL seconds. No
+    scheduled task polled every POLL_INTERVAL seconds: run_task on one
+    server, or start_task on each server then wait_tasks for all. No
     transport holds a session open for an hour, and a step that talks to AD
     or to other servers signs in with the account's own password, so there
     is no second hop to lose its credentials on;
@@ -444,6 +445,17 @@ def run_task(server, body, label, tokens=None, account=None, timeout=3600, hidde
     shared module (shared_modules/SHM-v8llc736). temp_dir becomes the task's
     TMP and TEMP, so large downloads land there.
     """
+    task = start_task(server, body, label, tokens=tokens, account=account, hidden=hidden, temp_dir=temp_dir,
+                      archive_refs=archive_refs, job=job)
+    return wait_tasks([task], timeout)[0]
+
+
+def start_task(server, body, label, tokens=None, account=None, hidden=(), temp_dir="", archive_refs=None, job=None):
+    """
+    Start body on server as a scheduled task (arguments as for run_task) and
+    return a handle for wait_tasks. Start one per server, then wait for them
+    together, so the servers do the step at the same time.
+    """
     hidden = list(hidden)
     user, password = "", ""
     if account is not None:
@@ -465,39 +477,70 @@ def run_task(server, body, label, tokens=None, account=None, timeout=3600, hidde
         "TAG": tag, "SCRIPT": step, "USER": user, "PASSWORD": password, "TEMP": temp_dir,
     }, hidden=hidden)
     set_progress(f"{server.hostname}: {label} (scheduled task {TASK_PATH}{tag} as {user or 'SYSTEM'})")
-    deadline = time.time() + timeout
-    last_tail, not_running = "", 0
-    while True:
-        time.sleep(POLL_INTERVAL)
+    return {"server": server, "tag": tag, "label": label, "hidden": hidden,
+            "log": None, "error": None, "tail": "", "not_running": 0}
+
+
+def _poll(task):
+    """Check one started task once; sets its log when it finished, or its error when it failed."""
+    server, tag, label, hidden = task["server"], task["tag"], task["label"], task["hidden"]
+    try:
         found, output = run_ps(server, POLL_TASK, tokens={"TAG": tag}, hidden=hidden)
-        state = found.get("TASK_STATE")
-        if state == "DONE":
-            log = "\n".join(line[len("LOG| "):] for line in output.splitlines() if line.startswith("LOG| "))
-            log = scrub(log, hidden)
-            problems = errors(log)
-            if problems or markers(log).get("STEP") != "OK":
-                detail = " ".join(problems) or log.strip()[-800:] or f"exit {found.get('TASK_EXIT')}"
-                raise LabError(f"{server.hostname}: {label} failed: {detail}")
-            return log
-        if state == "MISSING":
-            raise LabError(f"{server.hostname}: the scheduled task for '{label}' disappeared before it finished.")
-        if state == "NOT_RUNNING":
-            # Right after Start-ScheduledTask the state can still read Ready.
-            not_running += 1
-            if not_running >= 2:
-                code = found.get("TASK_RESULT", "")
-                hint = TASK_RESULT_HINTS.get(code, "see Task Scheduler's history for the task")
-                raise LabError(f"{server.hostname}: the scheduled task for '{label}' did not run "
-                               f"(result {code}): {hint}.")
+    except LabError as err:
+        task["error"] = str(err)
+        return
+    state = found.get("TASK_STATE")
+    if state == "DONE":
+        log = "\n".join(line[len("LOG| "):] for line in output.splitlines() if line.startswith("LOG| "))
+        log = scrub(log, hidden)
+        problems = errors(log)
+        if problems or markers(log).get("STEP") != "OK":
+            detail = " ".join(problems) or log.strip()[-800:] or f"exit {found.get('TASK_EXIT')}"
+            task["error"] = f"{server.hostname}: {label} failed: {detail}"
         else:
-            not_running = 0
-            tail = found.get("TASK_TAIL", "")
-            if tail and tail != last_tail:
-                set_progress(f"{server.hostname}: {tail}")
-                last_tail = tail
-        if time.time() > deadline:
-            raise LabError(f"{server.hostname}: '{label}' did not finish within {timeout // 60} minutes. "
-                           f"Its scheduled task {TASK_PATH}{tag} is still on the server.")
+            task["log"] = log
+    elif state == "MISSING":
+        task["error"] = f"{server.hostname}: the scheduled task for '{label}' disappeared before it finished."
+    elif state == "NOT_RUNNING":
+        # Right after Start-ScheduledTask the state can still read Ready.
+        task["not_running"] += 1
+        if task["not_running"] >= 2:
+            code = found.get("TASK_RESULT", "")
+            hint = TASK_RESULT_HINTS.get(code, "see Task Scheduler's history for the task")
+            task["error"] = (f"{server.hostname}: the scheduled task for '{label}' did not run "
+                             f"(result {code}): {hint}.")
+    else:
+        task["not_running"] = 0
+        tail = found.get("TASK_TAIL", "")
+        if tail and tail != task["tail"]:
+            set_progress(f"{server.hostname}: {tail}")
+            task["tail"] = tail
+
+
+def wait_tasks(tasks, timeout=3600):
+    """
+    Poll tasks from start_task together every POLL_INTERVAL seconds until each
+    has finished, and return their logs in the same order. Waits for every
+    task even after one fails, so none is left running unreported, then raises
+    LabError naming every failure.
+    """
+    deadline = time.time() + timeout
+    pending = list(tasks)
+    while pending:
+        time.sleep(POLL_INTERVAL)
+        for task in pending:
+            _poll(task)
+        pending = [task for task in pending if task["log"] is None and task["error"] is None]
+        if pending and time.time() > deadline:
+            for task in pending:
+                task["error"] = (f"{task['server'].hostname}: '{task['label']}' did not finish within "
+                                 f"{timeout // 60} minutes. Its scheduled task {TASK_PATH}{task['tag']} "
+                                 f"is still on the server.")
+            break
+    failures = [task["error"] for task in tasks if task["error"]]
+    if failures:
+        raise LabError(" ".join(failures))
+    return [task["log"] for task in tasks]
 
 
 def restart(servers, reason):

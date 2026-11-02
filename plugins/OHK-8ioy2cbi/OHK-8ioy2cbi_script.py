@@ -5,9 +5,9 @@ Build item 5 of the SCVMM Lab on AWS blueprint (blueprints/BP-9zp8udce). It
 runs while Install SCVMM (item 4, in parallel) sets up the SCVMM server.
 Every step is skipped when it is already done, so the item can be re-run.
 
-  1. Per host, as a SYSTEM scheduled task: install the Hyper-V and Failover
-     Clustering features with their management tools, and start the
-     Microsoft iSCSI Initiator service.
+  1. On every host at once, as a SYSTEM scheduled task: install the Hyper-V
+     and Failover Clustering features with their management tools, and start
+     the Microsoft iSCSI Initiator service.
   2. Restart the hosts together when a feature asked for it, and wait for
      them.
   3. Per host: check the Hyper-V management service runs, open the firewall
@@ -159,11 +159,10 @@ def run(job, resource=None, **kwargs):
     resource = resource or job.resource_set.first()
     try:
         lab = scvmm_lab.Lab(resource)
-        restart = []
-        for host in lab.hosts:
-            log = scvmm_lab.run_task(host, FEATURES, "install Hyper-V and Failover Clustering", timeout=2700)
-            if scvmm_lab.markers(log).get("RESTART") == "1":
-                restart.append(host)
+        tasks = [scvmm_lab.start_task(host, FEATURES, "install Hyper-V and Failover Clustering")
+                 for host in lab.hosts]
+        logs = scvmm_lab.wait_tasks(tasks, timeout=2700)
+        restart = [host for host, log in zip(lab.hosts, logs) if scvmm_lab.markers(log).get("RESTART") == "1"]
         if restart:
             scvmm_lab.restart(restart, "finish installing Hyper-V")
 
