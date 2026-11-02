@@ -11,7 +11,8 @@ joins to an existing domain. Its build plug-ins then call this module for:
   - PowerShell in the guest through Server.execute_script (run_ps). Results
     come back in CB_LAB_* marker lines and every script exits 0, because
     CloudBolt's AWS SSM transport reports only the exit code of a failed
-    script, not its output;
+    script, not its output. A script too long for WinRM's one command line
+    is uploaded in pieces and run from the guest (_stage);
   - long steps, and steps that must run as the domain account, as a one-off
     scheduled task (run_task) polled every POLL_INTERVAL seconds. No
     transport holds a session open for an hour, and a step that talks to AD
@@ -47,6 +48,7 @@ References:
   boto3 EC2 client and waiters:    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html
 """
 import base64
+import gzip
 import re
 import secrets
 import time
@@ -193,6 +195,32 @@ TASK_RESULT_HINTS = {
     "0x80070533": "the domain account is disabled",
 }
 
+# CloudBolt's WinRM transport runs a script as powershell -encodedcommand
+# (UTF-16 base64) on one command line, which Windows limits to 8191
+# characters: about 3,000 characters of script. A longer script is gzipped
+# and written in CHUNK-sized base64 pieces to the lab folder (SYSTEM and
+# Administrators only, because a step can hold the domain account's
+# password), then STAGE_RUN reads it back, deletes the file and runs it in
+# the same session, so its output and exit code are the script's own.
+INLINE_LIMIT = 2800
+CHUNK = 2400
+STAGE_CHUNK = r"""
+$ErrorActionPreference = 'Stop'
+$r = Join-Path $env:ProgramData 'CloudBolt\ScvmmLab'
+if (-not (Test-Path -LiteralPath $r)) {
+    New-Item -ItemType Directory -Path $r -Force | Out-Null
+    & icacls.exe $r /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
+}
+[IO.File]::__METHOD__((Join-Path $r '__PATH__'), '__CHUNK__')
+"""
+STAGE_RUN = r"""
+$ErrorActionPreference = 'Stop'
+$f = Join-Path $env:ProgramData 'CloudBolt\ScvmmLab\__PATH__'
+try { $b = [Convert]::FromBase64String([IO.File]::ReadAllText($f)) } finally { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+$z = New-Object IO.Compression.GZipStream((New-Object IO.MemoryStream(,$b)), [IO.Compression.CompressionMode]::Decompress)
+& ([scriptblock]::Create((New-Object IO.StreamReader($z, [Text.Encoding]::UTF8)).ReadToEnd()))
+"""
+
 RESTART = r"""
 Mark 'BOOT' ((Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks)
 & shutdown.exe /r /t 15 /d p:4:2 /c 'CloudBolt SCVMM lab: restart to finish installing Windows features.' | Out-Null
@@ -328,6 +356,32 @@ def render(body, tokens=None):
 
 def _execute(server, script, timeout):
     """(exit code, output) of a PowerShell script; -1 when CloudBolt could not run it at all."""
+    if len(script) > INLINE_LIMIT:
+        rv, output, script = _stage(server, script)
+        if rv != 0:
+            return rv, output
+    return _run(server, script, timeout)
+
+
+def _stage(server, script):
+    """
+    Upload a script too long for one command line to the guest in pieces.
+    Returns (exit code, output, bootstrap): bootstrap is a short script that
+    reads the pieces back, deletes the file and runs the script.
+    """
+    payload = base64.b64encode(gzip.compress(script.encode("utf-8"))).decode("ascii")
+    path = f"{secrets.token_hex(6)}.b64"
+    pieces = [payload[i:i + CHUNK] for i in range(0, len(payload), CHUNK)]
+    for index, piece in enumerate(pieces):
+        method = "WriteAllText" if index == 0 else "AppendAllText"
+        rv, output = _run(server, STAGE_CHUNK.replace("__PATH__", path).replace("__METHOD__", method)
+                          .replace("__CHUNK__", piece), 120)
+        if rv != 0:
+            return rv, output, ""
+    return 0, "", STAGE_RUN.replace("__PATH__", path)
+
+
+def _run(server, script, timeout):
     try:
         output = server.execute_script(
             script_contents=script, file_extension="ps1", timeout=timeout, show_streaming_output=False,
