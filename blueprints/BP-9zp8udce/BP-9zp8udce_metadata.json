@@ -1,0 +1,224 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Windows"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "Windows Server 2025 Hyper-V hosts; order two or more. Use an instance type AWS lists as supporting nested virtualization (for example m8i, c8i, r8i or m7i sizes) or a .metal size.",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": true,
+            "hostname_template": "hvlab-00X",
+            "id": "BDI-wctopceu",
+            "name": "Hyper-V Hosts",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-35y5mshd/",
+                "title": "Windows 2025"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": true,
+            "tier_type": "server"
+        },
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Windows"
+            ],
+            "applications": null,
+            "deploy_seq": 2,
+            "description": "Windows Server 2025 SCVMM management server; order one.",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "vmmlab-00X",
+            "id": "BDI-olzewnbv",
+            "name": "SCVMM Server",
+            "os_build": {
+                "href": "/api/v3/cmp/osBuilds/OSB-35y5mshd/",
+                "title": "Windows 2025"
+            },
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": true,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Prepare SCVMM Lab on AWS",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-q6fb9833"
+            },
+            "deploy_seq": 3,
+            "description": "Turns on nested virtualization and adds a cluster IP address on each host, and attaches the storage volume to the SCVMM server and shares it to the hosts over iSCSI.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-pbj83dx6",
+            "name": "Prepare SCVMM Lab on AWS",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Install SCVMM",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-8f9o1496"
+            },
+            "deploy_seq": 4,
+            "description": "Installs SQL Server Developer, the Windows ADK and SCVMM on the SCVMM server, while the hosts are configured.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-1ezqmxtt",
+            "name": "Install SCVMM",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Configure Hyper-V Hosts",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-8ioy2cbi"
+            },
+            "deploy_seq": 5,
+            "description": "Installs Hyper-V and Failover Clustering on the hosts, connects them to the iSCSI disks and creates the NAT switch.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-g70u7vc5",
+            "name": "Configure Hyper-V Hosts",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Create Hyper-V Cluster",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-77f19kly"
+            },
+            "deploy_seq": 6,
+            "description": "Creates the failover cluster with one IP address per host, a cluster shared volume and a disk witness.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-x24qf0f1",
+            "name": "Create Hyper-V Cluster",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Add Hyper-V Cluster to SCVMM",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-ive3ka22"
+            },
+            "deploy_seq": 7,
+            "description": "Adds the cluster to SCVMM under All Hosts with a Run As account for the domain service account.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-eotua3t6",
+            "name": "Add Hyper-V Cluster to SCVMM",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Builds an SCVMM 2025 test lab on AWS: two or more nested-virtualization Hyper-V hosts in a failover cluster with iSCSI shared storage, and an SCVMM server that manages the cluster, all joined to an existing domain.",
+    "favorited": false,
+    "id": "BP-9zp8udce",
+    "is_orderable": true,
+    "labels": [],
+    "last_updated": "2026-11-02",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "SCVMM Lab on AWS",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "File Archives reference (archive/file[@version]) of the zipped SCVMM 2025 setup folder, pinned as this parameter's only option.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-0374eazp",
+            "label": "SCVMM Setup Media",
+            "name": "scvmm_media",
+            "options": [
+                "scvmm/SCVMM_2025.zip"
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Size of the gp3 volume on the SCVMM server that holds the cluster's iSCSI disks, setup downloads and the VMM library, pinned as this parameter's only option.",
+            "destination": "Resource",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-m80lzl6h",
+            "label": "Lab Storage (GB)",
+            "name": "scvmm_lab_storage_gb",
+            "options": [
+                250
+            ],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": "scvmm-lab-00X",
+    "resource_type": {
+        "icon": "fas fa-server",
+        "internal_only": false,
+        "label": "SCVMM Lab",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "scvmm_lab",
+        "plural_label": "SCVMM Labs"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Remove Hyper-V Cluster Object",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-kzb6pzzu"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the cluster's computer object from Active Directory; the servers and the storage volume are deleted with the resource.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-w9x43skq",
+            "name": "Remove Hyper-V Cluster Object",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

@@ -1,0 +1,83 @@
+# SCVMM Lab on AWS
+
+Builds an SCVMM 2025 test lab on AWS:
+- Two or more Windows Server 2025 Hyper-V hosts on nested-virtualization EC2 instances, in a failover cluster.
+- Shared storage over iSCSI from a gp3 volume.
+- One SCVMM server that manages the cluster.
+
+Every server joins an existing Active Directory domain. The build runs unattended and takes about an hour, mostly SQL Server and SCVMM setup.
+
+## Contents
+| Role | ID | Name |
+|---|---|---|
+| Server tier (seq 1, parallel) | — | Hyper-V Hosts (OS build "Windows 2025"; hostname `hvlab-00X`; order 2 or more) |
+| Server tier (seq 2) | — | SCVMM Server (OS build "Windows 2025"; hostname `vmmlab-00X`; order 1) |
+| Build (Plug-in, seq 3) | OHK-q6fb9833 | Prepare SCVMM Lab on AWS |
+| Build (Plug-in, seq 4, parallel) | OHK-8f9o1496 | Install SCVMM |
+| Build (Plug-in, seq 5) | OHK-8ioy2cbi | Configure Hyper-V Hosts |
+| Build (Plug-in, seq 6) | OHK-77f19kly | Create Hyper-V Cluster |
+| Build (Plug-in, seq 7) | OHK-ive3ka22 | Add Hyper-V Cluster to SCVMM |
+| Teardown | OHK-kzb6pzzu | Remove Hyper-V Cluster Object |
+| Shared module | SHM-dpj24dfj | `scvmm_lab`: guest scripts, scheduled-task steps, EC2 calls |
+
+Blueprint parameters, each pinned as its only option, so the order form hides them:
+- `scvmm_media`: the File Archives file holding the SCVMM media (default `scvmm/SCVMM_2025.zip`).
+- `scvmm_lab_storage_gb`: size of the lab volume (default 250).
+
+## What gets built
+| Piece | How |
+|---|---|
+| Nested virtualization | Each host is stopped, gets `NestedVirtualization=enabled`, and is started again. Not needed on `.metal` sizes. The appliance's botocore predates the field, so the shared module adds it to the signed request itself. |
+| Cluster addresses | Each host gets one secondary private IP. The cluster has one IP address resource per host, each owned only by its host, joined by an OR dependency. The cluster name is `hvc-<resource ID>`. |
+| Shared storage | The SCVMM server gets a gp3 volume (labeled `CBLab`, deleted with the server) and runs the iSCSI Target Server role. The volume holds a 1 GB disk witness and a cluster shared volume of the volume size minus 40 GB, both dynamically expanding. |
+| SCVMM server | Root volume grown to 80 GB. SQL Server 2022 Developer (default instance), Windows ADK Deployment Tools + WinPE, and SCVMM 2025 evaluation. The VMM service runs as Local System; the library share is on the lab volume. |
+| Hosts | Hyper-V and Failover Clustering are installed. An internal switch `CBLab-NAT` with NAT `192.168.250.0/24` (gateway `.1`) is created on every host. |
+| SCVMM | Run As account `CloudBolt SCVMM Lab Hosts` for the domain service account; the cluster is added under All Hosts. |
+
+Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster_ips`, `scvmm_lab_vmm_server`.
+
+## Prerequisites
+- **Domain join content.** Install [PKG-nf407lm5](../../packages/PKG-nf407lm5/) (Join Windows Server to AD Domain), with `domain_ou` and `domain_service_account` set on the AWS environment. Every lab server must get the same `domain_service_account`. That account:
+  - is a member of the local Administrators group on the lab servers, for example through a Group Policy linked to their OU;
+  - has **Create Computer objects** on that OU, for the cluster's computer object.
+- **Teardown rights.** The LDAP Utility's account must be able to delete computer objects in that OU.
+- **Runbooks package.** [PKG-v20qv308](../../packages/PKG-v20qv308/) provides the File Archives tab and the `file_archives` shared module.
+- **AWS environment.** Windows Server 2025 instances CloudBolt can run scripts on, through SSM (with an instance profile allowing `AmazonSSMManagedInstanceCore`) or through WinRM.
+  - **Security group:** allow all traffic between its own members (a rule whose source is the group itself).
+  - **Internet access** from the SCVMM server, to download SQL Server and the ADK from Microsoft.
+- **IAM.** The AWS handler's credentials also need:
+  - `ec2:ModifyInstanceCpuOptions`, `ec2:StopInstances`, `ec2:StartInstances`, `ec2:DescribeInstanceTypes`
+  - `ec2:AssignPrivateIpAddresses`
+  - `ec2:CreateVolume`, `ec2:AttachVolume`, `ec2:CreateTags`, `ec2:ModifyInstanceAttribute`
+  - `ec2:ModifyVolume`, `ec2:DescribeVolumesModifications`
+
+## Setup
+1. Download SCVMM 2025 from the [Evaluation Center](https://www.microsoft.com/en-us/evalcenter/download-system-center-2025). The file is `SCVMM_2025.zip`, about 1 GB.
+2. In CloudBolt, go to **Admin > Custom Extensions > Runbooks > File Archives**:
+   - **Settings:** set **Largest upload** to 1100 MB or more, and set a download base URL the lab's VPC can reach.
+   - Create archive `scvmm` and upload `SCVMM_2025.zip` unchanged.
+3. Sync the blueprint, then open it in **Catalog**:
+   - **Hyper-V Hosts** tier: enable the AWS environment, and limit **Instance Type** to sizes AWS lists as supporting nested virtualization, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work.
+   - **SCVMM Server** tier: enable the same environment. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
+   - Re-point both tiers' OS build if yours is not "Windows 2025" (`OSB-35y5mshd` is instance-specific).
+   - If you uploaded under another name, change the `scvmm_media` option.
+4. Grant the groups that may order it.
+5. Order it with **Hyper-V Hosts** quantity 2 or more and **SCVMM Server** quantity 1.
+
+## Notes
+- **Re-running a build item.** Every step is skipped when it is already done.
+- **Slow steps** run as scheduled tasks under `\CloudBolt\` and are polled every 30 seconds. Steps that reach AD or other servers sign in as the domain service account, so there is no double hop. Their logs are in the job's progress.
+- **The service account's password** goes to the guest inside the script body, base64 encoded for quoting only. On AWS that body stays in Systems Manager's command history.
+- **Scale-up is not supported.** Order a new lab for more hosts.
+- **Nested VMs** reach the network only through their host's NAT (`192.168.250.0/24`), because EC2 drops frames from unknown MAC addresses. They are not reachable from the VPC.
+- **SCVMM has no templates, logical networks or IP pools yet.** Add them in the console.
+- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item deletes the cluster's computer object. The servers' own computer objects are deleted only by HPA-q181uofy, when it is installed.
+
+### Untested
+None of this has run on a live appliance yet:
+- **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. If the cluster name does not move with the core group, keep only the first host's address and pin the group to that host.
+- **Nested virtualization request without CPU counts.** The plug-in sends `NestedVirtualization` without `CoreCount`/`ThreadsPerCore` (all optional in the API) and retries with them on `MissingParameter`. A dry run from the appliance succeeded with the counts.
+- **SQL Server media download.** It uses the installer's own `/Action=Download /MediaType=CAB /Quiet` switches, which Microsoft does not document.
+- **SQL Server edition.** SCVMM 2025 lists Standard, Enterprise and Datacenter. Developer is the Enterprise engine, for test use only.
+- **SCVMM settings.** `SqlInstanceName=MSSQLSERVER` for the default instance, and no DKM settings with a Local System service.
+- **SCSI-3 persistent reservations** on the iSCSI target are not validated: `Test-Cluster` is not run. Run cluster validation in Failover Cluster Manager for a supported configuration.

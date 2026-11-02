@@ -129,6 +129,23 @@
     ]
   },
   {
+    "id": "BP-9zp8udce",
+    "type": "blueprints",
+    "name": "SCVMM Lab on AWS",
+    "description": "Builds an SCVMM 2025 test lab on AWS: two or more nested-virtualization Hyper-V hosts in a failover cluster with iSCSI shared storage, and an SCVMM server that manages the cluster, all joined to an existing domain.",
+    "path": "blueprints/BP-9zp8udce",
+    "readme": "blueprints/BP-9zp8udce/README.md",
+    "uses": [
+      "plugins/OHK-77f19kly",
+      "plugins/OHK-8f9o1496",
+      "plugins/OHK-8ioy2cbi",
+      "plugins/OHK-ive3ka22",
+      "plugins/OHK-kzb6pzzu",
+      "plugins/OHK-q6fb9833"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-anonytrx",
     "type": "blueprints",
     "name": "NGINX Web Application",
@@ -2361,6 +2378,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-77f19kly",
+    "type": "plugins",
+    "name": "Create Hyper-V Cluster",
+    "description": "Creates the SCVMM lab's failover cluster as the domain service account with one IP address resource per host, a cluster shared volume and a disk witness.",
+    "path": "plugins/OHK-77f19kly",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dpj24dfj"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-7987st2p",
     "type": "plugins",
     "name": "Azure Network Security Group Build",
@@ -2467,6 +2499,37 @@
     ],
     "used_by": [
       "resource_actions/RSA-ehxck39g"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-8f9o1496",
+    "type": "plugins",
+    "name": "Install SCVMM",
+    "description": "Installs SQL Server 2022 Developer, the Windows ADK with the WinPE add-on and SCVMM 2025 from File Archives on the SCVMM lab's management server.",
+    "path": "plugins/OHK-8f9o1496",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dpj24dfj",
+      "shared_modules/SHM-v8llc736"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-8ioy2cbi",
+    "type": "plugins",
+    "name": "Configure Hyper-V Hosts",
+    "description": "Installs Hyper-V and Failover Clustering on the SCVMM lab hosts, creates their NAT switch, and connects them to the iSCSI disks it creates on the SCVMM server.",
+    "path": "plugins/OHK-8ioy2cbi",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dpj24dfj"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3340,6 +3403,21 @@
     ]
   },
   {
+    "id": "OHK-ive3ka22",
+    "type": "plugins",
+    "name": "Add Hyper-V Cluster to SCVMM",
+    "description": "Adds the SCVMM lab's failover cluster to SCVMM under All Hosts with a Run As account for the domain service account.",
+    "path": "plugins/OHK-ive3ka22",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dpj24dfj"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-iy92hhvh",
     "type": "plugins",
     "name": "List Resources in Group",
@@ -3465,6 +3543,21 @@
       "blueprints/BP-qo1stxre"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-kzb6pzzu",
+    "type": "plugins",
+    "name": "Remove Hyper-V Cluster Object",
+    "description": "Deletes the SCVMM lab cluster's computer object from Active Directory when the lab is deleted.",
+    "path": "plugins/OHK-kzb6pzzu",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-gcba1u31"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-l25x6wd8",
@@ -3950,6 +4043,21 @@
     ],
     "used_by": [
       "blueprints/BP-b0qm83lh"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-q6fb9833",
+    "type": "plugins",
+    "name": "Prepare SCVMM Lab on AWS",
+    "description": "Checks the SCVMM lab servers are in the domain, turns on nested virtualization and assigns a cluster IP on each Hyper-V host, and attaches and formats the gp3 lab volume on the SCVMM server with the iSCSI Target Server role.",
+    "path": "plugins/OHK-q6fb9833",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-dpj24dfj"
+    ],
+    "used_by": [
+      "blueprints/BP-9zp8udce"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -5963,6 +6071,22 @@
     ]
   },
   {
+    "id": "SHM-dpj24dfj",
+    "type": "shared_modules",
+    "name": "scvmm_lab",
+    "description": "Runs the SCVMM Lab on AWS blueprint's guest steps as marker-reporting PowerShell or polled scheduled tasks, and its EC2 steps (nested virtualization, cluster IPs, storage volume) through the AWS handler.",
+    "path": "shared_modules/SHM-dpj24dfj",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-ive3ka22",
+      "plugins/OHK-8ioy2cbi",
+      "plugins/OHK-77f19kly",
+      "plugins/OHK-8f9o1496",
+      "plugins/OHK-q6fb9833"
+    ]
+  },
+  {
     "id": "SHM-eybr4hgz",
     "type": "shared_modules",
     "name": "github",
@@ -5988,6 +6112,7 @@
     "used_by": [
       "plugins/OHK-bkoau0j8",
       "plugins/OHK-9oqn6pur",
+      "plugins/OHK-kzb6pzzu",
       "plugins/OHK-z9qrccyu"
     ]
   },
@@ -6203,6 +6328,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-8f9o1496",
       "plugins/OHK-o4tgygjs"
     ]
   },

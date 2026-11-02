@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-gcba1u31"
+        ]
+    },
+    "description": "Deletes the SCVMM lab cluster's computer object from Active Directory when the lab is deleted.",
+    "id": "OHK-kzb6pzzu",
+    "max_retries": 0,
+    "name": "Remove Hyper-V Cluster Object",
+    "resource_technologies": [],
+    "script_filename": "OHK-kzb6pzzu_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
