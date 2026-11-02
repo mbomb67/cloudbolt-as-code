@@ -10,8 +10,8 @@ Every server joins an existing Active Directory domain. The build runs unattende
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| Server tier (seq 1, parallel) | — | Hyper-V Hosts (OS build "Windows 2025"; hostname `hvlab-00X`; order 2 or more) |
-| Server tier (seq 2) | — | SCVMM Server (OS build "Windows 2025"; hostname `vmmlab-00X`; order 1) |
+| Server tier (seq 1, parallel) | — | Hyper-V Hosts (OS build "Windows Server 2025"; hostname `hvlab-00X`; all environments enabled; order 2 or more) |
+| Server tier (seq 2) | — | SCVMM Server (OS build "Windows Server 2025"; hostname `vmmlab-00X`; all environments enabled; order 1) |
 | Build (Plug-in, seq 3) | OHK-q6fb9833 | Prepare SCVMM Lab on AWS |
 | Build (Plug-in, seq 4, parallel) | OHK-8f9o1496 | Install SCVMM |
 | Build (Plug-in, seq 5) | OHK-8ioy2cbi | Configure Hyper-V Hosts |
@@ -56,13 +56,12 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 2. In CloudBolt, go to **Admin > Custom Extensions > Runbooks > File Archives**:
    - **Settings:** set **Largest upload** to 1100 MB or more, and set a download base URL the lab's VPC can reach.
    - Create archive `scvmm` and upload `SCVMM_2025.zip` unchanged.
-3. Sync the blueprint, then open it in **Catalog**:
-   - **Hyper-V Hosts** tier: enable the AWS environment, and limit **Instance Type** to sizes AWS lists as supporting nested virtualization, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work.
-   - **SCVMM Server** tier: enable the same environment. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
-   - Re-point both tiers' OS build if yours is not "Windows 2025" (`OSB-35y5mshd` is instance-specific).
+3. On the AWS environment's **Parameters** tab, add instance types that support nested virtualization to **Instance type**, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
+4. Sync the blueprint, then open it in **Catalog**:
+   - Both tiers have all environments enabled. The tier's OS build limits them to environments that offer it; re-point both tiers to your Windows Server 2025 build (`OSB-bocl2o1o` is instance-specific), or restrict their environments.
    - If you uploaded under another name, change the `scvmm_media` option.
-4. Grant the groups that may order it.
-5. Order it with **Hyper-V Hosts** quantity 2 or more and **SCVMM Server** quantity 1.
+5. Grant the groups that may order it.
+6. Order it with **Hyper-V Hosts** quantity 2 or more and **SCVMM Server** quantity 1.
 
 ## Notes
 - **Re-running a build item.** Every step is skipped when it is already done.

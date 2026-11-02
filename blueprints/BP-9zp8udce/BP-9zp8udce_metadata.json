@@ -3,7 +3,7 @@
     "auto_historical_resources": false,
     "deployment_items": [
         {
-            "all_environments_enabled": false,
+            "all_environments_enabled": true,
             "allowed_os_families": [
                 "Windows"
             ],
@@ -16,8 +16,8 @@
             "id": "BDI-wctopceu",
             "name": "Hyper-V Hosts",
             "os_build": {
-                "href": "/api/v3/cmp/osBuilds/OSB-35y5mshd/",
-                "title": "Windows 2025"
+                "href": "/api/v3/cmp/osBuilds/OSB-bocl2o1o/",
+                "title": "Windows Server 2025"
             },
             "rate": null,
             "restrict_applications": false,
@@ -25,7 +25,7 @@
             "tier_type": "server"
         },
         {
-            "all_environments_enabled": false,
+            "all_environments_enabled": true,
             "allowed_os_families": [
                 "Windows"
             ],
@@ -38,8 +38,8 @@
             "id": "BDI-olzewnbv",
             "name": "SCVMM Server",
             "os_build": {
-                "href": "/api/v3/cmp/osBuilds/OSB-35y5mshd/",
-                "title": "Windows 2025"
+                "href": "/api/v3/cmp/osBuilds/OSB-bocl2o1o/",
+                "title": "Windows Server 2025"
             },
             "rate": null,
             "restrict_applications": false,
