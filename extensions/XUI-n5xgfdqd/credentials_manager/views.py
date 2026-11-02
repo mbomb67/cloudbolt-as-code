@@ -55,7 +55,7 @@ def _api(view):
         except PermissionDenied:
             return JsonResponse({"error": "This requires CB Admin or Super Admin."}, status=403)
         except TargetError as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
+            return JsonResponse({"error": exc.public_message}, status=400)
         except Exception:
             logger.exception("Credentials Manager API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
@@ -134,9 +134,14 @@ def rows_csv(request):
     row as CSV."""
     try:
         data = json.loads(request.POST.get("payload") or "{}")
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        return HttpResponse("The payload must be a JSON object.", status=400, content_type="text/plain")
+    try:
         _filters, _plan, server_rows, image_rows = targets.collect(data)
-    except (ValueError, TargetError) as exc:
-        return HttpResponse(str(exc), status=400, content_type="text/plain")
+    except TargetError as exc:
+        return HttpResponse(exc.public_message, status=400, content_type="text/plain")
     kind = "image" if data.get("kind") == "image" else "server"
     rows = targets.narrow(image_rows if kind == "image" else server_rows, data)
     columns = (

@@ -539,21 +539,27 @@
     });
     $root.on("click", "[data-cmx-csv]", function () {
       if (!current) { return; }
-      var kind = this.getAttribute("data-cmx-csv");
-      var form = document.createElement("form");
-      form.method = "POST";
-      form.action = urls.csv;
-      form.style.display = "none";
-      [["csrfmiddlewaretoken", csrf], ["payload", JSON.stringify(rowsBody(kind))]].forEach(function (pair) {
-        var input = document.createElement("input");
-        input.type = "hidden";
-        input.name = pair[0];
-        input.value = pair[1];
-        form.appendChild(input);
-      });
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+      var kind = this.getAttribute("data-cmx-csv") === "image" ? "image" : "server";
+      var $btn = $(this).prop("disabled", true);
+      var form = new FormData();
+      form.append("payload", JSON.stringify(rowsBody(kind)));
+      fetch(urls.csv, { method: "POST", credentials: "same-origin", headers: { "X-CSRFToken": csrf }, body: form }).then(function (response) {
+        if (!response.ok) {
+          return response.text().then(function (text) { throw new Error(text || ("HTTP " + response.status)); });
+        }
+        return response.blob();
+      }).then(function (blob) {
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "credentials-update-" + kind + "s.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+      }).catch(function (err) {
+        $preview.find('[data-cmx-rows="' + kind + '"]').html('<tr><td colspan="' + (COLUMNS[kind].length + 2) +
+          '" class="cmx-bad-text">' + esc("CSV download failed: " + err.message) + "</td></tr>");
+      }).then(function () { $btn.prop("disabled", false); });
     });
     $root.on("shown.bs.tab", '[data-bs-target="#cmx-tab-history"]', loadHistory);
     $root.on("click", "#cmx-history-refresh", loadHistory);

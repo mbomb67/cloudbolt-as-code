@@ -82,7 +82,13 @@ NO_USERNAME = "__none__"
 
 
 class TargetError(Exception):
-    """A request the page should show as an error, not log as a crash."""
+    """A request the page should show as an error, not log as a crash.
+    public_message is written for the person using the page and holds no
+    internal detail, so it is what responses show."""
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.public_message = message
 
 
 # ---------------------------------------------------------------------------
