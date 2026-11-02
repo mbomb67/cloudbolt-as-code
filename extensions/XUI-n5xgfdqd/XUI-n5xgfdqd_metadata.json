@@ -1,0 +1,25 @@
+{
+    "description": "Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-n5xgfdqd",
+    "label": "Credentials Manager",
+    "last_updated": "2026-11-02",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "credentials_manager",
+    "package_contents": [
+        "__init__.py",
+        "targets.py",
+        "apply.py",
+        "hooks.py",
+        "jobs.py",
+        "update_job.py",
+        "views.py",
+        "urls.py",
+        "templates/_cm_assets.html",
+        "templates/credentials.html",
+        "templates/history_panel.html"
+    ],
+    "version": ""
+}
