@@ -1229,6 +1229,20 @@
     "mcp_tool_name": "run_recurring_job"
   },
   {
+    "id": "MTA-zth0tjjg",
+    "type": "mcp_tool_actions",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, like the Rerun button on the job's page, and returns the new job's id.",
+    "path": "mcp_tool_actions/MTA-zth0tjjg",
+    "readme": "mcp_tool_actions/MTA-zth0tjjg/README.md",
+    "uses": [
+      "plugins/OHK-ukp8n10w"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "rerun_job"
+  },
+  {
     "id": "HPA-0zcrvpwu",
     "type": "orchestration_actions",
     "name": "Suggest Domain OUs",
@@ -4246,6 +4260,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-4e8lmj2r"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ukp8n10w",
+    "type": "plugins",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, like the Rerun button on the job's page, and returns the new job's id.",
+    "path": "plugins/OHK-ukp8n10w",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-zth0tjjg"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
