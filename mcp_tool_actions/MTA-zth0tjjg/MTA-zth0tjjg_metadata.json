@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Job global id, e.g. JOB-abc12345 (the numeric job id also works).",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-2cfnyhqp",
+            "label": "Job global id",
+            "name": "rerun_job_id",
+            "placeholder": "JOB-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-ukp8n10w"
+    },
+    "enabled": true,
+    "id": "MTA-zth0tjjg",
+    "is_synchronous": true,
+    "label": "Rerun Job",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": false,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Rerun a finished CloudBolt job, exactly like the Rerun button on its job page (the v3 jobs clone endpoint): the new job reuses the old job's parameters, resource, servers and arguments and runs the current plug-in code. Give the job's global id (JOB-...) or numeric id. Use it to rerun a failed blueprint build item (a plug-in job) on the existing resource after syncing a fix, instead of tearing down and ordering again. It refuses a job that is still active, one already rerun (it names the latest rerun), and any job CloudBolt's own rerun rule refuses: non-admins can rerun only failed jobs; admins can also rerun successful plug-in, provision, blueprint and decommission jobs. Returns newJobId to poll with fetch_job_log. The caller needs CloudBolt's job.rerun permission on the job (admins and the job's owner have it).",
+    "mcp_tool_name": "rerun_job",
+    "mcp_tool_title": ""
+}
