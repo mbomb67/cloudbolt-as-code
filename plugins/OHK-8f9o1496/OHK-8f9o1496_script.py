@@ -22,18 +22,22 @@ be re-run.
      Enterprise engine, licensed for test labs only.
   3. Windows ADK Deployment Tools and the WinPE add-on, which SCVMM setup
      requires, from Microsoft's download links.
-  4. The SCVMM 2025 media from File Archives: scvmm_media names the zip
-     (SCVMM_2025.zip from the Evaluation Center, uploaded unchanged). The
-     file_archives shared module downloads and checks it on the server; this
-     moves the extracted folder to the lab volume.
+  4. The SCVMM 2025 media, SCVMM_2025.zip from the Evaluation Center.
+     scvmm_media is either an https link, downloaded with Windows' curl.exe and
+     extracted with its tar.exe (by default the Evaluation Center's own link,
+     which redirects to download.microsoft.com with no registration), or a
+     File Archives reference for servers without internet access, which the
+     file_archives shared module downloads and checks. The extracted folder
+     moves to the lab volume.
   5. SCVMM setup from the command prompt, as a scheduled task signed in as the
      domain service account: new database VirtualManagerDB on the local
      instance, the VMM service as Local System (no distributed key
      management), the library share on the lab volume, the default ports,
      no product key (180-day evaluation).
 
-The server downloads SQL Server and the ADK from the internet; with no
-internet access, steps 2 and 3 fail with the download error.
+The server downloads SQL Server and the ADK from the internet, and the SCVMM
+media too unless scvmm_media names a File Archives file; with no internet
+access, those steps fail with the download error.
 
 CloudBolt renders this file as a template before running it, so it must never
 contain template tags; values reach the scripts through the __CB_*__ tokens.
@@ -92,7 +96,7 @@ INSTALL_SQL = r"""
         $iso = Join-Path $media 'SQLServer2022-x64-ENU-Dev.iso'
         if (-not (Test-Path -LiteralPath $iso)) {
             Log 'Downloading the SQL Server 2022 Developer ISO'
-            & curl.exe -sSL --fail -o $iso (Decode '__CB_SQL_ISO_URL__')
+            & "$env:SystemRoot\System32\curl.exe" -sSL --fail -o $iso (Decode '__CB_SQL_ISO_URL__')
             if ($LASTEXITCODE) {
                 Remove-Item -LiteralPath $iso -Force -ErrorAction SilentlyContinue
                 throw "Downloading the SQL Server ISO failed (curl exit $LASTEXITCODE); the server needs internet access to download.microsoft.com."
@@ -143,13 +147,30 @@ INSTALL_ADK = r"""
 
 STAGE_MEDIA = r"""
     $target = Join-Path (Decode '__CB_ROOT__') 'Media\VMM'
-    $setup = Get-ChildItem -LiteralPath $env:CB_ARCHIVE_DIR -Filter setup.exe -Recurse -Depth 2 |
+    $url = Decode '__CB_URL__'
+    if ($url) {
+        $from = Join-Path (Decode '__CB_ROOT__') 'Temp\scvmm-media'
+        if (Test-Path -LiteralPath $from) { Remove-Item -LiteralPath $from -Recurse -Force }
+        New-Item -ItemType Directory -Force -Path $from | Out-Null
+        $zip = Join-Path $from 'SCVMM_2025.zip'
+        Log "Downloading the SCVMM media from $url"
+        & "$env:SystemRoot\System32\curl.exe" -sSL --fail -o $zip $url
+        if ($LASTEXITCODE) { throw "Downloading the SCVMM media failed (curl exit $LASTEXITCODE); the server needs internet access to download.microsoft.com." }
+        Log 'Extracting the SCVMM media'
+        & "$env:SystemRoot\System32\tar.exe" -xf $zip -C $from
+        if ($LASTEXITCODE) { throw "Extracting the SCVMM media failed (tar exit $LASTEXITCODE)." }
+    } else {
+        $from = $env:CB_ARCHIVE_DIR
+    }
+    $setup = Get-ChildItem -LiteralPath $from -Filter setup.exe -Recurse -Depth 2 |
         Sort-Object { $_.FullName.Length } | Select-Object -First 1
-    if (-not $setup) { throw 'The archive has no setup.exe. Upload SCVMM_2025.zip from the Evaluation Center unchanged.' }
-    Get-ChildItem -LiteralPath $env:CB_ARCHIVE_DIR -Filter *.zip | Remove-Item -Force
+    if (-not $setup) { throw 'The SCVMM media has no setup.exe. Use SCVMM_2025.zip from the Evaluation Center unchanged.' }
+    Get-ChildItem -LiteralPath $from -Filter *.zip | Remove-Item -Force
     Set-Location -LiteralPath $env:SystemDrive\
     if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Move-Item -LiteralPath $setup.Directory.FullName -Destination $target
+    if ($url -and (Test-Path -LiteralPath $from)) { Remove-Item -LiteralPath $from -Recurse -Force }
     Log "SCVMM media is in $target"
 """
 
@@ -202,10 +223,10 @@ def run(job, resource=None, **kwargs):
     try:
         lab = scvmm_lab.Lab(resource)
         vmm = lab.vmm
-        media_ref = str(resource.get_value_for_custom_field("scvmm_media") or "").strip()
-        if not media_ref:
-            raise LabError("scvmm_media is empty. Pin the File Archives reference of SCVMM_2025.zip "
-                           "(for example scvmm/SCVMM_2025.zip) as the blueprint parameter's only option.")
+        media = str(resource.get_value_for_custom_field("scvmm_media") or "").strip()
+        if not media:
+            raise LabError("scvmm_media is empty. Pin Microsoft's SCVMM_2025.zip link, or a File Archives "
+                           "reference such as scvmm/SCVMM_2025.zip, as the blueprint parameter's only option.")
         state, _ = scvmm_lab.run_ps(vmm, STATE, tokens={"LABEL": scvmm_lab.STORAGE_LABEL})
         if state["RESTART_PENDING"] == "1" and state["VMM"] == "0":
             scvmm_lab.restart([vmm], "clear a pending restart before SQL Server setup")
@@ -229,8 +250,13 @@ def run(job, resource=None, **kwargs):
             scvmm_lab.run_task(vmm, INSTALL_ADK, "install the Windows ADK and WinPE add-on", tokens=dict(
                 tokens, ADK_URL=ADK_URL, WINPE_URL=WINPE_URL), timeout=3600, temp_dir=temp)
         if state["MEDIA"] == "0":
-            scvmm_lab.run_task(vmm, STAGE_MEDIA, f"download {media_ref} from File Archives", tokens=tokens,
-                               timeout=3600, temp_dir=temp, archive_refs=[f"{media_ref} extract"], job=job)
+            if media.lower().startswith("https://"):
+                scvmm_lab.run_task(vmm, STAGE_MEDIA, "download the SCVMM media from Microsoft",
+                                   tokens=dict(tokens, URL=media), timeout=3600, temp_dir=temp)
+            else:
+                scvmm_lab.run_task(vmm, STAGE_MEDIA, f"download {media} from File Archives",
+                                   tokens=dict(tokens, URL=""), timeout=3600, temp_dir=temp,
+                                   archive_refs=[f"{media} extract"], job=job)
         scvmm_lab.run_task(vmm, INSTALL_VMM, "install SCVMM", tokens=tokens, account=lab.account,
                            timeout=3600, temp_dir=temp)
     except LabError as err:

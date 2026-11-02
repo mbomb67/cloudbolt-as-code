@@ -147,7 +147,7 @@
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "File Archives reference (archive/file[@version]) of the zipped SCVMM 2025 setup folder, pinned as this parameter's only option.",
+            "description": "Where the SCVMM 2025 setup zip comes from: Microsoft's Evaluation Center link by default, or a File Archives reference (archive/file[@version]) for servers without internet access, pinned as this parameter's only option.",
             "destination": "Resource",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -156,7 +156,7 @@
             "label": "SCVMM Setup Media",
             "name": "scvmm_media",
             "options": [
-                "scvmm/SCVMM_2025.zip"
+                "https://go.microsoft.com/fwlink/?linkid=2292412"
             ],
             "placeholder": null,
             "relevant_osfamilies": [],

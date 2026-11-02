@@ -21,7 +21,7 @@ Every server joins an existing Active Directory domain. The build runs unattende
 | Shared module | SHM-dpj24dfj | `scvmm_lab`: guest scripts, scheduled-task steps, EC2 calls |
 
 Blueprint parameters, each pinned as its only option, so the order form hides them:
-- `scvmm_media`: the File Archives file holding the SCVMM media (default `scvmm/SCVMM_2025.zip`).
+- `scvmm_media`: where `SCVMM_2025.zip` comes from. The default is the Evaluation Center's link, `https://go.microsoft.com/fwlink/?linkid=2292412`, which downloads without registration. For a lab without internet access, set it to a File Archives reference instead, such as `scvmm/SCVMM_2025.zip`.
 - `scvmm_lab_storage_gb`: size of the lab volume (default 250).
 
 ## What gets built
@@ -41,10 +41,10 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
   - is a member of the local Administrators group on the lab servers, for example through a Group Policy linked to their OU;
   - has **Create Computer objects** on that OU, for the cluster's computer object.
 - **Teardown rights.** The LDAP Utility's account must be able to delete computer objects in that OU.
-- **Runbooks package.** [PKG-v20qv308](../../packages/PKG-v20qv308/) provides the File Archives tab and the `file_archives` shared module.
+- **Runbooks package.** [PKG-v20qv308](../../packages/PKG-v20qv308/) provides the `file_archives` shared module that Install SCVMM imports. File Archives itself is needed only when `scvmm_media` names a File Archives file.
 - **AWS environment.** Windows Server 2025 instances CloudBolt can run scripts on, through SSM (with an instance profile allowing `AmazonSSMManagedInstanceCore`) or through WinRM.
   - **Security group:** allow all traffic between its own members (a rule whose source is the group itself).
-  - **Internet access** from the SCVMM server, to download SQL Server and the ADK from Microsoft.
+  - **Internet access** from the SCVMM server, to download SQL Server, the ADK and the SCVMM media from Microsoft.
 - **IAM.** The AWS handler's credentials also need:
   - `ec2:ModifyInstanceCpuOptions`, `ec2:StopInstances`, `ec2:StartInstances`, `ec2:DescribeInstanceTypes`
   - `ec2:AssignPrivateIpAddresses`
@@ -52,18 +52,14 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
   - `ec2:ModifyVolume`, `ec2:DescribeVolumesModifications`
 
 ## Setup
-1. Download SCVMM 2025 from the [Evaluation Center](https://www.microsoft.com/en-us/evalcenter/download-system-center-2025). The file is `SCVMM_2025.zip`, about 1 GB.
-2. In CloudBolt, go to **Admin > Custom Extensions > Runbooks > File Archives**:
-   - **Settings:** set **Largest upload** to 1100 MB or more, and set a download base URL the lab's VPC can reach.
-   - Create archive `scvmm` and upload `SCVMM_2025.zip` unchanged.
-3. On the AWS environment's **Parameters** tab:
+1. On the AWS environment's **Parameters** tab:
    - Add instance types that support nested virtualization to **Instance type**, for example `m7i.xlarge`, `m8i.xlarge` or `r7i.xlarge`. Bare metal sizes also work. SCVMM's documented minimum is 8 cores and 16 GB of RAM; `m7i.2xlarge` meets it, and `m7i.xlarge` saves cost in a lab.
    - Add **Quantity** with minimum 1 and maximum 8. Without it the order form has no host count and an order with more than one host is refused. Adding it to the ordering group instead works too.
-4. Sync the blueprint, then open it in **Catalog**:
+2. Sync the blueprint, then open it in **Catalog**:
    - Both tiers have all environments enabled. The tier's OS build limits them to environments that offer it; re-point both tiers to your Windows Server 2025 build (`OSB-bocl2o1o` is instance-specific), or restrict their environments.
-   - If you uploaded under another name, change the `scvmm_media` option.
-5. Grant the groups that may order it.
-6. Order it with **Hyper-V Hosts** quantity 2 or more and **SCVMM Server** quantity 1.
+   - Without internet access from the lab, upload `SCVMM_2025.zip` from the [Evaluation Center](https://www.microsoft.com/en-us/evalcenter/download-system-center-2025) unchanged to File Archives (**Admin > Custom Extensions > Runbooks > File Archives**; raise **Largest upload** to 1100 MB). Then set the `scvmm_media` option to its reference.
+3. Grant the groups that may order it.
+4. Order it with **Hyper-V Hosts** quantity 2 or more and **SCVMM Server** quantity 1.
 
 ## Notes
 - **Re-running a build item.** Every step is skipped when it is already done.
