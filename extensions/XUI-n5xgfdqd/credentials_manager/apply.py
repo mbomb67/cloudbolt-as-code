@@ -51,7 +51,7 @@ def _set_credentials(obj, fields, update, legacy_usernames=(), legacy_passwords=
     if "password" in fields:
         obj.set_value_for_custom_field(PASSWORD_CF, update["password"])
         _remove(obj, legacy_passwords)
-        said.append("password changed")
+        said.append("password set")
     if "ssh_key" in fields:
         # Same as the native dialog: detach any key, attach the chosen key's
         # reference value.
@@ -60,7 +60,7 @@ def _set_credentials(obj, fields, update, legacy_usernames=(), legacy_passwords=
         said.append("SSH key set to {}".format(update["key_label"]))
     if "new_vm_password" in fields:
         obj.set_value_for_custom_field(NEW_VM_PASSWORD_CF, update["new_vm_password"])
-        said.append("new VM password changed")
+        said.append("new VM password set")
     return said
 
 
@@ -84,7 +84,9 @@ def apply_to_image(osba, fields, update, profile, job):
     """Update one image and add the event to its resource handler's history."""
     with transaction.atomic():
         said = _set_credentials(osba, fields, update)
-        build = " (OS build {})".format(osba.os_build.name) if osba.os_build else ""
-        message = "Credentials of image {}{} updated from {}: {}.".format(image_name(osba), build, SOURCE, ", ".join(said))
+        name = image_name(osba)
+        build = osba.os_build.name if osba.os_build else ""
+        build = " (OS build {})".format(build) if build and build != name else ""
+        message = "Credentials of image {}{} updated from {}: {}.".format(name, build, SOURCE, ", ".join(said))
         osba.resourcehandler.add_event("MODIFICATION", message, profile=profile, job=job)
     return message

@@ -152,7 +152,8 @@ def rows_csv(request):
     for row in rows:
         writer.writerow(
             [row["id"]] + [row[key] for key, _label in columns]
-            + [", ".join(row["changes"]) or "none", " | ".join(targets.WARNINGS[w] for w in row["warnings"])]
+            + [", ".join(targets.CHANGE_LABELS[c] for c in row["changes"]) or "Nothing",
+               " | ".join(targets.WARNINGS[w] for w in row["warnings"])]
         )
     return response
 

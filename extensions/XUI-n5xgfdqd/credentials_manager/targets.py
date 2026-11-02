@@ -17,6 +17,7 @@ import hashlib
 import json
 from collections import Counter
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.urls import reverse
 
@@ -24,6 +25,7 @@ from accounts.models import Group
 from externalcontent.models import OSBuild, OSBuildAttribute, OSFamily
 from infrastructure.models import Environment, Server
 from resourcehandlers.models import ResourceHandler
+from resourcehandlers.vmware.models import VsphereResourceHandler
 from servicecatalog.models import ServiceBlueprint
 from utilities.models import SSHKey
 
@@ -56,6 +58,11 @@ WARNINGS = {
     "key_windows": "Windows: the SSH key is not applied.",
     "not_vmware": "Not VMware: the new VM password is not applied (only the VMware handler sets it "
                   "during provisioning).",
+}
+
+# Change code -> column text in the CSV.
+CHANGE_LABELS = {
+    "username": "Username", "password": "Password", "ssh_key": "SSH key", "new_vm_password": "New VM password",
 }
 
 # Facet key -> label, per kind, in display order.
@@ -186,9 +193,17 @@ def _key_scope(key):
     return key.resource_handler_id, envs
 
 
-def _handler_types():
-    """Handler id -> type slug ("vmware", "aws", ...)."""
-    return {rh.id: rh.type_slug for rh in ResourceHandler.objects.select_related("resource_technology")}
+def _vmware_handler_ids():
+    """Ids of the handlers whose provisioning sets the new VM password: vCenter
+    and its subclasses (VMware Cloud on AWS). Read from each handler's content
+    type, because loading every handler's subclass row (type_slug casts) took
+    two seconds on a lab appliance."""
+    out = set()
+    for rh_id, type_id in ResourceHandler.objects.values_list("id", "real_type_id"):
+        model = ContentType.objects.get_for_id(type_id).model_class() if type_id else None
+        if model and issubclass(model, VsphereResourceHandler):
+            out.add(rh_id)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +356,7 @@ def images(filters, plan):
     ))
     build_envs = _build_environments({v["os_build_id"] for v in values if v["os_build_id"]})
     usernames = _cfv_strings(OSBuildAttribute, qs, (USERNAME_CF,))
-    types = _handler_types()
+    vmware = _vmware_handler_ids()
     key = plan["key"]
     key_scope = _key_scope(key) if key else None
     wanted_envs = set(filters["environments"])
@@ -368,7 +383,7 @@ def images(filters, plan):
             else:
                 changes.append("ssh_key")
         if plan["new_vm_password"]:
-            if types.get(v["resourcehandler_id"]) == "vmware":
+            if v["resourcehandler_id"] in vmware:
                 changes.append("new_vm_password")
             else:
                 warnings.append("not_vmware")
