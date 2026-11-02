@@ -79,7 +79,8 @@
     if (!xhr.status) {
       return "The upload stopped before CloudBolt answered. The network dropped, or a web server or proxy closed the connection, which some do for requests this large.";
     }
-    var http = "HTTP " + xhr.status + (xhr.statusText ? " " + xhr.statusText : "");
+    // HTTP/2 has no reason phrase, and jQuery then reports the status text as "error".
+    var http = "HTTP " + xhr.status;
     if (xhr.status === 413) {
       return "The web server refused a request this large (" + http + "). Its request size limit is below this file; the Upload limit in Settings does not raise it.";
     }
