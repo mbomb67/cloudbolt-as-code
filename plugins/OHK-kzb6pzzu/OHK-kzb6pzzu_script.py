@@ -56,13 +56,13 @@ REMOVE_CLUSTER = r"""
     $name = Decode '__CB_NAME__'
     $cluster = Lookup { Get-Cluster -ErrorAction Stop }
     if (-not $cluster) {
-        Log "$env:COMPUTERNAME is in no cluster"
+        Mark 'DESTROYED' 'none'
     } elseif ($cluster.Name -ne $name) {
         throw "$env:COMPUTERNAME is in cluster $($cluster.Name), not $name."
     } else {
         Log "Destroying cluster $name and deleting its Active Directory objects"
         Remove-Cluster -Force -CleanupAD
-        Log "Destroyed cluster $name"
+        Mark 'DESTROYED' $name
     }
 """
 
@@ -87,11 +87,13 @@ def destroy_cluster(resource, name):
         except LabError as err:
             set_progress(f"{host.hostname}: could not turn off DNS registration: {err}")
     try:
-        scvmm_lab.run_task(running[0], REMOVE_CLUSTER, f"destroy cluster {name}", tokens={"NAME": name},
-                           account=lab.account, timeout=900)
+        log = scvmm_lab.run_task(running[0], REMOVE_CLUSTER, f"destroy cluster {name}", tokens={"NAME": name},
+                                 account=lab.account, timeout=900)
     except LabError as err:
         return f"Remove-Cluster failed: {err}"
-    return f"Destroyed cluster {name} on {running[0].hostname}."
+    if scvmm_lab.markers(log).get("DESTROYED") == name:
+        return f"Destroyed cluster {name} on {running[0].hostname}."
+    return f"{running[0].hostname} is in no cluster."
 
 
 def run(job, resource=None, **kwargs):
