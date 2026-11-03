@@ -47,6 +47,7 @@ ADD_CLUSTER = r"""
     Import-Module VirtualMachineManager
     $vmm = Get-SCVMMServer -ComputerName $env:COMPUTERNAME
     $clusterName = Decode '__CB_CLUSTER__'
+    $shortName = ($clusterName -split '\.')[0]
     $runAsName = Decode '__CB_RUN_AS__'
     $runAs = Get-SCRunAsAccount -VMMServer $vmm -Name $runAsName
     if (-not $runAs) {
@@ -55,12 +56,13 @@ ADD_CLUSTER = r"""
         $runAs = New-SCRunAsAccount -VMMServer $vmm -Name $runAsName -Credential $credential -Description 'Domain service account of the CloudBolt SCVMM lab; local administrator on every Hyper-V host.'
         Log "Created Run As account $runAsName"
     }
-    $cluster = Get-SCVMHostCluster -VMMServer $vmm -Name $clusterName
+    # Get-SCVMHostCluster -Name throws for a cluster SCVMM does not manage, so list them and match the name.
+    $cluster = Get-SCVMHostCluster -VMMServer $vmm | Where-Object { $_.Name -in $clusterName, $shortName } | Select-Object -First 1
     if (-not $cluster) {
         $allHosts = Get-SCVMHostGroup -VMMServer $vmm | Where-Object { $_.Path -eq 'All Hosts' }
         Log "Adding cluster $clusterName to All Hosts"
         Add-SCVMHostCluster -VMMServer $vmm -Name $clusterName -VMHostGroup $allHosts -Credential $runAs | Out-Null
-        $cluster = Get-SCVMHostCluster -VMMServer $vmm -Name $clusterName
+        $cluster = Get-SCVMHostCluster -VMMServer $vmm | Where-Object { $_.Name -in $clusterName, $shortName } | Select-Object -First 1
     }
     if (-not $cluster) { throw "SCVMM does not list cluster $clusterName after Add-SCVMHostCluster." }
     $nodes = @($cluster.Nodes)
