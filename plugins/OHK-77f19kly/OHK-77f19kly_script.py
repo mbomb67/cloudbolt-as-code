@@ -75,11 +75,17 @@ CREATE_CLUSTER = r"""
         try {
             New-Cluster -Name $name -Node $nodes -StaticAddress $ips[0] -IgnoreNetwork $natPrefix -NoStorage | Out-Null
         } catch {
-            # New-Cluster's last step opens the new cluster by name.
-            $failure = $_
-            $cluster = Lookup { Get-Cluster -ErrorAction Stop }
-            if (-not $cluster -or $cluster.Name -ne $name) { throw $failure }
-            Log "Cluster $name is created; its name does not resolve here yet: $($failure.Exception.Message)"
+            # New-Cluster's last step opens the new cluster by name. The local cluster service can take a
+            # while longer to answer.
+            $failure = $_.Exception.Message
+            $why = ''
+            $deadline = (Get-Date).AddMinutes(10)
+            while (-not $cluster -and (Get-Date) -lt $deadline) {
+                try { $cluster = Get-Cluster -ErrorAction Stop } catch { $why = $_.Exception.Message; Start-Sleep -Seconds 15 }
+            }
+            if (-not $cluster) { throw "New-Cluster: $failure The local cluster did not answer for 10 minutes: $why" }
+            if ($cluster.Name -ne $name) { throw "New-Cluster: $failure $env:COMPUTERNAME is in cluster $($cluster.Name)." }
+            Log "Cluster $name is created; New-Cluster could not open it by name: $failure"
         }
     }
     $members = @(Get-ClusterNode | ForEach-Object { $_.Name.ToLower() })

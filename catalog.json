@@ -3548,10 +3548,11 @@
     "id": "OHK-kzb6pzzu",
     "type": "plugins",
     "name": "Remove Hyper-V Cluster Object",
-    "description": "Deletes the SCVMM lab cluster's computer object from Active Directory when the lab is deleted.",
+    "description": "Destroys the SCVMM lab's cluster and deletes its computer object from Active Directory when the lab is deleted.",
     "path": "plugins/OHK-kzb6pzzu",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-dpj24dfj",
       "shared_modules/SHM-gcba1u31"
     ],
     "used_by": [
@@ -6083,7 +6084,8 @@
       "plugins/OHK-8ioy2cbi",
       "plugins/OHK-77f19kly",
       "plugins/OHK-8f9o1496",
-      "plugins/OHK-q6fb9833"
+      "plugins/OHK-q6fb9833",
+      "plugins/OHK-kzb6pzzu"
     ]
   },
   {

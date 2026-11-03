@@ -20,5 +20,5 @@ Part of [PKG-nf407lm5](../../packages/PKG-nf407lm5/).
 ## Notes
 - Imports with `continue_on_failure: true`: an AD error shows in the job without stopping the server's deletion.
 - DNS records are found only from a computer object it deletes. A server whose object is already gone keeps its records.
-- **Untested live:** the DNS record deletion has run only against a simulated directory, not against a domain controller.
+- A server registers its name again whenever its addresses change, and it keeps working credentials until it is off. One whose addresses change while it shuts down, such as a failover cluster node whose cluster is still running, gets its record back after this action. Turn off its DNS registration or destroy the cluster first, as the SCVMM lab's teardown does.
 - CloudBolt's out-of-the-box "Delete Server from LDAP" action matches on name only. Leave it disabled when this action is enabled.

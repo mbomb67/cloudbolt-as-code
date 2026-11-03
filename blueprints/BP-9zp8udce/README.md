@@ -17,7 +17,7 @@ Every server joins an existing Active Directory domain. The build runs unattende
 | Build (Plug-in, seq 5) | OHK-8ioy2cbi | Configure Hyper-V Hosts |
 | Build (Plug-in, seq 6) | OHK-77f19kly | Create Hyper-V Cluster |
 | Build (Plug-in, seq 7) | OHK-ive3ka22 | Add Hyper-V Cluster to SCVMM |
-| Teardown | OHK-kzb6pzzu | Remove Hyper-V Cluster Object |
+| Teardown (before the servers are deleted) | OHK-kzb6pzzu | Remove Hyper-V Cluster Object: destroys the cluster with `Remove-Cluster -CleanupAD` on a running host, which deletes its computer object |
 | Shared module | SHM-dpj24dfj | `scvmm_lab`: guest scripts, scheduled-task steps, EC2 calls |
 
 Blueprint parameters, each pinned as its only option, so the order form hides them:
@@ -40,7 +40,7 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 - **Domain join content.** Install [PKG-nf407lm5](../../packages/PKG-nf407lm5/) (Join Windows Server to AD Domain), with `domain_ou` and `domain_service_account` set on the AWS environment. Every lab server must get the same `domain_service_account`. That account:
   - is a member of the local Administrators group on the lab servers, for example through a Group Policy linked to their OU;
   - has **Create Computer objects** on that OU, for the cluster's computer object.
-- **Teardown rights.** The LDAP Utility's account must be able to delete computer objects in that OU.
+- **Teardown rights.** The LDAP Utility's account must be able to delete computer objects in that OU. Windows protects the cluster's computer object from accidental deletion, so the teardown deletes it from a host, as the domain service account that created it; the LDAP Utility deletes it only when no host is running and the object is not protected.
 - **Runbooks package.** [PKG-v20qv308](../../packages/PKG-v20qv308/) provides the `file_archives` shared module that Install SCVMM imports. File Archives itself is needed only when `scvmm_media` names a File Archives file.
 - **AWS environment.** Windows Server 2025 instances CloudBolt can run scripts on, through SSM (with an instance profile allowing `AmazonSSMManagedInstanceCore`) or through WinRM.
   - **Security group:** allow all traffic between its own members (a rule whose source is the group itself).
@@ -70,13 +70,13 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 - **Scale-up is not supported.** Order a new lab for more hosts.
 - **Nested VMs** reach the network only through their host's NAT (`192.168.250.0/24`), because EC2 drops frames from unknown MAC addresses. They are not reachable from the VPC.
 - **SCVMM has no templates, logical networks or IP pools yet.** Add them in the console.
-- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item deletes the cluster's computer object. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
+- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item destroys the cluster and deletes its computer object. The cluster name's DNS record stays; the name is unique per lab. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
 
 ### Not yet run live
-Domain join through Install SCVMM has run on a live appliance. These have not:
-- **Create Hyper-V Cluster and Add Hyper-V Cluster to SCVMM.**
+Domain join through Install SCVMM, and New-Cluster itself, have run on a live appliance. These have not:
+- **The rest of Create Hyper-V Cluster and Add Hyper-V Cluster to SCVMM.**
 - **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. If the cluster name does not move with the core group, keep only the first host's address and pin the group to that host.
-- **Deleting the cluster's computer object** at teardown, for a lab whose cluster was created.
+- **The teardown's `Remove-Cluster -CleanupAD`.** Deleting the cluster's computer object over LDAP was refused, because Windows protects it.
 
 ### Caveats
 - **SQL Server media download.** The ISO URL in Install SCVMM (`SQL_ISO_URL`) is Microsoft's file, but no Microsoft page documents it, so it can move.
