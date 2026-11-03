@@ -12,7 +12,12 @@ done, so the item can be re-run.
      (scvmm_lab.check_dns): New-Cluster reaches the hosts by name.
   1. Create the cluster hvc-<resource ID> on every host with no storage and
      the first host's secondary private IP as its address, ignoring the NAT
-     network. Add any host the cluster is missing.
+     network. Add any host the cluster is missing. The cluster registers its
+     name with one domain controller, and the name resolves elsewhere only
+     after directory replication, so every step works on the local cluster
+     rather than on its name. New-Cluster's own last step opens the cluster
+     by name; when only that fails, the cluster is there and the item goes
+     on. Add Hyper-V Cluster to SCVMM waits for the name.
   2. Give the core network name one IP address resource per host, each
      host's secondary private IP, possible owner that host only, joined by
      an OR dependency. EC2 delivers an address only to the interface it is
@@ -61,48 +66,58 @@ CREATE_CLUSTER = r"""
     $natPrefix = Decode '__CB_NAT_PREFIX__'
     $natAddress = ($natPrefix -split '/')[0]
 
+    # The cmdlets below work on the local cluster, not on its name: the name resolves only once its DNS
+    # record reaches the DNS servers this host uses.
     $cluster = Lookup { Get-Cluster -ErrorAction Stop }
     if ($cluster -and $cluster.Name -ne $name) { throw "$env:COMPUTERNAME is already in cluster $($cluster.Name)." }
     if (-not $cluster) {
         Log "Creating cluster $name on $($nodes -join ', ') with address $($ips[0])"
-        New-Cluster -Name $name -Node $nodes -StaticAddress $ips[0] -IgnoreNetwork $natPrefix -NoStorage | Out-Null
+        try {
+            New-Cluster -Name $name -Node $nodes -StaticAddress $ips[0] -IgnoreNetwork $natPrefix -NoStorage | Out-Null
+        } catch {
+            # New-Cluster's last step opens the new cluster by name.
+            $failure = $_
+            $cluster = Lookup { Get-Cluster -ErrorAction Stop }
+            if (-not $cluster -or $cluster.Name -ne $name) { throw $failure }
+            Log "Cluster $name is created; its name does not resolve here yet: $($failure.Exception.Message)"
+        }
     }
-    $members = @(Get-ClusterNode -Cluster $name | ForEach-Object { $_.Name.ToLower() })
+    $members = @(Get-ClusterNode | ForEach-Object { $_.Name.ToLower() })
     foreach ($node in $nodes) {
         if ($members -notcontains $node.ToLower()) {
             Log "Adding node $node"
-            Add-ClusterNode -Cluster $name -Name $node -NoStorage | Out-Null
+            Add-ClusterNode -Name $node -NoStorage | Out-Null
         }
     }
 
-    $nat = Get-ClusterNetwork -Cluster $name | Where-Object { $_.Address -eq $natAddress }
+    $nat = Get-ClusterNetwork | Where-Object { $_.Address -eq $natAddress }
     foreach ($n in $nat) { if ($n.Role -ne 0) { $n.Role = 0; Log "Cluster network $($n.Name) ($natPrefix) set to no cluster traffic" } }
-    $network = Get-ClusterNetwork -Cluster $name | Where-Object { $_.Address -ne $natAddress -and $_.Role -ne 0 } | Select-Object -First 1
+    $network = Get-ClusterNetwork | Where-Object { $_.Address -ne $natAddress -and $_.Role -ne 0 } | Select-Object -First 1
     if (-not $network) { throw 'The cluster has no network for its IP addresses.' }
 
-    $core = Get-ClusterResource -Cluster $name | Where-Object { $_.OwnerGroup -eq 'Cluster Group' }
+    $core = Get-ClusterResource | Where-Object { $_.OwnerGroup -eq 'Cluster Group' }
     $nameResource = $core | Where-Object { $_.ResourceType -eq 'Network Name' } | Select-Object -First 1
     $ipResources = @()
     for ($i = 0; $i -lt $nodes.Count; $i++) {
         $resource = $core | Where-Object { $_.ResourceType -eq 'IP Address' } |
             Where-Object { (Get-ClusterParameter -InputObject $_ -Name Address).Value -eq $ips[$i] } | Select-Object -First 1
         if (-not $resource) {
-            $resource = Add-ClusterResource -Cluster $name -Name "Cluster IP Address $($ips[$i])" -ResourceType 'IP Address' -Group 'Cluster Group'
+            $resource = Add-ClusterResource -Name "Cluster IP Address $($ips[$i])" -ResourceType 'IP Address' -Group 'Cluster Group'
             $resource | Set-ClusterParameter -Multiple @{ Address = $ips[$i]; SubnetMask = $network.AddressMask; Network = $network.Name; EnableDhcp = 0 }
             Log "Added IP address resource $($ips[$i]) for $($nodes[$i])"
         }
-        Set-ClusterOwnerNode -Cluster $name -Resource $resource.Name -Owners $nodes[$i] | Out-Null
+        Set-ClusterOwnerNode -Resource $resource.Name -Owners $nodes[$i] | Out-Null
         $ipResources += $resource.Name
     }
     $expression = ($ipResources | ForEach-Object { "[$_]" }) -join ' or '
-    Set-ClusterResourceDependency -Cluster $name -Resource $nameResource.Name -Dependency $expression | Out-Null
-    Start-ClusterGroup -Cluster $name -Name 'Cluster Group' | Out-Null
-    $settings = Get-Cluster -Name $name
+    Set-ClusterResourceDependency -Resource $nameResource.Name -Dependency $expression | Out-Null
+    Start-ClusterGroup -Name 'Cluster Group' | Out-Null
+    $settings = Get-Cluster
     if ($settings.SameSubnetThreshold -lt 10) { $settings.SameSubnetThreshold = 10 }
 
     $witnessName = 'CBLab Witness'
     $csvName = 'CBLab CSV'
-    $diskResources = @(Get-ClusterResource -Cluster $name | Where-Object { $_.ResourceType -eq 'Physical Disk' } | ForEach-Object { $_.Name })
+    $diskResources = @(Get-ClusterResource | Where-Object { $_.ResourceType -eq 'Physical Disk' } | ForEach-Object { $_.Name })
     # The smaller iSCSI disk (1 GB) is the witness, the larger the cluster shared volume.
     $iscsi = @(Get-Disk | Where-Object { $_.BusType -eq 'iSCSI' } | Sort-Object Size)
     $plan = @(
@@ -120,19 +135,19 @@ CREATE_CLUSTER = r"""
             New-Partition -DiskNumber $disk.Number -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel $item.Label -Confirm:$false | Out-Null
             Log "Formatted iSCSI disk $($disk.Number) ($([math]::Round($disk.Size / 1GB)) GB) as $($item.Label)"
         }
-        $available = Get-ClusterAvailableDisk -Cluster $name -Disk (Get-Disk -Number $disk.Number)
+        $available = Get-ClusterAvailableDisk -Disk (Get-Disk -Number $disk.Number)
         if (-not $available) { throw "iSCSI disk $($disk.Number) cannot be added to the cluster; check every host sees it." }
         $added = $available | Add-ClusterDisk
         $added.Name = $item.Resource
         Log "Added cluster disk $($item.Resource)"
     }
-    if ((Get-ClusterQuorum -Cluster $name).QuorumResource.Name -ne $witnessName) {
-        Set-ClusterQuorum -Cluster $name -DiskWitness $witnessName | Out-Null
+    if ((Get-ClusterQuorum).QuorumResource.Name -ne $witnessName) {
+        Set-ClusterQuorum -DiskWitness $witnessName | Out-Null
     }
-    $csv = Lookup { Get-ClusterSharedVolume -Cluster $name -Name $csvName -ErrorAction Stop }
-    if (-not $csv) { $csv = Add-ClusterSharedVolume -Cluster $name -Name $csvName }
+    $csv = Lookup { Get-ClusterSharedVolume -Name $csvName -ErrorAction Stop }
+    if (-not $csv) { $csv = Add-ClusterSharedVolume -Name $csvName }
     Mark 'CSV_PATH' $csv.SharedVolumeInfo.FriendlyVolumeName
-    Mark 'OWNER' (Get-ClusterGroup -Cluster $name -Name 'Cluster Group').OwnerNode.Name
+    Mark 'OWNER' (Get-ClusterGroup -Name 'Cluster Group').OwnerNode.Name
 """
 
 

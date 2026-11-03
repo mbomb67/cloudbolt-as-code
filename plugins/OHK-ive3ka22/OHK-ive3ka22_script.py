@@ -6,6 +6,12 @@ Install SCVMM and Create Hyper-V Cluster. It runs on the SCVMM server as a
 scheduled task signed in as the domain service account (an SCVMM
 administrator, because it installed SCVMM):
 
+  0. Wait up to CLUSTER_DNS_WAIT seconds for the cluster's name to resolve,
+     from the SCVMM server, to one of the cluster's addresses. The cluster
+     registers its name with one domain controller; DNS servers that read
+     the zone from other domain controllers answer for it only after
+     directory replication, and a resolver that cached "no such name" keeps
+     answering that until the cached answer expires.
   1. Create the Run As account RUN_AS for the domain service account, unless
      it exists. SCVMM uses it to install its agent on every node; it must be
      a domain account in each node's local Administrators group.
@@ -18,6 +24,7 @@ CloudBolt renders this file as a template before running it, so it must never
 contain template tags; values reach the scripts through the __CB_*__ tokens.
 
 References:
+  Resolve-DnsName:                          https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname
   Add existing Hyper-V hosts and clusters:  https://learn.microsoft.com/en-us/system-center/vmm/hyper-v-existing?view=sc-vmm-2025
   Ports and protocols:                      https://learn.microsoft.com/en-us/system-center/vmm/plan-ports-protocols?view=sc-vmm-2025
   Get-SCVMMServer:                          https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/get-scvmmserver?view=systemcenter-ps-2025
@@ -26,12 +33,15 @@ References:
   Add-SCVMHostCluster:                      https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/add-scvmhostcluster?view=systemcenter-ps-2025
   Get-SCVMHostCluster:                      https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/get-scvmhostcluster?view=systemcenter-ps-2025
 """
+import time
+
 from common.methods import set_progress
 
 from shared_modules import scvmm_lab
 from shared_modules.scvmm_lab import LabError
 
 RUN_AS = "CloudBolt SCVMM Lab Hosts"
+CLUSTER_DNS_WAIT = 3600
 
 ADD_CLUSTER = r"""
     Import-Module VirtualMachineManager
@@ -60,10 +70,37 @@ ADD_CLUSTER = r"""
 """
 
 
+def wait_for_cluster_name(lab):
+    """Wait until the cluster's name resolves from the SCVMM server to one of its addresses."""
+    addresses = {scvmm_lab.cluster_ip(scvmm_lab.ec2_client(host), host) for host in lab.hosts} - {None}
+    started = time.time()
+    deadline = started + CLUSTER_DNS_WAIT
+    next_report = started
+    while True:
+        found, _ = scvmm_lab.run_ps(lab.vmm, scvmm_lab.DNS_RESOLVE, tokens={"NAMES": lab.cluster_fqdn})
+        answer = set(found.get("DNS_0", "").split())
+        if answer & addresses:
+            set_progress(f"DNS: {lab.cluster_fqdn} is {', '.join(sorted(answer))}")
+            return
+        if time.time() + scvmm_lab.POLL_INTERVAL > deadline:
+            break
+        if time.time() >= next_report:
+            set_progress(f"DNS: waiting for {lab.cluster_fqdn} to resolve from {lab.vmm.hostname} "
+                         f"({int(time.time() - started) // 60} of {CLUSTER_DNS_WAIT // 60} minutes)")
+            next_report += 600
+        time.sleep(scvmm_lab.POLL_INTERVAL)
+    raise LabError(
+        f"{lab.cluster_fqdn} still resolves to {', '.join(sorted(answer)) or 'nothing'} from {lab.vmm.hostname} "
+        f"after {CLUSTER_DNS_WAIT // 60} minutes, not to the cluster's {', '.join(sorted(addresses))}. The cluster "
+        "registers its name with one domain controller; the other DNS servers answer for it after directory "
+        "replication. Run this build item again once the name resolves.")
+
+
 def run(job, resource=None, **kwargs):
     resource = resource or job.resource_set.first()
     try:
         lab = scvmm_lab.Lab(resource)
+        wait_for_cluster_name(lab)
         log = scvmm_lab.run_task(lab.vmm, ADD_CLUSTER, f"add cluster {lab.cluster_fqdn} to SCVMM", tokens={
             "CLUSTER": lab.cluster_fqdn, "RUN_AS": RUN_AS, "USER": lab.username, "PASSWORD": lab.password,
         }, account=lab.account, hidden=[lab.password], timeout=2700)
