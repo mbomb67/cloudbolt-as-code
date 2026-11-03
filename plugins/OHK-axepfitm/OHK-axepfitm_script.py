@@ -21,7 +21,8 @@ POST {"action": "release", "reservation_id": <RSC- id>}
   or {"action": "release", "pool": <id or name>, "ip": <address>}
     Frees the IP and marks the reservation Historical. Releases only IPs this
     webhook reserved, never one a server or another resource holds. Releasing
-    an already released reservation answers 200 again.
+    an already released reservation_id answers 200 again; an IP that is
+    already free answers 404.
 GET ?pool=<id or name>
     {"pool": {"id", "name"}, "total", "free", "in_use", "reserved"}; reserved
     is the part of in_use held by IP reservations.

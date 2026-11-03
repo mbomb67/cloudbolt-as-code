@@ -31,7 +31,7 @@ curl -sS -X POST "https://<appliance>/api/v3/cmp/inboundWebHooks/ip-reservations
 | Call | Body or query | Answer |
 |---|---|---|
 | Reserve | `POST {"action": "reserve", "pool", "group", "reference", "hostname", "description"}` | 201 and the reservation; 200 and the existing reservation when `reference` is already active in the pool |
-| Release | `POST {"action": "release", "reservation_id"}` or `{"action": "release", "pool", "ip"}` | 200 and the reservation, `status` `released` |
+| Release | `POST {"action": "release", "reservation_id"}` or `{"action": "release", "pool", "ip"}` | 200 and the reservation, `status` `released`; 200 again for a released `reservation_id`, 404 for an IP that is already free |
 | Pool status | `GET ?pool=<pool>` | `{"pool", "total", "free", "in_use", "reserved"}` |
 | Look up | `GET ?reservation_id=<RSC-id>` or `GET ?pool=<pool>&reference=<key>` | The reservation |
 
