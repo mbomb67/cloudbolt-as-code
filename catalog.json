@@ -318,6 +318,19 @@
     ]
   },
   {
+    "id": "BP-j25t4xpv",
+    "type": "blueprints",
+    "name": "IP Reservation",
+    "description": "Holds the IP addresses the IP Reservations webhook reserves from CloudBolt IP pools for external systems, one resource per reserved IP.",
+    "path": "blueprints/BP-j25t4xpv",
+    "readme": "blueprints/BP-j25t4xpv/README.md",
+    "uses": [],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-g151nn7r"
+    ]
+  },
+  {
     "id": "BP-jvvjm3te",
     "type": "blueprints",
     "name": "Run an Azure PowerShell Script",
@@ -1648,6 +1661,21 @@
     ]
   },
   {
+    "id": "PKG-g151nn7r",
+    "type": "packages",
+    "name": "IP Reservations",
+    "description": "Lets external systems reserve and release IP addresses from CloudBolt IP pools through an inbound webhook, tracking each reservation as a resource.",
+    "path": "packages/PKG-g151nn7r",
+    "readme": "packages/PKG-g151nn7r/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "webhooks/IWH-x82773zb",
+      "blueprints/BP-j25t4xpv"
+    ]
+  },
+  {
     "id": "PKG-gqw2jqgj",
     "type": "packages",
     "name": "Azure Network Security Groups",
@@ -2747,6 +2775,19 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-axepfitm",
+    "type": "plugins",
+    "name": "IP Reservations",
+    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Reservation resource, releases it, and reports a pool's free count.",
+    "path": "plugins/OHK-axepfitm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "webhooks/IWH-x82773zb"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -6300,6 +6341,22 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "IWH-x82773zb",
+    "type": "webhooks",
+    "name": "IP Reservations",
+    "description": "Endpoint external systems call to reserve the next free IP in a CloudBolt IP pool, release it, and check a pool's free count.",
+    "path": "webhooks/IWH-x82773zb",
+    "readme": "webhooks/IWH-x82773zb/README.md",
+    "uses": [
+      "plugins/OHK-axepfitm"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-g151nn7r"
+    ]
   },
   {
     "id": "IWH-xjlrmvc8",

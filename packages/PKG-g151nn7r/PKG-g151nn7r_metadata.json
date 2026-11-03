@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "webhooks/IWH-x82773zb",
+        "blueprints/BP-j25t4xpv"
+    ],
+    "description": "Lets external systems reserve and release IP addresses from CloudBolt IP pools through an inbound webhook, tracking each reservation as a resource.",
+    "id": "PKG-g151nn7r",
+    "last_updated": "2026-11-03",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "IP Reservations",
+    "version": "1.0.0"
+}

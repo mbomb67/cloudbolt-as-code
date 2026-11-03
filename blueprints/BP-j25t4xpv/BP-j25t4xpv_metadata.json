@@ -1,0 +1,30 @@
+{
+    "any_group_can_deploy": false,
+    "auto_historical_resources": false,
+    "deployment_items": [],
+    "deployment_permissions": [],
+    "description": "Holds the IP addresses the IP Reservations webhook reserves from CloudBolt IP pools for external systems, one resource per reserved IP.",
+    "favorited": false,
+    "icon": "",
+    "id": "BP-j25t4xpv",
+    "is_orderable": false,
+    "labels": [],
+    "last_updated": "2026-11-03",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "IP Reservation",
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-network-wired",
+        "id": "RT-2vi40den",
+        "internal_only": false,
+        "label": "IP Reservation",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "ip_reservation",
+        "plural_label": "IP Reservations"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": []
+}
