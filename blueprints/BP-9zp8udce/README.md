@@ -73,8 +73,9 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 - **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item destroys the cluster and deletes its computer object. The cluster name's DNS record stays; the name is unique per lab. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
 
 ### Not yet run live
-Everything through Create Hyper-V Cluster, and the teardown, have run on a live appliance. These have not:
-- **Add Hyper-V Cluster to SCVMM**, and New-Cluster carrying on after it cannot open the new cluster by name.
+Every build item and the teardown have run on a live appliance, and a lab finished with SCVMM managing the cluster. Its last items ran after fixes, resumed from where the deployment paused. These have not run in one uninterrupted build:
+- **New-Cluster on a fresh lab with the fixed script**, including going on when it cannot open the new cluster by name.
+- **Creating the Run As account as DOMAIN\user, and the warning when SCVMM's add job fails but every node responds.**
 - **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. Failing the core group over to another host is untested. If the cluster name does not come online there, keep only the first host's address and pin the group to that host.
 
 ### Caveats
