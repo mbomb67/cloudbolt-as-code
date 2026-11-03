@@ -19,6 +19,28 @@
             "show-on-servers": false,
             "type": "STR",
             "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "rerun (default) reruns a finished job; resume resumes a PAUSED job, like the Resume button on its job page.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [
+                "rerun",
+                "resume"
+            ],
+            "hide-if-default-value": true,
+            "id": "CF-1o6nh74c",
+            "label": "Mode (default rerun)",
+            "name": "rerun_job_mode",
+            "placeholder": "rerun",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
         }
     ],
     "dependencies": {
@@ -33,7 +55,7 @@
     "mcp_idempotent_hint": false,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Rerun a finished CloudBolt job, exactly like the Rerun button on its job page (the v3 jobs clone endpoint): the new job reuses the old job's parameters, resource, servers and arguments and runs the current plug-in code. Give the job's global id (JOB-...) or numeric id. Use it to rerun a failed blueprint build item (a plug-in job) on the existing resource after syncing a fix, instead of tearing down and ordering again. It refuses a job that is still active, one already rerun (it names the latest rerun), and any job CloudBolt's own rerun rule refuses: non-admins can rerun only failed jobs; admins can also rerun successful plug-in, provision, blueprint and decommission jobs. Returns newJobId to poll with fetch_job_log. The caller needs CloudBolt's job.rerun permission on the job (admins and the job's owner have it).",
+    "mcp_tool_description": "Rerun a finished CloudBolt job, or resume a paused one, exactly like the Rerun and Resume buttons on its job page. Give the job's global id (JOB-...) or numeric id, and rerun_job_mode: rerun (the default) or resume. rerun (the v3 jobs clone endpoint): the new job reuses the old job's parameters, resource, servers and arguments and runs the current plug-in code. Use it to rerun a failed blueprint build item (a plug-in job) on the existing resource after syncing a fix, instead of tearing down and ordering again. It refuses a job that is still active or paused, one already rerun (it names the latest rerun), and any job CloudBolt's own rerun rule refuses: non-admins can rerun only failed jobs; admins can also rerun successful plug-in, provision, blueprint and decommission jobs. Returns newJobId to poll with fetch_job_log. The caller needs CloudBolt's job.rerun permission on the job (admins and the job's owner have it). resume (the v3 jobs resume endpoint, CloudBolt admins only): sets a PAUSED job back to RUNNING. A blueprint deployment pauses on a failed build item when the blueprint has Pause Job on Failure and Misc Settings allows resuming failed blueprint jobs; resumed, it reruns the failed item with the current plug-in code and carries on with the next build items, so give it the paused deploy_blueprint job, not the failed item. It refuses a job that is not PAUSED (naming a paused parent if there is one) and a deployment whose failed item is still being rerun. Returns jobId and jobStatus; poll jobId with fetch_job_log.",
     "mcp_tool_name": "rerun_job",
     "mcp_tool_title": ""
 }
