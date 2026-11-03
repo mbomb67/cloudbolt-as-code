@@ -12,9 +12,11 @@ administrator, because it installed SCVMM):
      the zone from other domain controllers answer for it only after
      directory replication, and a resolver that cached "no such name" keeps
      answering that until the cached answer expires.
-  1. Create the Run As account RUN_AS for the domain service account, unless
-     it exists. SCVMM uses it to install its agent on every node; it must be
-     a domain account in each node's local Administrators group.
+  1. Create the Run As account RUN_AS for the domain service account, in
+     DOMAIN\\user form, or correct it when it exists with another user name.
+     SCVMM uses it to install its agent on every node; it must be a domain
+     account in each node's local Administrators group. Given a user@domain
+     name, SCVMM signs in to the nodes with it as a local account.
   2. Add the cluster to the All Hosts group with Add-SCVMHostCluster, unless
      SCVMM already manages it, and report each node's state.
 
@@ -29,6 +31,7 @@ References:
   Ports and protocols:                      https://learn.microsoft.com/en-us/system-center/vmm/plan-ports-protocols?view=sc-vmm-2025
   Get-SCVMMServer:                          https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/get-scvmmserver?view=systemcenter-ps-2025
   New-SCRunAsAccount:                       https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/new-scrunasaccount?view=systemcenter-ps-2025
+  Set-SCRunAsAccount:                       https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/set-scrunasaccount?view=systemcenter-ps-2025
   Get-SCVMHostGroup:                        https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/get-scvmhostgroup?view=systemcenter-ps-2025
   Add-SCVMHostCluster:                      https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/add-scvmhostcluster?view=systemcenter-ps-2025
   Get-SCVMHostCluster:                      https://learn.microsoft.com/en-us/powershell/module/virtualmachinemanager/get-scvmhostcluster?view=systemcenter-ps-2025
@@ -49,12 +52,19 @@ ADD_CLUSTER = r"""
     $clusterName = Decode '__CB_CLUSTER__'
     $shortName = ($clusterName -split '\.')[0]
     $runAsName = Decode '__CB_RUN_AS__'
+    # SCVMM signs in with a user@domain name as a local account of that name (event 4625, domain localhost),
+    # so the Run As account gets DOMAIN\user, resolved through the account's SID.
+    $sid = (New-Object Security.Principal.NTAccount (Decode '__CB_USER__')).Translate([Security.Principal.SecurityIdentifier])
+    $user = $sid.Translate([Security.Principal.NTAccount]).Value
+    $secret = ConvertTo-SecureString -String (Decode '__CB_PASSWORD__') -AsPlainText -Force
+    $credential = New-Object System.Management.Automation.PSCredential -ArgumentList $user, $secret
     $runAs = Get-SCRunAsAccount -VMMServer $vmm -Name $runAsName
     if (-not $runAs) {
-        $secret = ConvertTo-SecureString -String (Decode '__CB_PASSWORD__') -AsPlainText -Force
-        $credential = New-Object System.Management.Automation.PSCredential -ArgumentList (Decode '__CB_USER__'), $secret
         $runAs = New-SCRunAsAccount -VMMServer $vmm -Name $runAsName -Credential $credential -Description 'Domain service account of the CloudBolt SCVMM lab; local administrator on every Hyper-V host.'
-        Log "Created Run As account $runAsName"
+        Log "Created Run As account $runAsName for $user"
+    } elseif ("$($runAs.Domain)\$($runAs.UserName)" -ne $user) {
+        $runAs = Set-SCRunAsAccount -RunAsAccount $runAs -Credential $credential
+        Log "Run As account $runAsName now signs in as $user"
     }
     # Get-SCVMHostCluster -Name throws for a cluster SCVMM does not manage, so list them and match the name.
     $cluster = Get-SCVMHostCluster -VMMServer $vmm | Where-Object { $_.Name -in $clusterName, $shortName } | Select-Object -First 1
