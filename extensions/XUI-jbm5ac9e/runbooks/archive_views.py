@@ -277,6 +277,8 @@ ARCHIVE_CONTENT_TYPES = [
     "text/csv",
 ]
 
+UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024
+
 
 class _SizeLimit(FileUploadHandler):
     """Skips a file as soon as it passes the File Archives upload limit, before it is written."""
@@ -323,6 +325,13 @@ def _upload_handlers(request, limit_mb):
     for path in settings.FILE_UPLOAD_HANDLERS:
         if path != "utilities.upload_handlers.custom_upload_handler":
             handlers.append(load_handler(path, request))
+    # Django reads the upload in the smallest chunk_size of its handlers, 64 KB
+    # by default, and CloudBolt's handler sends each chunk to ClamAV as its own
+    # scan: 16,000 scans for a 1 GB file. Bigger chunks scan the same bytes in
+    # far fewer calls. 8 MB stays well under clamd's StreamMaxLength, 100M by
+    # default (https://github.com/Cisco-Talos/clamav/blob/main/etc/clamd.conf.sample).
+    for handler in handlers:
+        handler.chunk_size = UPLOAD_CHUNK_SIZE
     return handlers
 
 
@@ -382,6 +391,7 @@ def _upload(request, archive, name=None):
         "archive": archive,
         "name": name,
         "note": note,
+        "max_upload_mb": fa.get_settings()["max_upload_mb"],
         "error": error,
     }
 
