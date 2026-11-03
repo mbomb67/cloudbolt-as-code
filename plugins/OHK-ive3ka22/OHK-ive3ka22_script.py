@@ -18,7 +18,11 @@ administrator, because it installed SCVMM):
      account in each node's local Administrators group. Given a user@domain
      name, SCVMM signs in to the nodes with it as a local account.
   2. Add the cluster to the All Hosts group with Add-SCVMHostCluster, unless
-     SCVMM already manages it, and report each node's state.
+     SCVMM already manages it, and report each node's state. When the add
+     job fails but SCVMM lists the cluster with every node responding, the
+     item ends with WARNING and SCVMM's message: on the test lab, the agent
+     installed and only the copy of the DHCP server extension to the hosts
+     failed (HTTP 500 from SCVMM's BITS endpoint).
 
 Re-running it after a success changes nothing.
 
@@ -68,16 +72,26 @@ ADD_CLUSTER = r"""
     }
     # Get-SCVMHostCluster -Name throws for a cluster SCVMM does not manage, so list them and match the name.
     $cluster = Get-SCVMHostCluster -VMMServer $vmm | Where-Object { $_.Name -in $clusterName, $shortName } | Select-Object -First 1
+    $addError = ''
     if (-not $cluster) {
         $allHosts = Get-SCVMHostGroup -VMMServer $vmm | Where-Object { $_.Path -eq 'All Hosts' }
         Log "Adding cluster $clusterName to All Hosts"
-        Add-SCVMHostCluster -VMMServer $vmm -Name $clusterName -VMHostGroup $allHosts -Credential $runAs | Out-Null
+        # The add job can fail after the agent is installed and the nodes are managed, for instance when the
+        # DHCP server extension cannot be copied to the hosts; the node states below decide.
+        try { Add-SCVMHostCluster -VMMServer $vmm -Name $clusterName -VMHostGroup $allHosts -Credential $runAs | Out-Null }
+        catch { $addError = $_.Exception.Message }
         $cluster = Get-SCVMHostCluster -VMMServer $vmm | Where-Object { $_.Name -in $clusterName, $shortName } | Select-Object -First 1
     }
-    if (-not $cluster) { throw "SCVMM does not list cluster $clusterName after Add-SCVMHostCluster." }
+    if (-not $cluster) { throw "SCVMM does not list cluster $clusterName after Add-SCVMHostCluster. $addError" }
     $nodes = @($cluster.Nodes)
     foreach ($node in $nodes) { Log "$($node.Name): $($node.OverallState), $($node.CommunicationState)" }
+    $responding = @($nodes | Where-Object { "$($_.CommunicationState)" -eq 'Responding' })
+    if ($addError) {
+        if ($responding.Count -lt $nodes.Count) { throw "Add-SCVMHostCluster: $addError" }
+        Mark 'ADD_WARNING' $addError
+    }
     Mark 'NODES' $nodes.Count
+    Mark 'RESPONDING' $responding.Count
     Mark 'SHARED_VOLUMES' ((@($cluster.SharedVolumes) | ForEach-Object { $_.Name }) -join ' ')
 """
 
@@ -124,5 +138,9 @@ def run(job, resource=None, **kwargs):
                      f"shared volumes: {found.get('SHARED_VOLUMES') or 'none reported'}")
     except LabError as err:
         return "FAILURE", "", str(err)
-    return "SUCCESS", (f"SCVMM on {lab.fqdn(lab.vmm)} manages cluster {lab.cluster_fqdn} with {nodes} Hyper-V "
-                       f"hosts, using Run As account '{RUN_AS}'."), ""
+    output = (f"SCVMM on {lab.fqdn(lab.vmm)} manages cluster {lab.cluster_fqdn} with {nodes} Hyper-V hosts, "
+              f"using Run As account '{RUN_AS}'.")
+    if found.get("ADD_WARNING"):
+        return "WARNING", output, (f"Every node is managed and responding, but SCVMM reported an error while adding "
+                                   f"the cluster: {found['ADD_WARNING']}")
+    return "SUCCESS", output, ""

@@ -78,6 +78,7 @@ Everything through Create Hyper-V Cluster, and the teardown, have run on a live 
 - **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. Failing the core group over to another host is untested. If the cluster name does not come online there, keep only the first host's address and pin the group to that host.
 
 ### Caveats
+- **SCVMM's DHCP server extension.** On the test lab, SCVMM installed its agent on both hosts, but its BITS endpoint answered HTTP 500 when copying the DHCP server extension (`DHCPExtn.msi`) to them, so the add job failed. Add Hyper-V Cluster to SCVMM then ends with a warning that quotes SCVMM's message. The cluster and its nodes are managed. The extension is needed only for SCVMM-managed DHCP on virtual networks.
 - **SQL Server media download.** The ISO URL in Install SCVMM (`SQL_ISO_URL`) is Microsoft's file, but no Microsoft page documents it, so it can move.
 - **SQL Server edition.** SCVMM 2025 lists Standard, Enterprise and Datacenter. Developer is the Enterprise engine, for test use only.
 - **SCSI-3 persistent reservations** on the iSCSI target are not validated: `Test-Cluster` is not run. Run cluster validation in Failover Cluster Manager for a supported configuration.
