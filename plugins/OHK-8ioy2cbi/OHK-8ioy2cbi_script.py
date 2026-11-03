@@ -37,6 +37,7 @@ References:
   Hyper-V on Windows Server:           https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/get-started/install-hyper-v
   New-VMSwitch:                        https://learn.microsoft.com/en-us/powershell/module/hyper-v/new-vmswitch
   New-NetNat:                          https://learn.microsoft.com/en-us/powershell/module/netnat/new-netnat
+  Set-DnsClient:                       https://learn.microsoft.com/en-us/powershell/module/dnsclient/set-dnsclient
   New-IscsiServerTarget:               https://learn.microsoft.com/en-us/powershell/module/iscsitarget/new-iscsiservertarget
   New-IscsiVirtualDisk:                https://learn.microsoft.com/en-us/powershell/module/iscsitarget/new-iscsivirtualdisk
   Add-IscsiVirtualDiskTargetMapping:   https://learn.microsoft.com/en-us/powershell/module/iscsitarget/add-iscsivirtualdisktargetmapping
@@ -84,6 +85,8 @@ HOST_SETUP = r"""
         Log "Created internal switch $switch"
     }
     $alias = "vEthernet ($switch)"
+    # Every host has the same NAT gateway address; registered in DNS, it would answer for every host's name.
+    Set-DnsClient -InterfaceAlias $alias -RegisterThisConnectionsAddress $false
     if (-not (Get-NetIPAddress -InterfaceAlias $alias -IPAddress $gateway -ErrorAction SilentlyContinue)) {
         New-NetIPAddress -InterfaceAlias $alias -IPAddress $gateway -PrefixLength ([int]($prefix -split '/')[1]) | Out-Null
     }

@@ -8,6 +8,8 @@ hosts' OU, so it needs Create Computer objects there, and it must be in each
 host's local Administrators group. Each step is skipped when it is already
 done, so the item can be re-run.
 
+  0. Check that each lab server's name resolves to its own address
+     (scvmm_lab.check_dns): New-Cluster reaches the hosts by name.
   1. Create the cluster hvc-<resource ID> on every host with no storage and
      the first host's secondary private IP as its address, ignoring the NAT
      network. Add any host the cluster is missing.
@@ -145,6 +147,7 @@ def run(job, resource=None, **kwargs):
                 raise LabError(f"{host.hostname} has no secondary private IP; run Prepare SCVMM Lab on AWS again.")
             nodes.append(scvmm_lab.computer_name(host))
             ips.append(ip)
+        scvmm_lab.check_dns(lab)
         log = scvmm_lab.run_task(lab.hosts[0], CREATE_CLUSTER, f"create cluster {lab.cluster_name}", tokens={
             "NAME": lab.cluster_name, "NODES": ",".join(nodes), "IPS": ",".join(ips), "NAT_PREFIX": NAT_PREFIX,
         }, account=lab.account, timeout=2700)

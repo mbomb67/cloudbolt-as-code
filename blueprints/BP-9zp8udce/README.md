@@ -31,7 +31,7 @@ Blueprint parameters, each pinned as its only option, so the order form hides th
 | Cluster addresses | Each host gets one secondary private IP. The cluster has one IP address resource per host, each owned only by its host, joined by an OR dependency. The cluster name is `hvc-<resource ID>`. |
 | Shared storage | The SCVMM server gets a gp3 volume (labeled `CBLab`, deleted with the server) and runs the iSCSI Target Server role. The volume holds a 1 GB disk witness and a cluster shared volume of the volume size minus 40 GB, both dynamically expanding. |
 | SCVMM server | Root volume grown to 80 GB. SQL Server 2022 Developer (default instance), Windows ADK Deployment Tools + WinPE, and SCVMM 2025 evaluation. The VMM service runs as Local System; the library share is on the lab volume. |
-| Hosts | Hyper-V and Failover Clustering are installed. An internal switch `CBLab-NAT` with NAT `192.168.250.0/24` (gateway `.1`) is created on every host. |
+| Hosts | Hyper-V and Failover Clustering are installed. An internal switch `CBLab-NAT` with NAT `192.168.250.0/24` (gateway `.1`) is created on every host; its address is not registered in DNS. |
 | SCVMM | Run As account `CloudBolt SCVMM Lab Hosts` for the domain service account; the cluster is added under All Hosts. |
 
 Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster_ips`, `scvmm_lab_vmm_server`.
@@ -63,18 +63,21 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 
 ## Notes
 - **Re-running a build item.** Every step is skipped when it is already done.
+- **DNS names.** Prepare and Create Hyper-V Cluster check that every lab server's name resolves to its own address, because the cluster and SCVMM reach the servers by name. The usual cause of a failure is a record left by an earlier server with the same name. The zone lets only a record's owner update it, so the new server cannot replace it. Delete the record named in the error, then re-run the item. HPA-q181uofy deletes the records of the servers it deletes.
 - **Slow steps** run as scheduled tasks under `\CloudBolt\` and are polled every 30 seconds. Steps that reach AD or other servers sign in as the domain service account, so there is no double hop. Their logs are in the job's progress.
 - **The service account's password** goes to the guest inside the script body, base64 encoded for quoting only. On AWS that body stays in Systems Manager's command history.
 - **Scale-up is not supported.** Order a new lab for more hosts.
 - **Nested VMs** reach the network only through their host's NAT (`192.168.250.0/24`), because EC2 drops frames from unknown MAC addresses. They are not reachable from the VPC.
 - **SCVMM has no templates, logical networks or IP pools yet.** Add them in the console.
-- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item deletes the cluster's computer object. The servers' own computer objects are deleted only by HPA-q181uofy, when it is installed.
+- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item deletes the cluster's computer object. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
 
-### Untested
-None of this has run on a live appliance yet:
+### Not yet run live
+Domain join through Install SCVMM has run on a live appliance. These have not:
+- **Create Hyper-V Cluster and Add Hyper-V Cluster to SCVMM.**
 - **Cluster address in one subnet.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. If the cluster name does not move with the core group, keep only the first host's address and pin the group to that host.
-- **Nested virtualization request without CPU counts.** The plug-in sends `NestedVirtualization` without `CoreCount`/`ThreadsPerCore` (all optional in the API) and retries with them on `MissingParameter`. A dry run from the appliance succeeded with the counts.
+- **Deleting the cluster's computer object** at teardown, for a lab whose cluster was created.
+
+### Caveats
 - **SQL Server media download.** The ISO URL in Install SCVMM (`SQL_ISO_URL`) is Microsoft's file, but no Microsoft page documents it, so it can move.
 - **SQL Server edition.** SCVMM 2025 lists Standard, Enterprise and Datacenter. Developer is the Enterprise engine, for test use only.
-- **SCVMM settings.** `SqlInstanceName=MSSQLSERVER` for the default instance, and no DKM settings with a Local System service.
 - **SCSI-3 persistent reservations** on the iSCSI target are not validated: `Test-Cluster` is not run. Run cluster validation in Failover Cluster Manager for a supported configuration.

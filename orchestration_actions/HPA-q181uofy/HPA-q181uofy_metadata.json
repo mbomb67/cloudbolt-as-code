@@ -4,7 +4,7 @@
     "dependencies": {
         "hook": "plugins/OHK-bkoau0j8"
     },
-    "description": "Deletes the Active Directory computer object of each Windows server being deleted at Pre-Delete.",
+    "description": "Deletes the Active Directory computer object and the DNS records of each Windows server being deleted at Pre-Delete.",
     "enabled": true,
     "hook_point": "Pre-Delete",
     "id": "HPA-q181uofy",

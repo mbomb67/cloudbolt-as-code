@@ -7,7 +7,10 @@ item can be re-run.
 
   1. Check that every lab server is in the domain under its CloudBolt
      hostname (Join Windows Server to AD Domain, HPA-jjp1vlfi, joins them at
-     Post-Provision) and record the domain on the resource.
+     Post-Provision) and record the domain on the resource. Check that each
+     server's name resolves to its own address (scvmm_lab.check_dns), so a
+     stale DNS record fails the build here rather than at Create Hyper-V
+     Cluster.
   2. Per Hyper-V host: check the instance type, stop the instance, turn on
      nested virtualization and start it again (nothing on .metal sizes), and
      assign one secondary private IP to its primary interface for the
@@ -118,6 +121,7 @@ def run(job, resource=None, **kwargs):
         domain = _check_domains(lab)
         resource.set_value_for_custom_field("scvmm_lab_domain", domain)
         set_progress(f"All {len(lab.servers)} lab servers are in {domain}")
+        scvmm_lab.check_dns(lab)
 
         host_ips, cluster_ips = [], []
         for host in lab.hosts:

@@ -20,6 +20,8 @@ joins to an existing domain. Its build plug-ins then call this module for:
     or to other servers signs in with the account's own password, so there
     is no second hop to lose its credentials on;
   - restarts (restart, wait_for_restart);
+  - checking that every lab server's name resolves to its own address
+    (check_dns), before the steps that reach the servers by name;
   - EC2 calls through the handler's boto3 client: nested virtualization,
     the hosts' cluster IP addresses and the storage volume.
 
@@ -36,6 +38,9 @@ References:
   Server.execute_script, AWS SSM:  typings/infrastructure/models.pyi, resourcehandlers/aws run_script_on_guest
   Register-ScheduledTask:          https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/register-scheduledtask
   New-ScheduledTaskPrincipal:      https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtaskprincipal
+  Resolve-DnsName:                 https://learn.microsoft.com/en-us/powershell/module/dnsclient/resolve-dnsname
+  Register-DnsClient:              https://learn.microsoft.com/en-us/powershell/module/dnsclient/register-dnsclient
+  Clear-DnsClientCache:            https://learn.microsoft.com/en-us/powershell/module/dnsclient/clear-dnsclientcache
   Nested virtualization:           https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-nested-virtualization.html
   ModifyInstanceCpuOptions:        https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ModifyInstanceCpuOptions.html
   AssignPrivateIpAddresses:        https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_AssignPrivateIpAddresses.html
@@ -231,6 +236,22 @@ if ($LASTEXITCODE) { throw "shutdown.exe could not schedule the restart (exit $L
 BOOT = r"""
 Mark 'BOOT' ((Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks)
 """
+
+DNS_RESOLVE = r"""
+    $names = @((Decode '__CB_NAMES__') -split ',')
+    Clear-DnsClientCache
+    for ($i = 0; $i -lt $names.Count; $i++) {
+        $found = @(Lookup { Resolve-DnsName -Name $names[$i] -Type A -DnsOnly -NoHostsFile -ErrorAction Stop } |
+            Where-Object { $_.Type -eq 'A' } | ForEach-Object { $_.IPAddress })
+        Mark "DNS_$i" ($found -join ' ')
+    }
+"""
+
+DNS_REGISTER = r"""
+    Register-DnsClient
+"""
+
+DNS_WAIT = 180
 
 
 class LabError(Exception):
@@ -566,6 +587,49 @@ def wait_for_restart(server, boot_ticks):
         if time.time() + POLL_INTERVAL > deadline:
             raise LabError(f"{server.hostname} did not come back within {RESTART_WAIT // 60} minutes of its restart.")
         time.sleep(POLL_INTERVAL)
+
+
+def check_dns(lab, wait=DNS_WAIT):
+    """
+    Check, from the first host, that every lab server's name resolves to its
+    primary private IP and to no address outside its own instance: the cluster
+    and SCVMM reach the servers by name. A server whose name resolves
+    elsewhere, or not at all, is asked to register again (Register-DnsClient)
+    and checked until wait seconds pass. Raises LabError naming each wrong name.
+    """
+    servers = lab.servers
+    names = [lab.fqdn(server) for server in servers]
+    expected = []
+    for server in servers:
+        instance = describe_instance(ec2_client(server), server)
+        own = {address["PrivateIpAddress"] for interface in instance.get("NetworkInterfaces", [])
+               for address in interface.get("PrivateIpAddresses", [])}
+        expected.append((instance["PrivateIpAddress"], own))
+    deadline = time.time() + wait
+    asked = set()
+    while True:
+        found, _ = run_ps(lab.hosts[0], DNS_RESOLVE, tokens={"NAMES": ",".join(names)})
+        answers = [set(found.get(f"DNS_{i}", "").split()) for i in range(len(servers))]
+        wrong = [i for i, answer in enumerate(answers) if expected[i][0] not in answer or not answer <= expected[i][1]]
+        if not wrong:
+            set_progress("DNS: " + ", ".join(f"{name} is {ip}" for name, (ip, _) in zip(names, expected)))
+            return
+        if time.time() + POLL_INTERVAL > deadline:
+            break
+        for i in wrong:
+            if i not in asked:
+                asked.add(i)
+                run_ps(servers[i], DNS_REGISTER)
+                set_progress(f"DNS: {names[i]} resolves to {', '.join(sorted(answers[i])) or 'nothing'}, not "
+                             f"{expected[i][0]}; asked {servers[i].hostname} to register its name again")
+        time.sleep(POLL_INTERVAL)
+    problems = [f"{names[i]} resolves to {', '.join(sorted(answers[i])) or 'nothing'}, not {expected[i][0]}"
+                for i in wrong]
+    raise LabError(
+        "; ".join(problems) + ". The cluster and SCVMM reach the lab servers by name. The usual cause is a DNS "
+        "record an earlier server with the same name left behind: the zone lets only a record's owner update "
+        f"it, so the new server cannot replace it. Delete those records in the {lab.domain} zone, then run this "
+        "build item again.")
 
 
 # ------------------------------------------------------------------- EC2
