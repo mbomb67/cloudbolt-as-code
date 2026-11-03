@@ -1232,7 +1232,7 @@
     "id": "MTA-zth0tjjg",
     "type": "mcp_tool_actions",
     "name": "Rerun Job",
-    "description": "Reruns a finished CloudBolt job with its original parameters, like the Rerun button on the job's page, and returns the new job's id.",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
     "path": "mcp_tool_actions/MTA-zth0tjjg",
     "readme": "mcp_tool_actions/MTA-zth0tjjg/README.md",
     "uses": [
@@ -4267,7 +4267,7 @@
     "id": "OHK-ukp8n10w",
     "type": "plugins",
     "name": "Rerun Job",
-    "description": "Reruns a finished CloudBolt job with its original parameters, like the Rerun button on the job's page, and returns the new job's id.",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
     "path": "plugins/OHK-ukp8n10w",
     "readme": null,
     "uses": [],

@@ -15,7 +15,7 @@ Create or change content, then prove it works on an appliance before the PR: pus
    | `run_recurring_job` | `mcp_tool_actions/MTA-thkvyt0v` | Run Now for a recurring job |
    | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` | Starts a functionaltest job for named CIT tests |
    | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` | Cancels hung jobs and their descendants |
-   | `rerun_job` | `mcp_tool_actions/MTA-zth0tjjg` | Reruns a finished job, like its Rerun button, to retry a failed build item in place |
+   | `rerun_job` | `mcp_tool_actions/MTA-zth0tjjg` | Reruns a finished job or resumes a paused one, like its Rerun and Resume buttons, to retry a failed build item in place |
    | `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` | Lists, grants, or revokes a group's DEPLOY or MANAGE on a blueprint, around a sync |
 
    **Bootstrap.** The sync tool cannot install itself. The first time, import the eight `mcp_tool_actions/MTA-*` folders from the UI (Actions > MCP Tool Actions > Create from Repository, which pulls each tool's plugin with it) or with `POST /api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFromRepo/`. The importer leaves **Synchronous Action** off (it restores only the tool's name, description, title and hints) and the v3 API refuses `PATCH` on MCP tool actions, so open each tool's edit form once (Actions > MCP Tool Actions > the tool > Edit), tick Synchronous Action, and save; later refreshes keep it. Then reconnect the MCP client, because tool lists are cached per session. Until the flag is set every tool still works, through the job route described below. Every write tool refuses callers who are not CloudBolt admins; roles are optional on top of that.
@@ -142,7 +142,16 @@ On any failure: `run_mcp_tool_action("fetch_job_log", {"log_job_id": "<JOB-id>",
 
 Fix in the repo, commit, push the same branch, re-sync only the affected parents, and resume at the failed step (do not re-order a blueprint whose resource still exists).
 
-**A failed blueprint build item** is resumed on the existing resource:
+**A failed blueprint build item** is retried on the existing resource. Read the order's `deploy_blueprint` job with `fetch_job_log` first: its status decides the path.
+
+**`PAUSED`**: the blueprint has Pause Job on Failure and Misc Settings has Allow resuming failed Blueprint's Job on, so the deployment is waiting at the failed item. Resume it instead of ordering again:
+
+1. Fix the plug-in, push, and re-sync the blueprint (step 0 decides the paths).
+2. `run_mcp_tool_action("rerun_job", {"rerun_job_id": "<deploy_blueprint JOB-id>", "rerun_job_mode": "resume"})`, then poll the same job id with `fetch_job_log`. The deployment reruns the failed item with the synced code and carries on with the build items after it. If the item fails again, the deployment pauses again: fix, sync, resume.
+
+Resume only after a plug-in-only fix. The paused job waits in its job engine thread, so a job engine restart cancels it: when the fix changed a shared module, restart, then take the `FAILURE` path below (the restart leaves the deployment `CANCELED`). The paused deployment is also canceled once it has run longer than CloudBolt's global job timeout. Resume needs a CloudBolt admin caller.
+
+**`FAILURE`**: the deployment stopped at the failed item.
 
 1. Take the failed item's job id from `fetch_job_log` on the order's job: `failedDescendants[].id` (a plug-in item runs as an `orchestration_hook` job).
 2. Fix the plug-in, push, and re-sync the blueprint (step 0 decides the paths).
@@ -172,6 +181,7 @@ Delete every resource and server in the ledger, newest first, with the `Delete` 
 - `GitRepo.parse_repo_url` (`source_code_repos/models.py`) takes URL path segment 3 as the branch, so a slash in the branch name breaks the clone.
 - Discovery is the `Sync Resources` CloudBoltHook's recurring job action run with `sync_bp_id` (`servicecatalog/views.py sync_resources_on_discovery_tab`). Run Now is `RecurringJob.spawn_new_job()` (`jobs/views.py run_recurring_job`). CIT runs are `Job(type="functionaltest")` with `FunctionalTestParameters` (`cscv/views.py _run_cit_tests`). `Delete` is a built-in `ResourceAction` backed by `cbhooks/hookmodules/delete_resource.py`, so it appears in `fetch_resource_actions`.
 - Rerun is `Job.clone(new_owner=profile)` behind both the Rerun button (`jobs/views.py clone`) and `POST /api/v3/cmp/jobs/<id>/clone/` (`jobs/api/v3/viewsets/job.py`). Both check the `job.rerun` permission (admins, and job owners through the Job Owner role), `Job.rerun_allowed(profile)`, that the job was not rerun already, and the order's `can_duplicate`. The clone shares the old job's `job_parameters`, which for a plug-in build item is a `HookParameters` holding the resource, servers and arguments. `canBeRequeued` is serialized but nothing reads it. `deploy_blueprint_job` stops at a failed item unless the blueprint pauses on failure; on resume it follows `rerun_job` to the latest rerun.
+- Resume is `job.status = "RUNNING"` on a `PAUSED` job, CloudBolt admins only, behind both the job page's Resume button (`jobs/views.py resume`, which sends `RUNNING`) and `PATCH /api/v3/cmp/jobs/<id>/resume/`; `STEP`, `NEXT` and `RETURN` are debugger values. A `deploy_blueprint` job pauses on a failed item when the blueprint has `pause_job_on_failure` and `GlobalPreferences.allow_resuming_failed_blueprint_jobs` is on, not in CIT runs (`jobengine/jobmodules/deploy_blueprint_job.py`). On resume `pause_deploy_bp_job` takes the failed child's latest rerun, skips it if it succeeded and clones it otherwise, then continues with the next items; a rerun keeps the original's `parent_job`. A provision job in such a deployment pauses the same way when an orchestration action fails and retries the action on resume (`Job.should_pause_on_failure`, `cbhooks.pause_job`). `Job.pause()` polls the status from the job's own thread, and `PAUSED` is in `Job.RUNNING_STATUSES`, which the job engine's orphaned-job cleanup cancels when it starts.
 - The built-in `fetch_job` returns `output`, `outputs`, and `errors` but no progress messages; those are `ProgressMessage` rows and the per-job log file, which `fetch_job_log` reads.
 - MCP tool action plugins run `run(job, **kwargs)` with `profile` as the caller; synchronous tools run inside the web request with `job=None` (`cbhooks/services/mcp_tool_action.py`).
 - `MCPToolActionSerializer.create_resource_from_metadata` restores only `mcp_tool_name`, `mcp_tool_description`, `mcp_tool_title` and the hints, so `is_synchronous` is off after the first import; a refresh of an existing tool keeps whatever the UI set. The `mcpToolActions` viewset allows `GET` and `POST` only.
