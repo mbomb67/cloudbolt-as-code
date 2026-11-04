@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dpj24dfj"
+        ]
+    },
+    "description": "Creates the SCVMM lab's failover cluster as the domain service account with one IP address resource per host, a cluster shared volume and a disk witness.",
+    "id": "OHK-77f19kly",
+    "max_retries": 0,
+    "name": "Create Hyper-V Cluster",
+    "resource_technologies": [],
+    "script_filename": "OHK-77f19kly_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

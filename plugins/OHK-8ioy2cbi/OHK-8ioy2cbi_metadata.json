@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dpj24dfj"
+        ]
+    },
+    "description": "Installs Hyper-V and Failover Clustering on the SCVMM lab hosts, creates their NAT switch, and connects them to the iSCSI disks it creates on the SCVMM server.",
+    "id": "OHK-8ioy2cbi",
+    "max_retries": 0,
+    "name": "Configure Hyper-V Hosts",
+    "resource_technologies": [],
+    "script_filename": "OHK-8ioy2cbi_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

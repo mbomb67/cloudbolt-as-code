@@ -24,6 +24,15 @@ An object with children, such as BitLocker recovery information, is deleted
 together with them through AD's tree delete control. An object that is already
 gone is reported and counts as success.
 
+With the computer object, it deletes the DNS records the computer registered
+in AD-integrated zones: the node for its DNS host name and the reverse (PTR)
+node for each IPv4 address that node holds. A node is deleted only when the
+computer object owns it, as the node a secure dynamic update creates is, so a
+record an administrator made is left alone. AD-integrated zones let only a
+record's owner update it, so a record left behind would keep the next server
+with the same name from registering its own. Nodes are tombstoned the way the
+DNS server deletes them (ad_domain.tombstone_dns_node).
+
 The action's OS family filter (Windows) keeps Linux servers out; the check in
 _delete_one keeps them out if the filter is edited. The orchestration action
 continues on failure, so an AD problem is reported in the job without
@@ -87,6 +96,41 @@ def _find_target(conn, base, server):
     return target, "", ""
 
 
+def _reverse_name(address):
+    return "%s.in-addr.arpa" % ".".join(reversed(address.split(".")))
+
+
+def _delete_dns(conn, target, fqdn):
+    """
+    Tombstone the DNS nodes the computer object owns for fqdn and for the
+    reverse names of its addresses. Returns a description of what was done.
+    """
+    sid = target["sid"]
+    if not sid:
+        return "its DNS records were left alone: the computer object's SID could not be read"
+    deleted, foreign = [], []
+    names = [fqdn]
+    while names:
+        name = names.pop(0)
+        for dn, entry in ad_domain.find_dns_nodes(conn, name):
+            if ad_domain.is_tombstoned(entry):
+                continue
+            if ad_domain.owner_sid(conn, dn) != sid:
+                foreign.append(name)
+                continue
+            addresses = ad_domain.a_addresses(entry)
+            ad_domain.tombstone_dns_node(conn, dn, entry)
+            deleted.append("%s (%s)" % (name, ", ".join(addresses)) if addresses else name)
+            if name == fqdn:
+                names += [_reverse_name(address) for address in addresses]
+    parts = []
+    if deleted:
+        parts.append("deleted DNS records %s" % "; ".join(deleted))
+    if foreign:
+        parts.append("left DNS records %s alone: another account owns them" % ", ".join(foreign))
+    return ", ".join(parts) or "found no DNS records of its own for %s" % fqdn
+
+
 def _delete_one(server):
     """Returns (status, message), status SUCCESS, FAILURE, or SKIPPED."""
     hostname = server.hostname
@@ -94,7 +138,7 @@ def _delete_one(server):
         return "SKIPPED", "%s: not Windows, skipped." % hostname
     recorded_dn = str(server.get_value_for_custom_field(DN_FIELD) or "").strip()
     try:
-        ldap_utility, _, _ = ad_domain.resolve(server, dn=recorded_dn or None)
+        ldap_utility, domain, _ = ad_domain.resolve(server, dn=recorded_dn or None)
     except ValueError as err:
         return "FAILURE", "%s: cannot tell which domain its computer object is in: %s." % (hostname, err)
     if ldap_utility is None:
@@ -107,6 +151,14 @@ def _delete_one(server):
             if target is None:
                 return status, "%s: %s in %s." % (hostname, reason, ldap_utility.ldap_domain)
             ad_domain.delete_entry(conn, target["dn"])
+            fqdn = target["dns_host_name"] or "%s.%s" % (ad_domain.computer_name(hostname), domain)
+            try:
+                dns = _delete_dns(conn, target, fqdn)
+            except Exception as err:
+                message = "%s: deleted computer object %s, but could not delete its DNS records: %s" % (
+                    hostname, target["dn"], err)
+                logger.error(message)
+                return "FAILURE", message
         finally:
             conn.unbind_s()
     except Exception as err:
@@ -114,7 +166,7 @@ def _delete_one(server):
             hostname, ldap_utility.ldap_domain, err)
         logger.error(message)
         return "FAILURE", message
-    return "SUCCESS", "%s: deleted computer object %s." % (hostname, target["dn"])
+    return "SUCCESS", "%s: deleted computer object %s; %s." % (hostname, target["dn"], dns)
 
 
 def run(job, *args, **kwargs):

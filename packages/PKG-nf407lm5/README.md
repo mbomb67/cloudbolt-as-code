@@ -1,8 +1,8 @@
 # Windows AD Domain Join
 
-Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, optionally switching their CloudBolt credentials to a domain service account, and deletes the computer object at decommission.
+Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, optionally switching their CloudBolt credentials to a domain service account, and deletes the computer object and its DNS records at decommission.
 
-Content package `PKG-nf407lm5`, version 1.1.0. Sync it from the Content Packages admin page (Content Package Manager UI extension).
+Content package `PKG-nf407lm5`, version 1.2.0. Sync it from the Content Packages admin page (Content Package Manager UI extension).
 
 | Type | Name | Folder |
 |---|---|---|

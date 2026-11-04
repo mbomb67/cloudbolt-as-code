@@ -27,11 +27,16 @@ Steps per server:
      when the computer is already in the domain under its CloudBolt name
      (CloudBolt's vCenter guest customization joins it when domain_to_join is
      set). Otherwise it checks that the domain's DC locator SRV record
-     resolves and runs Add-Computer, with -NewName when the guest's computer
-     name is not the CloudBolt hostname (AWS Windows AMIs boot as
-     EC2AMAZ-...), so the rename and the join share one restart. A computer
-     already in the domain under another name is renamed with Rename-Computer
-     and the join account. The restart is scheduled 15 seconds out so the call
+     resolves and runs Add-Computer. When the guest's computer name is not the
+     CloudBolt hostname (AWS Windows AMIs boot as EC2AMAZ-...), it first
+     renames the guest locally and joins with -Options JoinWithNewName, so AD
+     creates the computer object under the CloudBolt hostname and the rename
+     and the join share one restart. (Add-Computer -NewName instead joins
+     under the old name and renames the object in AD, which a domain
+     controller can refuse with "The directory service is busy" while other
+     servers join, leaving an object under the old name.) A computer already
+     in the domain under another name is renamed with Rename-Computer and the
+     join account. The restart is scheduled 15 seconds out so the call
      returns first.
   2. When the script joined the computer and domain_service_account is set,
      switch the server's credentials to the service account.
@@ -93,6 +98,16 @@ FIRST_CHECK_DELAY = 60
 CHECK_INTERVAL = 30
 RESTART_WAIT = 1200
 
+# CloudBolt's WinRM transport sends a script as powershell -encodedcommand on
+# one command line, limited to 8191 characters, so this script must stay under
+# about 3,000 characters with its values filled in: keep comments out of it.
+# Notes on it:
+#   - -ne ignores case, so WEB-01 matches web-01.
+#   - A new computer is renamed locally first and joins with JoinWithNewName,
+#     so AD creates its object under the new name. Add-Computer -NewName
+#     would join under the old name and then rename the object in AD.
+#   - A computer already in the domain under another name is renamed in the
+#     domain with the join account.
 JOIN_SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -105,7 +120,6 @@ try {
     $NewName = Decode '__CB_NAME__'
     $cs = Get-CimInstance -ClassName Win32_ComputerSystem
     $boot = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().Ticks
-    # -ne ignores case, so WEB-01 matches web-01.
     $rename = $cs.Name -ne $NewName
     Write-Output "CB_AD_COMPUTER_NAME=$($cs.Name)"
     Write-Output "CB_AD_BOOT_TICKS=$boot"
@@ -120,9 +134,8 @@ try {
             Write-Output "CB_AD_RESULT=ALREADY_JOINED"
             exit 0
         }
-        # Joined under another name: rename it in the domain with the join account.
         try {
-            Rename-Computer -NewName $NewName -DomainCredential $credential -Force -WarningAction SilentlyContinue
+            Rename-Computer -NewName $NewName -DomainCredential $credential -Force
         } catch {
             Write-Output "ERROR: Rename-Computer to $NewName failed: $($_.Exception.Message)"
             exit 10
@@ -135,11 +148,17 @@ try {
             Write-Output "ERROR: _ldap._tcp.dc._msdcs.$Domain does not resolve: $($_.Exception.Message)"
             exit 3
         }
-        $join = @{ DomainName = $Domain; Credential = $credential; Force = $true; WarningAction = 'SilentlyContinue' }
+        $join = @{ DomainName = $Domain; Credential = $credential; Force = $true; Options = 'AccountCreate' }
         if ($OUPath) { $join.OUPath = $OUPath }
-        # -NewName joins under the new name and renames the computer in the same
-        # restart (Add-Computer sets JoinWithNewName for it).
-        if ($rename) { $join.NewName = $NewName }
+        if ($rename) {
+            try {
+                Rename-Computer -NewName $NewName -Force
+            } catch {
+                Write-Output "ERROR: Rename-Computer to $NewName failed: $($_.Exception.Message)"
+                exit 11
+            }
+            $join.Options = 'AccountCreate', 'JoinWithNewName'
+        }
         try {
             Add-Computer @join
         } catch {
@@ -204,6 +223,7 @@ EXIT_CODE_DIAGNOSTICS = {
     10: "The computer is in the domain under another name and could not be renamed. The join account needs "
         "rights to rename computer objects in its OU (write the computer's name, DNS host name, and service "
         "principal names).",
+    11: "The guest could not be renamed to its CloudBolt hostname before the join.",
 }
 
 # What Windows accepts as a computer name that keeps its full NetBIOS name:
@@ -420,7 +440,7 @@ def _join_server(server):
     if result == "ALREADY_JOINED":
         set_progress("%s: already in domain %s as %s." % (hostname, domain, name))
     else:
-        renamed = " (renamed from %s)" % old_name if old_name and old_name.lower() != name.lower() else ""
+        renamed =" (renamed from %s)" % old_name if old_name and old_name.lower() != name.lower() else ""
         done = "renamed in" if result == "RENAMED" else "joined"
         set_progress("%s: %s %s as %s%s, waiting for the restart." % (hostname, done, domain, name, renamed))
         if result == "JOINED" and account is not None:
