@@ -22,6 +22,9 @@
   .cmx .cmx-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; }
   .cmx .cmx-title .bi { color: var(--cmx-primary); }
   .cmx .cmx-sub { font-size: 12.5px; font-weight: 600; color: var(--cmx-muted); margin-top: 2px; max-width: 900px; }
+  /* Lets a filter picker's dropdown extend past the card instead of being clipped. */
+  .cmx .cmx-card.cmx-card-open { overflow: visible; }
+  .cmx .cmx-card-open .selectize-dropdown { z-index: 1000; }
   .cmx .cmx-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--cmx-line); flex-wrap: wrap; }
   .cmx .cmx-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--cmx-muted); }
   .cmx .cmx-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
