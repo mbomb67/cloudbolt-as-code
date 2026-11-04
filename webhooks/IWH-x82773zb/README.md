@@ -1,13 +1,14 @@
 # IP Reservations
 
-Inbound webhook that lets an external system reserve the next free IP address in a CloudBolt IP pool, release it, and check how many are free. Each reserved IP becomes an IP Reservation resource ([BP-j25t4xpv](../../blueprints/BP-j25t4xpv/)) in the group the caller names. The pool's Values tab links the IP to that resource, and deleting the resource in CloudBolt frees the IP.
+Inbound webhook that lets an external system reserve the next free IP address in a CloudBolt IP pool, release it, and check how many are free, in one call each and without placing an order. Each reservation is an [IP Address Reservation](../../blueprints/BP-j25t4xpv/) resource, the same resource an order of that blueprint creates, so the webhook can look up and release ordered reservations too. That README compares the two ways in.
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
 | Webhook | IWH-x82773zb | IP Reservations |
 | Plugin | OHK-axepfitm | IP Reservations |
-| Holder blueprint | BP-j25t4xpv | IP Reservation |
+| Shared module | SHM-s3k9ov0z | ip_reservations |
+| Blueprint | BP-j25t4xpv | IP Address Reservation |
 
 ## Setup
 1. Sync `webhooks/IWH-x82773zb` and `blueprints/BP-j25t4xpv`, or import the [IP Reservations](../../packages/PKG-g151nn7r/) content package. Syncing one does not bring the other.
@@ -40,7 +41,8 @@ A reservation answers `reservation_id` (the resource's `RSC-` ID), `status`, `ip
 ## Notes
 - `pool` is the number in the pool's URL (`/resourcepools/<id>/`) or its exact name; a name shared by two pools is refused.
 - `group` is a group name, ID or `GRP-` ID, and may be left out when the user belongs to exactly one group.
-- The IP is picked the same way provisioning picks one: the pool row is locked while it is claimed, and enabled Validate IP Address orchestration actions run on it, skipping any IP they reject. Each IP they check makes the call slower. They run with no job, so one that writes to the job fails the call with a 500.
+- The IP is picked the same way provisioning picks one: the pool row is locked while it is claimed, and enabled Validate IP Address orchestration actions run on it, skipping any IP they reject. Each IP they check makes the call slower (a ping check took about 2 seconds per IP in testing). They run with no job, so one that writes to the job fails the call with a 500.
+- A webhook reservation skips the blueprint's group permissions and approvals.
 - Send a `reference` and retry with the same one after a timeout: you get the IP you already reserved, not a second one. Two calls with the same reference at the same moment can still reserve two IPs.
-- Release frees only IPs this webhook reserved. An IP held by a server is refused with 409.
-- Custom fields `ip_reservation_address`, `ip_reservation_pool`, `ip_reservation_pool_id`, `ip_reservation_reference` and `ip_reservation_hostname` are created on the first reservation.
+- Release frees only IP Address Reservation resources. An IP held by a server is refused with 409.
+- The webhook runs in the web service, which keeps the shared module it loaded until the service restarts.

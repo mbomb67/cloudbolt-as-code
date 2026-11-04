@@ -1666,7 +1666,7 @@
     "id": "PKG-g151nn7r",
     "type": "packages",
     "name": "IP Reservations",
-    "description": "Lets external systems reserve and release IP addresses from CloudBolt IP pools through an inbound webhook, tracking each reservation as a resource.",
+    "description": "Reserves IP addresses from CloudBolt IP pools for servers and devices CloudBolt does not build, through an order or an inbound webhook, and tracks each reservation as a resource.",
     "path": "packages/PKG-g151nn7r",
     "readme": "packages/PKG-g151nn7r/README.md",
     "uses": [],
