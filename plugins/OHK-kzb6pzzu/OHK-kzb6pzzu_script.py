@@ -61,7 +61,13 @@ REMOVE_CLUSTER = r"""
         throw "$env:COMPUTERNAME is in cluster $($cluster.Name), not $name."
     } else {
         Log "Destroying cluster $name and deleting its Active Directory objects"
-        Remove-Cluster -Force -CleanupAD
+        # Remove-Cluster's own message is generic; the reason is in the inner exceptions.
+        try { Remove-Cluster -Force -CleanupAD }
+        catch {
+            $reasons = @(); $e = $_.Exception
+            while ($e) { $reasons += $e.Message; $e = $e.InnerException }
+            throw ($reasons -join ' ')
+        }
         Mark 'DESTROYED' $name
     }
 """
