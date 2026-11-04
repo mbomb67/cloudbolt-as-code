@@ -318,6 +318,21 @@
     ]
   },
   {
+    "id": "BP-j25t4xpv",
+    "type": "blueprints",
+    "name": "IP Address Reservation",
+    "description": "Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted.",
+    "path": "blueprints/BP-j25t4xpv",
+    "readme": "blueprints/BP-j25t4xpv/README.md",
+    "uses": [
+      "plugins/OHK-yeykzvdv"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-g151nn7r"
+    ]
+  },
+  {
     "id": "BP-jvvjm3te",
     "type": "blueprints",
     "name": "Run an Azure PowerShell Script",
@@ -1648,6 +1663,21 @@
     ]
   },
   {
+    "id": "PKG-g151nn7r",
+    "type": "packages",
+    "name": "IP Reservations",
+    "description": "Reserves IP addresses from CloudBolt IP pools for servers and devices CloudBolt does not build, through an order or an inbound webhook, and tracks each reservation as a resource.",
+    "path": "packages/PKG-g151nn7r",
+    "readme": "packages/PKG-g151nn7r/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "webhooks/IWH-x82773zb",
+      "blueprints/BP-j25t4xpv"
+    ]
+  },
+  {
     "id": "PKG-gqw2jqgj",
     "type": "packages",
     "name": "Azure Network Security Groups",
@@ -2747,6 +2777,21 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-axepfitm",
+    "type": "plugins",
+    "name": "IP Reservations",
+    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Address Reservation resource, releases it, and reports a pool's free count.",
+    "path": "plugins/OHK-axepfitm",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
+    "used_by": [
+      "webhooks/IWH-x82773zb"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4641,6 +4686,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-yeykzvdv",
+    "type": "plugins",
+    "name": "IP Address Reservation Build",
+    "description": "Reserves the next free address in the chosen CloudBolt IP pool for an IP Address Reservation resource.",
+    "path": "plugins/OHK-yeykzvdv",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
+    "used_by": [
+      "blueprints/BP-j25t4xpv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-yjblxbwg",
     "type": "plugins",
     "name": "Order Counts by Blueprint",
@@ -6217,6 +6277,19 @@
     ]
   },
   {
+    "id": "SHM-s3k9ov0z",
+    "type": "shared_modules",
+    "name": "ip_reservations",
+    "description": "Reserves and releases IP addresses from CloudBolt IP pools as IP Address Reservation resources, for the blueprint's build plugin and the IP Reservations webhook.",
+    "path": "shared_modules/SHM-s3k9ov0z",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-yeykzvdv",
+      "plugins/OHK-axepfitm"
+    ]
+  },
+  {
     "id": "SHM-sa5yqm9j",
     "type": "shared_modules",
     "name": "eks_namespace",
@@ -6320,6 +6393,22 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "IWH-x82773zb",
+    "type": "webhooks",
+    "name": "IP Reservations",
+    "description": "Endpoint external systems call to reserve the next free IP in a CloudBolt IP pool, release it, and check a pool's free count.",
+    "path": "webhooks/IWH-x82773zb",
+    "readme": "webhooks/IWH-x82773zb/README.md",
+    "uses": [
+      "plugins/OHK-axepfitm"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-g151nn7r"
+    ]
   },
   {
     "id": "IWH-xjlrmvc8",
