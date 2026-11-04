@@ -158,6 +158,7 @@
   var form = root.querySelector("[data-aa-form]");
   var sessionMode = data.session || "";
   var KEYS = ["from", "to", "user", "agent", "session", "q"];
+  var SECTIONS = ["orders", "jobs", "history", "sessions"];
   var FACETS = ["user", "agent", "session"];
   var ANY = { user: "Any user", agent: "Any agent", session: "Any session" };
   // On a session page every row has the same session and agent, so those columns go.
@@ -316,6 +317,14 @@
     return el("span", { "class": "aa-pill" + (status.tone ? " aa-pill-" + status.tone : ""), title: status.code, text: status.label });
   }
 
+  // A section name from the page, as one of the fixed names.
+  function sectionName(name) {
+    for (var i = 0; i < SECTIONS.length; i++) {
+      if (SECTIONS[i] === name) { return SECTIONS[i]; }
+    }
+    return "orders";
+  }
+
   function plural(count, word) { return count + " " + word + (count === 1 ? "" : "s"); }
 
   function td(child, cls) { return el("td", { "class": cls || null }, [child]); }
@@ -417,7 +426,7 @@
     renderPager($("[data-aa-pager]"), info, "data-aa-page");
     var exportLink = $("[data-aa-export]");
     if (exportLink) {
-      exportLink.href = URLS["export"].replace("SECTION", section) + "?" + query(state.filters || {});
+      exportLink.href = URLS["export"].replace("SECTION", encodeURIComponent(section)) + "?" + query(state.filters || {});
     }
     var workbookLink = $("[data-aa-xlsx]");
     if (workbookLink) {
@@ -606,7 +615,7 @@
   root.addEventListener("click", function (event) {
     var tab = event.target.closest("[data-aa-tab]");
     if (tab) {
-      state.section = tab.getAttribute("data-aa-tab");
+      state.section = sectionName(tab.getAttribute("data-aa-tab"));
       renderSection();
       return;
     }
