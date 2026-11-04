@@ -210,7 +210,7 @@
                 "hook": "plugins/OHK-kzb6pzzu"
             },
             "deploy_seq": -1,
-            "description": "Destroys the cluster from a running host and deletes its computer object from Active Directory; the servers and the storage volume are deleted with the resource.",
+            "description": "Destroys the cluster from a running host and deletes its computer object and DNS record from Active Directory; the servers and the storage volume are deleted with the resource.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-w9x43skq",

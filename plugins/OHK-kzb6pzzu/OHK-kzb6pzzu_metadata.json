@@ -5,7 +5,7 @@
             "shared_modules/SHM-dpj24dfj"
         ]
     },
-    "description": "Destroys the SCVMM lab's cluster and deletes its computer object from Active Directory when the lab is deleted.",
+    "description": "Destroys the SCVMM lab's cluster and deletes its computer object and DNS record from Active Directory when the lab is deleted.",
     "id": "OHK-kzb6pzzu",
     "max_retries": 0,
     "name": "Remove Hyper-V Cluster Object",
