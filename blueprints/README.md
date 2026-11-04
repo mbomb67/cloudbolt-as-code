@@ -24,7 +24,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies. |
 | HCP Terraform VM | [BP-b0qm83lh](BP-b0qm83lh/README.md) | Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | IIS Web Application | [BP-122nbdt5](BP-122nbdt5/README.md) | Deploys a Windows server and installs an IIS web application. |
-| IP Reservation | [BP-j25t4xpv](BP-j25t4xpv/README.md) | Holds the IP addresses the IP Reservations webhook reserves from CloudBolt IP pools for external systems, one resource per reserved IP. |
+| IP Address Reservation | [BP-j25t4xpv](BP-j25t4xpv/README.md) | Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted. |
 | Linux VM with Workflow | [BP-vy9ytey6](BP-vy9ytey6/README.md) | Deploys a Linux VM and then runs a Linux workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item. |
 | Migrate Aria Automation Deployments to Resources | [BP-zq0csldu](BP-zq0csldu/README.md) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. |
 | Migrate Aria Automation Projects to Groups | [BP-s2fsbkpo](BP-s2fsbkpo/README.md) | Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties. |

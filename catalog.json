@@ -320,11 +320,13 @@
   {
     "id": "BP-j25t4xpv",
     "type": "blueprints",
-    "name": "IP Reservation",
-    "description": "Holds the IP addresses the IP Reservations webhook reserves from CloudBolt IP pools for external systems, one resource per reserved IP.",
+    "name": "IP Address Reservation",
+    "description": "Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted.",
     "path": "blueprints/BP-j25t4xpv",
     "readme": "blueprints/BP-j25t4xpv/README.md",
-    "uses": [],
+    "uses": [
+      "plugins/OHK-yeykzvdv"
+    ],
     "used_by": [],
     "packages": [
       "packages/PKG-g151nn7r"
@@ -2782,10 +2784,12 @@
     "id": "OHK-axepfitm",
     "type": "plugins",
     "name": "IP Reservations",
-    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Reservation resource, releases it, and reports a pool's free count.",
+    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Address Reservation resource, releases it, and reports a pool's free count.",
     "path": "plugins/OHK-axepfitm",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
     "used_by": [
       "webhooks/IWH-x82773zb"
     ],
@@ -4666,6 +4670,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-yeykzvdv",
+    "type": "plugins",
+    "name": "IP Address Reservation Build",
+    "description": "Reserves the next free address in the chosen CloudBolt IP pool for an IP Address Reservation resource.",
+    "path": "plugins/OHK-yeykzvdv",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
+    "used_by": [
+      "blueprints/BP-j25t4xpv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-yjblxbwg",
     "type": "plugins",
     "name": "Order Counts by Blueprint",
@@ -6235,6 +6254,19 @@
       "plugins/OHK-pvo05e24",
       "plugins/OHK-pmyb1car",
       "plugins/OHK-oblhxhw2"
+    ]
+  },
+  {
+    "id": "SHM-s3k9ov0z",
+    "type": "shared_modules",
+    "name": "ip_reservations",
+    "description": "Reserves and releases IP addresses from CloudBolt IP pools as IP Address Reservation resources, for the blueprint's build plugin and the IP Reservations webhook.",
+    "path": "shared_modules/SHM-s3k9ov0z",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-yeykzvdv",
+      "plugins/OHK-axepfitm"
     ]
   },
   {

@@ -1,18 +1,36 @@
 {
     "any_group_can_deploy": false,
     "auto_historical_resources": false,
-    "deployment_items": [],
+    "deployment_items": [
+        {
+            "action_name": "IP Address Reservation Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yeykzvdv"
+            },
+            "deploy_seq": 1,
+            "description": null,
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-41baqvaz",
+            "name": "IP Address Reservation Build",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
     "deployment_permissions": [],
-    "description": "Holds the IP addresses the IP Reservations webhook reserves from CloudBolt IP pools for external systems, one resource per reserved IP.",
+    "description": "Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted.",
     "favorited": false,
-    "icon": "",
+    "icon": "ip_address_reservation.png",
     "id": "BP-j25t4xpv",
-    "is_orderable": false,
+    "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-11-03",
+    "last_updated": "2026-11-04",
     "management_actions": [],
     "metadata_version": "2026.1.0",
-    "name": "IP Reservation",
+    "name": "IP Address Reservation",
     "resource_name_template": null,
     "resource_type": {
         "icon": "fas fa-network-wired",

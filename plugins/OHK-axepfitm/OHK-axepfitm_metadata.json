@@ -1,6 +1,11 @@
 {
     "action_inputs_sequence": [],
-    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Reservation resource, releases it, and reports a pool's free count.",
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-s3k9ov0z"
+        ]
+    },
+    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Address Reservation resource, releases it, and reports a pool's free count.",
     "id": "OHK-axepfitm",
     "max_retries": 0,
     "name": "IP Reservations",
