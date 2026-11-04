@@ -2,8 +2,9 @@
 CloudBolt build plug-in: IP Address Reservation (blueprints/BP-j25t4xpv).
 
 Reserves the next free address in the chosen CloudBolt IP pool for the ordered
-resource and names the resource after the address. Deleting the resource
-returns the address to the pool. The logic lives in the ip_reservations shared
+resource and names the resource after the address, with the hostname in
+parentheses when one is given. Deleting the resource returns the address to
+the pool. The logic lives in the ip_reservations shared
 module (shared_modules/SHM-s3k9ov0z), which the IP Reservations webhook
 (webhooks/IWH-x82773zb) uses too.
 

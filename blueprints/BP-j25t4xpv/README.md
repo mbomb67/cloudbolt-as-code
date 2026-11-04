@@ -1,6 +1,6 @@
 # IP Address Reservation
 
-Orders the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, such as a physical server or an appliance. The resource is named after the address, and the pool's Values tab links the address to it. Deleting the resource returns the address to the pool.
+Orders the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, such as a physical server or an appliance. The resource is named after the address, followed by the hostname in parentheses when one is given (`10.0.5.12 (web01)`), and the pool's Values tab links the address to it. Deleting the resource returns the address to the pool.
 
 The [IP Reservations](../../webhooks/IWH-x82773zb/) webhook creates the same resource without an order.
 
@@ -19,7 +19,7 @@ The [IP Reservations](../../webhooks/IWH-x82773zb/) webhook creates the same res
 | Input | Required | Notes |
 |---|---|---|
 | IP Pool | Yes | Every pool that provides IP addresses: global pools, plus the orderer's tenant's. Each option shows how many addresses are free. The value is the pool's ID. |
-| Hostname | No | Recorded on the resource. |
+| Hostname | No | Recorded on the resource and added to its name. |
 | Reference | No | A ticket, asset tag or other ID. A second order with a reference that already holds an address in the pool fails. |
 
 The address is picked the way provisioning picks one: the pool row is locked while it is claimed, and any enabled Validate IP Address orchestration actions check it first.
