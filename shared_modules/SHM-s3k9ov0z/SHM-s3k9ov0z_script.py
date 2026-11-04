@@ -150,7 +150,7 @@ def reserve(resource, pool, reference="", hostname="", job=None):
         free(resource)
         raise ReservationError(409, f"Could not claim an IP address from '{pool}'; try again.")
 
-    resource.name = claimed.ip
+    resource.name = (f"{claimed.ip} ({hostname})" if hostname else claimed.ip)[:255]
     resource.save()
     attributes = (
         (CF_ADDRESS, claimed.ip),
