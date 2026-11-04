@@ -7,10 +7,11 @@
 
 {% block form_content %}
 {% csrf_token %}
-<div class="cfax cfa-dialog">
+<div id="cfa-upload" class="cfax cfa-dialog" data-cfa-limit-mb="{{ max_upload_mb }}">
   {% if error %}
   <div class="cfa-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
   {% endif %}
+  <div class="cfa-alert d-none" data-cfa-error role="alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div data-cfa-error-text></div></div>
   <div class="row g-3">
     <div class="col-12">
       <label class="form-label" for="cfa-file">{% trans "File" %}</label>
@@ -32,5 +33,167 @@
       <input class="form-control" id="cfa-note" name="note" value="{{ note }}" maxlength="500" placeholder="{% trans 'What changed, for example 7.4.2 with the March patches' %}">
     </div>
   </div>
+  <div class="cfa-upload d-none" data-cfa-progress>
+    <div class="cfa-upload-h">
+      <span data-cfa-state></span>
+      <span class="cfa-upload-pct" data-cfa-pct></span>
+    </div>
+    <div class="progress" role="progressbar" aria-label="{% trans 'Upload progress' %}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="progress-bar"></div>
+    </div>
+    <div class="cfa-hint" data-cfa-detail aria-live="polite"></div>
+  </div>
 </div>
 {% endblock form_content %}
+
+{% block on_ready %}
+  // Posts the form itself so the upload can report progress, then hands the
+  // response to CloudBolt's dialog code, which follows the redirect on
+  // success and re-renders the form when the view refused the file.
+  var $root = $dialog.find("#cfa-upload");
+  var form = $root.closest("form")[0];
+  var $progress = $root.find("[data-cfa-progress]");
+  var $meter = $progress.find(".progress");
+  var $bar = $progress.find(".progress-bar");
+  var $state = $progress.find("[data-cfa-state]");
+  var $pct = $progress.find("[data-cfa-pct]");
+  var $detail = $progress.find("[data-cfa-detail]");
+  var $error = $root.find("[data-cfa-error]");
+  var limitMb = parseInt($root.attr("data-cfa-limit-mb"), 10) || 0;
+  var upload = null;
+
+  function size(bytes) {
+    var units = ["bytes", "KB", "MB", "GB"];
+    var i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    return i === 0 ? Math.round(bytes) + " bytes" : bytes.toFixed(1) + " " + units[i];
+  }
+  function duration(seconds) {
+    seconds = Math.max(1, Math.round(seconds));
+    if (seconds < 60) { return seconds + " s"; }
+    var minutes = Math.floor(seconds / 60);
+    if (minutes < 60) { return minutes + " min " + (seconds % 60) + " s"; }
+    return Math.floor(minutes / 60) + " h " + (minutes % 60) + " min";
+  }
+  function failure(xhr) {
+    if (!xhr.status) {
+      return "The upload stopped before CloudBolt answered. The network dropped, or a web server or proxy closed the connection, which some do for requests this large.";
+    }
+    // HTTP/2 has no reason phrase, and jQuery then reports the status text as "error".
+    var http = "HTTP " + xhr.status;
+    if (xhr.status === 413) {
+      return "The web server refused a request this large (" + http + "). Its request size limit is below this file; the Upload limit in Settings does not raise it.";
+    }
+    if (xhr.status >= 502 && xhr.status <= 504) {
+      return "The web server stopped waiting for CloudBolt (" + http + "). The file may still have been stored: reload the archive before uploading it again.";
+    }
+    if (xhr.status === 403) {
+      return "CloudBolt refused the upload (" + http + "). The session may have expired: reload the page and upload again.";
+    }
+    return "CloudBolt could not store the upload (" + http + "). The CloudBolt application log has the details.";
+  }
+  function showError(text) {
+    $error.removeClass("d-none").find("[data-cfa-error-text]").text(text);
+  }
+
+  function start(file) {
+    var data = new FormData(form);
+    var $submit = $dialog.find(".modal-footer .js-submit-form");
+    var $inputs = $root.find("input");
+    var began = Date.now();
+    var samples = [[began, 0]];
+
+    function progress(e) {
+      if (!e.lengthComputable) { return; }
+      var now = Date.now();
+      samples.push([now, e.loaded]);
+      // Rate over the last 5 seconds or more.
+      while (samples.length > 2 && now - samples[1][0] >= 5000) { samples.shift(); }
+      var percent = Math.floor(e.loaded * 100 / e.total);
+      $meter.attr("aria-valuenow", percent);
+      $bar.css("width", percent + "%");
+      $pct.text(percent + "%");
+      var parts = [size(e.loaded) + " of " + size(e.total)];
+      var span = (now - samples[0][0]) / 1000;
+      if (span >= 1) {
+        var rate = (e.loaded - samples[0][1]) / span;
+        parts.push(size(rate) + "/s");
+        if (rate > 0 && e.loaded < e.total) { parts.push("about " + duration((e.total - e.loaded) / rate) + " left"); }
+      }
+      $detail.text(parts.join(" · "));
+    }
+    // Every byte has arrived; CloudBolt hashes and stores the file before it answers.
+    function sent() {
+      $meter.removeAttr("aria-valuenow");
+      $bar.css("width", "100%").addClass("progress-bar-striped progress-bar-animated");
+      $pct.text("");
+      $state.text("Checking and storing…");
+      $detail.text(size(file.size) + " sent in " + duration((Date.now() - began) / 1000) + ". Keep this dialog open until CloudBolt has stored it.");
+    }
+    function guard(e) {
+      if (e.target !== $dialog[0]) { return; }
+      if (!window.confirm("Stop uploading " + file.name + "? What was sent so far is discarded.")) {
+        e.preventDefault();
+        return;
+      }
+      upload.abort();
+    }
+    function warn(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+
+    c2.spinners.showSpinner({selector: $submit, button: true});
+    $submit.prop("disabled", true);
+    $inputs.prop("disabled", true);
+    $state.text("Uploading " + file.name);
+    $meter.attr("aria-valuenow", 0);
+    $bar.css("width", "0%").removeClass("progress-bar-striped progress-bar-animated");
+    $pct.text("0%");
+    $detail.text("0 bytes of " + size(file.size));
+    $progress.removeClass("d-none");
+
+    upload = $.ajax({
+      url: form.action,
+      type: "POST",
+      data: data,
+      processData: false,
+      contentType: false,
+      xhr: function () {
+        var xhr = $.ajaxSettings.xhr();
+        xhr.upload.addEventListener("progress", progress);
+        xhr.upload.addEventListener("load", sent);
+        return xhr;
+      }
+    });
+    $dialog.on("hide.bs.modal.cfaUpload", guard);
+    window.addEventListener("beforeunload", warn);
+    upload.always(function () {
+      $dialog.off(".cfaUpload");
+      window.removeEventListener("beforeunload", warn);
+    }).done(function () {
+      c2.dialogs.displayJqXHR(upload);
+    }).fail(function (xhr, status) {
+      if (status === "abort") { return; }
+      upload = null;
+      c2.spinners.hideSpinner({selector: $submit, button: true});
+      $submit.prop("disabled", false);
+      $inputs.prop("disabled", false);
+      $progress.addClass("d-none");
+      showError(failure(xhr));
+    });
+  }
+
+  $dialog.data("customFormSubmissionHandler", function (e) {
+    e.preventDefault();
+    if (upload || !form.reportValidity()) { return; }
+    var file = $root.find("#cfa-file")[0].files[0];
+    $dialog.find(".messagelist").remove();
+    $root.find(".cfa-alert").addClass("d-none");
+    if (limitMb && file.size > limitMb * 1024 * 1024) {
+      showError("The file is " + size(file.size) + ", larger than the " + limitMb + " MB upload limit in Settings.");
+      return;
+    }
+    start(file);
+  });
+{% endblock on_ready %}

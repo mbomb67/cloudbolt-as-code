@@ -749,6 +749,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-n5xgfdqd",
+    "type": "extensions",
+    "name": "Credentials Manager",
+    "description": "Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests.",
+    "path": "extensions/XUI-n5xgfdqd",
+    "readme": "extensions/XUI-n5xgfdqd/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-nr5iiu60",
     "type": "extensions",
     "name": "Azure AKS Cluster",
@@ -1233,6 +1244,20 @@
     "used_by": [],
     "enabled": true,
     "mcp_tool_name": "run_recurring_job"
+  },
+  {
+    "id": "MTA-zth0tjjg",
+    "type": "mcp_tool_actions",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
+    "path": "mcp_tool_actions/MTA-zth0tjjg",
+    "readme": "mcp_tool_actions/MTA-zth0tjjg/README.md",
+    "uses": [
+      "plugins/OHK-ukp8n10w"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "rerun_job"
   },
   {
     "id": "HPA-0zcrvpwu",
@@ -4344,6 +4369,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-4e8lmj2r"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ukp8n10w",
+    "type": "plugins",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
+    "path": "plugins/OHK-ukp8n10w",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-zth0tjjg"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

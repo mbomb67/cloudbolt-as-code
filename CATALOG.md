@@ -12,10 +12,10 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Orchestration actions](#orchestration-actions) | 22 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 5 |
-| [MCP tool actions](#mcp-tool-actions) | 9 |
-| [Plugins](#plugins) | 204 |
+| [MCP tool actions](#mcp-tool-actions) | 10 |
+| [Plugins](#plugins) | 205 |
 | [Shared modules](#shared-modules) | 26 |
-| [UI extensions](#ui-extensions) | 15 |
+| [UI extensions](#ui-extensions) | 16 |
 | [Parameters](#parameters) | 3 |
 | [Runbook workflows](#runbook-workflows) | 2 |
 | [Forms](#forms) | 16 |
@@ -227,6 +227,7 @@ Actions published as tools on CloudBolt's MCP server for AI agents to call. Each
 | Fetch Job Log | [MTA-8j9c0tb0](mcp_tool_actions/MTA-8j9c0tb0/README.md) | Returns a job's status, output, errors, progress log, child jobs, failed descendants, and sync results in one call so a failed job can be diagnosed. | `fetch_job_log` | yes | [Fetch Job Log](plugins/OHK-2p0rhzup/) |
 | Manage Blueprint Permissions | [MTA-ntmcnvv7](mcp_tool_actions/MTA-ntmcnvv7/README.md) | Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a blueprint, so a repository sync's loss of group permissions can be snapshotted and restored. | `manage_blueprint_permissions` | yes | [Manage Blueprint Permissions](plugins/OHK-mgta9oez/) |
 | Order Counts by Blueprint | [MTA-lp8lgi7e](mcp_tool_actions/MTA-lp8lgi7e/) | Return the number of orders placed for each blueprint, optionally filtered by order status. | `order_counts_by_blueprint` | yes | [Order Counts by Blueprint](plugins/OHK-yjblxbwg/) |
+| Rerun Job | [MTA-zth0tjjg](mcp_tool_actions/MTA-zth0tjjg/README.md) | Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page. | `rerun_job` | yes | [Rerun Job](plugins/OHK-ukp8n10w/) |
 | Run Blueprint Discovery | [MTA-9oihpumd](mcp_tool_actions/MTA-9oihpumd/README.md) | Launches the Sync Resources job for one blueprint so its discovery plugin runs on demand. | `run_blueprint_discovery` | yes | [Run Blueprint Discovery](plugins/OHK-dwh5kqxq/) |
 | Run CIT Tests | [MTA-gnx1ckno](mcp_tool_actions/MTA-gnx1ckno/README.md) | Starts a functionaltest job for the named CIT tests and returns its job id. | `run_cit_tests` | yes | [Run CIT Tests](plugins/OHK-ieb4qio7/) |
 | Run Recurring Job | [MTA-thkvyt0v](mcp_tool_actions/MTA-thkvyt0v/README.md) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | `run_recurring_job` | yes | [Run Recurring Job](plugins/OHK-qduf79xu/) |
@@ -389,6 +390,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Request Certificate (Windows CA) | [OHK-67bw7wgu](plugins/OHK-67bw7wgu/) | Submits a generated or supplied CSR to a Microsoft AD CS certificate authority and stores the issued PEM certificate. | CloudBolt Plug-in | [Request Certificate (Windows CA)](blueprints/BP-lt6a3yzf/README.md) |
 | Request GKE Namespace Quota Change | [OHK-xg47m1x2](plugins/OHK-xg47m1x2/) | Moves a GKE namespace landing zone to a different size tier after approval and mirrors the new quota into its environment. | CloudBolt Plug-in | [Request GKE Namespace Quota Change](resource_actions/RSA-x1658l9r/) |
 | Request Quota Change | [OHK-ug53cdbx](plugins/OHK-ug53cdbx/) | Moves a landing-zone project to a different size tier and mirrors the new quota into its environment. | CloudBolt Plug-in | [Request Quota Change](resource_actions/RSA-4e8lmj2r/) |
+| Rerun Job | [OHK-ukp8n10w](plugins/OHK-ukp8n10w/) | Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page. | CloudBolt Plug-in | [Rerun Job](mcp_tool_actions/MTA-zth0tjjg/README.md) |
 | Resize | [OHK-9xffkz53](plugins/OHK-9xffkz53/) | Resizes an HCP Terraform VM by updating the vm_size variable and running with a plan-approval pause. | CloudBolt Plug-in | [Resize](resource_actions/RSA-e59s1v24/) |
 | Retrieve Pending Certificate | [OHK-ul8wbswa](plugins/OHK-ul8wbswa/) | Retrieves a certificate left pending for manager approval on the AD CS certificate authority and stores it on the resource. | CloudBolt Plug-in | [Retrieve Pending Certificate](resource_actions/RSA-7cjsqrwy/) |
 | Revoke Restricted Contributor Access | [OHK-myrfeogg](plugins/OHK-myrfeogg/) | Removes the CloudBolt Restricted Contributor role from a user on the subscription. | CloudBolt Plug-in | [Revoke Access](resource_actions/RSA-8zwsrcbv/) |
@@ -488,6 +490,7 @@ Django UI extensions (XUI). Each folder has a README.
 | Azure NSG Management | [XUI-0jdk7t6h](extensions/XUI-0jdk7t6h/README.md) | Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete. |
 | Azure Patches | [XUI-6nzs882l](extensions/XUI-6nzs882l/README.md) | Adds a Patching server tab to Azure VMs that shows the latest patch assessment and runs scan and apply jobs. |
 | Content Package Manager | [XUI-iq65xgvr](extensions/XUI-iq65xgvr/README.md) | Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, standalone parameters, and Runbooks workflows, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync. |
+| Credentials Manager | [XUI-n5xgfdqd](extensions/XUI-n5xgfdqd/README.md) | Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests. |
 | Google GKE Cluster | [XUI-8egdz3e9](extensions/XUI-8egdz3e9/README.md) | Adds Cluster, Node pools, Workloads, and Groups tabs to Google Kubernetes Engine cluster resources with the console's basics, networking and security, upgrades, features, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to GKE namespace landing zones with kubectl access details and a live inventory. |
 | HCP Terraform Workspace | [XUI-ax1sluwi](extensions/XUI-ax1sluwi/README.md) | Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables. |
 | Io Cloudbolt Prometheus | [XUI-60382c9x](extensions/XUI-60382c9x/README.md) | Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor. |
