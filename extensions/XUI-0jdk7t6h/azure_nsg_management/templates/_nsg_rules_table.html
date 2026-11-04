@@ -1,0 +1,76 @@
+{% load i18n %}
+{% comment %}
+  One direction's security rules with the Azure portal's columns. Expects
+  rows, title, icon, custom (count of custom rules), table_id and add_url.
+{% endcomment %}
+<div class="nsg-card">
+  <div class="nsg-card-h">
+    <span class="nsg-card-t"><i class="bi {{ icon }}" aria-hidden="true"></i> {{ title }} &middot; {{ custom }} {% trans "custom" %}</span>
+    <div class="nsg-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %} {{ title }}" data-nsg-filter="#{{ table_id }}">
+      {% if add_url %}
+      <a class="btn btn-sm btn-primary open-dialog" href="{{ add_url }}">
+        <i class="bi bi-plus-circle" aria-hidden="true"></i> {% trans "Add rule" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table id="{{ table_id }}" class="nsg-table">
+      <thead>
+        <tr>
+          <th>{% trans "Priority" %}</th>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Port" %}</th>
+          <th>{% trans "Protocol" %}</th>
+          <th>{% trans "Source" %}</th>
+          <th>{% trans "Destination" %}</th>
+          <th>{% trans "Action" %}</th>
+          <th><span class="visually-hidden">{% trans "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-nsg-row{% if r.is_default %} class="nsg-default"{% endif %}>
+          <td class="nsg-nowrap">{{ r.priority }}</td>
+          <td>
+            {{ r.name }}
+            {% if r.is_default %}<span class="nsg-tag" title="{% trans 'Azure default rule; it cannot be changed or deleted, only overridden by a rule with a lower priority number' %}"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Default" %}</span>{% endif %}
+            {% if r.description %}<div class="nsg-hint">{{ r.description }}</div>{% endif %}
+          </td>
+          <td>
+            {{ r.port }}
+            {% if r.source_ports %}<div class="nsg-hint nsg-nowrap">{% trans "From ports" %} {{ r.source_ports }}</div>{% endif %}
+          </td>
+          <td class="nsg-nowrap">{{ r.protocol }}</td>
+          <td>{{ r.source }}{% if r.source_is_asg %} <span class="nsg-tag nsg-tag-info" title="{% trans 'Application security group' %}">ASG</span>{% endif %}</td>
+          <td>{{ r.destination }}{% if r.destination_is_asg %} <span class="nsg-tag nsg-tag-info" title="{% trans 'Application security group' %}">ASG</span>{% endif %}</td>
+          <td>
+            {% if r.allow %}
+            <span class="nsg-pill nsg-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Allow" %}</span>
+            {% else %}
+            <span class="nsg-pill nsg-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Deny" %}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="nsg-row-tools">
+              {% if r.edit_url %}
+              <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ r.edit_url }}"><i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}</a>
+              {% elif r.delete_url %}
+              <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{% trans 'Uses application security groups; edit it in the Azure portal' %}">
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-pencil" aria-hidden="true"></i> {% trans "Edit" %}</button>
+              </span>
+              {% endif %}
+              {% if r.delete_url %}
+              <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ r.delete_url }}"><i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="nsg-empty">{% trans "No rules." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

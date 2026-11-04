@@ -1,0 +1,41 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The node pool to delete, as GKE lists it. A cluster's last node pool is not offered.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-960pdchy",
+            "label": "Node Pool",
+            "name": "gke_delete_pool",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_delete_pool"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Deletes a node pool from the GKE cluster, refusing its last one, and removes the pool's sub-resource.",
+    "id": "OHK-qxdrryt6",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Delete GKE Node Pool",
+    "resource_technologies": [],
+    "script_filename": "OHK-qxdrryt6_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

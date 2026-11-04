@@ -1,0 +1,326 @@
+{% load i18n %}
+{% if error %}
+<div class="gke-card">
+  {% include "google_gke_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Cluster basics, in the Google Cloud console's order ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Cluster basics" %}</span>
+    <div class="gke-card-tools">
+      {% include "google_gke_cluster/templates/_pill.html" with p=cluster.status %}
+      <span class="gke-pill" title="{% trans 'Mode of operation' %}"><i class="bi bi-gear" aria-hidden="true"></i> {{ cluster.mode }}</span>
+      <span class="gke-pill" title="{% trans 'Location type' %}"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ cluster.location_type }}</span>
+      <span class="gke-pill" title="{% trans 'Release channel' %}"><i class="bi bi-signpost-split" aria-hidden="true"></i> {{ cluster.channel }}</span>
+      {% if support %}
+      <span title="{{ support.hint }}">{% include "google_gke_cluster/templates/_pill.html" with p=support.pill %}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if jobs %}
+  <div class="gke-banner gke-banner-info">
+    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+    <div class="gke-banner-body">
+      <div class="gke-banner-t">
+        {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
+      </div>
+      <ul class="gke-issues">
+        {% for job in jobs %}
+        <li>
+          <span class="gke-pill gke-pill-live"><i class="bi bi-arrow-repeat gke-spin" aria-hidden="true"></i> {{ job.status }}</span>
+          <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
+          {% if job.label %}<span class="gke-muted">&middot; {{ job.label }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if cluster.conditions or cluster.status_message %}
+  <div class="gke-banner{% if cluster.status.style == 'bad' %} gke-banner-bad{% endif %}">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div class="gke-banner-body">
+      <div class="gke-banner-t">{% trans "GKE reports" %}</div>
+      <ul class="gke-issues">
+        {% if cluster.status_message %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ cluster.status_message }}</li>{% endif %}
+        {% for message in cluster.conditions %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ message }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="gke-ess">
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Location type" %}</dt>
+        <dd>{{ cluster.location_type }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% if cluster.location_type == "Zonal" %}{% trans "Zone" %}{% else %}{% trans "Region" %}{% endif %}</dt>
+        <dd>{{ cluster.location|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Node zones" %}</dt>
+        <dd>{% if cluster.zones %}{{ cluster.zones|join:", " }}{% else %}<span class="gke-muted">&mdash;</span>{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Project" %}</dt>
+        <dd class="gke-mono">{{ cluster.project|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Created" %}</dt>
+        <dd>{{ cluster.created|default:"&mdash;" }}</dd>
+      </div>
+      {% if cluster.description %}
+      <div class="gke-kv">
+        <dt>{% trans "Description" %}</dt>
+        <dd>{{ cluster.description }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Release channel" %}</dt>
+        <dd>{{ cluster.channel }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Version" %}</dt>
+        <dd>
+          <span class="gke-mono">{{ cluster.version|default:"&mdash;" }}</span>
+          {% if upgrades.available %}<span class="gke-tag gke-tag-info">{% trans "Upgrade available" %}</span>{% endif %}
+          {% if cluster.node_version and cluster.node_version != cluster.version %}<div class="gke-hint">{% trans "Nodes" %} <span class="gke-mono">{{ cluster.node_version }}</span></div>{% endif %}
+        </dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Total size" %}</dt>
+        <dd>
+          {% if cluster.total_nodes is not None %}{% blocktrans count n=cluster.total_nodes %}{{ n }} node{% plural %}{{ n }} nodes{% endblocktrans %}{% else %}&mdash;{% endif %}
+          <div class="gke-hint">{% blocktrans count n=cluster.pool_count %}{{ n }} node pool{% plural %}{{ n }} node pools{% endblocktrans %}</div>
+        </dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "External endpoint" %}</dt>
+        <dd class="gke-mono">{{ cluster.endpoint|default:"&mdash;" }}</dd>
+      </div>
+      {% if cluster.private_endpoint %}
+      <div class="gke-kv">
+        <dt>{% trans "Internal endpoint" %}</dt>
+        <dd class="gke-mono">{{ cluster.private_endpoint }}</dd>
+      </div>
+      {% endif %}
+      {% if cluster.dns_endpoint %}
+      <div class="gke-kv">
+        <dt>{% trans "DNS endpoint" %}</dt>
+        <dd class="gke-mono">{{ cluster.dns_endpoint }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+</div>
+
+{# ── Upgrades ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Upgrades" %}</span>
+    {% if upgrades.available %}
+      <span class="gke-pill gke-pill-live"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i> {% trans "Upgrade available" %}</span>
+    {% elif cluster.version %}
+      <span class="gke-pill gke-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i> {% trans "No upgrade available" %}</span>
+    {% endif %}
+    <div class="gke-card-tools">
+      {% if upgrades.url %}
+      <a class="btn btn-sm {% if upgrades.available %}btn-primary{% else %}btn-outline-secondary{% endif %} open-dialog" href="{{ upgrades.url }}">
+        <i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade version" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="gke-ess">
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Control plane version" %}</dt>
+        <dd>
+          <span class="gke-mono">{{ cluster.version|default:"&mdash;" }}</span>
+          {% if support %}<div class="gke-hint">{{ support.pill.text }} &middot; {{ support.hint }}</div>{% endif %}
+        </dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Available versions" %}</dt>
+        <dd>
+          {% if upgrades.targets %}
+          <div class="gke-versions">
+            {% for t in upgrades.targets %}<span class="gke-tag gke-tag-info gke-mono">{{ t }}</span>{% endfor %}
+          </div>
+          {% else %}
+          <span class="gke-muted">{% trans "None: the cluster runs the newest version its release channel offers" %}</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Auto-upgrade" %}</dt>
+        <dd>
+          {% if upgrades.on_channel %}{% trans "Enabled by the release channel" %}{% else %}{% trans "Not on a release channel" %}{% endif %}
+          {% if upgrades.auto.status %}<div class="gke-hint">{% trans "Status" %}: {{ upgrades.auto.status }}</div>{% endif %}
+          {% if upgrades.auto.paused %}<div class="gke-hint"><span class="gke-tag gke-tag-warn">{% trans "paused" %}</span> {{ upgrades.auto.paused }}</div>{% endif %}
+        </dd>
+      </div>
+      {% if upgrades.auto.patch_target or upgrades.auto.minor_target %}
+      <div class="gke-kv">
+        <dt>{% trans "Next automatic upgrade" %}</dt>
+        <dd>
+          {% if upgrades.auto.patch_target %}<div>{% trans "Patch" %} <span class="gke-mono">{{ upgrades.auto.patch_target }}</span></div>{% endif %}
+          {% if upgrades.auto.minor_target %}<div>{% trans "Minor" %} <span class="gke-mono">{{ upgrades.auto.minor_target }}</span></div>{% endif %}
+        </dd>
+      </div>
+      {% endif %}
+      <div class="gke-kv">
+        <dt>{% trans "Node pools behind" %}</dt>
+        <dd>
+          {% if upgrades.pools_behind %}
+            <span class="gke-tag gke-tag-warn">{{ upgrades.pools_behind|length }}</span> {{ upgrades.pools_behind|join:", " }}
+            <div class="gke-hint">{% trans "Upgrade them from the Node pools tab." %}</div>
+          {% else %}
+            <span class="gke-muted">{% trans "None" %}</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+  <div class="gke-note">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    {% if upgrades.on_channel %}
+      {% blocktrans with channel=cluster.channel %}On the {{ channel }}, GKE upgrades the control plane and node pools automatically. A manual upgrade moves the control plane to a version the channel offers, one minor version at a time; node pools follow later.{% endblocktrans %}
+    {% else %}
+      {% trans "Kubernetes moves one minor version at a time, so only the versions GKE allows from here are listed. Node pools can follow the control plane later." %}
+    {% endif %}
+  </div>
+</div>
+
+{# ── Properties ── #}
+<div class="gke-props">
+  <div class="gke-card">
+    <div class="gke-card-h"><span class="gke-card-t">{% trans "Networking" %}</span></div>
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Network" %}</dt>
+        <dd class="gke-mono">{{ networking.network|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Subnet" %}</dt>
+        <dd class="gke-mono">{{ networking.subnetwork|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "VPC-native traffic routing" %}</dt>
+        <dd>{% if networking.vpc_native %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Cluster pod IPv4 range" %}</dt>
+        <dd class="gke-mono">{{ networking.pod_range|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Service IPv4 range" %}</dt>
+        <dd class="gke-mono">{{ networking.service_range|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Dataplane" %}</dt>
+        <dd>{{ networking.dataplane|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Private nodes" %}</dt>
+        <dd>{% if networking.private_nodes %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Control plane authorized networks" %}</dt>
+        <dd>
+          {% if networking.authorized_enabled %}
+            {% trans "Enabled" %}
+            {% for block in networking.authorized %}<div class="gke-hint"><span class="gke-mono">{{ block.cidr }}</span>{% if block.name %} &middot; {{ block.name }}{% endif %}</div>{% endfor %}
+          {% else %}
+            {% trans "Disabled" %}<div class="gke-hint">{% trans "The control plane accepts any address" %}</div>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="gke-card">
+    <div class="gke-card-h"><span class="gke-card-t">{% trans "Security" %}</span></div>
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Workload Identity" %}</dt>
+        <dd>{% if security.workload_pool %}{% trans "Enabled" %}<div class="gke-hint gke-mono">{{ security.workload_pool }}</div>{% else %}{% trans "Disabled" %}{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Shielded GKE nodes" %}</dt>
+        <dd>{{ security.shielded_nodes }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Google Groups for RBAC" %}</dt>
+        <dd>{% if security.google_groups %}{% trans "Enabled" %}<div class="gke-hint gke-mono">{{ security.google_groups }}</div>{% else %}{% trans "Disabled" %}{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Legacy authorization" %}</dt>
+        <dd>{{ security.legacy_abac }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Binary authorization" %}</dt>
+        <dd>{{ security.binary_authorization }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Application-layer secrets encryption" %}</dt>
+        <dd>{{ security.secrets_encryption }}{% if security.secrets_key %}<div class="gke-hint gke-mono">{{ security.secrets_key }}</div>{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Client certificate" %}</dt>
+        <dd>{{ security.client_certificate }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# ── Features ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Features" %}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="gke-table">
+      <thead>
+        <tr>
+          <th>{% trans "Feature" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Details" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in features %}
+        <tr>
+          <td>{{ f.name }}</td>
+          <td>
+            {% if f.enabled %}
+              <span class="gke-pill gke-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Enabled" %}</span>
+            {% else %}
+              <span class="gke-pill"><i class="bi bi-dash-circle" aria-hidden="true"></i> {% trans "Disabled" %}</span>
+            {% endif %}
+          </td>
+          <td class="gke-muted">{{ f.detail|default:"" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if warnings %}
+<div class="gke-note">
+  {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% endif %}

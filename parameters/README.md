@@ -7,3 +7,4 @@ Standalone parameters that content packages list. Source Control Repos does not 
 |---|---|---|---|---|---|
 | Data Disks | [CF-q3bexgap](CF-q3bexgap/README.md) | Data disks to add to the server, as a JSON list: one entry per disk with drive_letter (Windows) or mount_point (Linux), size_gb, and volume_name. | `disk_map` | TXT |  |
 | Domain OU | [CF-8pif9mbf](CF-8pif9mbf/README.md) | Specific OU to join the domain. Will only be used if the 'Domain to Join' is specified. | `domain_ou` | STR | [Suggest Domain OUs](../orchestration_actions/HPA-0zcrvpwu/README.md) |
+| Domain Service Account | [CF-yqmreb5m](CF-yqmreb5m/README.md) | Connection info whose domain account CloudBolt signs in to the server with after the Join Windows Server to AD Domain action joins it to its Domain OU. | `domain_service_account` | STR | [Generate Options for Domain Service Account](../orchestration_actions/HPA-g8pqv6uv/README.md) |

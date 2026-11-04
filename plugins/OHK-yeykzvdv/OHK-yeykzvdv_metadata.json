@@ -1,0 +1,80 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt IP pool to take the next free address from.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-w0qiwtk4",
+            "label": "IP Pool",
+            "name": "ip_pool_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Hostname of the server or device that will use the address.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-td470d92",
+            "label": "Hostname",
+            "name": "ip_hostname",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Ticket, asset tag or other ID to find this reservation by. One active reservation per reference in a pool.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-nqw96d9t",
+            "label": "Reference",
+            "name": "ip_reference",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "ip_pool_id",
+        "ip_hostname",
+        "ip_reference"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-s3k9ov0z"
+        ]
+    },
+    "description": "Reserves the next free address in the chosen CloudBolt IP pool for an IP Address Reservation resource.",
+    "id": "OHK-yeykzvdv",
+    "max_retries": 0,
+    "name": "IP Address Reservation Build",
+    "resource_technologies": [],
+    "script_filename": "OHK-yeykzvdv_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

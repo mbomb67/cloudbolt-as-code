@@ -1,0 +1,12 @@
+{
+    "description": "GKE API client, cluster and node pool operations, Kubernetes API access verified against the cluster CA, orchestrator registration, and group entitlement helpers for Google Kubernetes Engine content.",
+    "id": "SHM-4yw92b8x",
+    "label": "Google GKE",
+    "max_retries": 0,
+    "module_name": "gcp_gke",
+    "name": "gcp_gke",
+    "resource_technologies": [],
+    "script_filename": "SHM-4yw92b8x_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

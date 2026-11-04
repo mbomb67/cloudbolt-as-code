@@ -1,0 +1,61 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Add entitles the chosen groups; Remove takes them off, and with none left every group may order namespaces; Allow all groups removes every group.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-u0eoex0g",
+            "label": "Operation",
+            "name": "gke_groups_operation",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "CloudBolt groups to add or remove; groups entitled now are marked. Allow all groups ignores this list.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-hgedy3w3",
+            "label": "Groups",
+            "name": "gke_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_groups_operation",
+        "gke_groups"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Adds or removes the CloudBolt groups entitled to a GKE cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "id": "OHK-m8iwylq8",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Manage GKE Cluster Groups",
+    "resource_technologies": [],
+    "script_filename": "OHK-m8iwylq8_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

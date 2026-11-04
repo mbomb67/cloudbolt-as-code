@@ -1,0 +1,32 @@
+{% load i18n %}
+{% include "aws_sg_management/templates/_sg_assets.html" %}
+
+<div id="sgx-rules-{{ resource.id }}" class="sgx">
+  {# ── Security group identity from the resource's custom fields; live state loads below ── #}
+  <div class="sg-card">
+    <div class="sg-hero-top">
+      <div>
+        <div class="sg-eyebrow">{% trans "Security group" %}</div>
+        <div class="sg-title"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> {{ group_name }}</div>
+        <div class="sg-sub">{{ group_id }}{% if vpc_id %} &middot; {{ vpc_id }}{% endif %}{% if region %} &middot; {{ region }}{% endif %}</div>
+      </div>
+      <div class="sg-tools">
+        {% if console_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ console_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in AWS console" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-sg-refresh title="{% trans 'Read the rules from AWS again' %}">
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Details, network interfaces, and the inbound and outbound rules: the panel renders its own cards ── #}
+  <div data-sg-panel="rules" data-sg-src="{{ panel_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.sgxInit("sgx-rules-{{ resource.id }}"); });
+</script>

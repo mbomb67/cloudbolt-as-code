@@ -1,0 +1,15 @@
+{
+    "contents": [
+        "plugins/OHK-vswf8b1m",
+        "extensions/XUI-0jdk7t6h",
+        "orchestration_actions/HPA-vo2ghe4x",
+        "blueprints/BP-3fdhnw54"
+    ],
+    "description": "Orders, discovers, and deletes Azure network security groups, adds a Security Rules tab for viewing and editing their rules, and can attach new Azure VMs to a chosen network security group at provisioning.",
+    "id": "PKG-gqw2jqgj",
+    "last_updated": "2026-10-22",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Azure Network Security Groups",
+    "version": "1.0.0"
+}

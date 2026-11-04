@@ -1,0 +1,19 @@
+{
+    "description": "Lists every connection info labeled domain_service_account, by name and username, with its ID as the value, for the domain_service_account parameter.",
+    "id": "OHK-ww524a3e",
+    "max_retries": 0,
+    "name": "Generate Options for Domain Service Account",
+    "parameters": [
+        {
+            "description": "Connection info whose domain account CloudBolt signs in to the server with after the Join Windows Server to AD Domain action joins it to its Domain OU.",
+            "label": "Domain Service Account",
+            "name": "domain_service_account",
+            "type": "String"
+        }
+    ],
+    "resource_technologies": [],
+    "script_filename": "OHK-ww524a3e_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

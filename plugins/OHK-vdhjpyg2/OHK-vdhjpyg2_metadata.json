@@ -1,0 +1,102 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Grant adds access; revoke removes it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-jnzx41l2",
+            "label": "Action",
+            "name": "gke_ns_access_action",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Kubernetes role the principal gets in this namespace: Edit, View, or Admin. Ignored on revoke.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-ofsqbegw",
+            "label": "Access Level",
+            "name": "gke_ns_access_level",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "CloudBolt group to entitle to (or remove from) the namespace's environment, so its members can (or can no longer) order containers into it.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-myzd3te5",
+            "label": "CloudBolt Group",
+            "name": "gke_ns_cloudbolt_group",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A Google account, Google Group, or Google service account to give kubectl access through Kubernetes RBAC, or to remove: user:EMAIL, group:EMAIL, or serviceAccount:EMAIL.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-a0p1931b",
+            "label": "Google Principal",
+            "name": "gke_ns_principal",
+            "placeholder": "user:dev@example.com",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_ns_access_action",
+        "gke_ns_principal",
+        "gke_ns_access_level",
+        "gke_ns_cloudbolt_group"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-kephq8iq",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Grants or revokes kubectl access to a GKE namespace for a Google account, group, or service account through a namespace RoleBinding, and a CloudBolt group's entitlement to its environment.",
+    "id": "OHK-vdhjpyg2",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Manage GKE Namespace Access",
+    "resource_technologies": [],
+    "script_filename": "OHK-vdhjpyg2_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

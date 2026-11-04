@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Re-reads the GKE cluster and its node pools from Google Cloud, refreshing the cluster's values, its container orchestrator, and its GKE Node Pool sub-resources.",
+    "id": "OHK-niw4hc9m",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "List GKE Node Pools",
+    "resource_technologies": [],
+    "script_filename": "OHK-niw4hc9m_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

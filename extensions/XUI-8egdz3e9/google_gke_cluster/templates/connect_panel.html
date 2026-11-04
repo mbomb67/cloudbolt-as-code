@@ -1,0 +1,174 @@
+{% load i18n %}
+{% if error %}
+<div class="gke-card">
+  {% include "google_gke_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Where the namespace lives ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Namespace" %}</span>
+    <div class="gke-card-tools">
+      {% if console_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ console_url }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in Google Cloud console" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="gke-ess">
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "Cluster" %}</dt>
+        <dd>{% if cluster_url %}<a href="{{ cluster_url }}">{{ cluster_name }}</a>{% else %}{{ cluster_name }}{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Project" %}</dt>
+        <dd class="gke-mono">{{ project|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Location" %}</dt>
+        <dd>{{ location|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "CloudBolt environment" %}</dt>
+        <dd>{{ environment_name|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="gke-kv">
+        <dt>{% trans "External endpoint" %}</dt>
+        <dd class="gke-mono">{{ endpoint|default:"&mdash;" }}{% if private_endpoint %}<div class="gke-hint">{% trans "Internal" %} {{ private_endpoint }}</div>{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Authentication" %}</dt>
+        <dd>{{ auth_mode|default:"&mdash;" }}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Google Groups for RBAC" %}</dt>
+        <dd>{% if google_groups %}<span class="gke-mono">{{ google_groups }}</span>{% else %}<span class="gke-muted">{% trans "Not enabled: Group grants have no effect" %}</span>{% endif %}</dd>
+      </div>
+      <div class="gke-kv">
+        <dt>{% trans "Network policy" %}</dt>
+        <dd>{{ network_policy|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# Collapsible sections are <details>: open ones start expanded. #}
+
+{# ── Who has access ── #}
+<details class="gke-card gke-fold" open>
+  <summary class="gke-card-h">
+    <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
+    <span class="gke-card-t">{% trans "Access" %} &middot; {{ access|length }}</span>
+  </summary>
+  {% if access_error %}
+    {% include "google_gke_cluster/templates/_alert.html" with error=access_error %}
+  {% elif access %}
+  <div class="table-responsive">
+    <table class="gke-table">
+      <thead>
+        <tr>
+          <th>{% trans "Principal" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th>{% trans "Access" %}</th>
+          <th>{% trans "Granted on" %}</th>
+          <th>{% trans "Granted by" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in access %}
+        <tr>
+          <td class="gke-mono">{{ row.name }}{% if row.binding %}<div class="gke-hint">{{ row.binding }}</div>{% endif %}</td>
+          <td>{{ row.type_text|default:"&mdash;" }}</td>
+          <td><span class="gke-pill">{{ row.label }}</span></td>
+          <td>{% if row.scope == "namespace" %}{{ row.scope_text }}{% else %}<span class="gke-tag gke-tag-warn">{{ row.scope_text }}</span>{% endif %}</td>
+          <td>{% if row.managed %}<span class="gke-tag gke-tag-info">CloudBolt</span>{% else %}<span class="gke-muted">{% trans "Outside CloudBolt" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="gke-empty">{% trans "No Google identity has a RoleBinding in this namespace yet. Use Manage access to grant it." %}</div>
+  {% endif %}
+  <div class="gke-note">
+    {% blocktrans with roles=level_roles %}Access is a RoleBinding in the namespace to one of the Kubernetes ClusterRoles {{ roles }}. To fetch credentials with gcloud, a person also needs container.clusters.get on the project (Kubernetes Engine Cluster Viewer). IAM roles on the project, such as Kubernetes Engine Developer, reach every namespace and are not listed.{% endblocktrans %}
+  </div>
+</details>
+
+{# ── Pipeline identities ── #}
+{% if pipelines %}
+<details class="gke-card gke-fold" open>
+  <summary class="gke-card-h">
+    <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
+    <span class="gke-card-t">{% trans "Pipeline identities" %} &middot; {{ pipelines|length }}</span>
+  </summary>
+  {% for p in pipelines %}
+  <div class="gke-note">
+    <span class="gke-mono">{{ p.repository }}</span>{% if p.trigger %} &middot; {{ p.trigger }}{% endif %} &middot; <span class="gke-pill">{{ p.level_text }}</span>
+    {% if p.provider %}<div class="gke-hint">{% trans "Workload Identity provider" %} <span class="gke-mono">{{ p.provider }}</span></div>{% endif %}
+    {% if p.service_account %}<div class="gke-hint">{% trans "Google service account" %} <span class="gke-mono">{{ p.service_account }}</span></div>{% elif p.principal %}<div class="gke-hint">{% trans "Kubernetes subject" %} <span class="gke-mono">{{ p.principal }}</span></div>{% endif %}
+  </div>
+  {% if p.snippet %}
+  <div class="gke-card-h">
+    <span class="gke-hint">{% trans "GitHub Actions workflow" %}</span>
+    <div class="gke-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-copy="#gkex-pipeline-{{ forloop.counter }}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+    </div>
+  </div>
+  <pre class="gke-pre gke-mono" id="gkex-pipeline-{{ forloop.counter }}">{{ p.snippet }}</pre>
+  {% endif %}
+  {% endfor %}
+</details>
+{% endif %}
+
+{# ── Commands ── #}
+<details class="gke-card gke-fold" open>
+  <summary class="gke-card-h">
+    <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
+    <span class="gke-card-t">{% trans "Connect with kubectl" %}</span>
+  </summary>
+  <ol class="gke-steps">
+    {% for command in commands %}
+    <li>
+      <code class="gke-mono" id="gkex-cmd-{{ forloop.counter }}">{{ command }}</code>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-copy="#gkex-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="gke-note">
+    {% trans "Needs the gcloud CLI with gke-gcloud-auth-plugin, signed in (gcloud auth login) as a principal listed under Access above." %}
+  </div>
+</details>
+
+{# ── kubeconfig (holds no secret): starts collapsed ── #}
+{% if kubeconfig %}
+<details class="gke-card gke-fold">
+  <summary class="gke-card-h">
+    <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
+    <span class="gke-card-t">{% trans "kubeconfig" %}</span>
+    <div class="gke-card-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-copy="#gkex-kubeconfig">
+        <i class="bi bi-clipboard" aria-hidden="true"></i> {% trans "Copy" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-download="#gkex-kubeconfig" data-gke-filename="{{ kubeconfig_filename }}">
+        <i class="bi bi-download" aria-hidden="true"></i> {% trans "Download" %}
+      </button>
+    </div>
+  </summary>
+  <pre class="gke-pre gke-mono" id="gkex-kubeconfig">{{ kubeconfig }}</pre>
+  <div class="gke-note">
+    {% trans "Contains no secret: gke-gcloud-auth-plugin signs you in with your own gcloud credentials. Save it and point KUBECONFIG at the file; unlike get-credentials, it does not need container.clusters.get on the project." %}
+  </div>
+</details>
+{% endif %}
+
+{% endif %}

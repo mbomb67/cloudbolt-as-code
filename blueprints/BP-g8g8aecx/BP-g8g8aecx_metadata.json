@@ -1,0 +1,187 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "action_name": "GKE Cluster Build",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-shr5y3i6"
+            },
+            "deploy_seq": 1,
+            "description": "Creates the GKE cluster and registers it with CloudBolt.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-i4lj4z8x",
+            "name": "GKE Cluster Build",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Creates, deletes, and discovers Google Kubernetes Engine Standard clusters with Dataplane V2 and Workload Identity Federation, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster.",
+    "discovery_plugin": {
+        "dependencies": {
+            "hook": "plugins/OHK-6l86xugc"
+        },
+        "href": "/api/v3/cmp/actions/OHK-6l86xugc/",
+        "title": "GKE Cluster Discovery"
+    },
+    "favorited": false,
+    "icon": "google_gke_logo.png",
+    "id": "BP-g8g8aecx",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": null,
+            "id": "TAG-7rmy1aof",
+            "image": null,
+            "name": "GCP",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-ib4jvddz",
+            "image": null,
+            "name": "Kubernetes",
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-10-21",
+    "management_actions": [
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-wlihlt2z"
+            },
+            "enabled": true,
+            "label": "Upgrade GKE Version"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-hg13ra5x"
+            },
+            "enabled": true,
+            "label": "Add GKE Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-kfd31bur"
+            },
+            "enabled": true,
+            "label": "Delete GKE Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-afixcgmf"
+            },
+            "enabled": true,
+            "label": "List GKE Node Pools"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-vz9sbjto"
+            },
+            "enabled": true,
+            "label": "Scale GKE Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-gpa7ywnn"
+            },
+            "enabled": true,
+            "label": "Upgrade GKE Node Pool"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-yrnl5j6j"
+            },
+            "enabled": true,
+            "label": "Create GKE Namespace"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-gqwszlzf"
+            },
+            "enabled": true,
+            "label": "Manage GKE Cluster Groups"
+        }
+    ],
+    "metadata_version": "2026.1.0",
+    "name": "Google Kubernetes Engine",
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": null,
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-qb0w86mi"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Expiration Date'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-kikjrmqr",
+            "label": "Expiration Date",
+            "name": "expiration_date",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": true,
+            "type": "DT",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": null,
+    "resource_type": {
+        "categories": [],
+        "description": null,
+        "icon": "fas fa-dharmachakra",
+        "id": "RT-kjlvj97y",
+        "internal_only": false,
+        "label": "Kubernetes Cluster",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "kubernetes_cluster",
+        "plural_label": "Kubernetes Clusters"
+    },
+    "sequence": 0,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "GKE Cluster Teardown",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-y9wx9bga"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the GKE cluster, refusing while namespace landing zones remain.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-x5gcjoff",
+            "name": "GKE Cluster Teardown",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

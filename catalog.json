@@ -72,7 +72,10 @@
       "plugins/OHK-9jouejv8",
       "plugins/OHK-kdne1t5s"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "BP-5pei9cno",
@@ -91,6 +94,22 @@
       "resource_actions/RSA-mgh3dn9p"
     ],
     "used_by": []
+  },
+  {
+    "id": "BP-6ddlyguv",
+    "type": "blueprints",
+    "name": "Windows VM with Workflow",
+    "description": "Deploys a Windows VM and then runs a Windows workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "path": "blueprints/BP-6ddlyguv",
+    "readme": "blueprints/BP-6ddlyguv/README.md",
+    "uses": [
+      "forms/FRM-s6h73usp",
+      "plugins/OHK-69gk5ne9"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "BP-9ph7xcok",
@@ -159,6 +178,30 @@
     "used_by": []
   },
   {
+    "id": "BP-c9ca1i3z",
+    "type": "blueprints",
+    "name": "GKE Namespace",
+    "description": "Creates a governed namespace on an existing GKE cluster with a tiered ResourceQuota, default container limits, and network policies, entitles the ordering group to deploy containers into it, and grants Google users, groups, and pipelines namespace-scoped Kubernetes RBAC access.",
+    "path": "blueprints/BP-c9ca1i3z",
+    "readme": "blueprints/BP-c9ca1i3z/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-32pzj98f",
+      "plugins/OHK-jm8j1513",
+      "plugins/OHK-ml7ee42y",
+      "resource_actions/RSA-0f3na70j",
+      "resource_actions/RSA-0k2xcobm",
+      "resource_actions/RSA-1qdgexp2",
+      "resource_actions/RSA-ah76u4qg",
+      "resource_actions/RSA-mucwia5b",
+      "resource_actions/RSA-x1658l9r"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-xev1ob4t"
+    ]
+  },
+  {
     "id": "BP-dnsrec01",
     "type": "blueprints",
     "name": "DNS A Record",
@@ -187,6 +230,7 @@
       "resource_actions/RSA-1amyol6t",
       "resource_actions/RSA-2f01ppuc",
       "resource_actions/RSA-7wdigcpr",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-nvwe7u4b",
       "resource_actions/RSA-rwaszep5"
     ],
@@ -208,6 +252,7 @@
       "plugins/OHK-ow9x0amc",
       "plugins/OHK-u9jm7p8h",
       "resource_actions/RSA-03qqsnft",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-j03ua3gm",
       "resource_actions/RSA-l59xsi54",
       "resource_actions/RSA-mr1clc5e",
@@ -231,6 +276,32 @@
     "used_by": []
   },
   {
+    "id": "BP-g8g8aecx",
+    "type": "blueprints",
+    "name": "Google Kubernetes Engine",
+    "description": "Creates, deletes, and discovers Google Kubernetes Engine Standard clusters with Dataplane V2 and Workload Identity Federation, with day-2 actions to add, list, scale, upgrade, and delete node pools, upgrade the cluster's Kubernetes version, create namespace landing zones, and choose the CloudBolt groups that may order namespaces on the cluster.",
+    "path": "blueprints/BP-g8g8aecx",
+    "readme": "blueprints/BP-g8g8aecx/README.md",
+    "uses": [
+      "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-6l86xugc",
+      "plugins/OHK-shr5y3i6",
+      "plugins/OHK-y9wx9bga",
+      "resource_actions/RSA-afixcgmf",
+      "resource_actions/RSA-gpa7ywnn",
+      "resource_actions/RSA-gqwszlzf",
+      "resource_actions/RSA-hg13ra5x",
+      "resource_actions/RSA-kfd31bur",
+      "resource_actions/RSA-vz9sbjto",
+      "resource_actions/RSA-wlihlt2z",
+      "resource_actions/RSA-yrnl5j6j"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-xev1ob4t"
+    ]
+  },
+  {
     "id": "BP-g9zwqjoa",
     "type": "blueprints",
     "name": "Server with Data Disks",
@@ -244,6 +315,21 @@
     "packages": [
       "packages/PKG-t1k7drin",
       "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
+    "id": "BP-j25t4xpv",
+    "type": "blueprints",
+    "name": "IP Address Reservation",
+    "description": "Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted.",
+    "path": "blueprints/BP-j25t4xpv",
+    "readme": "blueprints/BP-j25t4xpv/README.md",
+    "uses": [
+      "plugins/OHK-yeykzvdv"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-g151nn7r"
     ]
   },
   {
@@ -322,6 +408,23 @@
       "resource_actions/RSA-zmi15uts"
     ],
     "used_by": []
+  },
+  {
+    "id": "BP-ofwowhqd",
+    "type": "blueprints",
+    "name": "AWS Security Group",
+    "description": "Creates, deletes, and discovers AWS VPC security groups.",
+    "path": "blueprints/BP-ofwowhqd",
+    "readme": "blueprints/BP-ofwowhqd/README.md",
+    "uses": [
+      "plugins/OHK-62awc6bl",
+      "plugins/OHK-9y493oyz",
+      "plugins/OHK-jb16kobi"
+    ],
+    "used_by": [],
+    "packages": [
+      "packages/PKG-wik86fh7"
+    ]
   },
   {
     "id": "BP-p7zmh96m",
@@ -439,10 +542,14 @@
       "plugins/OHK-mpe8fl3d",
       "plugins/OHK-prew0osh",
       "resource_actions/RSA-4e8lmj2r",
+      "resource_actions/RSA-ah76u4qg",
       "resource_actions/RSA-kx7mdgva",
       "resource_actions/RSA-yj1c4b5s"
     ],
-    "used_by": []
+    "used_by": [],
+    "packages": [
+      "packages/PKG-57ltvnbl"
+    ]
   },
   {
     "id": "BP-uh9v24v3",
@@ -470,8 +577,8 @@
   {
     "id": "BP-vy9ytey6",
     "type": "blueprints",
-    "name": "VM with Workflow",
-    "description": "Deploys a Windows Server or Oracle Linux VM and then runs a workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
+    "name": "Linux VM with Workflow",
+    "description": "Deploys a Linux VM and then runs a Linux workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item.",
     "path": "blueprints/BP-vy9ytey6",
     "readme": "blueprints/BP-vy9ytey6/README.md",
     "uses": [
@@ -518,12 +625,15 @@
     "id": "XUI-0jdk7t6h",
     "type": "extensions",
     "name": "Azure NSG Management",
-    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
+    "description": "Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete.",
     "path": "extensions/XUI-0jdk7t6h",
     "readme": "extensions/XUI-0jdk7t6h/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "XUI-60382c9x",
@@ -562,6 +672,20 @@
     ]
   },
   {
+    "id": "XUI-8egdz3e9",
+    "type": "extensions",
+    "name": "Google GKE Cluster",
+    "description": "Adds Cluster, Node pools, Workloads, and Groups tabs to Google Kubernetes Engine cluster resources with the console's basics, networking and security, upgrades, features, node pool scaling, upgrade, and deletion, per-node and per-namespace workload figures, and the CloudBolt groups that may order namespaces on the cluster, and Connect and Workloads tabs to GKE namespace landing zones with kubectl access details and a live inventory.",
+    "path": "extensions/XUI-8egdz3e9",
+    "readme": "extensions/XUI-8egdz3e9/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-xev1ob4t"
+    ]
+  },
+  {
     "id": "XUI-ax1sluwi",
     "type": "extensions",
     "name": "HCP Terraform Workspace",
@@ -590,7 +714,7 @@
     "id": "XUI-iq65xgvr",
     "type": "extensions",
     "name": "Content Package Manager",
-    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, and standalone parameters, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
+    "description": "Adds a Content Packages admin page for defining named sets of blueprints, actions, plugins, shared modules, UI extensions, standalone parameters, and Runbooks workflows, and for exporting, syncing, or importing each set through CloudBolt's own per-object repository push and sync.",
     "path": "extensions/XUI-iq65xgvr",
     "readme": "extensions/XUI-iq65xgvr/README.md",
     "uses": [],
@@ -623,6 +747,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-n5xgfdqd",
+    "type": "extensions",
+    "name": "Credentials Manager",
+    "description": "Adds a Credentials Manager admin page that updates the username, password, SSH key or VMware new VM password CloudBolt stores for many servers and images at once, chosen by filters, with a preview, a history event per change, and no change inside the guests.",
+    "path": "extensions/XUI-n5xgfdqd",
+    "readme": "extensions/XUI-n5xgfdqd/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-nr5iiu60",
     "type": "extensions",
     "name": "Azure AKS Cluster",
@@ -634,6 +769,20 @@
     "enabled": true,
     "packages": [
       "packages/PKG-yrpqo1o0"
+    ]
+  },
+  {
+    "id": "XUI-oj60n72c",
+    "type": "extensions",
+    "name": "AWS Security Group Management",
+    "description": "Adds a Security Rules tab to AWS security group resources with the group's details, network interfaces, and inbound and outbound rules, which users with permission can add, edit, and delete.",
+    "path": "extensions/XUI-oj60n72c",
+    "readme": "extensions/XUI-oj60n72c/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-wik86fh7"
     ]
   },
   {
@@ -657,6 +806,20 @@
     "uses": [],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "XUI-y9bdnzxt",
+    "type": "extensions",
+    "name": "OpenShift Project",
+    "description": "Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage.",
+    "path": "extensions/XUI-y9bdnzxt",
+    "readme": "extensions/XUI-y9bdnzxt/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-57ltvnbl"
+    ]
   },
   {
     "id": "XUI-ycumvq8k",
@@ -690,7 +853,8 @@
     "readme": null,
     "uses": [],
     "used_by": [
-      "forms/FRM-j7w530h7"
+      "forms/FRM-j7w530h7",
+      "forms/FRM-s6h73usp"
     ]
   },
   {
@@ -885,8 +1049,8 @@
   {
     "id": "FRM-j7w530h7",
     "type": "forms",
-    "name": "VM with Workflow",
-    "description": "Deploys a Windows Server or Oracle Linux VM, then runs the workflow you pick on it.",
+    "name": "Linux VM with Workflow",
+    "description": "Deploys a Linux VM, then runs the workflow you pick on it.",
     "path": "forms/FRM-j7w530h7",
     "readme": null,
     "uses": [
@@ -936,6 +1100,20 @@
     ],
     "used_by": [
       "blueprints/BP-qo1stxre"
+    ]
+  },
+  {
+    "id": "FRM-s6h73usp",
+    "type": "forms",
+    "name": "Windows VM with Workflow",
+    "description": "Deploys a Windows VM, then runs the workflow you pick on it.",
+    "path": "forms/FRM-s6h73usp",
+    "readme": null,
+    "uses": [
+      "form_functions/FJS-hufo9zd4"
+    ],
+    "used_by": [
+      "blueprints/BP-6ddlyguv"
     ]
   },
   {
@@ -1077,6 +1255,20 @@
     "mcp_tool_name": "run_recurring_job"
   },
   {
+    "id": "MTA-zth0tjjg",
+    "type": "mcp_tool_actions",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
+    "path": "mcp_tool_actions/MTA-zth0tjjg",
+    "readme": "mcp_tool_actions/MTA-zth0tjjg/README.md",
+    "uses": [
+      "plugins/OHK-ukp8n10w"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "mcp_tool_name": "rerun_job"
+  },
+  {
     "id": "HPA-0zcrvpwu",
     "type": "orchestration_actions",
     "name": "Suggest Domain OUs",
@@ -1204,6 +1396,25 @@
     "enabled": false
   },
   {
+    "id": "HPA-g8pqv6uv",
+    "type": "orchestration_actions",
+    "name": "Generate Options for Domain Service Account",
+    "description": "Lists every connection info labeled domain_service_account as the choices for the domain_service_account parameter.",
+    "path": "orchestration_actions/HPA-g8pqv6uv",
+    "readme": "orchestration_actions/HPA-g8pqv6uv/README.md",
+    "uses": [
+      "plugins/OHK-ww524a3e"
+    ],
+    "used_by": [
+      "parameters/CF-yqmreb5m"
+    ],
+    "hook_point": "Generated Parameter Options",
+    "enabled": true,
+    "packages": [
+      "packages/PKG-nf407lm5"
+    ]
+  },
+  {
     "id": "HPA-h7g0i0dx",
     "type": "orchestration_actions",
     "name": "Azure CMK - Remove Per-VM Disk Encryption Set",
@@ -1249,7 +1460,7 @@
     "id": "HPA-jjp1vlfi",
     "type": "orchestration_actions",
     "name": "Join Windows Server to AD Domain",
-    "description": "Joins newly provisioned Windows servers to their Active Directory domain at Post-Provision.",
+    "description": "Joins newly provisioned Windows servers to the Active Directory OU their domain_ou names at Post-Provision, switching their CloudBolt credentials to the domain_service_account connection info when one is picked.",
     "path": "orchestration_actions/HPA-jjp1vlfi",
     "readme": "orchestration_actions/HPA-jjp1vlfi/README.md",
     "uses": [
@@ -1326,6 +1537,8 @@
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
       "blueprints/BP-20q58q9z",
+      "blueprints/BP-c9ca1i3z",
+      "blueprints/BP-g8g8aecx",
       "blueprints/BP-122nbdt5",
       "blueprints/BP-anonytrx",
       "blueprints/BP-tikkhf2y",
@@ -1392,7 +1605,10 @@
     ],
     "used_by": [],
     "hook_point": "Post-Provision",
-    "enabled": false
+    "enabled": false,
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
   },
   {
     "id": "HPA-w1dmx20b",
@@ -1427,6 +1643,21 @@
     ]
   },
   {
+    "id": "PKG-57ltvnbl",
+    "type": "packages",
+    "name": "OpenShift",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, and the Connect and Workloads tabs on each project.",
+    "path": "packages/PKG-57ltvnbl",
+    "readme": "packages/PKG-57ltvnbl/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "extensions/XUI-y9bdnzxt",
+      "blueprints/BP-tikkhf2y"
+    ]
+  },
+  {
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
@@ -1443,20 +1674,54 @@
     ]
   },
   {
-    "id": "PKG-nf407lm5",
+    "id": "PKG-g151nn7r",
     "type": "packages",
-    "name": "Windows AD Domain Join",
-    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, taking the domain and its LDAP Utility from the OU, and deletes the computer object at decommission.",
-    "path": "packages/PKG-nf407lm5",
-    "readme": "packages/PKG-nf407lm5/README.md",
+    "name": "IP Reservations",
+    "description": "Reserves IP addresses from CloudBolt IP pools for servers and devices CloudBolt does not build, through an order or an inbound webhook, and tracks each reservation as a resource.",
+    "path": "packages/PKG-g151nn7r",
+    "readme": "packages/PKG-g151nn7r/README.md",
     "uses": [],
     "used_by": [],
     "version": "1.0.0",
     "contents": [
+      "webhooks/IWH-x82773zb",
+      "blueprints/BP-j25t4xpv"
+    ]
+  },
+  {
+    "id": "PKG-gqw2jqgj",
+    "type": "packages",
+    "name": "Azure Network Security Groups",
+    "description": "Orders, discovers, and deletes Azure network security groups, adds a Security Rules tab for viewing and editing their rules, and can attach new Azure VMs to a chosen network security group at provisioning.",
+    "path": "packages/PKG-gqw2jqgj",
+    "readme": "packages/PKG-gqw2jqgj/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "plugins/OHK-vswf8b1m",
+      "extensions/XUI-0jdk7t6h",
+      "orchestration_actions/HPA-vo2ghe4x",
+      "blueprints/BP-3fdhnw54"
+    ]
+  },
+  {
+    "id": "PKG-nf407lm5",
+    "type": "packages",
+    "name": "Windows AD Domain Join",
+    "description": "Joins provisioned Windows servers to Active Directory in the OU picked from a type-ahead domain_ou parameter, optionally switching their CloudBolt credentials to a domain service account, and deletes the computer object at decommission.",
+    "path": "packages/PKG-nf407lm5",
+    "readme": "packages/PKG-nf407lm5/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.1.0",
+    "contents": [
       "orchestration_actions/HPA-q181uofy",
       "orchestration_actions/HPA-jjp1vlfi",
       "orchestration_actions/HPA-0zcrvpwu",
-      "parameters/CF-8pif9mbf"
+      "orchestration_actions/HPA-g8pqv6uv",
+      "parameters/CF-8pif9mbf",
+      "parameters/CF-yqmreb5m"
     ]
   },
   {
@@ -1482,12 +1747,12 @@
     "id": "PKG-v20qv308",
     "type": "packages",
     "name": "Runbooks",
-    "description": "Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, and an example blueprint that runs a workflow.",
+    "description": "Adds Run Task and Run Workflow, actions that run any Remote Script that fits a VM or an ordered workflow of CloudBolt actions on it, with base, example and installer task scripts, the Runbooks page for building workflows, base actions and file archives, example Linux and Windows workflows whose scripts read a config file from File Archives, and Linux and Windows blueprints that run a workflow.",
     "path": "packages/PKG-v20qv308",
     "readme": "packages/PKG-v20qv308/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "plugins/OHK-lhm2916o",
       "plugins/OHK-iub9a2jg",
@@ -1500,7 +1765,41 @@
       "server_actions/SVA-4sin3s0q",
       "server_actions/SVA-j7rbsh39",
       "extensions/XUI-jbm5ac9e",
-      "blueprints/BP-vy9ytey6"
+      "blueprints/BP-vy9ytey6",
+      "blueprints/BP-6ddlyguv",
+      "runbook_workflows/SWF-69r5mmdb",
+      "runbook_workflows/SWF-7s01lyyk"
+    ]
+  },
+  {
+    "id": "PKG-wik86fh7",
+    "type": "packages",
+    "name": "AWS Security Groups",
+    "description": "Orders, discovers, and deletes AWS VPC security groups and adds a Security Rules tab for viewing and editing their inbound and outbound rules.",
+    "path": "packages/PKG-wik86fh7",
+    "readme": "packages/PKG-wik86fh7/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "extensions/XUI-oj60n72c",
+      "blueprints/BP-ofwowhqd"
+    ]
+  },
+  {
+    "id": "PKG-xev1ob4t",
+    "type": "packages",
+    "name": "Google GKE",
+    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "path": "packages/PKG-xev1ob4t",
+    "readme": "packages/PKG-xev1ob4t/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.0.0",
+    "contents": [
+      "blueprints/BP-g8g8aecx",
+      "blueprints/BP-c9ca1i3z",
+      "extensions/XUI-8egdz3e9"
     ]
   },
   {
@@ -1567,6 +1866,23 @@
     "parameter_type": "TXT",
     "packages": [
       "packages/PKG-zny1ynfs"
+    ]
+  },
+  {
+    "id": "CF-yqmreb5m",
+    "type": "parameters",
+    "name": "Domain Service Account",
+    "description": "Connection info whose domain account CloudBolt signs in to the server with after the Join Windows Server to AD Domain action joins it to its Domain OU.",
+    "path": "parameters/CF-yqmreb5m",
+    "readme": "parameters/CF-yqmreb5m/README.md",
+    "uses": [
+      "orchestration_actions/HPA-g8pqv6uv"
+    ],
+    "used_by": [],
+    "parameter_name": "domain_service_account",
+    "parameter_type": "STR",
+    "packages": [
+      "packages/PKG-nf407lm5"
     ]
   },
   {
@@ -1750,6 +2066,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-2rpjqm7u",
+    "type": "plugins",
+    "name": "Upgrade GKE Node Pool",
+    "description": "Upgrades a GKE node pool that is behind the control plane to the control plane's version and refreshes its sub-resource.",
+    "path": "plugins/OHK-2rpjqm7u",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-gpa7ywnn"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-2vdm93hu",
     "type": "plugins",
     "name": "Install NGINX OEL8",
@@ -1774,6 +2105,22 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-h7g0i0dx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-32pzj98f",
+    "type": "plugins",
+    "name": "GKE Namespace",
+    "description": "Creates a namespace with a tiered ResourceQuota, default container limits, and the chosen ingress and egress NetworkPolicies on an existing GKE cluster, then pins a CloudBolt environment to it, entitles the ordering group, and grants Google principals namespace-scoped Kubernetes RBAC access.",
+    "path": "plugins/OHK-32pzj98f",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -1847,6 +2194,19 @@
       "resource_actions/RSA-kx7mdgva"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-4etpeg05",
+    "type": "plugins",
+    "name": "Create Linux App Account",
+    "description": "Creates the system group, no-login system user and home directory named in a config file from File Archives on a Linux VM, when they do not exist, and outputs the account and home directory.",
+    "path": "plugins/OHK-4etpeg05",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-4rucefwc",
@@ -1991,6 +2351,19 @@
     ]
   },
   {
+    "id": "OHK-62awc6bl",
+    "type": "plugins",
+    "name": "AWS Security Group Sync",
+    "description": "Discovers AWS security groups in every region the AWS resource handlers' environments use.",
+    "path": "plugins/OHK-62awc6bl",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-67bw7wgu",
     "type": "plugins",
     "name": "Request Certificate (Windows CA)",
@@ -2016,8 +2389,24 @@
       "shared_modules/SHM-nznzhpp0"
     ],
     "used_by": [
+      "blueprints/BP-vy9ytey6",
       "server_actions/SVA-j7rbsh39",
-      "blueprints/BP-vy9ytey6"
+      "blueprints/BP-6ddlyguv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-6l86xugc",
+    "type": "plugins",
+    "name": "GKE Cluster Discovery",
+    "description": "Returns every GKE cluster in the projects of the GCP environments for CloudBolt's discovery sync and registers each one as a Kubernetes container orchestrator.",
+    "path": "plugins/OHK-6l86xugc",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2075,6 +2464,19 @@
       "recurring_jobs/RJB-z3cr1xra"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-7fxxufkt",
+    "type": "plugins",
+    "name": "Create Windows App Folders",
+    "description": "Creates the local operators group and application folders named in a config file from File Archives on a Windows VM, when they do not exist, gives the group Modify on them, and outputs the root and group.",
+    "path": "plugins/OHK-7fxxufkt",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-7i1fk0l5",
@@ -2156,6 +2558,21 @@
     "readme": null,
     "uses": [],
     "used_by": [],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-91bx99mg",
+    "type": "plugins",
+    "name": "Upgrade GKE Version",
+    "description": "Upgrades the GKE cluster's control plane to a version GKE offers and, unless only the control plane is chosen, then each node pool behind it.",
+    "path": "plugins/OHK-91bx99mg",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-wlihlt2z"
+    ],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -2261,7 +2678,7 @@
     "id": "OHK-9oqn6pur",
     "type": "plugins",
     "name": "Join Windows Server to AD Domain",
-    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, then waits for the restart and verifies the name and secure channel.",
+    "description": "Joins a Windows server with Add-Computer to the Active Directory OU its domain_ou names under its CloudBolt hostname, renaming the guest when needed, switches its CloudBolt credentials to the domain_service_account connection info when set, then waits for the restart and verifies the name and secure channel.",
     "path": "plugins/OHK-9oqn6pur",
     "readme": null,
     "uses": [
@@ -2285,6 +2702,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-e59s1v24"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-9y493oyz",
+    "type": "plugins",
+    "name": "AWS Security Group Teardown",
+    "description": "Deletes the AWS security group behind the resource.",
+    "path": "plugins/OHK-9y493oyz",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2317,6 +2747,21 @@
     "plugin_type": "Remote Script"
   },
   {
+    "id": "OHK-aaltlvmb",
+    "type": "plugins",
+    "name": "Add GKE Node Pool",
+    "description": "Adds a node pool on the control plane's version to the GKE cluster, optionally autoscaled or on Spot VMs, and records it as a GKE Node Pool sub-resource.",
+    "path": "plugins/OHK-aaltlvmb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-hg13ra5x"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-arour20h",
     "type": "plugins",
     "name": "Request AWS EKS Namespace Quota Change",
@@ -2343,6 +2788,21 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-axepfitm",
+    "type": "plugins",
+    "name": "IP Reservations",
+    "description": "Serves the IP Reservations webhook: reserves the next free IP in a CloudBolt IP pool as an IP Address Reservation resource, releases it, and reports a pool's free count.",
+    "path": "plugins/OHK-axepfitm",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
+    "used_by": [
+      "webhooks/IWH-x82773zb"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2527,6 +2987,22 @@
     ],
     "used_by": [
       "webhooks/IWH-vfkvduxm"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-cco2r73h",
+    "type": "plugins",
+    "name": "Create GKE Namespace",
+    "description": "Creates a namespace landing zone on this GKE cluster for a chosen CloudBolt group, filed as a GKE Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "plugins/OHK-cco2r73h",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-yrnl5j6j"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -2732,6 +3208,22 @@
     "plugin_type": "Remote Script"
   },
   {
+    "id": "OHK-egyf9q28",
+    "type": "plugins",
+    "name": "GKE Namespace Connection Details",
+    "description": "Shows the commands and kubeconfig that connect kubectl to a GKE namespace, its network policy, and which Google principals have access to it.",
+    "path": "plugins/OHK-egyf9q28",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-0f3na70j"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-el9giuz3",
     "type": "plugins",
     "name": "Upgrade AWS EKS Nodegroup",
@@ -2769,6 +3261,19 @@
       "resource_actions/RSA-xdlxetyc"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-fct1gybi",
+    "type": "plugins",
+    "name": "Check Linux App Host",
+    "description": "Checks a Linux VM's free disk space, memory and required commands against the limits in a config file from File Archives and outputs the OS name, free space, memory and package manager.",
+    "path": "plugins/OHK-fct1gybi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-fel441xh",
@@ -2929,6 +3434,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-jb16kobi",
+    "type": "plugins",
+    "name": "AWS Security Group Build",
+    "description": "Creates an AWS VPC security group.",
+    "path": "plugins/OHK-jb16kobi",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-ofwowhqd"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-jeighfcq",
     "type": "plugins",
     "name": "Request AKS Namespace Quota Change",
@@ -2941,6 +3459,22 @@
     ],
     "used_by": [
       "resource_actions/RSA-7wdigcpr"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-jm8j1513",
+    "type": "plugins",
+    "name": "Teardown GKE Namespace",
+    "description": "Deletes the GKE namespace's pipeline identities and CloudBolt RoleBindings, deletes the namespace and everything in it, then removes the pinned CloudBolt environment.",
+    "path": "plugins/OHK-jm8j1513",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3027,6 +3561,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-l3j30r89",
+    "type": "plugins",
+    "name": "Manage GKE Namespace Pipeline Identity",
+    "description": "Creates or deletes a Workload Identity Federation provider that lets a GitHub Actions workflow deploy into a GKE namespace without a stored key, with access through a namespace RoleBinding.",
+    "path": "plugins/OHK-l3j30r89",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-0k2xcobm"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-lhm2916o",
     "type": "plugins",
     "name": "Runbook Task Template (Windows)",
@@ -3039,6 +3589,39 @@
     "packages": [
       "packages/PKG-v20qv308"
     ]
+  },
+  {
+    "id": "OHK-ljgoxser",
+    "type": "plugins",
+    "name": "Deploy Test Workload",
+    "description": "Deploys or removes a small nginx Deployment and Service in an EKS, AKS or GKE namespace or an OpenShift project so its Workloads tab has something to show.",
+    "path": "plugins/OHK-ljgoxser",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-cozv547n",
+      "shared_modules/SHM-kephq8iq",
+      "shared_modules/SHM-ptvp0km4",
+      "shared_modules/SHM-qmiweowv",
+      "shared_modules/SHM-sa5yqm9j"
+    ],
+    "used_by": [
+      "resource_actions/RSA-ah76u4qg"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-lkmy7ij9",
+    "type": "plugins",
+    "name": "Configure Windows App Host",
+    "description": "Records application settings in the registry, schedules a daily log clean-up and writes an Application event on a Windows VM, from a config file in File Archives and the outputs of the earlier steps.",
+    "path": "plugins/OHK-lkmy7ij9",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-lvy5tj0y",
@@ -3057,6 +3640,36 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-m0s3j1ax",
+    "type": "plugins",
+    "name": "Scale GKE Node Pool",
+    "description": "Sets a GKE node pool to a fixed number of nodes per zone, or turns on the cluster autoscaler between a minimum and maximum per zone, and refreshes its sub-resource.",
+    "path": "plugins/OHK-m0s3j1ax",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-vz9sbjto"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-m8iwylq8",
+    "type": "plugins",
+    "name": "Manage GKE Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to a GKE cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "plugins/OHK-m8iwylq8",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-gqwszlzf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-mgta9oez",
     "type": "plugins",
     "name": "Manage Blueprint Permissions",
@@ -3066,6 +3679,22 @@
     "uses": [],
     "used_by": [
       "mcp_tool_actions/MTA-ntmcnvv7"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ml7ee42y",
+    "type": "plugins",
+    "name": "Discover GKE Namespaces",
+    "description": "Imports every CloudBolt landing-zone namespace on the GKE clusters CloudBolt manages as a GKE Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group.",
+    "path": "plugins/OHK-ml7ee42y",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3100,6 +3729,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-niw4hc9m",
+    "type": "plugins",
+    "name": "List GKE Node Pools",
+    "description": "Re-reads the GKE cluster and its node pools from Google Cloud, refreshing the cluster's values, its container orchestrator, and its GKE Node Pool sub-resources.",
+    "path": "plugins/OHK-niw4hc9m",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-afixcgmf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-nwcyoto7",
     "type": "plugins",
     "name": "Update Tags",
@@ -3111,6 +3755,19 @@
       "resource_actions/RSA-kbikieh7"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-o30l8kjn",
+    "type": "plugins",
+    "name": "Configure Linux App Host",
+    "description": "Writes a systemd-tmpfiles log retention rule and a host profile for an application account on a Linux VM, from a config file in File Archives and the outputs of the earlier steps.",
+    "path": "plugins/OHK-o30l8kjn",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-69r5mmdb"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-o4qmnffy",
@@ -3290,6 +3947,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-plot9gy7",
+    "type": "plugins",
+    "name": "Show If Resource Has Expiration Date",
+    "description": "Shows an Extend Expiration action only on a resource that has an expiration date.",
+    "path": "plugins/OHK-plot9gy7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "resource_actions/RSA-nvwe7u4b",
+      "resource_actions/RSA-kx7mdgva",
+      "resource_actions/RSA-1qdgexp2",
+      "resource_actions/RSA-03qqsnft"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-pmng6q6r",
     "type": "plugins",
     "name": "Azure PS (Deployment Script) - Tag Resource Group",
@@ -3404,6 +4077,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-qxdrryt6",
+    "type": "plugins",
+    "name": "Delete GKE Node Pool",
+    "description": "Deletes a node pool from the GKE cluster, refusing its last one, and removes the pool's sub-resource.",
+    "path": "plugins/OHK-qxdrryt6",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-kfd31bur"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-r1imfgdx",
     "type": "plugins",
     "name": "Add Resource Group to Environment",
@@ -3456,6 +4144,21 @@
     ],
     "used_by": [
       "resource_actions/RSA-qwku9lip"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-shr5y3i6",
+    "type": "plugins",
+    "name": "GKE Cluster Build",
+    "description": "Creates a GKE Standard cluster with Dataplane V2, Workload Identity Federation, and a release channel, registers it as a CloudBolt Kubernetes container orchestrator, and records its node pools.",
+    "path": "plugins/OHK-shr5y3i6",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3633,6 +4336,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ukp8n10w",
+    "type": "plugins",
+    "name": "Rerun Job",
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
+    "path": "plugins/OHK-ukp8n10w",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "mcp_tool_actions/MTA-zth0tjjg"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ul8wbswa",
     "type": "plugins",
     "name": "Retrieve Pending Certificate",
@@ -3674,6 +4390,22 @@
       "blueprints/BP-psw7rclb"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-vdhjpyg2",
+    "type": "plugins",
+    "name": "Manage GKE Namespace Access",
+    "description": "Grants or revokes kubectl access to a GKE namespace for a Google account, group, or service account through a namespace RoleBinding, and a CloudBolt group's entitlement to its environment.",
+    "path": "plugins/OHK-vdhjpyg2",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-mucwia5b"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-vg0rmi7i",
@@ -3743,6 +4475,25 @@
     "readme": null,
     "uses": [],
     "used_by": [],
+    "plugin_type": "CloudBolt Plug-in",
+    "packages": [
+      "packages/PKG-gqw2jqgj"
+    ]
+  },
+  {
+    "id": "OHK-vtuzh4nh",
+    "type": "plugins",
+    "name": "Extend GKE Namespace Expiration",
+    "description": "Extends a GKE namespace landing zone's expiration date on the resource and the namespace annotation.",
+    "path": "plugins/OHK-vtuzh4nh",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-1qdgexp2"
+    ],
     "plugin_type": "CloudBolt Plug-in"
   },
   {
@@ -3790,6 +4541,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ww524a3e",
+    "type": "plugins",
+    "name": "Generate Options for Domain Service Account",
+    "description": "Lists every connection info labeled domain_service_account, by name and username, with its ID as the value, for the domain_service_account parameter.",
+    "path": "plugins/OHK-ww524a3e",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-g8pqv6uv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-x13tmam0",
     "type": "plugins",
     "name": "AKS Cluster Build",
@@ -3827,6 +4591,22 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-xg47m1x2",
+    "type": "plugins",
+    "name": "Request GKE Namespace Quota Change",
+    "description": "Moves a GKE namespace landing zone to a different size tier after approval and mirrors the new quota into its environment.",
+    "path": "plugins/OHK-xg47m1x2",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x",
+      "shared_modules/SHM-kephq8iq"
+    ],
+    "used_by": [
+      "resource_actions/RSA-x1658l9r"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3889,6 +4669,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-y9wx9bga",
+    "type": "plugins",
+    "name": "GKE Cluster Teardown",
+    "description": "Deletes the GKE cluster with its CloudBolt container orchestrator, environment, and node pool sub-resources, refusing while namespace landing zones remain.",
+    "path": "plugins/OHK-y9wx9bga",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-yd1af0eu",
     "type": "plugins",
     "name": "Create Environment",
@@ -3898,6 +4693,21 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-n454hj40"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yeykzvdv",
+    "type": "plugins",
+    "name": "IP Address Reservation Build",
+    "description": "Reserves the next free address in the chosen CloudBolt IP pool for an IP Address Reservation resource.",
+    "path": "plugins/OHK-yeykzvdv",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-s3k9ov0z"
+    ],
+    "used_by": [
+      "blueprints/BP-j25t4xpv"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3913,6 +4723,19 @@
       "mcp_tool_actions/MTA-lp8lgi7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ys68wsmf",
+    "type": "plugins",
+    "name": "Check Windows App Host",
+    "description": "Checks a Windows VM's free disk space, memory and required services against the limits in a config file from File Archives and outputs the OS caption, free space, memory and PowerShell version.",
+    "path": "plugins/OHK-ys68wsmf",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "runbook_workflows/SWF-7s01lyyk"
+    ],
+    "plugin_type": "Remote Script"
   },
   {
     "id": "OHK-yw0klpjg",
@@ -4048,10 +4871,26 @@
     "path": "resource_actions/RSA-03qqsnft",
     "readme": null,
     "uses": [
-      "plugins/OHK-paad1c56"
+      "plugins/OHK-paad1c56",
+      "plugins/OHK-plot9gy7"
     ],
     "used_by": [
       "blueprints/BP-e4c0q58z"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-0f3na70j",
+    "type": "resource_actions",
+    "name": "GKE Namespace Connection Details",
+    "description": "Shows the commands and kubeconfig that connect kubectl to a GKE namespace, its network policy, and which Google principals have access to it.",
+    "path": "resource_actions/RSA-0f3na70j",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-egyf9q28"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "enabled": true
   },
@@ -4067,6 +4906,21 @@
     ],
     "used_by": [
       "blueprints/BP-r5apcf7e"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-0k2xcobm",
+    "type": "resource_actions",
+    "name": "Manage GKE Namespace Pipeline Identity",
+    "description": "Creates or deletes a Workload Identity Federation provider that lets a GitHub Actions workflow deploy into a GKE namespace without a stored key, with access through a namespace RoleBinding.",
+    "path": "resource_actions/RSA-0k2xcobm",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-l3j30r89"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "enabled": true
   },
@@ -4112,6 +4966,22 @@
     ],
     "used_by": [
       "blueprints/BP-5pei9cno"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-1qdgexp2",
+    "type": "resource_actions",
+    "name": "Extend GKE Namespace Expiration",
+    "description": "Extends a GKE namespace landing zone's expiration date on the resource and the namespace annotation.",
+    "path": "resource_actions/RSA-1qdgexp2",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-plot9gy7",
+      "plugins/OHK-vtuzh4nh"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "enabled": true
   },
@@ -4252,6 +5122,39 @@
     "enabled": true
   },
   {
+    "id": "RSA-afixcgmf",
+    "type": "resource_actions",
+    "name": "List GKE Node Pools",
+    "description": "Re-reads the GKE cluster and its node pools from Google Cloud, refreshing the cluster's values, its container orchestrator, and its GKE Node Pool sub-resources.",
+    "path": "resource_actions/RSA-afixcgmf",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-niw4hc9m"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-ah76u4qg",
+    "type": "resource_actions",
+    "name": "Deploy Test Workload",
+    "description": "Deploys or removes a small nginx Deployment and Service in an EKS, AKS or GKE namespace or an OpenShift project so its Workloads tab has something to show.",
+    "path": "resource_actions/RSA-ah76u4qg",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-ljgoxser"
+    ],
+    "used_by": [
+      "blueprints/BP-dogqi827",
+      "blueprints/BP-e4c0q58z",
+      "blueprints/BP-c9ca1i3z",
+      "blueprints/BP-tikkhf2y"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-dhgwoj3z",
     "type": "resource_actions",
     "name": "Update EKS Version",
@@ -4376,6 +5279,36 @@
     "enabled": true
   },
   {
+    "id": "RSA-gpa7ywnn",
+    "type": "resource_actions",
+    "name": "Upgrade GKE Node Pool",
+    "description": "Upgrades a GKE node pool that is behind the control plane to the control plane's version and refreshes its sub-resource.",
+    "path": "resource_actions/RSA-gpa7ywnn",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-2rpjqm7u"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-gqwszlzf",
+    "type": "resource_actions",
+    "name": "Manage GKE Cluster Groups",
+    "description": "Adds or removes the CloudBolt groups entitled to a GKE cluster's environment, or removes them all so every group may order namespaces on the cluster.",
+    "path": "resource_actions/RSA-gqwszlzf",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-m8iwylq8"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-gr2wsfzx",
     "type": "resource_actions",
     "name": "Change SKU",
@@ -4402,6 +5335,21 @@
     ],
     "used_by": [
       "blueprints/BP-nszj7jop"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-hg13ra5x",
+    "type": "resource_actions",
+    "name": "Add GKE Node Pool",
+    "description": "Adds a node pool on the control plane's version to the GKE cluster, optionally autoscaled or on Spot VMs, and records it as a GKE Node Pool sub-resource.",
+    "path": "resource_actions/RSA-hg13ra5x",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-aaltlvmb"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
     ],
     "enabled": true
   },
@@ -4496,6 +5444,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-kfd31bur",
+    "type": "resource_actions",
+    "name": "Delete GKE Node Pool",
+    "description": "Deletes a node pool from the GKE cluster, refusing its last one, and removes the pool's sub-resource.",
+    "path": "resource_actions/RSA-kfd31bur",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-qxdrryt6"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-kx7mdgva",
     "type": "resource_actions",
     "name": "Extend Expiration",
@@ -4503,7 +5466,8 @@
     "path": "resource_actions/RSA-kx7mdgva",
     "readme": null,
     "uses": [
-      "plugins/OHK-3w9nejn3"
+      "plugins/OHK-3w9nejn3",
+      "plugins/OHK-plot9gy7"
     ],
     "used_by": [
       "blueprints/BP-tikkhf2y"
@@ -4571,6 +5535,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-mucwia5b",
+    "type": "resource_actions",
+    "name": "Manage GKE Namespace Access",
+    "description": "Grants or revokes kubectl access to a GKE namespace for a Google account, group, or service account through a namespace RoleBinding, and a CloudBolt group's entitlement to its environment.",
+    "path": "resource_actions/RSA-mucwia5b",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-vdhjpyg2"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-mwegogck",
     "type": "resource_actions",
     "name": "Request Namespace Quota Change",
@@ -4608,6 +5587,7 @@
     "path": "resource_actions/RSA-nvwe7u4b",
     "readme": null,
     "uses": [
+      "plugins/OHK-plot9gy7",
       "plugins/OHK-t1r0y1yd"
     ],
     "used_by": [
@@ -4720,6 +5700,36 @@
     "enabled": true
   },
   {
+    "id": "RSA-vz9sbjto",
+    "type": "resource_actions",
+    "name": "Scale GKE Node Pool",
+    "description": "Sets a GKE node pool to a fixed number of nodes per zone, or turns on the cluster autoscaler between a minimum and maximum per zone, and refreshes its sub-resource.",
+    "path": "resource_actions/RSA-vz9sbjto",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-m0s3j1ax"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-wlihlt2z",
+    "type": "resource_actions",
+    "name": "Upgrade GKE Version",
+    "description": "Upgrades the GKE cluster's control plane to a version GKE offers and, unless only the control plane is chosen, then each node pool behind it.",
+    "path": "resource_actions/RSA-wlihlt2z",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-91bx99mg"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-wsre115s",
     "type": "resource_actions",
     "name": "Upgrade AKS Node Pool",
@@ -4746,6 +5756,21 @@
     ],
     "used_by": [
       "blueprints/BP-20q58q9z"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-x1658l9r",
+    "type": "resource_actions",
+    "name": "Request GKE Namespace Quota Change",
+    "description": "Moves a GKE namespace landing zone to a different size tier after approval and mirrors the new quota into its environment.",
+    "path": "resource_actions/RSA-x1658l9r",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-xg47m1x2"
+    ],
+    "used_by": [
+      "blueprints/BP-c9ca1i3z"
     ],
     "enabled": true
   },
@@ -4795,6 +5820,21 @@
     "enabled": true
   },
   {
+    "id": "RSA-yrnl5j6j",
+    "type": "resource_actions",
+    "name": "Create GKE Namespace",
+    "description": "Creates a namespace landing zone on this GKE cluster for a chosen CloudBolt group, filed as a GKE Namespace resource with the same quota, policies, and pinned environment as an ordered one.",
+    "path": "resource_actions/RSA-yrnl5j6j",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-cco2r73h"
+    ],
+    "used_by": [
+      "blueprints/BP-g8g8aecx"
+    ],
+    "enabled": true
+  },
+  {
     "id": "RSA-zmi15uts",
     "type": "resource_actions",
     "name": "Delete Blob Container",
@@ -4808,6 +5848,42 @@
       "blueprints/BP-nszj7jop"
     ],
     "enabled": true
+  },
+  {
+    "id": "SWF-69r5mmdb",
+    "type": "runbook_workflows",
+    "name": "Prepare Linux app host",
+    "description": "Checks a Linux VM against the limits in a config file from File Archives, creates the application's service account and directories, and sets up log retention and a host profile, every step reading the same config file.",
+    "path": "runbook_workflows/SWF-69r5mmdb",
+    "readme": "runbook_workflows/SWF-69r5mmdb/README.md",
+    "uses": [
+      "plugins/OHK-4etpeg05",
+      "plugins/OHK-fct1gybi",
+      "plugins/OHK-o30l8kjn"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
+  },
+  {
+    "id": "SWF-7s01lyyk",
+    "type": "runbook_workflows",
+    "name": "Prepare Windows app host",
+    "description": "Checks a Windows VM against the limits in a config file from File Archives, creates the application's folders and operators group, and records its settings, a log clean-up task and an event, every step reading the same config file.",
+    "path": "runbook_workflows/SWF-7s01lyyk",
+    "readme": "runbook_workflows/SWF-7s01lyyk/README.md",
+    "uses": [
+      "plugins/OHK-7fxxufkt",
+      "plugins/OHK-lkmy7ij9",
+      "plugins/OHK-ys68wsmf"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-v20qv308"
+    ]
   },
   {
     "id": "SVA-4sin3s0q",
@@ -4855,6 +5931,37 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "SHM-4yw92b8x",
+    "type": "shared_modules",
+    "name": "gcp_gke",
+    "description": "GKE API client, cluster and node pool operations, Kubernetes API access verified against the cluster CA, orchestrator registration, and group entitlement helpers for Google Kubernetes Engine content.",
+    "path": "shared_modules/SHM-4yw92b8x",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-aaltlvmb",
+      "plugins/OHK-cco2r73h",
+      "plugins/OHK-qxdrryt6",
+      "plugins/OHK-ljgoxser",
+      "plugins/OHK-ml7ee42y",
+      "plugins/OHK-vtuzh4nh",
+      "plugins/OHK-shr5y3i6",
+      "plugins/OHK-6l86xugc",
+      "plugins/OHK-y9wx9bga",
+      "plugins/OHK-32pzj98f",
+      "plugins/OHK-egyf9q28",
+      "plugins/OHK-niw4hc9m",
+      "plugins/OHK-m8iwylq8",
+      "plugins/OHK-vdhjpyg2",
+      "plugins/OHK-l3j30r89",
+      "plugins/OHK-xg47m1x2",
+      "plugins/OHK-m0s3j1ax",
+      "plugins/OHK-jm8j1513",
+      "plugins/OHK-2rpjqm7u",
+      "plugins/OHK-91bx99mg"
+    ]
   },
   {
     "id": "SHM-571l7249",
@@ -4959,6 +6066,7 @@
       "plugins/OHK-735mhtvh",
       "plugins/OHK-vi009xb8",
       "plugins/OHK-kb4pv2yq",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-tybit8su",
       "plugins/OHK-t1r0y1yd",
       "plugins/OHK-cqkwd0mq",
@@ -5062,6 +6170,27 @@
     ]
   },
   {
+    "id": "SHM-kephq8iq",
+    "type": "shared_modules",
+    "name": "gke_namespace",
+    "description": "Namespace landing zones on GKE clusters: quota, limits, network policies, the pinned CloudBolt environment, Kubernetes RBAC access for Google identities, GitHub Actions pipeline identities, and connection details.",
+    "path": "shared_modules/SHM-kephq8iq",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-cco2r73h",
+      "plugins/OHK-ljgoxser",
+      "plugins/OHK-ml7ee42y",
+      "plugins/OHK-vtuzh4nh",
+      "plugins/OHK-32pzj98f",
+      "plugins/OHK-egyf9q28",
+      "plugins/OHK-vdhjpyg2",
+      "plugins/OHK-l3j30r89",
+      "plugins/OHK-xg47m1x2",
+      "plugins/OHK-jm8j1513"
+    ]
+  },
+  {
     "id": "SHM-nubxb8sn",
     "type": "shared_modules",
     "name": "windows_ca",
@@ -5078,7 +6207,7 @@
     "id": "SHM-nznzhpp0",
     "type": "shared_modules",
     "name": "runbook_workflows",
-    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them.",
+    "description": "Stores workflows, works out which workflows and step actions fit a VM or a workflow's filters, builds the run form's prompts, and runs a workflow's steps in order with outputs passed between them, and exports and imports workflows for content packages.",
     "path": "shared_modules/SHM-nznzhpp0",
     "readme": null,
     "uses": [
@@ -5106,6 +6235,7 @@
       "plugins/OHK-vi009xb8",
       "plugins/OHK-kb4pv2yq",
       "plugins/OHK-czexzrl1",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-tybit8su",
       "plugins/OHK-t1r0y1yd",
       "plugins/OHK-0fp008gh",
@@ -5128,6 +6258,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-e7albpni",
       "plugins/OHK-3w9nejn3",
       "plugins/OHK-9zzqqz7t",
@@ -5157,6 +6288,19 @@
     ]
   },
   {
+    "id": "SHM-s3k9ov0z",
+    "type": "shared_modules",
+    "name": "ip_reservations",
+    "description": "Reserves and releases IP addresses from CloudBolt IP pools as IP Address Reservation resources, for the blueprint's build plugin and the IP Reservations webhook.",
+    "path": "shared_modules/SHM-s3k9ov0z",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-yeykzvdv",
+      "plugins/OHK-axepfitm"
+    ]
+  },
+  {
     "id": "SHM-sa5yqm9j",
     "type": "shared_modules",
     "name": "eks_namespace",
@@ -5168,6 +6312,7 @@
       "plugins/OHK-u9jm7p8h",
       "plugins/OHK-7n4o0hox",
       "plugins/OHK-oguk4oad",
+      "plugins/OHK-ljgoxser",
       "plugins/OHK-ow9x0amc",
       "plugins/OHK-paad1c56",
       "plugins/OHK-3902mdky",
@@ -5259,6 +6404,22 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "IWH-x82773zb",
+    "type": "webhooks",
+    "name": "IP Reservations",
+    "description": "Endpoint external systems call to reserve the next free IP in a CloudBolt IP pool, release it, and check a pool's free count.",
+    "path": "webhooks/IWH-x82773zb",
+    "readme": "webhooks/IWH-x82773zb/README.md",
+    "uses": [
+      "plugins/OHK-axepfitm"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-g151nn7r"
+    ]
   },
   {
     "id": "IWH-xjlrmvc8",

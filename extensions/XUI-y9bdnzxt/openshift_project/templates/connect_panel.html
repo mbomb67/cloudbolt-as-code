@@ -1,0 +1,154 @@
+{% load i18n %}
+{% if error %}
+<div class="ocp-card">
+  {% include "openshift_project/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Where the project lives ── #}
+<div class="ocp-card">
+  <div class="ocp-card-h">
+    <span class="ocp-card-t">{% trans "Project" %}</span>
+    <span class="ocp-pill ocp-pill-{{ status.style }}"><i class="bi {{ status.icon }}" aria-hidden="true"></i> {{ status.text }}</span>
+    <div class="ocp-card-tools">
+      {% if console_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ console_url }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in OpenShift console" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="ocp-ess">
+    <dl>
+      <div class="ocp-kv">
+        <dt>{% trans "Display name" %}</dt>
+        <dd>{{ display_name|default:"&mdash;" }}{% if description %}<div class="ocp-hint">{{ description }}</div>{% endif %}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "Cluster" %}</dt>
+        <dd>{{ cluster_name|default:"&mdash;" }}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "API server" %}</dt>
+        <dd class="ocp-mono">{{ api_url|default:"&mdash;" }}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "CloudBolt environment" %}</dt>
+        <dd>{{ environment_name|default:"&mdash;" }}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "Requested by" %}</dt>
+        <dd>{{ requester|default:"&mdash;" }}{% if owner_group %}<div class="ocp-hint">{% trans "Group" %} {{ owner_group }}</div>{% endif %}</dd>
+      </div>
+    </dl>
+    <dl>
+      <div class="ocp-kv">
+        <dt>{% trans "Size tier" %}</dt>
+        <dd>{{ tier|default:"&mdash;" }}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "Network isolation" %}</dt>
+        <dd>{{ isolation.text }}{% if isolation.policies %}<div class="ocp-hint ocp-mono">{{ isolation.policies|join:", " }}</div>{% endif %}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "Expires" %}</dt>
+        <dd>{% if expires %}{{ expires }}{% if expired %} <span class="ocp-tag ocp-tag-bad">{% trans "Expired" %}</span>{% endif %}{% else %}<span class="ocp-muted">{% trans "Never" %}</span>{% endif %}</dd>
+      </div>
+      <div class="ocp-kv">
+        <dt>{% trans "Created" %}</dt>
+        <dd>{{ created|default:"&mdash;" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+{# Collapsible sections are <details>: open ones start expanded. #}
+
+{# ── Who has access in OpenShift ── #}
+<details class="ocp-card ocp-fold" open>
+  <summary class="ocp-card-h">
+    <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
+    <span class="ocp-card-t">{% trans "Access" %} &middot; {{ access|length }}</span>
+  </summary>
+  {% if access_error %}
+    {% include "openshift_project/templates/_alert.html" with error=access_error %}
+  {% elif access %}
+  <div class="table-responsive">
+    <table class="ocp-table">
+      <thead>
+        <tr>
+          <th>{% trans "Subject" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th>{% trans "Role" %}</th>
+          <th>{% trans "Granted on" %}</th>
+          <th>{% trans "Granted by" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in access %}
+        <tr>
+          <td class="ocp-mono">{{ row.name }}{% if row.binding %}<div class="ocp-hint">{{ row.binding }}</div>{% endif %}</td>
+          <td>{{ row.type_text|default:"&mdash;" }}</td>
+          <td><span class="ocp-pill">{{ row.label }}</span></td>
+          <td>{% if row.scope == "namespace" %}{{ row.scope_text }}{% else %}<span class="ocp-tag ocp-tag-warn">{{ row.scope_text }}</span>{% endif %}</td>
+          <td>{% if row.managed %}<span class="ocp-tag ocp-tag-info">CloudBolt</span>{% else %}<span class="ocp-muted">{% trans "Outside CloudBolt" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ocp-empty">{% trans "No OpenShift user, group, or service account has a RoleBinding in this project yet. Use Manage access to grant one." %}</div>
+  {% endif %}
+  {% if access_note %}
+    {% include "openshift_project/templates/_alert.html" with error=access_note %}
+  {% endif %}
+  <div class="ocp-note">
+    {% trans "Access is a RoleBinding in the project to one of OpenShift's project roles admin, edit, or view. RoleBindings named system:, which OpenShift creates in every project for its own service accounts, are not listed, nor are cluster-wide grants other than cluster-admin." %}
+  </div>
+</details>
+
+{# ── Who may order into it in CloudBolt ── #}
+{% if groups_state %}
+<details class="ocp-card ocp-fold" open>
+  <summary class="ocp-card-h">
+    <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
+    <span class="ocp-card-t">{% trans "CloudBolt groups" %} &middot; {{ groups|length }}</span>
+  </summary>
+  {% if groups_state == "entitled" %}
+  <div class="ocp-note">
+    {% for name in groups %}<span class="ocp-pill">{{ name }}</span> {% endfor %}
+  </div>
+  {% elif groups_state == "unassigned" %}
+  <div class="ocp-empty">{% trans "Unassigned: no group may order into this project yet." %}</div>
+  {% else %}
+  <div class="ocp-empty">{% trans "Unconstrained: every CloudBolt group may order into this project." %}</div>
+  {% endif %}
+  <div class="ocp-note">
+    {% blocktrans with env=environment_name %}These groups, and their subgroups, may order VM and container blueprints into environment {{ env }}, which places them in this project. Manage access adds or removes a group.{% endblocktrans %}
+  </div>
+</details>
+{% endif %}
+
+{# ── Commands ── #}
+<details class="ocp-card ocp-fold" open>
+  <summary class="ocp-card-h">
+    <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
+    <span class="ocp-card-t">{% trans "Connect with oc" %}</span>
+  </summary>
+  <ol class="ocp-steps">
+    {% for command in commands %}
+    <li>
+      <code class="ocp-mono" id="ocpx-cmd-{{ forloop.counter }}">{{ command }}</code>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-ocp-copy="#ocpx-cmd-{{ forloop.counter }}" title="{% trans 'Copy' %}" aria-label="{% trans 'Copy command' %}">
+        <i class="bi bi-clipboard" aria-hidden="true"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="ocp-note">
+    {% trans "Needs the oc CLI. --web signs you in through the cluster's identity provider in your browser; on a machine without one, choose Copy login command from your user name menu in the OpenShift console and run the oc login --token command it shows. oc login saves your token in ~/.kube/config (or $KUBECONFIG), so kubectl works afterwards too. There is no kubeconfig to download: OpenShift issues each person their own token when they sign in." %}
+  </div>
+</details>
+
+{% endif %}

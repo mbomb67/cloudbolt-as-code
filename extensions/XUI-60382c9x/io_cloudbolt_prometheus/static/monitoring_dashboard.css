@@ -11,6 +11,29 @@
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Dark Branded Theme (data-bs-theme="dark" on <html>): take card, border and
+   text colors from the theme's /portal.css tokens instead of the light palette */
+html[data-bs-theme="dark"] .io-prom-dash {
+    --prom-surface: var(--surface);
+    --prom-surface-muted: var(--neutral-100);
+    --prom-border: var(--neutral-250);
+    --prom-text: var(--bs-body-color);
+    --prom-text-muted: var(--fg-2);
+}
+
+html[data-bs-theme="dark"] .io-prom-dash .prom-chart-card:hover {
+    border-color: var(--neutral-400);
+}
+
+html[data-bs-theme="dark"] .io-prom-dash .prom-refresh-btn {
+    background: var(--prom-surface);
+}
+
+html[data-bs-theme="dark"] .io-prom-dash .prom-refresh-btn:hover {
+    border-color: var(--prom-accent);
+    background: color-mix(in srgb, var(--prom-accent) 12%, var(--prom-surface));
+}
+
 .io-prom-dash .prom-chart-row {
     margin-left: calc(var(--prom-gap) * -1);
     margin-right: calc(var(--prom-gap) * -1);

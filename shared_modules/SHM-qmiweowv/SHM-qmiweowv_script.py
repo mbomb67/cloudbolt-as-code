@@ -357,8 +357,24 @@ class OpenShiftLandingZoneClient:
                 "check its credentials on the resource handler page."
             )
 
-        verify_ssl = bool(getattr(handler, "enable_ssl_verification", False))
+        # The handler's own setting combined with Admin > SSL Certificates:
+        # False, or the CA bundle path CloudBolt trusts.
+        verify_ssl = handler.get_ssl_verification()
         return cls(api_url=client.openshift_base_api_url, token=token, verify_ssl=verify_ssl)
+
+    def close(self):
+        self._session.close()
+
+    # -- reads for the OpenShift Project extension (XUI-y9bdnzxt) -------------
+
+    def get(self, path, params=None):
+        """GET ``path``: the parsed JSON object, or None when it does not exist (404)."""
+        result = self._request("GET", path, params=params, allow_404=True)
+        return result if isinstance(result, dict) else None
+
+    def list_items(self, path, params=None):
+        """The items of a Kubernetes list call; [] when the API or namespace does not exist."""
+        return (self.get(path, params=params) or {}).get("items", []) or []
 
     # -- transport ----------------------------------------------------------
 

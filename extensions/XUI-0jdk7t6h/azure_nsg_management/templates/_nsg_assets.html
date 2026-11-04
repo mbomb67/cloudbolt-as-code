@@ -1,0 +1,104 @@
+{% comment %}
+  Shared styles and panel loader for the Security Rules tab.
+  Styles are inline and theme-safe: tokens derive from --bs-primary /
+  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
+  resource pages, so Branded Themes re-theme the tab without an asset build.
+  Class names carry an nsg- prefix so they never meet another extension's.
+{% endcomment %}
+<style>
+  .nsgx {
+    --nsg-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --nsg-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --nsg-line: var(--neutral-250, #E2E8ED);
+    --nsg-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --nsg-primary: var(--bs-primary, #0d6efd);
+    --nsg-ok: var(--bs-success, #198754);
+    --nsg-warn: var(--bs-warning, #ffc107);
+    --nsg-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --nsg-bad: var(--bs-danger, #dc3545);
+  }
+  .nsgx .nsg-card { background: var(--surface, #fff); border: 1px solid var(--nsg-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .nsgx .nsg-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
+  .nsgx .nsg-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--nsg-muted); }
+  .nsgx .nsg-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .nsgx .nsg-title .bi { color: var(--nsg-primary); }
+  .nsgx .nsg-sub { font-size: 12.5px; font-weight: 600; color: var(--nsg-muted); margin-top: 2px; }
+  .nsgx .nsg-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .nsgx .nsg-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--nsg-line); flex-wrap: wrap; }
+  .nsgx .nsg-card-t { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--nsg-muted); }
+  .nsgx .nsg-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .nsgx .nsg-card-tools .form-control { width: 220px; max-width: 100%; }
+  {# Essentials: two columns of label / value rows, like the portal's Overview #}
+  .nsgx .nsg-ess { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 40px; padding: 12px 22px 14px; }
+  {# CloudBolt's own stylesheet makes every dl a grid; these are plain lists of rows #}
+  .nsgx .nsg-ess dl { margin: 0; display: block; }
+  .nsgx .nsg-kv { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; padding: 6px 0; font-size: 13px; align-items: baseline; }
+  .nsgx .nsg-kv dt { font-weight: 600; color: var(--nsg-muted); margin: 0; }
+  .nsgx .nsg-kv dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .nsgx .nsg-ess-wide { padding: 0 22px 14px; }
+  .nsgx .nsg-ess-wide .nsg-kv { grid-template-columns: minmax(120px, 21%) minmax(0, 1fr); }
+  .nsgx .nsg-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
+  .nsgx .nsg-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--nsg-muted); padding: 10px 18px; border-bottom: 1px solid var(--nsg-line); text-align: left; white-space: nowrap; }
+  .nsgx .nsg-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; overflow-wrap: break-word; }
+  .nsgx .nsg-table tbody tr:last-child td { border-bottom: 0; }
+  .nsgx .nsg-table tbody tr:hover td { background: var(--nsg-surface-2); }
+  .nsgx .nsg-table tr.nsg-default td { color: var(--nsg-soft); }
+  .nsgx .nsg-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--nsg-soft); }
+  .nsgx .nsg-pill-ok { background: color-mix(in srgb, var(--nsg-ok) 14%, transparent); color: var(--nsg-ok); }
+  .nsgx .nsg-pill-warn { background: color-mix(in srgb, var(--nsg-warn) 22%, transparent); color: var(--nsg-warn-text); }
+  .nsgx .nsg-pill-bad { background: color-mix(in srgb, var(--nsg-bad) 12%, transparent); color: var(--nsg-bad); }
+  .nsgx .nsg-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--nsg-soft); vertical-align: middle; white-space: nowrap; }
+  .nsgx .nsg-tag-info { background: color-mix(in srgb, var(--nsg-primary) 13%, transparent); color: var(--nsg-primary); }
+  .nsgx .nsg-kvtag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin: 0 6px 4px 0; background: var(--nsg-surface-2); border: 1px solid var(--nsg-line); }
+  .nsgx .nsg-muted { color: var(--nsg-muted); font-weight: 600; }
+  .nsgx .nsg-hint { font-size: 11.5px; color: var(--nsg-muted); font-weight: 600; margin-top: 3px; }
+  .nsgx .nsg-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .nsgx .nsg-nowrap { white-space: nowrap; }
+  .nsgx .nsg-empty { color: var(--nsg-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
+  .nsgx .nsg-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--nsg-bad); overflow-wrap: anywhere; }
+  .nsgx .nsg-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  .nsgx .nsg-note { padding: 8px 22px 12px; font-size: 12px; color: var(--nsg-muted); font-weight: 600; }
+  .nsgx .nsg-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--nsg-muted); display: flex; align-items: center; gap: 8px; }
+  .nsgx .nsg-spin { display: inline-block; animation: nsg-spin 1s linear infinite; }
+  .nsgx .nsg-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
+  .nsgx .nsg-assoc { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .nsgx .nsg-assoc ul { list-style: none; margin: 0; padding: 8px 18px 12px; }
+  .nsgx .nsg-assoc li { padding: 4px 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .nsgx .nsg-assoc .nsg-sub-h { padding: 10px 18px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--nsg-muted); }
+  @keyframes nsg-spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+(function () {
+  "use strict";
+  // Loads every [data-nsg-panel] inside a tab root from its data-nsg-src URL
+  // and wires the client-side table filters (data-nsg-filter names the table)
+  // and the reload button (data-nsg-refresh).
+  window.nsgxInit = function (rootId) {
+    var $root = $("#" + rootId);
+    if (!$root.length || $root.data("nsgx-ready")) { return; }
+    $root.data("nsgx-ready", true);
+
+    function load($panel, url) {
+      $panel.html('<div class="nsg-card"><div class="nsg-loading"><i class="bi bi-arrow-repeat nsg-spin" aria-hidden="true"></i> Loading from Azure…</div></div>');
+      $panel.load(url, function (response, status, xhr) {
+        if (status === "error") {
+          $panel.html('<div class="nsg-card"><div class="nsg-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load the security rules (HTTP ' + xhr.status + ').</div></div></div>');
+        } else if (window.c2 && c2.tooltips) {
+          c2.tooltips.init($panel);
+        }
+      });
+    }
+    function loadAll() {
+      $root.find("[data-nsg-panel]").each(function () { load($(this), $(this).data("nsg-src")); });
+    }
+    $root.on("input", "input[data-nsg-filter]", function () {
+      var needle = this.value.toLowerCase();
+      $($(this).data("nsg-filter")).find("tbody tr[data-nsg-row]").each(function () {
+        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      });
+    });
+    $root.on("click", "[data-nsg-refresh]", function (e) { e.preventDefault(); loadAll(); });
+    loadAll();
+  };
+})();
+</script>

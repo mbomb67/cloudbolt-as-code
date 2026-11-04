@@ -1,0 +1,32 @@
+{% load i18n %}
+{% include "azure_nsg_management/templates/_nsg_assets.html" %}
+
+<div id="nsgx-rules-{{ resource.id }}" class="nsgx">
+  {# ── NSG identity from the resource's custom fields; live state loads below ── #}
+  <div class="nsg-card">
+    <div class="nsg-hero-top">
+      <div>
+        <div class="nsg-eyebrow">{% trans "Network security group" %}</div>
+        <div class="nsg-title"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> {{ nsg_name }}</div>
+        <div class="nsg-sub">{{ resource_group }}{% if location %} &middot; {{ location }}{% endif %}</div>
+      </div>
+      <div class="nsg-tools">
+        {% if portal_url %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ portal_url }}" target="_blank" rel="noopener">
+          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open in Azure portal" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-nsg-refresh title="{% trans 'Read the rules from Azure again' %}">
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Essentials, associations, and the inbound and outbound rules: the panel renders its own cards ── #}
+  <div data-nsg-panel="rules" data-nsg-src="{{ panel_url }}"></div>
+</div>
+
+<script>
+  $(function () { window.nsgxInit("nsgx-rules-{{ resource.id }}"); });
+</script>

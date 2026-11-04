@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "normal",
+    "base_action_name": "IP Reservations",
+    "dependencies": {
+        "hook": "plugins/OHK-axepfitm"
+    },
+    "description": "Endpoint external systems call to reserve the next free IP in a CloudBolt IP pool, release it, and check a pool's free count.",
+    "enabled": true,
+    "id": "IWH-x82773zb",
+    "label": "IP Reservations",
+    "last_updated": "2026-11-03",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "ip-reservations"
+}

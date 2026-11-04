@@ -30,28 +30,33 @@
         "title": "Azure Network Security Group Sync"
     },
     "favorited": false,
-    "icon": "imagesa040026w_nRnPsaJ_sfLCSn3_BbbLK8c_ubmJBFG_VfFBhMB.png",
+    "icon": "azure_nsg_icon.png",
     "id": "BP-3fdhnw54",
     "is_orderable": true,
     "labels": [
         {
             "color": null,
-            "icon": "azure2.png",
-            "id": "TAG-0r4q7b80",
-            "image": "/static/uploads/tags/azure2.png",
+            "id": "TAG-rvep5iv0",
+            "image": null,
             "name": "Azure",
             "parent": {
                 "color": "rgba(25,171,188,1)",
-                "icon": "cloud.png",
                 "id": "TAG-cvblowou",
-                "image": "/static/uploads/tags/cloud.png",
+                "image": null,
                 "name": "Clouds",
                 "sequence": 0
             },
             "sequence": 0
+        },
+        {
+            "color": null,
+            "id": "TAG-aw7tulo8",
+            "image": null,
+            "name": "Networks",
+            "sequence": 0
         }
     ],
-    "last_updated": "2026-07-02",
+    "last_updated": "2026-10-22",
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "Azure Network Security Group",

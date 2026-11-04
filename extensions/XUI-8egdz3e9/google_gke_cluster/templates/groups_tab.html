@@ -1,0 +1,31 @@
+{% load i18n %}
+{% include "google_gke_cluster/templates/_assets.html" %}
+
+<div id="gkex-groups" class="gkex">
+  <div class="gke-card">
+    <div class="gke-hero-top">
+      <div>
+        <div class="gke-eyebrow">{% trans "Groups" %}</div>
+        <div class="gke-title"><i class="bi bi-people-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-sub">{% trans "CloudBolt groups that may order namespaces on this cluster" %}</div>
+      </div>
+      <div class="gke-tools">
+        {% if add_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ add_url }}">
+          <i class="bi bi-person-plus" aria-hidden="true"></i> {% trans "Add groups" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-refresh title="{% trans 'Read the groups again' %}">
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Reload" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Entitled groups: the panel renders its own card ── #}
+  <div data-gke-panel="groups" data-gke-src="{{ groups_url }}" data-gke-loading="CloudBolt"></div>
+</div>
+
+<script>
+  $(function () { window.gkexInit("gkex-groups"); });
+</script>

@@ -29,6 +29,7 @@ Section anchors are stable (renames break skills):
 | §14 | `mcp_tool_actions/` MTA-* |
 | §15 | `packages/` PKG-* (Content Package Manager manifests; not a CloudBolt content type) |
 | §16 | `parameters/` CF-* (standalone parameters the Content Package Manager writes and syncs; not a Source Control Repos type) |
+| §17 | `runbook_workflows/` SWF-* (Runbooks workflows the Content Package Manager writes and syncs; not CloudBolt content) |
 
 When CloudBolt changes a schema (new required field, new enum value, new content type), update the relevant section here. Skills inherit the change automatically — no parallel edits required.
 
@@ -90,6 +91,7 @@ Every cross-reference between content units is a **repo-relative path string** o
 | Form | `dependencies.form_functions[]` | `form_functions/FJS-*` | snake_case |
 | Package (§15) | `contents[]` | Any top-level dir except `forms/` and `form_functions/` (and never `packages/`) | snake_case |
 | Parameter (§16) | `gen_options_hooks[].dependencies.orchestration_hook` | `orchestration_actions/HPA-*` | snake_case |
+| Runbooks workflow (§17) | `dependencies.hooks[]` | `plugins/OHK-*` | snake_case |
 | Orchestration action (HPA) | `hook_point` | `cbhooks.HookPoint.label` (string, not a path) | n/a |
 
 ### `action_inputs[]` key-casing rule
@@ -525,7 +527,7 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 - **Serializer:** `ResourceActionSerializer` at `cbhooks/api/v3/serializers/resource_action.py:22`.
 - **Top-level sync target?** Yes.
 - **Standalone or linked?** Either. Linked to a blueprint via that blueprint's `management_actions[].dependencies.resource_action`; standalone simply has no parent reference.
-- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional custom form.
+- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional display-condition plugin; optional custom form.
 
 ### Required fields
 
@@ -561,10 +563,18 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 | Field path | Target | Notes |
 |---|---|---|
 | `dependencies.hook` | `plugins/OHK-*` | Always present. |
+| `dependencies.displayCondition` | `plugins/OHK-*` | **camelCase.** Optional; the plugin that decides whether the action shows on a resource. |
 | `dependencies.custom_form` | `forms/FRM-*` | If attached. |
 | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | camelCase key. |
 
-RSA's display-condition FK is NOT exported (unlike `ServerAction`).
+Repo export and sync carry an RSA's display condition (`ResourceAction.condition`, `cbhooks/models.py:2725`) as they do for every action type: `get_action_dependencies` writes `dependencies.displayCondition` and `refresh_action_from_local_path` / `refresh_base_action_from_local_path` read it back (`cbhooks/api/v3/serializers/action_base.py:413`, `:558`, `:687`). The zip format does not: only `ServerActionSerializer` writes and reads the `condition_` sub-zip (`server_action.py:137-225`), so an RSA moved as a zip loses its condition.
+
+The condition plugin is a plain `"type": "CloudBolt Plug-in"` that defines `should_display(resource, request=None)` and returns a bool; it needs no `run`. `Resource.available_actions` (`resources/models.py:528`) hides the action when it returns False, and an exception counts as False (`run_plugin_method`, `cbhooks/models.py:4957`).
+
+```python
+def should_display(resource, request=None):
+    return bool(resource.get_value_for_custom_field("expiration_date"))
+```
 
 ### Worked example
 
@@ -1113,6 +1123,7 @@ On disk this sits next to a `sample_report_extensions/` folder + `sample_report_
 - **Serializer:** `CustomFormSerializer` at `customforms/api/v3/serializers/custom_forms.py:35`.
 - **Top-level sync target?** No — transitive import only.
 - **Colocated files:** Optional `<FRM-id>_css.css` (named by metadata `css_file`, basename only). Form functions are NOT inlined — referenced via `dependencies.form_functions`.
+- **Dark mode:** CloudBolt renders every form with SurveyJS's light `defaultV2` theme plus light inline CSS (`templates/customforms/custom_form_base.html`), even when the user's Branded Theme is dark. Each form in this repo ships a CSS file whose dark-mode section maps SurveyJS's `--sjs-*` variables to the theme tokens in `/portal.css` under `html[data-bs-theme="dark"]`; copy it from `forms/FRM-1dxfulvq` for any new form.
 
 ### Required fields
 
@@ -1294,7 +1305,7 @@ An MCP tool action publishes a plugin as a tool on CloudBolt's MCP server. An AI
 
 - **Not a CloudBolt content type.** Source Control Repos never reads `packages/`, and `SourceCodeRepo` has no `path_to_*` for it, so the dir name is fixed. The Content Package Manager extension (`extensions/XUI-iq65xgvr/content_packages/`) reads and writes these files: `store.py` holds the rules below, `services.py` exports, lists and imports.
 - **Written by** the extension's Export (`services.export_package`): it pushes each member with CloudBolt's own per-object push, then commits `packages/PKG-<id>/PKG-<id>_metadata.json` and `README.md`: the README whole when the folder has none, otherwise only its member table (the block from the `| Type | Name | Folder |` header through its last row) rebuilt from the current members, so a member added later is listed and text outside the table is kept.
-- **Read by** Import from repository (`services.list_repo_packages`, `import_repo_package`): it lists `packages/PKG-<id>/PKG-<id>_metadata.json` on a branch, skips a file whose name and folder disagree, and registers the chosen manifest under its `id`, updating the package already registered with that id. The id is the package's identity across appliances.
+- **Read by** Import from repository (`services.list_repo_packages`, `import_repo_package`): it lists `packages/PKG-<id>/PKG-<id>_metadata.json` on a branch, skips a file whose name and folder disagree, and registers the chosen manifest under its `id`, updating the package already registered with that id. Sync (`services.refresh_from_branch`) reads the manifest again from the branch it syncs, so a member added in the repository arrives without another import. The id is the package's identity across appliances.
 - **Standalone.** Nothing references a package; a unit may belong to several.
 
 ### File format
@@ -1328,17 +1339,17 @@ Each entry is `"<top_level_dir>/<GLOBAL_ID>"` and the ID's prefix must be the di
 | `orchestration_actions/` | `HPA` | `shared_modules/` | `SHM` |
 | `flowcontrol_actions/` | `FCA` | `plugins/` | `OHK` |
 | `recurring_jobs/` | `RJB` | `extensions/` | `XUI` |
-| `parameters/` (§16) | `CF` | | |
+| `parameters/` (§16) | `CF` | `runbook_workflows/` (§17) | `SWF` |
 
 - **Never `forms/` or `form_functions/`.** They import only with a parent (§0 export/import asymmetry); list the parent.
-- **Top-level units only.** Leave out whatever another member's export carries, which is that member's `dependencies` refs followed transitively: a blueprint brings its build, teardown and discovery plugins, sub-blueprints, management actions, its own parameters, generated-options orchestration actions, custom form, form functions and shared modules; an action brings its plugin, display-condition plugin, custom form and shared modules; a parameter brings the orchestration actions that generate its options. List a plugin or shared module only when nothing in the package references it.
+- **Top-level units only.** Leave out whatever another member's export carries, which is that member's `dependencies` refs followed transitively: a blueprint brings its build, teardown and discovery plugins, sub-blueprints, management actions, its own parameters, generated-options orchestration actions, custom form, form functions, shared modules and the Runbooks workflows its Run Workflow items pin (§17); an action brings its plugin, display-condition plugin, custom form and shared modules; a parameter brings the orchestration actions that generate its options; a Runbooks workflow brings the plugins its steps run and the File Archives files they attach (§17). List a plugin or shared module only when nothing in the package references it.
 - **List what does not travel.** A webhook a blueprint's form calls is not a dependency, so it never syncs with the blueprint; add its `webhooks/IWH-*`. The same goes for a UI extension that adds tabs to the blueprint's resources, for standalone orchestration actions, recurring jobs and flow control actions that act on them, and for a parameter the content reads that no blueprint defines (an environment or group parameter such as `disk_map`): add its `parameters/CF-*`.
 - A member need not exist on the appliance when the manifest is imported; Sync creates it. In this repo every ref must resolve to a folder.
 
 ### What the extension does with a package
 
-- **Sync** creates one `sourcecodereposync` job per member, each waiting for the one before (`prereq_job`): shared modules, then plugins, then the other members in `contents` order, then the generated-options actions of parameter members that the package does not list, then one "Content Package Manager: Sync Parameter" job per parameter (§16), blueprints last. A failed job holds the rest; Rerun it once the fix is pushed. Sync reads every parameter member's file first, so it refuses to start when one is missing on the branch.
-- **Export** writes the manifest from the appliance's definition, so an edit made only in the repo is lost unless the package is imported again first. Member folders are rewritten by CloudBolt's push, with the usual export caveats; parameter folders are written by the extension in the manifest commit.
+- **Sync** first reads `packages/PKG-<id>/PKG-<id>_metadata.json` on the branch it syncs and replaces the appliance's name, description, version and `contents` with the manifest's (`store.sync_manifest`); a dropped member leaves the package, its content stays. It refuses when the package was edited on the appliance since its last export, import or sync and the manifest differs. A branch without the manifest syncs the appliance's member list. It then creates one `sourcecodereposync` job per member, each waiting for the one before (`prereq_job`): shared modules, then plugins, then the other members in `contents` order, then the generated-options actions of parameter members and the step plugins of workflow members that the package does not list, then one "Content Package Manager: Sync Parameter" job per parameter (§16) and one "Content Package Manager: Sync Workflow" job per workflow, listed or pinned by a blueprint member (§17), blueprints last. A failed job holds the rest; Rerun it once the fix is pushed. Sync reads every parameter and workflow member's file first, so it refuses to start when one is missing on the branch.
+- **Export** writes the manifest from the appliance's definition, so an edit made only in the repo is lost unless the package is synced or imported from that branch first. Member folders are rewritten by CloudBolt's push, with the usual export caveats; parameter and workflow folders are written by the extension in the manifest commit.
 
 ### Worked example
 
@@ -1468,6 +1479,99 @@ A parameter whose options an orchestration action generates also carries, for ex
 ]
 ```
 
+## 17. `runbook_workflows/` — SWF-* (Content Package Manager only)
+
+- **Not CloudBolt content.** A workflow of the Runbooks content (`packages/PKG-v20qv308`) is a JSON value of the `runbook_workflow_store` parameter, kept by `shared_modules/SHM-nznzhpp0` (`runbook_workflows`), so Source Control Repos never pushes or syncs one. The Content Package Manager extension (`extensions/XUI-iq65xgvr/content_packages/workflows.py`) writes and reads this folder for a package member `runbook_workflows/SWF-<id>`. A folder no package lists is never synced; the dir name is fixed.
+- **Written by** the extension's Export: it pushes each step's plugin with CloudBolt's own push (unless the package lists it), then writes `runbook_workflows/SWF-<id>/SWF-<id>_metadata.json` in the manifest commit, the File Archives files its steps attach under `files/<archive>/<file>` (each at most 10 MB, `MAX_FILE_MB`; a step that attaches two versions of one file gets `files/<archive>/<version>/<file>`), and `README.md` only when the folder has none. A file the steps no longer attach is deleted from `files/`. Get the folder from an appliance export; do not write it by hand.
+- **Read by** the extension's Sync, which syncs the step plugins first and then runs one "Content Package Manager: Sync Workflow" job per member, after the actions and before the blueprints. That job stores the carried files in File Archives before it creates the workflow (see Sync behavior).
+- **Carried files are bytes.** Sync refuses a file whose SHA-256 differs from its `files` entry, so git must not convert its line endings: the root `.gitattributes` marks `runbook_workflows/*/files/** -text`. After editing a carried file by hand, update its entry's `sha256` and `size`; `tools/validate_metadata.py` checks both.
+- **Pinned by a blueprint.** A blueprint member whose Run Workflow build item (`plugins/OHK-69gk5ne9`, or a plugin named "Run Workflow") pins a workflow carries it without the package listing it. A pin is a `parameter_defaults` entry named `workflow_a<N>` on that build item, or a `defaultValue` on the item's `plugin-bdi-<item>.workflow` question in the blueprint's custom form; its value is an SWF- id or the workflow's exact name. Export reads the pins from the branch after the blueprint's push, writes the workflow's folder and pushes its step plugins; Sync reads them from the branch and queues the workflow's jobs before the blueprints. Sync refuses to start when a pinned workflow has no folder on the branch and the appliance does not have it. A blueprint whose item lets the user pick (no default) pins nothing.
+- **Needs the Runbooks content** on both appliances, with `export_workflow` and `import_workflow` in `runbook_workflows`. Without it the picker offers no workflows and Export and Sync refuse the member.
+
+### File format
+
+`runbook_workflows.export_workflow(workflow)` plus two keys the extension adds, written as `json.dumps(indent=4, sort_keys=True)` plus a newline.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | `SWF-` plus 8 `[a-z0-9]`; equals the folder name. The workflow keeps it on every appliance, so a blueprint whose Run Workflow item pins it by ID finds it there. |
+| `name`, `description` | string | The name is unique per appliance. |
+| `enabled` | boolean | |
+| `filters` | object | `os_families`, `resource_technologies` and `os_builds`, each a list of names. Includes the OS families and technologies that only OS builds or environments implied on the source, because a Remote Script step needs an OS family filter and environments do not travel. |
+| `instance_filters` | array[string] | Which of `groups`, `environments` and `configuration_managers` the source set. Their values are never written, as CloudBolt's own action export leaves them out. |
+| `steps` | array[object] | The stored steps (`key`, `name`, `action`, `type`, `continue_on_error`, `retries`, `retry_delay`, `timeout_minutes`, `inputs`, `archives`) with `action_name`, the action's name, after `action`. Fixed input values are plain text; a workflow cannot hold secret inputs. `archives` are File Archives entries (`archive/file[@version] [extract]`), carried under `files`. |
+| `files` | array[object] | Added by the extension when a step attaches files. One entry per distinct `archive/file[@version]` the steps attach: `ref` (as the steps write it, without options), `archive`, `file`, `version` (the source's version number), `sha256`, `size`, and `path` (the copy, relative to the folder; `null` when the file is larger than 10 MB, so it travels by checksum only). A file File Archives did not hold on the source is left out, and the export job says so. |
+| `dependencies.hooks` | array[string] | Added by the extension: `plugins/OHK-*` of every step's action. |
+| `last_updated` | string `YYYY-MM-DD` | Added by the extension; the export date. |
+
+Who created and changed the workflow, and when, stay on the appliance.
+
+### Sync behavior
+
+- A workflow with the file's `id` is updated, or left unchanged when "Refresh content that already exists" is off. It keeps the appliance's own group, environment and configuration manager filters.
+- Otherwise the workflow is created with that `id`, without those filters.
+- A different workflow with the same name is never overwritten: the job changes nothing and ends in WARNING naming both IDs, and the rest of the package still syncs (CloudBolt starts a job whose prerequisite ended SUCCESS or WARNING). Rename or delete the local workflow, then sync again.
+- Each step runs the action with its global ID, else the action of the same type named `action_name`: CloudBolt keeps an existing plugin's global ID when its import matches the plugin by name.
+- `enabled` follows the file, with two exceptions. With "Keep each action's current enabled state" on, an update keeps the appliance's setting and a new workflow starts disabled. A new workflow also starts disabled when its source set instance filters or a filter name has no match here, so an admin scopes it on the Runbooks page before it is offered. A blueprint that pins a disabled workflow fails until it is enabled.
+- Before the workflow is created, each `files` entry is stored in File Archives, creating the archive when needed. An unpinned ref (`archive/file` or `@latest`) needs the newest version to have the entry's SHA-256; a pinned one (`@N`) needs any version that has it, and the steps' entries are renumbered to that version, because File Archives numbers versions per appliance. Otherwise the copy is added as a new version, unless the file already exists here and "Refresh content that already exists" is off. A copy is stored only when it matches its SHA-256 and passes CloudBolt's antivirus scan (the scan the File Archives upload dialog runs; fails closed). Nothing is stored for a workflow whose name another local workflow has.
+- Ends in WARNING when a filter value has no match, or when a file was not stored (too large to travel, missing or changed on the branch, refused by the scan, or left alone because refreshing was off) and File Archives does not hold it; upload it before running the workflow.
+
+### Worked example
+
+Illustrative; export a real one from an appliance.
+
+```json
+{
+    "dependencies": {
+        "hooks": [
+            "plugins/OHK-hgv6wp65"
+        ]
+    },
+    "description": "Installs the agent from File Archives.",
+    "enabled": true,
+    "filters": {
+        "os_builds": [],
+        "os_families": [
+            "Oracle Enterprise Linux"
+        ],
+        "resource_technologies": []
+    },
+    "id": "SWF-k2v8q0dx",
+    "instance_filters": [
+        "groups"
+    ],
+    "last_updated": "2026-10-21",
+    "name": "Install agent",
+    "steps": [
+        {
+            "action": "OHK-hgv6wp65",
+            "action_name": "Run Installer from File Archive (Linux)",
+            "archives": [],
+            "continue_on_error": false,
+            "inputs": {
+                "archive_file": {
+                    "mode": "fixed",
+                    "value": "installers/agent.tar.gz"
+                },
+                "installer": {
+                    "mode": "fixed",
+                    "value": "install.sh"
+                },
+                "installer_args": {
+                    "mode": "prompt"
+                }
+            },
+            "key": "install_agent",
+            "name": "Install agent",
+            "retries": 0,
+            "retry_delay": 0,
+            "timeout_minutes": null,
+            "type": "script"
+        }
+    ]
+}
+```
+
 ---
 
 ## Navigation Cookbooks
@@ -1493,7 +1597,7 @@ Grep across all `<GLOBAL_ID>_metadata.json` files for the plugin's path string `
 grep -rl '"plugins/OHK-<id>"' --include='*_metadata.json' .
 ```
 
-A reference may appear in any of: `dependencies.hook`, `dependencies.displayCondition`, `deployment_items[].dependencies.hook`, `teardown_items[].dependencies.hook`, `discovery_plugin.dependencies.hook`, `deployment_items[].dependencies.rate_hook`, `deployment_items[].dependencies.environment_selection_hook`, `parameters[].gen_options_hooks[].dependencies.orchestration_hook`.
+A reference may appear in any of: `dependencies.hook`, `dependencies.displayCondition`, `deployment_items[].dependencies.hook`, `teardown_items[].dependencies.hook`, `discovery_plugin.dependencies.hook`, `deployment_items[].dependencies.rate_hook`, `deployment_items[].dependencies.environment_selection_hook`, `parameters[].gen_options_hooks[].dependencies.orchestration_hook`, and a Runbooks workflow's `dependencies.hooks[]`.
 
 A plugin with zero matches is an **orphan** — possibly a shared utility intentionally not yet referenced, possibly dead.
 

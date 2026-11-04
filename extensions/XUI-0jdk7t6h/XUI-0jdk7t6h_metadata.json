@@ -1,10 +1,10 @@
 {
-    "description": "Adds a Security Rules tab to Azure network security group resources for viewing and editing inbound and outbound rules.",
+    "description": "Adds a Security Rules tab to Azure network security group resources with the NSG's essentials and associations and its inbound and outbound rules, which users with permission can add, edit, and delete.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-0jdk7t6h",
     "label": "Azure NSG Management",
-    "last_updated": "2026-07-01",
+    "last_updated": "2026-10-22",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "azure_nsg_management",
@@ -13,8 +13,10 @@
         "views.py",
         "urls.py",
         "forms.py",
-        "templates/nsg_overview_tab.html",
-        "readme.md"
+        "templates/_nsg_assets.html",
+        "templates/_nsg_rules_table.html",
+        "templates/nsg_rules_tab.html",
+        "templates/nsg_rules_panel.html"
     ],
     "version": ""
 }

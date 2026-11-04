@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "extensions/XUI-y9bdnzxt",
+        "blueprints/BP-tikkhf2y"
+    ],
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, and the Connect and Workloads tabs on each project.",
+    "id": "PKG-57ltvnbl",
+    "last_updated": "2026-10-22",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "OpenShift",
+    "version": "1.0.0"
+}

@@ -1,0 +1,157 @@
+{% load i18n %}
+{% if error %}
+<div class="gke-card">
+  {% include "google_gke_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+{# ── Node pools, with the Google Cloud console's columns ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Node pools" %} &middot; {{ rows|length }}</span>
+    <div class="gke-card-tools">
+      {% if kubernetes_version %}<span class="gke-muted">{% trans "Control plane" %} {{ kubernetes_version }}</span>{% endif %}
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter node pools' %}" data-gke-filter="#gkex-pools-table">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table id="gkex-pools-table" class="gke-table">
+      <thead>
+        <tr>
+          <th>{% trans "Node pool" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Nodes" %}</th>
+          <th>{% trans "Scale method" %}</th>
+          <th>{% trans "Autoscaling (per zone)" %}</th>
+          <th>{% trans "Machine type" %}</th>
+          <th>{% trans "Image type" %}</th>
+          <th>{% trans "Version" %}</th>
+          <th>{% trans "Zones" %}</th>
+          <th>{% trans "Management" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-gke-row>
+          <td class="gke-nowrap">
+            {% if r.console_url %}<a href="{{ r.console_url }}" target="_blank" rel="noopener" title="{% trans 'Open in Google Cloud console' %}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}
+            {% if not r.tracked %}<span class="gke-tag gke-tag-warn" title="{% trans 'No GKE Node Pool sub-resource yet; use Refresh' %}">{% trans "not synced" %}</span>{% endif %}
+          </td>
+          <td>
+            {% include "google_gke_cluster/templates/_pill.html" with p=r.status %}
+            {% if r.status_message %}<div class="gke-hint">{{ r.status_message }}</div>{% endif %}
+          </td>
+          <td class="gke-nowrap">
+            {% if r.nodes is None %}
+              <span class="gke-muted" title="{% trans 'The cluster nodes could not be read' %}">&mdash;</span>
+            {% else %}
+              {{ r.ready }} <span class="gke-muted">/ {{ r.nodes }} {% trans "ready" %}</span>
+            {% endif %}
+          </td>
+          <td>{{ r.scale_method }}</td>
+          <td class="gke-nowrap">
+            {% if r.min is not None %}
+              {{ r.min }}&ndash;{{ r.max }}
+              {% if r.total_min is not None or r.total_max is not None %}<div class="gke-hint">{% trans "Total" %} {{ r.total_min|default_if_none:"0" }}&ndash;{{ r.total_max|default_if_none:"&mdash;" }}</div>{% endif %}
+            {% else %}
+              <span class="gke-muted">{% trans "Off" %}</span>
+            {% endif %}
+          </td>
+          <td class="gke-nowrap">
+            {{ r.machine_type|default:"&mdash;" }}{% if r.spot %} <span class="gke-tag">{% trans "Spot" %}</span>{% endif %}
+            {% if r.disk %}<div class="gke-hint">{{ r.disk }}</div>{% endif %}
+          </td>
+          <td>{{ r.image_type|default:"&mdash;" }}</td>
+          <td class="gke-nowrap">
+            <span class="gke-mono">{{ r.version|default:"&mdash;" }}</span>
+            {% if r.behind %}<div><span class="gke-tag gke-tag-warn">{% trans "behind control plane" %}</span></div>{% endif %}
+          </td>
+          <td class="gke-nowrap">{% if r.zones %}{{ r.zones|join:", " }}{% else %}<span class="gke-muted">{% trans "None" %}</span>{% endif %}</td>
+          <td class="gke-nowrap">
+            <div>{% trans "Auto-upgrade" %}: {% if r.auto_upgrade %}{% trans "On" %}{% else %}<span class="gke-tag gke-tag-warn">{% trans "Off" %}</span>{% endif %}</div>
+            <div>{% trans "Auto-repair" %}: {% if r.auto_repair %}{% trans "On" %}{% else %}<span class="gke-tag gke-tag-warn">{% trans "Off" %}</span>{% endif %}</div>
+          </td>
+          <td>
+            <div class="gke-row-tools">
+              {% if r.scale_url %}
+              <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ r.scale_url }}"><i class="bi bi-arrows-expand" aria-hidden="true"></i> {% trans "Scale" %}</a>
+              {% endif %}
+              {% if r.upgrade_url %}
+              <a class="btn btn-sm btn-primary open-dialog" href="{{ r.upgrade_url }}" title="{% trans 'Move the pool to the control plane version' %}"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> {% trans "Upgrade" %}</a>
+              {% endif %}
+              {% if r.delete_url %}
+              <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ r.delete_url }}"><i class="bi bi-trash" aria-hidden="true"></i> {% trans "Delete" %}</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="11" class="gke-empty">{% trans "This cluster has no node pools." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="gke-note">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+    {% trans "GKE sizes node pools per zone: a pool in three zones with one node per zone runs three nodes." %}
+  </div>
+  {% if warnings %}
+  <div class="gke-note">
+    {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{# ── Nodes, read with the cluster orchestrator's credentials ── #}
+<div class="gke-card">
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Nodes" %}{% if not nodes_error %} &middot; {{ nodes|length }}{% endif %}</span>
+    {% if nodes %}
+    <div class="gke-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter nodes' %}" data-gke-filter="#gkex-pool-nodes-table">
+    </div>
+    {% endif %}
+  </div>
+  {% if nodes_error %}
+    {% include "google_gke_cluster/templates/_alert.html" with error=nodes_error %}
+  {% else %}
+  <div class="table-responsive">
+    <table id="gkex-pool-nodes-table" class="gke-table">
+      <thead>
+        <tr>
+          <th>{% trans "Name" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Node pool" %}</th>
+          <th>{% trans "Version" %}</th>
+          <th>{% trans "OS image" %}</th>
+          <th>{% trans "Zone" %}</th>
+          <th>{% trans "Internal IP" %}</th>
+          <th>{% trans "Age" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in nodes %}
+        <tr data-gke-row>
+          <td class="gke-mono">{{ n.name }}</td>
+          <td class="gke-nowrap">
+            {% include "google_gke_cluster/templates/_pill.html" with p=n.status %}
+            {% if n.cordoned %}<span class="gke-tag gke-tag-warn">{% trans "cordoned" %}</span>{% endif %}
+          </td>
+          <td>{{ n.pool|default:"&mdash;" }}</td>
+          <td class="gke-mono">{{ n.kubelet|default:"&mdash;" }}</td>
+          <td>{{ n.os_image|default:"&mdash;" }}</td>
+          <td>{{ n.zone|default:"&mdash;" }}</td>
+          <td class="gke-mono">{{ n.internal_ip|default:"&mdash;" }}</td>
+          <td class="gke-nowrap">{{ n.age }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="gke-empty">{% trans "The cluster has no nodes." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% endif %}

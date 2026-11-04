@@ -15,6 +15,7 @@ Creates a governed namespace for a team on an existing EKS cluster: a namespace 
 | Day-2 | RSA-03qqsnft / OHK-paad1c56 | Extend Namespace Expiration |
 | Day-2 | RSA-j03ua3gm / OHK-7n4o0hox | Namespace Connection Details |
 | Day-2 | RSA-l59xsi54 / OHK-h9moajbi | Manage Pipeline Identity |
+| Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
 
 Order form: EKS Cluster, Namespace Name, Size Tier (required), Additional CloudBolt Group, Allow Ingress From Other Namespaces, Team IAM Principals, Team Access Level, and an optional Expiration Date.
 
@@ -34,6 +35,7 @@ Order form: EKS Cluster, Namespace Name, Size Tier (required), Additional CloudB
 - **Extend Namespace Expiration** adds days to the expiration date and the `cloudbolt.io/lease-expires` annotation.
 - **Manage Pipeline Identity** gives a GitHub Actions workflow kubectl access to the namespace without stored credentials, or removes it; see Pipeline identities below.
 - **Namespace Connection Details** returns the commands that connect kubectl to the namespace and who has IAM access. The AWS EKS Cluster extension ([XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/)) shows the same on a Connect tab, with a kubeconfig to copy or download.
+- **Deploy Test Workload** runs a two-pod unprivileged nginx Deployment and a ClusterIP Service named `cb-test-workload` in the namespace, so the Workloads tab has something to show, or removes them. The same action serves the EKS, AKS and GKE namespace and OpenShift project blueprints.
 
 ## IAM access
 Team IAM Principals takes role or user ARNs, one per line, and Team Access Level picks the EKS access policy: Edit (`AmazonEKSEditPolicy`), View, or Admin. Each principal gets a STANDARD access entry on the cluster, created only if it has none, with the policy scoped to this namespace. EKS allows one entry per principal per cluster, so a role with several namespaces on a cluster has one entry whose policy lists all of them; granting or revoking rewrites that list. Cluster-wide associations and wildcard namespaces someone added by hand are never changed.

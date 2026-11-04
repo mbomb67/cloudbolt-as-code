@@ -1,0 +1,30 @@
+{% load i18n %}
+{% include "openshift_project/templates/_assets.html" %}
+
+<div id="ocpx-connect" class="ocpx">
+  <div class="ocp-card">
+    <div class="ocp-hero-top">
+      <div>
+        <div class="ocp-eyebrow">{% trans "Connect to project" %}</div>
+        <div class="ocp-title"><i class="bi bi-terminal" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="ocp-sub">{% if cluster_name %}{% trans "On OpenShift cluster" %} {{ cluster_name }}{% endif %}</div>
+      </div>
+      <div class="ocp-tools">
+        {% if manage_access_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ manage_access_url }}" title="{% trans 'Grant or revoke OpenShift access for a user, group, or service account, or CloudBolt access for a group' %}">
+          <i class="bi bi-people" aria-hidden="true"></i> {% trans "Manage access" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-ocp-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-ocp-panel="connect" data-ocp-src="{{ connect_url }}" data-ocp-loading="the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.ocpxInit("ocpx-connect"); });
+</script>

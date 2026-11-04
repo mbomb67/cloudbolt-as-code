@@ -1,0 +1,58 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Job global id, e.g. JOB-abc12345 (the numeric job id also works).",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-2cfnyhqp",
+            "label": "Job global id",
+            "name": "rerun_job_id",
+            "placeholder": "JOB-abc12345",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "rerun (default) reruns a finished job; resume resumes a PAUSED job, like the Resume button on its job page.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [
+                "rerun",
+                "resume"
+            ],
+            "hide_if_default_value": true,
+            "id": "CF-1o6nh74c",
+            "label": "Mode (default rerun)",
+            "name": "rerun_job_mode",
+            "placeholder": "rerun",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "rerun_job_id",
+        "rerun_job_mode"
+    ],
+    "description": "Reruns a finished CloudBolt job with its original parameters, or resumes a paused one, like the Rerun and Resume buttons on the job's page.",
+    "id": "OHK-ukp8n10w",
+    "max_retries": 0,
+    "name": "Rerun Job",
+    "resource_technologies": [],
+    "script_filename": "OHK-ukp8n10w_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

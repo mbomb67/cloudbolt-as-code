@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Returns every GKE cluster in the projects of the GCP environments for CloudBolt's discovery sync and registers each one as a Kubernetes container orchestrator.",
+    "id": "OHK-6l86xugc",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "GKE Cluster Discovery",
+    "resource_technologies": [],
+    "script_filename": "OHK-6l86xugc_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -1,0 +1,35 @@
+{% load i18n %}
+{% include "google_gke_cluster/templates/_assets.html" %}
+
+<div id="gkex-connect" class="gkex">
+  <div class="gke-card">
+    <div class="gke-hero-top">
+      <div>
+        <div class="gke-eyebrow">{% trans "Connect to namespace" %}</div>
+        <div class="gke-title"><i class="bi bi-terminal" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="gke-sub">{% if cluster_name %}{% trans "On GKE cluster" %} {{ cluster_name }}{% endif %}</div>
+      </div>
+      <div class="gke-tools">
+        {% if pipeline_url %}
+        <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ pipeline_url }}" title="{% trans 'Add or remove keyless access for a GitHub Actions workflow' %}">
+          <i class="bi bi-robot" aria-hidden="true"></i> {% trans "Pipeline identity" %}
+        </a>
+        {% endif %}
+        {% if manage_access_url %}
+        <a class="btn btn-sm btn-primary open-dialog" href="{{ manage_access_url }}" title="{% trans 'Grant or revoke kubectl access for a Google user, group, or service account' %}">
+          <i class="bi bi-people" aria-hidden="true"></i> {% trans "Manage access" %}
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-gke-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-gke-panel="connect" data-gke-src="{{ connect_url }}" data-gke-loading="Google Cloud and the cluster"></div>
+</div>
+
+<script>
+  $(function () { window.gkexInit("gkex-connect"); });
+</script>

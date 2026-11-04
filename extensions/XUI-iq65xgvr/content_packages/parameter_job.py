@@ -15,6 +15,7 @@ import importlib
 MODULES = (
     "xui.content_packages.store",
     "xui.content_packages.parameters",
+    "xui.content_packages.workflows",
     "xui.content_packages.hooks",
     "xui.content_packages.services",
     "xui.content_packages.jobs",

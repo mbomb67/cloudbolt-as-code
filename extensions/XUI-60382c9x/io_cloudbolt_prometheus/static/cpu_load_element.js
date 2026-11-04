@@ -2,6 +2,7 @@ import { html, render } from "https://unpkg.com/lit-html";
 import { GraphElement } from "./graph_element.js";
 import {
     PROM_CHART_HEIGHT,
+    PROM_COLORS,
     promCredits,
     promChartCommon,
     promLegendCompact,
@@ -66,7 +67,7 @@ export class CpuLoadGraphElement extends GraphElement {
                 title: { text: undefined },
                 maxPadding: 0.02,
                 labels: {
-                    style: { fontSize: "10px", color: "#64748b" },
+                    style: { fontSize: "10px", color: PROM_COLORS.textMuted },
                     x: -2,
                     formatter: function () {
                         return this.value + "%";

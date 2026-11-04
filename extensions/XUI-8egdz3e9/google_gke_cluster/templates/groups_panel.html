@@ -1,0 +1,81 @@
+{% load i18n helper_tags %}
+{% if error %}
+<div class="gke-card">
+  {% include "google_gke_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+
+<div class="gke-card">
+  {% if state == "unconstrained" %}
+  <div class="gke-banner gke-banner-info">
+    <i class="bi bi-globe2" aria-hidden="true"></i>
+    <div class="gke-banner-body">
+      <div class="gke-banner-t">{% trans "Unconstrained: every group may order namespaces on this cluster" %}</div>
+      <div class="gke-banner-s">{% trans "The cluster's environment has no groups assigned. Add groups to limit namespaces to them." %}</div>
+    </div>
+  </div>
+  {% elif state == "restricted" %}
+  <div class="gke-banner">
+    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+    <div class="gke-banner-body">
+      <div class="gke-banner-t">{% trans "Unassigned: no group may order namespaces on this cluster yet" %}</div>
+      <div class="gke-banner-s">{% trans "The cluster's environment has only CloudBolt's Unassigned placeholder. Add groups, or allow all groups." %}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="gke-card-h">
+    <span class="gke-card-t">{% trans "Entitled groups" %} &middot; {{ rows|length }}</span>
+    <div class="gke-card-tools">
+      <span class="gke-muted">{% trans "Environment" %} {{ environment|link_or_label:profile }}</span>
+      {% if allow_all_url %}
+      <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ allow_all_url }}" title="{% trans 'Remove every group so every group may order namespaces on this cluster' %}">
+        <i class="bi bi-globe2" aria-hidden="true"></i> {% trans "Allow all groups" %}
+      </a>
+      {% endif %}
+      {% if rows %}
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter groups' %}" data-gke-filter="#gkex-groups-table">
+      {% endif %}
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table id="gkex-groups-table" class="gke-table">
+      <thead>
+        <tr>
+          <th>{% trans "Group" %}</th>
+          <th>{% trans "Type" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-gke-row>
+          <td>{{ r.group|link_or_label:profile }}</td>
+          <td>{{ r.group.type|default:"&mdash;" }}</td>
+          <td>
+            <div class="gke-row-tools">
+              {% if r.remove_url %}
+              <a class="btn btn-sm btn-outline-danger open-dialog" href="{{ r.remove_url }}"><i class="bi bi-person-dash" aria-hidden="true"></i> {% trans "Remove" %}</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="gke-empty">
+          {% if state == "unconstrained" %}{% trans "No groups assigned: every group may order namespaces." %}{% else %}{% trans "No group is entitled yet." %}{% endif %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="gke-note">
+    <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% trans "Subgroups of an entitled group may order namespaces too. Removing a group leaves the namespaces it already ordered in place." %}</div>
+    {% if action_label %}
+    <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans %}Changes run as CloudBolt jobs through the {{ action_label }} action.{% endblocktrans %}</div>
+    {% else %}
+    <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% trans "Changing these groups needs the Manage GKE Cluster Groups action on this cluster." %}</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endif %}
