@@ -13,7 +13,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 6 |
 | [MCP tool actions](#mcp-tool-actions) | 10 |
-| [Plugins](#plugins) | 201 |
+| [Plugins](#plugins) | 202 |
 | [Shared modules](#shared-modules) | 26 |
 | [UI extensions](#ui-extensions) | 16 |
 | [Parameters](#parameters) | 3 |
@@ -418,6 +418,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Set Resource Name From Field | [OHK-yw0klpjg](plugins/OHK-yw0klpjg/) | Renames the resource from a chosen field value and the first server's hostname. | CloudBolt Plug-in | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
 | Set URL Parameter | [OHK-1rel6s64](plugins/OHK-1rel6s64/) | Sets the website URL parameter on the web application resource. | CloudBolt Plug-in | [IIS Web Application](blueprints/BP-122nbdt5/README.md), [NGINX Web Application](blueprints/BP-anonytrx/README.md) |
 | Set VPC Name | [OHK-50ntkska](plugins/OHK-50ntkska/) | Renames the resource to the VPC name returned by the Ansible playbook. | CloudBolt Plug-in | [Create VPC](blueprints/BP-n454hj40/README.md) |
+| Show If Resource Has Expiration Date | [OHK-plot9gy7](plugins/OHK-plot9gy7/) | Shows an Extend Expiration action only on a resource that has an expiration date. | CloudBolt Plug-in | [Extend AKS Namespace Expiration](resource_actions/RSA-nvwe7u4b/), [Extend Expiration](resource_actions/RSA-kx7mdgva/), [Extend GKE Namespace Expiration](resource_actions/RSA-1qdgexp2/), [Extend Namespace Expiration](resource_actions/RSA-03qqsnft/) |
 | Suggest Domain OUs | [OHK-z9qrccyu](plugins/OHK-z9qrccyu/) | Suggests Active Directory OUs for the domain_ou parameter once the user types three characters, matching the text anywhere in each OU's distinguished name or path across every LDAP Utility's domain. | CloudBolt Plug-in | [Suggest Domain OUs](orchestration_actions/HPA-0zcrvpwu/README.md) |
 | Sync From Source Control Repo | [OHK-0wtrj2wb](plugins/OHK-0wtrj2wb/) | Creates a Source Control Repository sync job for the given branch and content paths so an agent can import or refresh content it pushed, and returns the job id to poll. | CloudBolt Plug-in | [Sync From Source Control Repo](mcp_tool_actions/MTA-543b19sa/README.md) |
 | Teardown AKS Namespace | [OHK-wmdr2ef5](plugins/OHK-wmdr2ef5/) | Deletes the AKS namespace's pipeline identities and CloudBolt role assignments, deletes the managed namespace and everything in it, then removes the pinned CloudBolt environment. | CloudBolt Plug-in | [AKS Namespace](blueprints/BP-dogqi827/README.md) |

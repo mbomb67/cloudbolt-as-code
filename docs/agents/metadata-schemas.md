@@ -527,7 +527,7 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 - **Serializer:** `ResourceActionSerializer` at `cbhooks/api/v3/serializers/resource_action.py:22`.
 - **Top-level sync target?** Yes.
 - **Standalone or linked?** Either. Linked to a blueprint via that blueprint's `management_actions[].dependencies.resource_action`; standalone simply has no parent reference.
-- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional custom form.
+- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional display-condition plugin; optional custom form.
 
 ### Required fields
 
@@ -563,10 +563,18 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 | Field path | Target | Notes |
 |---|---|---|
 | `dependencies.hook` | `plugins/OHK-*` | Always present. |
+| `dependencies.displayCondition` | `plugins/OHK-*` | **camelCase.** Optional; the plugin that decides whether the action shows on a resource. |
 | `dependencies.custom_form` | `forms/FRM-*` | If attached. |
 | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | camelCase key. |
 
-RSA's display-condition FK is NOT exported (unlike `ServerAction`).
+Repo export and sync carry an RSA's display condition (`ResourceAction.condition`, `cbhooks/models.py:2725`) as they do for every action type: `get_action_dependencies` writes `dependencies.displayCondition` and `refresh_action_from_local_path` / `refresh_base_action_from_local_path` read it back (`cbhooks/api/v3/serializers/action_base.py:413`, `:558`, `:687`). The zip format does not: only `ServerActionSerializer` writes and reads the `condition_` sub-zip (`server_action.py:137-225`), so an RSA moved as a zip loses its condition.
+
+The condition plugin is a plain `"type": "CloudBolt Plug-in"` that defines `should_display(resource, request=None)` and returns a bool; it needs no `run`. `Resource.available_actions` (`resources/models.py:528`) hides the action when it returns False, and an exception counts as False (`run_plugin_method`, `cbhooks/models.py:4957`).
+
+```python
+def should_display(resource, request=None):
+    return bool(resource.get_value_for_custom_field("expiration_date"))
+```
 
 ### Worked example
 
