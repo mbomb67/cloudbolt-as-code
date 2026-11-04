@@ -27,6 +27,10 @@ done, so the item can be re-run.
      belongs to the node that owns the core group. This is the IP layout and
      possible-owner setting of AWS's guidance for clusters on EC2, which
      describes nodes in separate subnets; the hosts here share one subnet.
+     New-Cluster can bring the core group online on another host, and
+     Windows refuses to remove a node from the possible owners of a resource
+     online on that node (ERROR_INVALID_STATE), so the core group first
+     moves to this host, which owns the first address.
   3. Keep the NAT network (every host has the same gateway address on it)
      out of cluster traffic, and raise SameSubnetThreshold to 10 as AWS
      recommends.
@@ -47,6 +51,8 @@ References:
   Set-ClusterParameter:           https://learn.microsoft.com/en-us/powershell/module/failoverclusters/set-clusterparameter?view=windowsserver2019-ps
   IP Address private properties:  https://learn.microsoft.com/en-us/previous-versions/windows/desktop/mscs/ip-address-private-properties
   Set-ClusterOwnerNode:           https://learn.microsoft.com/en-us/powershell/module/failoverclusters/set-clusterownernode
+  ApiRemoveResourceNode (owner):  https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cmrp/39e9d80a-00b3-4570-b977-48196e2d6abf
+  Move-ClusterGroup:              https://learn.microsoft.com/en-us/powershell/module/failoverclusters/move-clustergroup
   Set-ClusterResourceDependency:  https://learn.microsoft.com/en-us/powershell/module/failoverclusters/set-clusterresourcedependency
   Add-ClusterDisk:                https://learn.microsoft.com/en-us/powershell/module/failoverclusters/add-clusterdisk
   Add-ClusterSharedVolume:        https://learn.microsoft.com/en-us/powershell/module/failoverclusters/add-clustersharedvolume
@@ -104,6 +110,17 @@ CREATE_CLUSTER = r"""
     foreach ($n in $nat) { if ($n.Role -ne 0) { $n.Role = 0; Log "Cluster network $($n.Name) ($natPrefix) set to no cluster traffic" } }
     $network = Get-ClusterNetwork -Cluster $target | Where-Object { $_.Address -ne $natAddress -and $_.Role -ne 0 } | Select-Object -First 1
     if (-not $network) { throw 'The cluster has no network for its IP addresses.' }
+
+    # Windows will not remove a node from the possible owners of a resource online on it, and New-Cluster can bring
+    # the core group online on another host. This host owns the first address, so the core group comes here first.
+    $coreGroup = Get-ClusterGroup -Cluster $target -Name 'Cluster Group'
+    $from = $coreGroup.OwnerNode.Name
+    if ($from -ne $env:COMPUTERNAME) {
+        try {
+            Move-ClusterGroup -Cluster $target -Name 'Cluster Group' -Node $env:COMPUTERNAME | Out-Null
+            Log "Moved the core cluster group from $from to $env:COMPUTERNAME"
+        } catch { Log "Could not move the core cluster group from $from to $($env:COMPUTERNAME): $($_.Exception.Message)" }
+    }
 
     $core = Get-ClusterResource -Cluster $target | Where-Object { $_.OwnerGroup -eq 'Cluster Group' }
     $nameResource = $core | Where-Object { $_.ResourceType -eq 'Network Name' } | Select-Object -First 1
