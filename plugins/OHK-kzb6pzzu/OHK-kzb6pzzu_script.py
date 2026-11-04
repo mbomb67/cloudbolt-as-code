@@ -5,8 +5,8 @@ Teardown item of the SCVMM Lab on AWS blueprint (blueprints/BP-9zp8udce). It
 runs before CloudBolt deletes the lab's servers (deploy_seq -1). Create
 Hyper-V Cluster made a computer object for the cluster name (the CNO) in the
 hosts' OU, and Windows protects that object from accidental deletion, so the
-LDAP Utility is refused when it deletes it. The cluster name's DNS record is
-owned by the CNO.
+LDAP Utility is refused when it deletes it. The CNO owns the cluster name's
+DNS record.
 
   1. Read the CNO's SID over LDAP with the LDAP Utility that serves the lab's
      domain, the same utility Join Windows Server to AD Domain joins with,
@@ -24,10 +24,11 @@ owned by the CNO.
      refuses that, delete it from a running host as the domain service
      account: it owns the object, so it may remove the protection's Deny
      entries for Everyone and allow itself to delete it.
-  5. Delete the cluster name's DNS records that the CNO owned, the way Delete
-     Windows Computer Object from AD (plugins/OHK-bkoau0j8) deletes a
-     server's own records. Remove-Cluster leaves them, and a record owned by
-     another account is left alone.
+  5. Delete any DNS record of the cluster name that the CNO owned, the way
+     Delete Windows Computer Object from AD (plugins/OHK-bkoau0j8) deletes a
+     server's own records. Remove-Cluster removes the record when it
+     succeeds; this catches the record when it did not run or failed. A
+     record owned by another account is left alone.
 
 The servers' own computer objects are left to Delete Windows Computer Object
 from AD (HPA-q181uofy), and the servers and the storage volume are deleted

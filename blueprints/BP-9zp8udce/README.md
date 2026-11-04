@@ -17,7 +17,7 @@ Every server joins an existing Active Directory domain. The build runs unattende
 | Build (Plug-in, seq 5) | OHK-8ioy2cbi | Configure Hyper-V Hosts |
 | Build (Plug-in, seq 6) | OHK-77f19kly | Create Hyper-V Cluster |
 | Build (Plug-in, seq 7) | OHK-ive3ka22 | Add Hyper-V Cluster to SCVMM |
-| Teardown (before the servers are deleted) | OHK-kzb6pzzu | Remove Hyper-V Cluster Object: destroys the cluster with `Remove-Cluster -CleanupAD` on a running host, which deletes its computer object, then deletes the cluster name's DNS record |
+| Teardown (before the servers are deleted) | OHK-kzb6pzzu | Remove Hyper-V Cluster Object: destroys the cluster with `Remove-Cluster -CleanupAD` on a running host, which deletes its computer object and DNS record, and deletes whichever of them is left |
 | Shared module | SHM-dpj24dfj | `scvmm_lab`: guest scripts, scheduled-task steps, EC2 calls |
 
 Blueprint parameters, each pinned as its only option, so the order form hides them:
@@ -70,12 +70,12 @@ Resource attributes: `scvmm_lab_domain`, `scvmm_lab_cluster`, `scvmm_lab_cluster
 - **Scale-up is not supported.** Order a new lab for more hosts.
 - **Nested VMs** reach the network only through their host's NAT (`192.168.250.0/24`), because EC2 drops frames from unknown MAC addresses. They are not reachable from the VPC.
 - **SCVMM has no templates, logical networks or IP pools yet.** Add them in the console.
-- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item destroys the cluster and deletes its computer object and the cluster name's DNS record. A DNS record another account owns is left alone and reported. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
+- **Deleting the lab** deletes the instances. The storage volume goes with the SCVMM server, and the teardown item destroys the cluster, which deletes its computer object and the cluster name's DNS record. When `Remove-Cluster` does not run or fails, the teardown deletes them itself; a DNS record another account owns is left alone and reported. The servers' own computer objects and DNS records are deleted only by HPA-q181uofy, when it is installed.
 
 ### Not yet run live
-A lab built in one uninterrupted run, in 43 minutes, with SCVMM managing the cluster, and its teardown destroyed the cluster and deleted its computer object. Not yet run:
+Two labs built in one uninterrupted run each, in 43 minutes, with SCVMM managing the cluster. Their teardowns destroyed the cluster and deleted its computer object, and the second found no DNS record of the cluster left. Not yet run:
 - **Failing the core group over to another host.** One IP resource per host is AWS's clustering pattern for hosts in separate subnets; here the hosts share a subnet. If the cluster name does not come online on the other host, keep only the first host's address and pin the group to that host.
-- **Teardown of a cluster whose creation failed partway.** On one such lab, `Remove-Cluster` failed with only a generic message, and the cluster's computer object was left in Active Directory. The teardown now reports the underlying error, and removes the protection and deletes the object from a host; that path has not run live.
+- **Teardown of a cluster whose creation failed partway.** On one such lab, `Remove-Cluster` failed with only a generic message, and the cluster's computer object was left in Active Directory. The teardown now reports the underlying error, removes the protection and deletes the object from a host, and deletes the DNS record the object owned; those paths have not run live.
 
 ### Caveats
 - **SCVMM's DHCP server extension.** On the test labs, SCVMM installed its agent on both hosts, but copying the DHCP server extension (`DHCPExtn.msi`) to them over BITS failed, so the add job failed. Add Hyper-V Cluster to SCVMM then ends with a warning that quotes SCVMM's message. The cluster and its nodes are managed. The extension is needed only for SCVMM-managed DHCP on virtual networks.
