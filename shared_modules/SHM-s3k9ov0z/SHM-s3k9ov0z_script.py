@@ -67,10 +67,16 @@ def blueprint(required=True):
 
 
 def ensure_custom_fields():
+    """Create the reservation's fields with Show as attribute on, so the resource's
+    Overview tab lists them, and turn it on for fields an older version created."""
     for name, cf_type, label, description in CUSTOM_FIELDS:
-        CustomField.objects.get_or_create(
-            name=name, defaults={"type": cf_type, "label": label, "description": description}
+        cf, _ = CustomField.objects.get_or_create(
+            name=name,
+            defaults={"type": cf_type, "label": label, "description": description, "show_as_attribute": True},
         )
+        if not cf.show_as_attribute:
+            cf.show_as_attribute = True
+            cf.save()
 
 
 def ip_pools(tenant_id=None):

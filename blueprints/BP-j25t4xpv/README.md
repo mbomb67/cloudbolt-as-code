@@ -44,5 +44,5 @@ The answer is the order. Read the address in three more calls: the order's first
 | Release | Delete action (a job) | One call, or the Delete action |
 
 ## Notes
-- The resource carries `ip_reservation_address`, `ip_reservation_pool`, `ip_reservation_pool_id`, `ip_reservation_reference` and `ip_reservation_hostname`.
+- The resource's Overview tab shows `ip_reservation_address`, `ip_reservation_pool`, `ip_reservation_pool_id`, `ip_reservation_reference` and `ip_reservation_hostname`. The first reservation creates these fields with Show as attribute on.
 - A shared module change reaches running jobs only after the job engine service restarts, and the webhook only after the web service restarts.
