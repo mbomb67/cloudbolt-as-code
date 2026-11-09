@@ -44,9 +44,9 @@
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
       "plugins/OHK-27oemiwb",
-      "plugins/OHK-838unyo2",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-uof2rcaa",
-      "plugins/OHK-wr919cf3",
+      "plugins/OHK-vdr6oo2z",
       "plugins/OHK-x13tmam0",
       "resource_actions/RSA-76jmctg6",
       "resource_actions/RSA-ehxck39g",
@@ -287,10 +287,10 @@
     "readme": "blueprints/BP-g8g8aecx/README.md",
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
-      "plugins/OHK-0ywb19s5",
       "plugins/OHK-6l86xugc",
-      "plugins/OHK-7jnmszs7",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-shr5y3i6",
+      "plugins/OHK-vdr6oo2z",
       "plugins/OHK-y9wx9bga",
       "resource_actions/RSA-76jmctg6",
       "resource_actions/RSA-afixcgmf",
@@ -1962,21 +1962,6 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
-    "id": "OHK-0ywb19s5",
-    "type": "plugins",
-    "name": "Remove from StormForge (GKE)",
-    "description": "After a GKE cluster is deleted, deletes the cluster in StormForge.",
-    "path": "plugins/OHK-0ywb19s5",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-2fd3bhsz"
-    ],
-    "used_by": [
-      "blueprints/BP-g8g8aecx"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
     "id": "OHK-1m6n3gq9",
     "type": "plugins",
     "name": "Attach Data Disks (Windows)",
@@ -2528,22 +2513,6 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
-    "id": "OHK-7jnmszs7",
-    "type": "plugins",
-    "name": "Install StormForge Agent (GKE)",
-    "description": "Installs the StormForge agent on a new GKE cluster and registers it with StormForge, warning instead of failing the order.",
-    "path": "plugins/OHK-7jnmszs7",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-2fd3bhsz",
-      "shared_modules/SHM-4yw92b8x"
-    ],
-    "used_by": [
-      "blueprints/BP-g8g8aecx"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
     "id": "OHK-7n4o0hox",
     "type": "plugins",
     "name": "AWS EKS Namespace Connection Details",
@@ -2589,32 +2558,20 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
-    "id": "OHK-838unyo2",
-    "type": "plugins",
-    "name": "Remove from StormForge (AKS)",
-    "description": "After an AKS cluster is deleted, deletes the cluster in StormForge.",
-    "path": "plugins/OHK-838unyo2",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-2fd3bhsz"
-    ],
-    "used_by": [
-      "blueprints/BP-20q58q9z"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
     "id": "OHK-8mtfn5x1",
     "type": "plugins",
-    "name": "Install StormForge Agent (EKS)",
-    "description": "Installs the StormForge agent on a new EKS cluster and registers it with StormForge, warning instead of failing the order.",
+    "name": "Install StormForge Agent",
+    "description": "Installs the StormForge agent on a new EKS, AKS or GKE cluster and registers it with StormForge, warning instead of failing the order.",
     "path": "plugins/OHK-8mtfn5x1",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-2fd3bhsz"
+      "shared_modules/SHM-2fd3bhsz",
+      "shared_modules/SHM-4yw92b8x"
     ],
     "used_by": [
-      "blueprints/BP-r5apcf7e"
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-g8g8aecx"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4525,15 +4482,17 @@
   {
     "id": "OHK-vdr6oo2z",
     "type": "plugins",
-    "name": "Remove from StormForge (EKS)",
-    "description": "After an EKS cluster is deleted, deletes the cluster in StormForge.",
+    "name": "Remove from StormForge",
+    "description": "After an EKS, AKS or GKE cluster is deleted, deletes the cluster in StormForge.",
     "path": "plugins/OHK-vdr6oo2z",
     "readme": null,
     "uses": [
       "shared_modules/SHM-2fd3bhsz"
     ],
     "used_by": [
-      "blueprints/BP-r5apcf7e"
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-g8g8aecx"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4667,21 +4626,6 @@
     "uses": [],
     "used_by": [
       "resource_actions/RSA-9tfwebk7"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
-    "id": "OHK-wr919cf3",
-    "type": "plugins",
-    "name": "Install StormForge Agent (AKS)",
-    "description": "Installs the StormForge agent on a new AKS cluster and registers it with StormForge, warning instead of failing the order.",
-    "path": "plugins/OHK-wr919cf3",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-2fd3bhsz"
-    ],
-    "used_by": [
-      "blueprints/BP-20q58q9z"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -6104,12 +6048,8 @@
     "uses": [],
     "used_by": [
       "plugins/OHK-kxxla7cn",
-      "plugins/OHK-wr919cf3",
       "plugins/OHK-8mtfn5x1",
-      "plugins/OHK-7jnmszs7",
-      "plugins/OHK-838unyo2",
-      "plugins/OHK-vdr6oo2z",
-      "plugins/OHK-0ywb19s5"
+      "plugins/OHK-vdr6oo2z"
     ]
   },
   {
@@ -6133,7 +6073,7 @@
       "plugins/OHK-32pzj98f",
       "plugins/OHK-egyf9q28",
       "plugins/OHK-kxxla7cn",
-      "plugins/OHK-7jnmszs7",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-niw4hc9m",
       "plugins/OHK-m8iwylq8",
       "plugins/OHK-vdhjpyg2",

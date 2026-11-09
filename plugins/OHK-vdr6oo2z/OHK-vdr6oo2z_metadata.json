@@ -4,10 +4,10 @@
             "shared_modules/SHM-2fd3bhsz"
         ]
     },
-    "description": "After an EKS cluster is deleted, deletes the cluster in StormForge.",
+    "description": "After an EKS, AKS or GKE cluster is deleted, deletes the cluster in StormForge.",
     "id": "OHK-vdr6oo2z",
     "max_retries": 0,
-    "name": "Remove from StormForge (EKS)",
+    "name": "Remove from StormForge",
     "resource_technologies": [],
     "script_filename": "OHK-vdr6oo2z_script.py",
     "shared": true,

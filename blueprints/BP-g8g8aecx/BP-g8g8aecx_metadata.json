@@ -24,7 +24,7 @@
             "action_name": "Install StormForge Agent",
             "continue_on_failure": true,
             "dependencies": {
-                "hook": "plugins/OHK-7jnmszs7"
+                "hook": "plugins/OHK-8mtfn5x1"
             },
             "deploy_seq": 2,
             "description": "Installs the StormForge agent and registers the cluster with StormForge; a problem is a warning.",
@@ -212,10 +212,10 @@
             "action_name": "Remove from StormForge",
             "continue_on_failure": true,
             "dependencies": {
-                "hook": "plugins/OHK-0ywb19s5"
+                "hook": "plugins/OHK-vdr6oo2z"
             },
             "deploy_seq": 1,
-            "description": "After the cluster is deleted, revokes its StormForge credential and deletes it in StormForge.",
+            "description": "After the cluster is deleted, deletes it in StormForge; a problem is a warning.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-j9iav6op",

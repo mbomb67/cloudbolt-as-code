@@ -7,9 +7,9 @@ Creates an Amazon EKS cluster in an AWS environment the ordering group can use. 
 |---|---|---|
 | Build | OHK-u4k6dg46 | Deploy EKS Cluster |
 | Build | OHK-c4gue79a | Create Node Group (plugin Create AWS EKS Node Group) |
-| Build | OHK-8mtfn5x1 | Install StormForge Agent (EKS) |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (shared by the EKS, AKS and GKE blueprints) |
 | Teardown | OHK-pgbigmd9 | Delete Cluster |
-| Teardown | OHK-vdr6oo2z | Remove from StormForge (EKS) |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (shared by the EKS, AKS and GKE blueprints) |
 | Discovery | OHK-e9qppbei | Discover EKS |
 | Shared module | SHM-2fd3bhsz | stormforge |
 | Shared module | SHM-uj1izdsm | eks_nodegroups (Create Node Group and Add AWS EKS Nodegroup) |

@@ -6,9 +6,9 @@ Creates a GKE Standard cluster in a GCP environment the ordering group can use. 
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-shr5y3i6 | GKE Cluster Build |
-| Build | OHK-7jnmszs7 | Install StormForge Agent (GKE) |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (shared by the EKS, AKS and GKE blueprints) |
 | Teardown | OHK-y9wx9bga | GKE Cluster Teardown |
-| Teardown | OHK-0ywb19s5 | Remove from StormForge (GKE) |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (shared by the EKS, AKS and GKE blueprints) |
 | Discovery | OHK-6l86xugc | GKE Cluster Discovery |
 | Shared module | SHM-4yw92b8x | gcp_gke |
 | Shared module | SHM-2fd3bhsz | stormforge |
