@@ -35,7 +35,7 @@ Order form: Cluster Name, Environment, Region, Availability, Subnetwork, Release
 1. Sync the repo, then restart CloudBolt (the job engine and the web server): every plugin here imports the `gcp_gke` shared module, which running processes cache.
 2. Entitle the ordering groups to the GCP environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
 3. Choose who may order namespaces on a cluster with Entitled CloudBolt Groups on the order form, or later on the cluster's Groups tab (Manage GKE Cluster Groups); no environment administrator is needed. Both change the groups of the cluster's `Resource-<cluster> Environment#<location>` environment. On an appliance that restricts new environments, that environment starts in the Unassigned group, and no group sees the cluster until groups are entitled or all groups are allowed.
-4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, each build ends with a warning that the StormForge agent was not installed.
+4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, StormForge is not enabled: the build skips the agent install and says where to find these steps.
 
 ## Notes
 - A regional cluster runs the control plane and nodes in several zones of the region; a zonal cluster runs in the first of the region's zones the environment offers. Node counts are per zone, so a regional cluster's default pool runs Nodes per Zone in each of its zones. When Autoscale Maximum is greater, the cluster autoscaler runs between the two per zone.

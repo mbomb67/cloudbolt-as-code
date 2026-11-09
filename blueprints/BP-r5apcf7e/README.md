@@ -36,7 +36,7 @@ Order form: Environment, Cluster Name, Kubernetes Version, Security Groups, Subn
 ## Setup
 1. Sync the repo. Nothing in this blueprint carries a `FILL-ME` placeholder or a secret.
 2. Entitle the ordering groups to the AWS environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
-3. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, each build ends with a warning that the StormForge agent was not installed.
+3. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, StormForge is not enabled: the build skips the agent install and says where to find these steps.
 
 Nothing version-specific is hardcoded: every list below is read from AWS when the form opens, except the AMI Type and Instance Type lists of the Create Node Group section.
 

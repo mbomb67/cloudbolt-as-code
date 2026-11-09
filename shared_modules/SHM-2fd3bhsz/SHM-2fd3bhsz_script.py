@@ -25,7 +25,9 @@ client-credentials token, so an API credential cannot create one per
 cluster. Create it with StormForge's default permissions (`stormforge auth
 create`), which cover both. Nothing else names an endpoint: the issuer comes
 from discovery, the agent is pointed at the same API host, and its metrics go
-to the in. host beside the api. host.
+to the in. host beside the api. host. Without that connection info StormForge
+is not enabled: the build item skips it and succeeds, pointing to the
+blueprint's README.
 
   Discovery   GET  https://<api>/.well-known/openid-configuration
               (issuer, token_endpoint)
@@ -1076,11 +1078,33 @@ def version_options(resource):
 # Entry points for the blueprint items
 # ---------------------------------------------------------------------------
 
+def _readme_url(resource):
+    """The blueprint's README beside its metadata in the repo it was synced from, if any.
+
+    A blueprint synced from a Source Code Repository keeps the browsable URL
+    of its metadata file (<repo>/blob/<branch>/blueprints/<id>/<id>_metadata.json).
+    """
+    source = (getattr(getattr(resource, "blueprint", None), "remote_source_url", "") or "").strip()
+    if not source.startswith("http") or not source.endswith("_metadata.json"):
+        return ""
+    return source.rsplit("/", 1)[0] + "/README.md"
+
+
 def run_build_step(job, resource, kwargs):
-    """Blueprint build item: install the agent; a failure is a warning so the order completes."""
+    """Blueprint build item: install the agent; a failure is a warning so the order completes.
+
+    With no StormForge connection info, StormForge is not enabled on this
+    CloudBolt, so the step only says so and succeeds.
+    """
     resource = _resolve_resource(job, resource, kwargs)
     if resource is None:
         return "WARNING", "", "StormForge was not installed: no cluster resource was supplied."
+    if not ConnectionInfo.objects.filter(name=CONNECTION_INFO_NAME).exists():
+        url = _readme_url(resource)
+        where = url or "the StormForge setup in this blueprint's README"
+        message = f"StormForge is not enabled on this CloudBolt instance. To enable it, see {where}."
+        set_progress(message)
+        return "SUCCESS", message, ""
     retry = "Run Install or Upgrade StormForge Agent on the cluster to try again."
     try:
         status, output, error = install_or_upgrade(resource)

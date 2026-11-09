@@ -35,7 +35,7 @@ Order form: Cluster Name, Environment, Resource Group, Kubernetes Version, Syste
 1. Sync the repo, then restart CloudBolt: every plugin here imports the `azure_aks` shared module, which running processes cache.
 2. Entitle the ordering groups to the Azure environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
 3. Choose who may order namespaces on a cluster with Entitled CloudBolt Groups on the order form, or later on the cluster's Groups tab (Manage AKS Cluster Groups); no environment administrator is needed. Both change the groups of the cluster's `Resource-<cluster> Environment#<region>` environment. On an appliance that restricts new environments, that environment starts in the Unassigned group, and no group sees the cluster until groups are entitled or all groups are allowed.
-4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, each build ends with a warning that the StormForge agent was not installed.
+4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, StormForge is not enabled: the build skips the agent install and says where to find these steps.
 
 ## Notes
 - Kubernetes Version lists the generally available minor versions AKS offers in the environment's region (`kubernetesVersions`), newest first, with AKS's default preselected; AKS installs the latest patch of the chosen minor version.
