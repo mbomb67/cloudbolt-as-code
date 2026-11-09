@@ -278,7 +278,7 @@
                 "hook": "plugins/OHK-vdr6oo2z"
             },
             "deploy_seq": 1,
-            "description": "After the cluster is deleted, revokes its StormForge credential and deletes it in StormForge.",
+            "description": "After the cluster is deleted, deletes it in StormForge; a problem is a warning.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-gc01gjkt",

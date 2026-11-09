@@ -6,9 +6,9 @@ Creates an AKS cluster in an Azure environment the ordering group can use. The c
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-x13tmam0 | AKS Cluster Build |
-| Build | OHK-wr919cf3 | Install StormForge Agent (AKS) |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (shared by the EKS, AKS and GKE blueprints) |
 | Teardown | OHK-27oemiwb | AKS Cluster Teardown |
-| Teardown | OHK-838unyo2 | Remove from StormForge (AKS) |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (shared by the EKS, AKS and GKE blueprints) |
 | Discovery | OHK-uof2rcaa | AKS Cluster Discovery |
 | Shared module | SHM-ptvp0km4 | azure_aks |
 | Shared module | SHM-2fd3bhsz | stormforge |

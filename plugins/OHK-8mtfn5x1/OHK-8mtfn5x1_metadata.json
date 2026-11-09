@@ -1,13 +1,14 @@
 {
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-2fd3bhsz"
+            "shared_modules/SHM-2fd3bhsz",
+            "shared_modules/SHM-4yw92b8x"
         ]
     },
-    "description": "Installs the StormForge agent on a new EKS cluster and registers it with StormForge, warning instead of failing the order.",
+    "description": "Installs the StormForge agent on a new EKS, AKS or GKE cluster and registers it with StormForge, warning instead of failing the order.",
     "id": "OHK-8mtfn5x1",
     "max_retries": 0,
-    "name": "Install StormForge Agent (EKS)",
+    "name": "Install StormForge Agent",
     "resource_technologies": [],
     "script_filename": "OHK-8mtfn5x1_script.py",
     "shared": true,
