@@ -300,7 +300,8 @@ def _environment_row(env, base):
         "osBuildProblems": problems,
         "networkProblems": _network_problems(env),
         "networks": network_count,
-        "groups": env.group_set.count(),  # Group.environments; Environment.groups_served is deprecated and unused
+        # Group.environments (Environment.groups_served is deprecated); Unassigned is the placeholder for restricted new environments.
+        "groups": env.group_set.exclude(name="Unassigned").count(),
         "lifecycleParameters": sorted(flags),
         "url": base + "/environments/{}/".format(env.id),
         "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),

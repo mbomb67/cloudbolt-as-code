@@ -267,10 +267,13 @@ def _ev_2_3_2():
 
 
 def _ev_2_3_3():
+    from accounts.models import Group
     from infrastructure.models import Environment
 
-    # Entitlement lives on Group.environments; Environment.groups_served is deprecated and unused.
-    rows = list(Environment.objects.filter(group__isnull=False).distinct().order_by("name").values_list("name", flat=True)[:8])
+    # Entitlement lives on Group.environments (Environment.groups_served is deprecated); Unassigned is the
+    # placeholder CloudBolt adds to new environments when they are restricted by default.
+    groups = Group.objects.exclude(name="Unassigned")
+    rows = list(Environment.objects.filter(group__in=groups).distinct().order_by("name").values_list("name", flat=True)[:8])
     return _ev(rows, "environments entitled to specific groups: {}".format(", ".join(rows) or "none"))
 
 
