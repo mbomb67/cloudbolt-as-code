@@ -1,0 +1,11 @@
+<div class="sfx-card sfx-set">
+  <div class="sfx-set-t">{{ c.title }}</div>
+  {% if jvm_note %}<div class="sfx-set-d">{{ jvm_note }}</div>{% endif %}
+  <div class="k" style="margin-top:8px"><i class="bi bi-cup-hot"></i> Java Heap Settings</div>
+  <table class="sfx-mini">
+    <tr><td>Patch Path:</td><td colspan="2" class="sfx-mono">{{ c.java.path }}</td></tr>
+    <tr><td>Patch Format:</td><td colspan="2" class="sfx-mono">{{ c.java.format }}</td></tr>
+    <tr><th>Bounds:</th><th>Min</th><th>Max</th></tr>
+    <tr><td>Max Heap Size:</td><td>{{ c.java.min }}</td><td>{{ c.java.max }}</td></tr>
+  </table>
+</div>

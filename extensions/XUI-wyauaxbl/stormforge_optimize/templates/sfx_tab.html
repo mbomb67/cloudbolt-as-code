@@ -1,0 +1,27 @@
+{% include "stormforge_optimize/templates/sfx_assets.html" %}
+<div id="{{ root_id }}" class="sfx">
+  <div data-sfx-body>
+    <div class="sfx-loading"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Opens when you select this tab.</div>
+  </div>
+</div>
+<script>
+  $(function () {
+    window.sfx.init("{{ root_id|escapejs }}", {
+      view: "{{ view|escapejs }}",
+      tab: "{{ tab_id|escapejs }}",
+      label: "{{ label|escapejs }}",
+      icon: "{{ icon|escapejs }}",
+      urls: {
+        cluster: "{{ urls.cluster|escapejs }}",
+        namespace: "{{ urls.namespace|escapejs }}",
+        workload: "{{ urls.workload|escapejs }}",
+        namespaces_table: "{{ urls.namespaces_table|escapejs }}",
+        workloads_table: "{{ urls.workloads_table|escapejs }}",
+        nodes: "{{ urls.nodes|escapejs }}",
+        patches: "{{ urls.patches|escapejs }}",
+        agent: "{{ urls.agent|escapejs }}",
+        agent_log: "{{ urls.agent_log|escapejs }}"
+      }
+    });
+  });
+</script>

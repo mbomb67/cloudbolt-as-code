@@ -1,0 +1,85 @@
+{% comment %}Clusters tab: header, the three cards, More Information, then Namespaces / Nodes / Config.{% endcomment %}
+<div class="sfx-card">
+  <div class="sfx-hero">
+    <div>
+      <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
+      <div class="sfx-title">Cluster: {{ cluster }}</div>
+      {% if not error %}<div class="sfx-sub">View your potential savings across the cluster.{% if last_seen %} &middot; Last seen <span title="{{ last_seen_stamp }}">{{ last_seen }}</span>{% endif %}</div>{% endif %}
+    </div>
+    <div class="sfx-tools">
+      {% for m in messages %}<span class="sfx-pill sfx-pill-{% if m.css == 'info' %}ok{% else %}{{ m.css }}{% endif %}" title="{{ m.message }}" data-bs-toggle="tooltip"><i class="bi bi-{{ m.icon }}"></i> {{ m.title }}</span>{% endfor %}
+      {% if app_link %}<a class="btn btn-sm btn-outline-secondary" href="{{ app_link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Open in StormForge</a>{% endif %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-refresh="cluster"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button>
+    </div>
+  </div>
+</div>
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+{% include "stormforge_optimize/templates/sfx_cards.html" with s=summary %}
+
+<details class="sfx-more">
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i> More Information</summary>
+  <div class="sfx-card">
+    <div class="sfx-grid">
+      <div><div class="k">Overprovisioned (waste)</div><div class="v">{{ summary.over_cost }} /mo. &middot; {{ summary.over_cpu }} cores &middot; {{ summary.over_memory }}</div></div>
+      <div><div class="k">Underprovisioned (risk)</div><div class="v">{{ summary.under_cost }} /mo. &middot; {{ summary.under_cpu }} cores &middot; {{ summary.under_memory }}</div></div>
+      <div><div class="k">Workloads</div><div class="v">{{ workload_count }}</div></div>
+      <div><div class="k">Agent version</div><div class="v">{{ agent_version|default:"--" }}</div></div>
+      <div><div class="k">Applier version</div><div class="v">{{ applier_version|default:"--" }}</div></div>
+      <div><div class="k">Node agent version</div><div class="v">{{ node_agent_version|default:"--" }}</div></div>
+      <div><div class="k">Added to StormForge</div><div class="v">{{ created|default:"--" }}</div></div>
+      <div><div class="k">Last seen</div><div class="v">{{ last_seen_stamp|default:"--" }}</div></div>
+    </div>
+    {% if messages %}
+    <ul class="sfx-msgs" style="border-top:1px solid var(--sfx-line)">
+      {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b> {{ m.message }}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</details>
+
+<div data-sfx-group>
+  <div class="sfx-subtabs" role="tablist">
+    <button type="button" class="active" role="tab" aria-selected="true" data-sfx-subtab="namespaces">Namespaces</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="nodes">Nodes</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="config">Config</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="agent">Agent</button>
+  </div>
+  <div data-sfx-pane="namespaces">
+    {% include "stormforge_optimize/templates/sfx_table.html" %}
+  </div>
+  <div data-sfx-pane="nodes" hidden>
+    <div data-sfx-sub="nodes"></div>
+  </div>
+  <div data-sfx-pane="agent" hidden>
+    <div data-sfx-sub="agent"></div>
+  </div>
+  <div data-sfx-pane="config" hidden>
+    <div class="sfx-card">
+      <div class="sfx-section"><span class="sfx-set-t">Cluster Labels</span>
+        {% if config.labels %}{% for k, v in config.labels %}<span class="sfx-tag" style="text-transform:none">{{ k }}={{ v }}</span>{% endfor %}{% else %}<span class="sfx-muted">&nbsp;Not configured</span>{% endif %}
+      </div>
+    </div>
+    <div class="sfx-card">
+      <div class="sfx-section">
+        <div class="sfx-set-t">Node Instances</div>
+        <div class="sfx-set-d">The node labeling configuration below can help you to schedule pods onto specific nodes. For details, see the <a href="https://docs.stormforge.io/docs/configure/node-instance-categories/" target="_blank" rel="noopener">product docs</a>.</div>
+        <div class="k">Category Key</div>
+        <div class="v sfx-mono" style="margin-bottom:12px">{{ config.category_key|default:"--" }}</div>
+        <div class="k">Category Values</div>
+        <table class="sfx-mini">
+          <thead><tr><th>Title</th><th>Kubernetes Label</th><th>CPU:MEM</th></tr></thead>
+          <tbody>
+          {% for c in config.categories %}<tr><td>{{ c.title }}</td><td class="sfx-mono">{{ c.value }}</td><td>{{ c.ratio }}</td></tr>{% empty %}<tr><td colspan="3" class="sfx-muted">None</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sfx-section sfx-grid" style="padding:14px 20px">
+        <div><div class="k">Provider</div><div class="v">{{ config.provider|default:"--" }}</div></div>
+        <div><div class="k">CPU cost estimate</div><div class="v">{% if config.cpu_cost %}${{ config.cpu_cost }} per core-hour{% else %}--{% endif %}</div></div>
+        <div><div class="k">Memory cost estimate</div><div class="v">{% if config.memory_cost %}${{ config.memory_cost }} per GiB-hour{% else %}--{% endif %}</div></div>
+        <div><div class="k">Cluster UID</div><div class="v sfx-mono">{{ config.uid|default:"--" }}</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}

@@ -36,7 +36,7 @@ CloudBolt talks to StormForge only through the StormForge API. It installs the a
   3. It waits for the agent to check in.
 
   A problem is a warning, so the cluster order still completes; run the action to retry.
-- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to (newer versions only: StormForge charts cannot be downgraded), for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info, so after you change the credential, run the action on each cluster to rotate it.
+- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to (newer versions only: StormForge charts cannot be downgraded), for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info and restarts agent pods that started before the Secret changed (the agent reads its credential only at startup), so after you change the credential, run the action on each cluster to rotate it.
 - **Teardown:** the Remove from StormForge item runs after the cluster is deleted. It deletes the cluster in StormForge. A cluster that fails to delete stays registered.
 
 ## Notes
@@ -45,4 +45,5 @@ CloudBolt talks to StormForge only through the StormForge API. It installs the a
 - **Nodes:** the agent and Helm run as pods. A cluster with no ready nodes, such as an EKS cluster before its first node group, gets a warning; add nodes, then run the action.
 - **Helm Job permissions:** the Job runs `docker.io/alpine/helm:4.3.1`, pinned by digest, as a non-root user under a temporary ServiceAccount bound to `cluster-admin`, because the chart creates CRDs and ClusterRoles. CloudBolt deletes the Job, its values ConfigMap, the ServiceAccount and the binding when Helm finishes. Helm's output appears in the CloudBolt job log.
 - **Resource attributes:** the cluster resource shows StormForge Cluster, StormForge Agent Version and StormForge Status.
+- **StormForge tabs:** the StormForge Optimize Live extension ([XUI-wyauaxbl](../extensions/XUI-wyauaxbl/)) adds Clusters, Namespaces and Workloads tabs to these clusters. It reads StormForge with the same connection info and needs the `view:clusters` and `view:workloads` scopes, which a credential made with `stormforge auth create` has.
 - **Existing installs:** on a cluster where StormForge was installed by hand, the action keeps the existing release's cluster name and the credential in its Secret.

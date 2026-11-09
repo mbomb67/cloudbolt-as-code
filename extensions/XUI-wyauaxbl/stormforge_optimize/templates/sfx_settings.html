@@ -1,0 +1,143 @@
+{% comment %}
+  Workloads tab > Settings: StormForge's optimization settings for the
+  workload, read-only, with StormForge's annotation examples. Context `st`
+  from views._settings. Settings change through annotations in Kubernetes.
+{% endcomment %}
+<div class="sfx-h">Optimization Settings</div>
+<div class="sfx-intro">These settings are applied as <span class="sfx-mono">live.stormforge.io/*</span> annotations on the workload in Kubernetes{% if st.managed_in_cluster %} (this workload's settings are managed in the cluster){% endif %}. Each page shows the annotations that change it.</div>
+<div class="sfx-side" data-sfx-group>
+  <div class="sfx-side-nav" role="tablist">
+    <button type="button" class="active" data-sfx-subtab="goals">Goals</button>
+    <button type="button" data-sfx-subtab="schedule">Schedule</button>
+    <button type="button" data-sfx-subtab="apply">Apply Settings</button>
+    <button type="button" data-sfx-subtab="reliability">Reliability</button>
+    <button type="button" data-sfx-subtab="resources">CPU and Memory</button>
+    <button type="button" data-sfx-subtab="hpa">HPA</button>
+    <button type="button" data-sfx-subtab="runtime">Runtime</button>
+    <button type="button" data-sfx-subtab="scheduling">Pod Scheduling</button>
+  </div>
+  <div>
+    {# Goals #}
+    <div data-sfx-pane="goals">
+      <div class="sfx-h">Optimization Goals</div>
+      <div class="sfx-intro">Based on your goals and risk tolerance, these values are used to determine recommended values. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-settings-grid">
+        <div class="sfx-card sfx-set"><div class="sfx-set-t">CPU Goal</div><div class="sfx-set-v" style="margin-top:8px"><i class="bi bi-{{ st.goals.cpu_icon }}"></i> {{ st.goals.cpu }}{% if st.goals.cpu_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+        <div class="sfx-card sfx-set"><div class="sfx-set-t">Memory Goal</div><div class="sfx-set-v" style="margin-top:8px"><i class="bi bi-{{ st.goals.memory_icon }}"></i> {{ st.goals.memory }}{% if st.goals.memory_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+      </div>
+      <div class="sfx-set-t" style="margin:6px 0 4px">How goals work</div>
+      <div class="sfx-set-d">StormForge always recommends values that minimally satisfy both savings and reliability, but you can set goals to shift the balance in favor of one or the other.</div>
+      <div class="sfx-goals" style="margin-bottom:16px">{% for g in st.goals.options %}<div class="sfx-goal"><i class="bi bi-{{ g.icon }}"></i><b>{{ g.name }}</b>{{ g.text }}</div>{% endfor %}</div>
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.goals key="goals" %}
+    </div>
+
+    {# Schedule #}
+    <div data-sfx-pane="schedule" hidden>
+      <div class="sfx-h">Recommendation Schedule</div>
+      <div class="sfx-intro">StormForge generates a new recommendation for this workload on the schedule below. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/schedule/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Schedule</div><div class="sfx-set-d">Defines how often recommendations are generated.</div><div class="sfx-set-v"><i class="bi bi-calendar3"></i> {{ st.schedule.expression }}{% if st.schedule.expression_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Time zone</div><div class="sfx-set-d">The timezone schedule expressions are evaluated in.</div><div class="sfx-set-v"><i class="bi bi-clock"></i> {{ st.schedule.timezone }}{% if st.schedule.timezone_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Validity Period</div><div class="sfx-set-d">The duration for which each recommendation remains valid. Optimize Live provides resource request values that are applicable only within this period.</div><div class="sfx-set-v"><i class="bi bi-calendar3"></i> {% if st.schedule.validity %}{{ st.schedule.validity }}{% else %}Automatic <span class="sfx-default">(based on schedule frequency)</span>{% endif %}</div></div>
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.schedule key="schedule" %}
+    </div>
+
+    {# Apply Settings #}
+    <div data-sfx-pane="apply" hidden>
+      <div class="sfx-h">Apply Settings</div>
+      <div class="sfx-intro">The settings below define whether StormForge automatically applies recommendations. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-set-t">Deploy Recommendations Automatically</div>
+      <div class="sfx-set-d">These settings define whether StormForge deploys new recommendations automatically. Optional thresholds prevent StormForge from automatically applying low-impact recommendations.</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Auto-Deploy</div><div class="sfx-set-d">Defines whether StormForge automatically applies new recommendations when they are generated on the configured schedule or in response to reliability events.</div>
+        <div class="sfx-set-v">{% if st.apply.auto_deploy %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-lightning-charge"></i> Enabled</span>{% else %}<span class="sfx-pill"><i class="bi bi-slash-circle"></i> Disabled</span>{% endif %}</div>
+        {% if not st.apply.auto_deploy %}<div class="sfx-hint" style="color:var(--sfx-bad)">Recommendations will need to be manually applied.</div>{% endif %}</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Learning Period</div><div class="sfx-set-d">When auto-deploy is enabled, StormForge auto-deploys a recommendation only if it has been observing the workload for at least this long.</div><div class="sfx-set-v"><i class="bi bi-calendar3"></i> {{ st.apply.learning }}</div></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Auto-Deploy Thresholds</div><div class="sfx-set-d">When auto-deploy is enabled, StormForge auto-deploys a recommendation only if the recommendation changes existing requests by at least the threshold amounts. If you set any threshold value below, a best practice is to set all four thresholds.</div>
+        <div class="sfx-settings-grid">
+          <div><div class="k">Unit-Based Thresholds</div><div class="sfx-hint">Indicates the smallest unit change to requests that is worthwhile to auto-deploy.</div><table class="sfx-mini"><tr><th>CPU Amount</th><th>Memory Amount</th></tr><tr><td>{{ st.apply.cpu_unit }}</td><td>{{ st.apply.memory_unit }}</td></tr></table></div>
+          <div><div class="k">Percent-Based Thresholds</div><div class="sfx-hint">Indicates the smallest percent change to requests that is worthwhile to auto-deploy.</div><table class="sfx-mini"><tr><th>CPU %</th><th>Memory %</th></tr><tr><td>{{ st.apply.cpu_percent }}</td><td>{{ st.apply.memory_percent }}</td></tr></table></div>
+        </div></div>
+      <div class="sfx-set-t" style="margin-top:6px">General Apply Options</div>
+      <div class="sfx-set-d">These settings define how StormForge applies recommendations, regardless of whether auto-deploy is enabled.</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Apply Method</div><div class="sfx-set-d">Defines which method StormForge uses to apply recommendations to this workload.</div>
+        <div class="sfx-set-v"><span class="sfx-pill sfx-pill-ok">{{ st.apply.method }}</span>{% if st.apply.method_default %} <span class="sfx-default">(default)</span>{% endif %}</div>
+        {% if st.apply.method_text %}<div class="sfx-hint" style="margin-top:6px">{{ st.apply.method_text }}</div>{% endif %}</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Incremental Rollout</div><div class="sfx-set-d">Configure StormForge to apply changes to resource settings gradually over time, rather than all at once.</div>
+        <table class="sfx-mini"><tr><th>Max Percent Decrease</th><th>Max Percent Increase</th></tr><tr><td>{{ st.apply.max_decrease }}</td><td>{{ st.apply.max_increase }}</td></tr></table></div>
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.apply key="apply" %}
+    </div>
+
+    {# Reliability #}
+    <div data-sfx-pane="reliability" hidden>
+      <div class="sfx-h">Reliability</div>
+      <div class="sfx-intro">These settings control automated responses to reliability events. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      {% for b in st.reliability %}
+      <div class="sfx-set-t" style="margin-top:6px">{% if b.kind == "memory" %}Memory{% else %}CPU{% endif %}</div>
+      <div class="sfx-set-d">{% if b.kind == "memory" %}StormForge can calculate a memory bump-up and optionally apply it immediately after an OOM event.{% else %}StormForge can calculate a CPU bump-up and optionally apply it immediately when workloads experience CPU pressure on a node.{% endif %}</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">{% if b.kind == "memory" %}OOM Response{% else %}CPU Pressure Response{% endif %}</div>
+        <div class="sfx-set-d">{% if b.kind == "memory" %}After an OOMKill, temporarily increase a container's memory request so it can recover and avoid repeated OOMs.{% else %}After a CPU pressure event, temporarily increase a container's CPU request so it can recover and avoid repeated CPU pressure events.{% endif %}</div>
+        <div class="sfx-set-v">{% if b.enabled %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-check-circle"></i> Enabled</span>{% else %}<span class="sfx-pill"><i class="bi bi-slash-circle"></i> Disabled</span>{% endif %}</div>
+        {% if b.enabled %}
+        <table class="sfx-mini" style="margin-top:8px">
+          <tr><th>Apply Bump-Up Immediately</th><th>Recovery Period</th><th>Percent</th><th>Minimum</th><th>Maximum</th></tr>
+          <tr><td>{{ b.apply }}{% if b.apply_default %} <span class="sfx-default">(default)</span>{% endif %}</td><td>{{ b.period }}</td><td>{{ b.percent }}</td><td>{{ b.min }}</td><td>{{ b.max }}</td></tr>
+        </table>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.reliability key="reliability" %}
+    </div>
+
+    {# CPU and Memory #}
+    <div data-sfx-pane="resources" hidden>
+      <div class="sfx-h">CPU and Memory Settings</div>
+      <div class="sfx-intro">These settings define how CPU and memory resources are optimized. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-set-t">Requests and Limits</div>
+      <div class="sfx-set-d">Configure StormForge's request and limit recommendations for containers.</div>
+      {% include "stormforge_optimize/templates/sfx_container_settings.html" with c=st.default_container %}
+      {% if st.containers %}<div class="sfx-set-d">Containers with the following names may or may not exist on the workload. If they do exist, they will be optimized using the settings shown.</div>{% endif %}
+      {% for c in st.containers %}{% include "stormforge_optimize/templates/sfx_container_settings.html" %}{% endfor %}
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.resources key="resources" %}
+    </div>
+
+    {# HPA #}
+    <div data-sfx-pane="hpa" hidden>
+      <div class="sfx-h">HPA Settings</div>
+      <div class="sfx-intro">Configure how StormForge interacts with HPA-managed workloads. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div style="margin-bottom:12px">{% if st.hpa.state == "detected" %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-check-circle"></i> HPA Detected</span>{% elif st.hpa.state == "ignored" %}<span class="sfx-pill sfx-pill-warn">HPA Ignore Configured</span>{% else %}<span class="sfx-pill"><i class="bi bi-slash-circle"></i> No HPA Detected</span>{% endif %}</div>
+      {% if st.hpa.state == "none" %}<div class="sfx-card sfx-set"><div class="sfx-set-d" style="margin:0">This workload does not have an HPA. All settings shown on this page are only used when an HPA is detected.</div></div>{% endif %}
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Minimum and maximum bounds for HPA target utilization</div><div class="sfx-set-d">Specifies the lower and upper bounds within which StormForge can set HPA target utilization.</div>
+        <table class="sfx-mini"><tr><th></th><th>Min</th><th>Max</th></tr><tr><td>CPU</td><td>{{ st.hpa.cpu_min }}</td><td>{{ st.hpa.cpu_max }}</td></tr><tr><td>Memory</td><td>{{ st.hpa.memory_min }}</td><td>{{ st.hpa.memory_max }}</td></tr></table></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Preserve horizontal scale point</div><div class="sfx-set-d">Controls whether StormForge constrains resource request recommendations to maintain a stable HPA scale point.</div>
+        <div class="sfx-set-v">{{ st.hpa.preserve }}</div>{% if st.hpa.preserve_text %}<div class="sfx-hint">{{ st.hpa.preserve_text }}</div>{% endif %}</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Ignore horizontally-scaled resources</div><div class="sfx-set-d">Controls whether StormForge recommends changes to resource requests for resources scaled by an HPA.</div>
+        <div class="sfx-set-v">{% if st.hpa.ignore_scaled %}True{% else %}False{% endif %}</div>
+        <div class="sfx-hint">{% if st.hpa.ignore_scaled %}StormForge doesn't make recommendations for resources scaled by an HPA.{% else %}StormForge may make recommendations for resources scaled by an HPA.{% endif %}</div></div>
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.hpa key="hpa" %}
+    </div>
+
+    {# Runtime #}
+    <div data-sfx-pane="runtime" hidden>
+      <div class="sfx-h">Runtime Settings</div>
+      <div class="sfx-intro">These settings define how specific runtimes are optimized. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-set-t">Java</div>
+      <div class="sfx-set-d">Java runtime settings apply if StormForge detects that the JVM is running in a container.{% if not st.has_java %} StormForge has not detected a JVM in this workload.{% endif %}</div>
+      {% include "stormforge_optimize/templates/sfx_java_settings.html" with c=st.default_container jvm_note="Any JVM container which is not listed by name will be optimized using the default container settings." %}
+      {% if st.containers %}<div class="sfx-set-d">JVM containers with the following names may or may not exist on the workload. If they do exist, they will be optimized using the configuration shown.</div>{% endif %}
+      {% for c in st.containers %}{% include "stormforge_optimize/templates/sfx_java_settings.html" with jvm_note="" %}{% endfor %}
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.runtime key="runtime" %}
+    </div>
+
+    {# Pod Scheduling #}
+    <div data-sfx-pane="scheduling" hidden>
+      <div class="sfx-h">Pod Scheduling</div>
+      <div class="sfx-intro">The node affinity information below can help you to schedule pods onto specific nodes. For details, see the <a href="https://docs.stormforge.io/docs/configure/settings/" target="_blank" rel="noopener">product docs</a>.</div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Scheduling Optimization Policy</div><div class="sfx-set-d">Pod scheduling recommendations are implemented based on the optimization policy selected.</div>
+        <div class="sfx-set-v">{% if st.scheduling.optimizing %}<span class="sfx-pill sfx-pill-ok">{{ st.scheduling.policy }}</span>{% else %}<span class="sfx-pill sfx-pill-bad"><i class="bi bi-slash-circle"></i> {{ st.scheduling.policy }}</span>{% endif %}</div></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Affinity Type</div><div class="sfx-set-d">Specifies which node affinity type to use when patching in node affinity settings.</div>
+        <div class="sfx-set-v">{{ st.scheduling.affinity }}{% if st.scheduling.affinity_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+      <div class="sfx-card sfx-set"><div class="sfx-set-t">Affinity Weight</div><div class="sfx-set-d">Specifies a weight for a preferred affinity.</div>
+        <div class="sfx-set-v">{{ st.scheduling.weight }}{% if st.scheduling.weight_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
+      {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.scheduling key="scheduling" %}
+    </div>
+  </div>
+</div>

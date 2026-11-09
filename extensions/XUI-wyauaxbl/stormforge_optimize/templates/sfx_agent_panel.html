@@ -1,0 +1,97 @@
+{% comment %}
+  Clusters tab > Agent: StormForge's record of the cluster, the agent's
+  credential Secret and pods read from the cluster, and the agent log.
+{% endcomment %}
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+<div class="sfx-card">
+  <div class="sfx-toolbar">
+    <span class="sfx-set-t">StormForge's record of this cluster</span>
+    <div class="sfx-tools">
+      {% if action_url %}<a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ action_url }}"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Install or Upgrade StormForge Agent</a>{% endif %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-sub-refresh><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button>
+    </div>
+  </div>
+  {% if not registered %}
+  <div class="sfx-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>StormForge has no cluster named {{ cluster }}. The agent registers the cluster when it first connects; check the agent pods and log below.</div></div>
+  {% else %}
+  <div class="sfx-grid">
+    <div><div class="k">State</div><div class="v"><span class="sfx-pill sfx-pill-{{ record.phase_class }}">{{ record.phase }}</span></div></div>
+    <div><div class="k">Last seen</div><div class="v" title="{{ record.last_seen_stamp }}">{{ record.last_seen|default:"--" }}</div></div>
+    <div><div class="k">Workloads reported</div><div class="v">{{ workload_count }}</div></div>
+    <div><div class="k">Nodes reported</div><div class="v">{{ record.nodes }}</div></div>
+    <div><div class="k">Kubernetes</div><div class="v">{{ record.k8s_version }} &middot; {{ record.provider }}</div></div>
+    <div><div class="k">Products</div><div class="v">{% for p in record.products %}<span class="sfx-tag" style="text-transform:none">{{ p.name }} {{ p.version }}</span>{% empty %}--{% endfor %}</div></div>
+    {% if identity %}<div><div class="k">Same cluster</div><div class="v">{% if identity == "match" %}<span class="good"><i class="bi bi-check-circle"></i> kube-system UID matches</span>{% else %}<span class="bad"><i class="bi bi-x-octagon"></i> kube-system UID differs: StormForge's {{ cluster }} is another cluster</span>{% endif %}</div></div>{% endif %}
+  </div>
+  {% if registered and not workload_count %}
+  <div class="sfx-section" style="border-top:1px solid var(--sfx-line)"><span class="sfx-pill sfx-pill-warn"><i class="bi bi-exclamation-triangle"></i> No workloads</span> <span class="sfx-muted" style="font-size:12.5px">StormForge knows this cluster but has no workloads from it, so the Namespaces and Workloads views stay empty. The agent's log below usually says why.</span></div>
+  {% endif %}
+  <div class="sfx-table-wrap">
+    <table class="sfx-table">
+      <thead><tr><th>Condition</th><th>Status</th><th>Message</th><th>Last probe</th><th>Since</th></tr></thead>
+      <tbody>
+      {% for c in record.conditions %}
+        <tr><td title="{{ c.raw }}">{{ c.type }}</td><td><span class="sfx-pill sfx-pill-{{ c.css }}">{{ c.status }}</span></td><td>{{ c.message|default:"--" }}</td><td>{{ c.probe|default:"--" }}</td><td>{{ c.since|default:"--" }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="sfx-empty">StormForge reports no conditions.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% if kube_error %}
+<div class="sfx-card"><div class="sfx-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ kube_error }}</div></div></div>
+{% else %}
+<div class="sfx-card">
+  <div class="sfx-toolbar"><span class="sfx-set-t">Agent pods</span>
+    <span class="sfx-muted" style="font-size:12.5px">namespace stormforge-system &middot; credential Secret stormforge-auth {% if secret_present %}written <span title="{{ secret_written_stamp }}">{{ secret_written }}</span>{% if secret_owner %} by {{ secret_owner }}{% endif %}{% else %}missing{% endif %}</span>
+  </div>
+  {% if stale %}
+  <div class="sfx-section" style="background:color-mix(in srgb, var(--sfx-warn) 12%, transparent)">
+    <b><i class="bi bi-exclamation-triangle"></i> {{ stale }} agent pod{{ stale|pluralize }} started before the credential last changed</b>
+    <div class="sfx-set-d" style="margin:2px 0 0">The agent reads stormforge-auth only when it starts, so {{ stale|pluralize:"this pod still runs,these pods still run" }} on the previous credential. Run Install or Upgrade StormForge Agent to restart {{ stale|pluralize:"it,them" }}.</div>
+  </div>
+  {% endif %}
+  <div class="sfx-table-wrap">
+    <table class="sfx-table">
+      <thead><tr><th>Pod</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Started</th><th>Containers</th></tr></thead>
+      <tbody>
+      {% for p in pods %}
+        <tr>
+          <td class="sfx-mono">{{ p.name }}</td>
+          <td><span class="sfx-pill sfx-pill-{{ p.phase_class }}">{{ p.phase }}</span></td>
+          <td>{{ p.ready }}</td>
+          <td>{{ p.restarts }}</td>
+          <td><span title="{{ p.started_stamp }}">{{ p.started|default:"--" }}</span>{% if p.stale %}<div><span class="sfx-tag" style="background:color-mix(in srgb, var(--sfx-warn) 22%, transparent)">older than credential</span></div>{% endif %}</td>
+          <td>{% for c in p.containers %}<div style="margin-bottom:4px"><span class="sfx-mono">{{ c.name }}</span> <span class="sfx-muted" style="font-size:11.5px">{{ c.image }}</span> <span class="sfx-pill sfx-pill-{{ c.css }}" style="font-size:11px;padding:1px 8px">{{ c.state }}</span>{% if c.restarts %} <span class="sfx-hint" style="display:inline">{{ c.restarts }} restart{{ c.restarts|pluralize }}{% if c.last %}; last {{ c.last }}{% endif %}</span>{% endif %}</div>{% endfor %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="sfx-empty">No agent pods in stormforge-system. Run Install or Upgrade StormForge Agent.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="sfx-card">
+  <div class="sfx-toolbar"><span class="sfx-set-t">Agent log</span>
+    {% if can_read_log and log_targets %}
+    <label class="visually-hidden" for="sfx-logsel-{{ resource.id }}">Pod and container</label>
+    <select id="sfx-logsel-{{ resource.id }}" class="form-select form-select-sm" data-sfx-log-select data-sfx-log-host="sfx-log-{{ resource.id }}">
+      {% for t in log_targets %}<option value="{{ t.pod }}|{{ t.container }}"{% if t.selected %} selected{% endif %}>{{ t.pod }} / {{ t.container }}</option>{% endfor %}
+    </select>
+    <div class="form-check" style="margin:0">
+      <input class="form-check-input" type="checkbox" id="sfx-logprev-{{ resource.id }}" data-sfx-log-previous data-sfx-log-host="sfx-log-{{ resource.id }}">
+      <label class="form-check-label" for="sfx-logprev-{{ resource.id }}" style="font-size:12.5px">Previous container</label>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-sfx-log-refresh data-sfx-log-host="sfx-log-{{ resource.id }}"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Reload log</button>
+    {% endif %}
+  </div>
+  {% if not can_read_log %}
+  <div class="sfx-note">Only CloudBolt admins and people who may run Install or Upgrade StormForge Agent on this cluster can read the agent log.</div>
+  {% elif log_pod %}
+  <div id="sfx-log-{{ resource.id }}" data-sfx-sub="agent_log" data-sfx-autoload data-sfx-pod="{{ log_pod }}" data-sfx-container="{{ log_container }}"></div>
+  {% else %}
+  <div class="sfx-empty">No agent pod to read.</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}

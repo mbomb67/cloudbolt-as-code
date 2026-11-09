@@ -1,0 +1,89 @@
+{% comment %}
+  A StormForge namespace or workload table with search, sort, a namespace
+  filter (workloads only) and pagination. Context `table_ctx` from
+  views._namespace_table or views._workload_table. Reloads replace only
+  [data-sfx-table-body], so the search box keeps focus while typing.
+{% endcomment %}
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}{% with t=table_ctx %}
+<div class="sfx-card" data-sfx-table="{{ t.table }}" data-sfx-q="{{ t.params.q }}" data-sfx-sort="{{ t.params.sort }}" data-sfx-dir="{{ t.params.dir }}" data-sfx-offset="{{ t.params.offset }}" data-sfx-limit="{{ t.params.limit }}" data-sfx-ns="{{ t.ns|default:'' }}" data-sfx-filterable="{% if t.filterable %}1{% endif %}">
+  <div class="sfx-toolbar">
+    <label class="visually-hidden" for="sfx-search-{{ resource.id }}-{{ t.table }}">Search</label>
+    <input id="sfx-search-{{ resource.id }}-{{ t.table }}" type="search" class="form-control form-control-sm" data-sfx-search
+           placeholder="{% if t.table == 'namespaces_table' %}Namespace name{% else %}Workload name{% endif %}" value="{{ t.params.q }}" autocomplete="off">
+    {% if t.filterable %}
+    <label class="visually-hidden" for="sfx-ns-{{ resource.id }}">Namespace</label>
+    <select id="sfx-ns-{{ resource.id }}" class="form-select form-select-sm" data-sfx-ns-filter>
+      <option value="">All namespaces</option>
+      {% for ns in t.namespaces %}<option value="{{ ns }}"{% if ns == t.ns %} selected{% endif %}>{{ ns }}</option>{% endfor %}
+    </select>
+    {% endif %}
+  </div>
+  <div data-sfx-table-body>
+    <div class="sfx-table-wrap">
+      <table class="sfx-table">
+        <thead><tr>
+          {% for c in t.columns %}{% if c.css != "d-none" %}
+          <th class="{{ c.css }}">{% if c.key %}<button type="button" data-sfx-sort-by="{{ c.key }}">{{ c.label }}{% if c.arrow == "down" %} <i class="bi bi-arrow-down" aria-label="sorted descending"></i>{% elif c.arrow == "up" %} <i class="bi bi-arrow-up" aria-label="sorted ascending"></i>{% else %} <i class="bi bi-arrow-down-up sfx-muted" aria-hidden="true"></i>{% endif %}</button>{% else %}{{ c.label }}{% endif %}
+            {% if c.label == "Total Requests" %}<div class="sfx-hint" style="margin-top:2px">CURRENT → RECOMMENDED</div>{% endif %}
+          </th>
+          {% endif %}{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for r in t.rows %}
+          <tr>
+            {% if t.table == "namespaces_table" %}
+            <td><a class="sfx-link" href="#" data-sfx-go="namespace" data-sfx-ns="{{ r.name }}">{{ r.name }}</a></td>
+            <td>{{ r.workloads }}</td>
+            <td>{{ r.score }}</td>
+            {% else %}
+            <td><a class="sfx-link" href="#" data-sfx-go="workload" data-sfx-ns="{{ r.namespace }}" data-sfx-type="{{ r.type }}" data-sfx-name="{{ r.name }}">{{ r.name }}</a></td>
+            {% if t.show_namespace %}<td><a class="sfx-link" href="#" data-sfx-go="namespace" data-sfx-ns="{{ r.namespace }}">{{ r.namespace }}</a></td>{% endif %}
+            <td>{{ r.type }}</td>
+            <td>{% if r.hpa %}<span class="sfx-tag">HPA</span>{% endif %}{% if r.gpu %}<span class="sfx-tag">GPU</span>{% endif %}{% if not r.hpa and not r.gpu %}<span class="sfx-muted">--</span>{% endif %}</td>
+            <td>{{ r.score }}</td>
+            <td><span class="sfx-pill sfx-pill-{{ r.status_class }}">{% if r.status_class == "ok" %}<i class="bi bi-check-circle"></i>{% elif r.status_class == "info" %}<i class="bi bi-hourglass-split"></i>{% elif r.status_class == "warn" %}<i class="bi bi-exclamation-triangle"></i>{% elif r.status_class == "bad" %}<i class="bi bi-x-octagon"></i>{% endif %} {{ r.status }}</span>{% if r.status_reason %}<div class="sfx-hint">{{ r.status_reason }}</div>{% endif %}</td>
+            <td>{% if r.auto_deploy %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-lightning-charge"></i> Enabled</span>{% else %}<span class="sfx-muted"><i class="bi bi-slash-circle"></i> Disabled</span>{% endif %}</td>
+            <td>{{ r.throttling }}</td>
+            <td>{{ r.oom }}</td>
+            {% endif %}
+            <td class="sfx-req-col">
+              {% if r.has_requests %}
+              <div class="sfx-lines">
+                <span>{{ r.cur_cpu }} <span class="sfx-unit">Cores</span></span><span class="arrow">→</span><span>{{ r.rec_cpu }} <span class="sfx-unit">Cores</span></span>
+                <span>{{ r.cur_mem }}</span><span class="arrow">→</span><span>{{ r.rec_mem }}</span>
+                <span>{{ r.cur_cost }} <span class="sfx-unit">/mo.</span></span><span class="arrow">→</span><span>{{ r.rec_cost }} <span class="sfx-unit">/mo.</span></span>
+              </div>
+              {% else %}<span class="sfx-muted">--</span>{% endif %}
+            </td>
+            <td class="sfx-impact-col">
+              {% if r.has_requests %}
+              <div class="sfx-stack {{ r.imp_class }}">
+                <span>{{ r.imp_cpu }} <span class="sfx-unit">Cores</span></span>
+                <span>{{ r.imp_mem }}</span>
+                <span>{{ r.imp_cost }} <span class="sfx-unit">/mo.</span></span>
+              </div>
+              {% else %}<span class="sfx-muted">--</span>{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="12" class="sfx-empty">{% if t.params.q %}Nothing matches "{{ t.params.q }}".{% else %}StormForge reports none yet.{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="sfx-pager">
+      <span>Total {{ t.pager.noun }}: {{ t.pager.total }}</span>
+      <div class="sfx-pager-tools">
+        <label>Rows per page
+          <select class="form-select form-select-sm" data-sfx-page-size>
+            {% for size in t.pager.sizes %}<option value="{{ size }}"{% if size == t.pager.limit %} selected{% endif %}>{{ size }}</option>{% endfor %}
+          </select>
+        </label>
+        <span>Page {{ t.pager.page }} of {{ t.pager.pages }}</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Previous page" {% if t.pager.prev is None %}disabled{% else %}data-sfx-page-to="{{ t.pager.prev }}"{% endif %}><i class="bi bi-chevron-left"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Next page" {% if t.pager.next is None %}disabled{% else %}data-sfx-page-to="{{ t.pager.next }}"{% endif %}><i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}{% endif %}
