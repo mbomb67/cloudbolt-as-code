@@ -1,7 +1,6 @@
 """
 Teardown item for the Google Kubernetes Engine blueprint (BP-g8g8aecx): after the cluster is
-deleted, revoke the StormForge credential CloudBolt registered for it and
-delete the cluster in StormForge.
+deleted, remove it from StormForge.
 
 Runs after the cluster teardown (GKE Cluster Teardown), so a cluster that failed
 to delete stays registered. A StormForge problem is a warning, since the

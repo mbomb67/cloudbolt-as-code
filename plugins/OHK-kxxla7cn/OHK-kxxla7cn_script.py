@@ -10,7 +10,7 @@ dropdown shows what is installed now and what each choice changes it to, for
 example "Upgrade 3.4.0 -> 3.5.0 (latest)".
 
 All of the work is in shared_modules/SHM-2fd3bhsz (stormforge): StormForge
-API calls, the cluster credential, and the in-cluster Helm job.
+API calls, the agent's credential, and the in-cluster Helm job.
 
 Action Inputs:
   - stormforge_target_version (STR, required): StormForge chart version.

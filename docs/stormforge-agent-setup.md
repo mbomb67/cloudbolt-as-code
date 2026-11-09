@@ -5,19 +5,17 @@ The AWS EKS ([BP-r5apcf7e](../blueprints/BP-r5apcf7e/)), Azure Kubernetes Servic
 CloudBolt talks to StormForge only through the StormForge API. It installs the agent with Helm, which runs as a short-lived Job inside the cluster, so neither the appliance nor the cluster needs Helm or the StormForge CLI.
 
 ## Prerequisites
-- An org-level StormForge credential (client ID and client secret) with the scopes `manage:clients manage:clusters view:clusters`. Create it once with the StormForge CLI and API. CloudBolt uses it to register a separate credential for each cluster.
+- A StormForge credential (client ID and client secret) with StormForge's default permissions. CloudBolt uses it for its own StormForge API calls, and every cluster's agent runs on it: StormForge does not let an API credential create other credentials, so CloudBolt cannot make one per cluster.
 - The appliance reaches your StormForge API host (`api.stormforge.io` unless StormForge gave you another) and `registry.stormforge.io` on port 443.
 - Each cluster reaches the API host, the matching ingest host (`in.` in place of `api.`, for example `in.stormforge.io`), `registry.stormforge.io`, `quay.io` and Docker Hub (`registry-1.docker.io`, `auth.docker.io`, `production.cloudflare.docker.com`) on port 443, directly or through a proxy. Docker Hub serves the Helm image, which the `stormforge_helm_image` parameter can point elsewhere.
 
 ## Setup
-1. Create the org credential as a StormForge org admin, in PowerShell. `stormforge login` signs in to `api.stormforge.io`; for another endpoint, pass its URL, for example `stormforge login https://api.example.com/`, and send the request below to that host.
-   ```powershell
-   stormforge login
-   $token = stormforge whoami --token
-   $body = @{ client_name = "cloudbolt-cmp"; grant_types = @("client_credentials"); scope = "manage:clients manage:clusters view:clusters" } | ConvertTo-Json
-   Invoke-RestMethod -Method Post -Uri https://api.stormforge.io/clients -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body $body
+1. Create the credential with the StormForge CLI. `stormforge login` signs in to `api.stormforge.io`; for another endpoint, pass its URL, for example `stormforge login https://api.example.com/`.
    ```
-   The response holds `client_id` and `client_secret`.
+   stormforge login
+   stormforge auth create cloudbolt-cmp -o json
+   ```
+   The output holds the client ID and client secret.
 2. In CloudBolt, go to **Admin > Connection Info** and add a connection info:
    - **Name:** `StormForge`
    - **IP/Hostname:** your StormForge API host, for example `api.stormforge.io`. CloudBolt and the agent use only this endpoint.
@@ -33,16 +31,18 @@ CloudBolt talks to StormForge only through the StormForge API. It installs the a
 
 ## What runs
 - **Build:** the Install StormForge Agent item runs after the cluster is built.
-  1. It registers a StormForge credential named after the cluster and writes it to the Secret `stormforge-system/stormforge-auth`.
+  1. It writes the connection info's credential to the Secret `stormforge-system/stormforge-auth`.
   2. It runs `helm upgrade --install` of `oci://registry.stormforge.io/library/stormforge` at the latest released version.
   3. It waits for the agent to check in.
 
   A problem is a warning, so the cluster order still completes; run the action to retry.
-- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to, for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It reuses the cluster's existing credential.
-- **Teardown:** the Remove from StormForge item runs after the cluster is deleted. It revokes the cluster's credential and deletes the cluster in StormForge. A cluster that fails to delete stays registered.
+- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to, for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info, so after you change the credential, run the action on each cluster to rotate it.
+- **Teardown:** the Remove from StormForge item runs after the cluster is deleted. It deletes the cluster in StormForge. A cluster that fails to delete stays registered.
 
 ## Notes
+- **Shared credential:** every cluster holds the same credential, so anyone who can read Secrets in `stormforge-system` on one cluster can act on every cluster in your StormForge org. Limit who can read Secrets there.
 - **Cluster name:** the StormForge name is the cloud cluster name in lowercase, with characters other than letters, digits and `-` replaced, cut to 63 characters. If StormForge already has a different cluster by that name, which CloudBolt checks by comparing the `kube-system` namespace UID, the install stops and says so.
+- **Nodes:** the agent and Helm run as pods. A cluster with no ready nodes, such as an EKS cluster before its first node group, gets a warning; add nodes, then run the action.
 - **Helm Job permissions:** the Job runs `docker.io/alpine/helm:4.3.1`, pinned by digest, as a non-root user under a temporary ServiceAccount bound to `cluster-admin`, because the chart creates CRDs and ClusterRoles. CloudBolt deletes the Job, its values ConfigMap, the ServiceAccount and the binding when Helm finishes. Helm's output appears in the CloudBolt job log.
-- **Resource attributes:** the cluster resource shows StormForge Cluster, StormForge Agent Version and StormForge Status. StormForge Credential ID holds the client ID CloudBolt registered, which teardown revokes.
-- **Existing installs:** on a cluster where StormForge was installed by hand, the action keeps the existing release's cluster name and credential, and never revokes a credential CloudBolt did not create.
+- **Resource attributes:** the cluster resource shows StormForge Cluster, StormForge Agent Version and StormForge Status.
+- **Existing installs:** on a cluster where StormForge was installed by hand, the action keeps the existing release's cluster name and the credential in its Secret.

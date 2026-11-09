@@ -1,7 +1,6 @@
 """
 Teardown item for the Azure Kubernetes Service blueprint (BP-20q58q9z): after the cluster is
-deleted, revoke the StormForge credential CloudBolt registered for it and
-delete the cluster in StormForge.
+deleted, remove it from StormForge.
 
 Runs after the cluster teardown (AKS Cluster Teardown), so a cluster that failed
 to delete stays registered. A StormForge problem is a warning, since the

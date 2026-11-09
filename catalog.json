@@ -1953,7 +1953,7 @@
     "id": "OHK-0ywb19s5",
     "type": "plugins",
     "name": "Remove from StormForge (GKE)",
-    "description": "After a GKE cluster is deleted, revokes its StormForge credential and deletes the cluster in StormForge.",
+    "description": "After a GKE cluster is deleted, deletes the cluster in StormForge.",
     "path": "plugins/OHK-0ywb19s5",
     "readme": null,
     "uses": [
@@ -2580,7 +2580,7 @@
     "id": "OHK-838unyo2",
     "type": "plugins",
     "name": "Remove from StormForge (AKS)",
-    "description": "After an AKS cluster is deleted, revokes its StormForge credential and deletes the cluster in StormForge.",
+    "description": "After an AKS cluster is deleted, deletes the cluster in StormForge.",
     "path": "plugins/OHK-838unyo2",
     "readme": null,
     "uses": [
@@ -4497,7 +4497,7 @@
     "id": "OHK-vdr6oo2z",
     "type": "plugins",
     "name": "Remove from StormForge (EKS)",
-    "description": "After an EKS cluster is deleted, revokes its StormForge credential and deletes the cluster in StormForge.",
+    "description": "After an EKS cluster is deleted, deletes the cluster in StormForge.",
     "path": "plugins/OHK-vdr6oo2z",
     "readme": null,
     "uses": [

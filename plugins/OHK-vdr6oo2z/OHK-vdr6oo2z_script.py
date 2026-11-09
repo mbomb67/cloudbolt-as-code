@@ -1,7 +1,6 @@
 """
 Teardown item for the AWS EKS blueprint (BP-r5apcf7e): after the cluster is
-deleted, revoke the StormForge credential CloudBolt registered for it and
-delete the cluster in StormForge.
+deleted, remove it from StormForge.
 
 Runs after the cluster teardown (Delete Cluster), so a cluster that failed
 to delete stays registered. A StormForge problem is a warning, since the

@@ -6,34 +6,32 @@ and Google Kubernetes Engine (BP-g8g8aecx) blueprints and by the Install or
 Upgrade StormForge Agent action (RSA-76jmctg6):
 
   install_or_upgrade(resource, version)
-      Registers a StormForge credential for the cluster (once), writes it to
-      the stormforge-auth Secret, and runs `helm upgrade --install` of the
-      StormForge chart in a short-lived Job inside the cluster.
+      Writes the StormForge credential to the stormforge-auth Secret and runs
+      `helm upgrade --install` of the StormForge chart in a short-lived Job
+      inside the cluster.
   remove(resource)
-      Revokes the cluster's StormForge credential and deletes the cluster in
-      StormForge. Runs after the cluster itself is deleted.
+      Deletes the cluster in StormForge. Runs after the cluster itself is
+      deleted.
   version_options(resource)
       Dropdown entries for the action: installed version -> target version.
 
 Every StormForge call goes to the StormForge API; nothing uses the StormForge
-CLI. The org-level credential lives in a CloudBolt connection info named
-"StormForge": Username = client ID, Password = client secret, IP/Hostname =
-the StormForge API host of the customer's StormForge endpoint (for example
-api.stormforge.io). It must be allowed to manage clients (cluster
-credentials) and clusters. Nothing else names an endpoint: the issuer comes
+CLI. The credential lives in a CloudBolt connection info named "StormForge":
+Username = client ID, Password = client secret, IP/Hostname = the StormForge
+API host of the customer's StormForge endpoint (for example
+api.stormforge.io). CloudBolt uses it for its own API calls and every
+cluster's agent runs on it: StormForge removes manage:clients from every
+client-credentials token, so an API credential cannot create one per
+cluster. Create it with StormForge's default permissions (`stormforge auth
+create`), which cover both. Nothing else names an endpoint: the issuer comes
 from discovery, the agent is pointed at the same API host, and its metrics go
 to the in. host beside the api. host.
 
   Discovery   GET  https://<api>/.well-known/openid-configuration
-              (issuer, token_endpoint, registration_endpoint)
+              (issuer, token_endpoint)
   Token       POST token_endpoint, grant_type=client_credentials, audience=<api>,
-              scope=manage:clients manage:clusters view:clusters
+              scope=view:clusters manage:clusters
               https://www.rfc-editor.org/rfc/rfc6749#section-4.4
-  Credential  POST registration_endpoint {"client_name", "grant_types"}
-              (OAuth 2.0 Dynamic Client Registration)
-              https://www.rfc-editor.org/rfc/rfc7591#section-3.1
-              read and delete at the client's registration URI
-              https://www.rfc-editor.org/rfc/rfc7592#section-2
   Cluster     GET | DELETE https://<api>/v3/clusters/<name>
               (StormForge API v3; status.phase, kubernetes.systemNamespaceUID,
               stormforge.products[].version)
@@ -90,9 +88,8 @@ from utilities.models import ConnectionInfo
 logger = ThreadLogger(__name__)
 
 CONNECTION_INFO_NAME = "StormForge"
-# What the org credential does: register and revoke cluster credentials, read
-# and delete clusters.
-ORG_SCOPES = ("manage:clients", "manage:clusters", "view:clusters")
+# What CloudBolt's own calls need: read and delete clusters.
+API_SCOPES = ("view:clusters", "manage:clusters")
 
 CHART = "oci://registry.stormforge.io/library/stormforge"
 CHART_REGISTRY = "https://registry.stormforge.io"
@@ -129,7 +126,6 @@ PROVIDERS = (
 
 FIELD_CLUSTER = "stormforge_cluster_name"
 FIELD_VERSION = "stormforge_agent_version"
-FIELD_CLIENT = "stormforge_client_id"
 FIELD_STATUS = "stormforge_status"
 
 ENV_HELM_IMAGE = "stormforge_helm_image"
@@ -144,8 +140,6 @@ RESOURCE_FIELDS = [
      "StormForge chart version CloudBolt last installed on this cluster.", True),
     (FIELD_STATUS, "StormForge Status", "STR",
      "Result of CloudBolt's last StormForge install, upgrade or removal on this cluster.", True),
-    (FIELD_CLIENT, "StormForge Credential ID", "STR",
-     "Client ID of the StormForge credential CloudBolt registered for this cluster.", False),
 ]
 ENVIRONMENT_FIELDS = [
     (ENV_HELM_IMAGE, "StormForge Helm Image", "STR",
@@ -280,8 +274,8 @@ class StormForge:
         if not host.startswith("http"):
             host = f"https://{host}"
         self.api = host.rstrip("/") + "/"
-        self._client_id = client_id
-        self._client_secret = client_secret
+        self.client_id = client_id
+        self.client_secret = client_secret
         self._metadata = None
         self._token = None
         self._token_expires = 0
@@ -324,7 +318,7 @@ class StormForge:
     # -- authorization -------------------------------------------------------
 
     def metadata(self):
-        """The authorization server metadata (issuer, token and registration endpoints)."""
+        """The authorization server metadata (issuer and token endpoint)."""
         if self._metadata is None:
             url = urllib.parse.urljoin(self.api, ".well-known/openid-configuration")
             response = _http("GET", url)
@@ -338,7 +332,7 @@ class StormForge:
         return self.metadata().get("issuer") or self.api
 
     def token(self):
-        """A bearer token for the org credential, reused until shortly before it expires."""
+        """A bearer token for the connection info's credential, reused until shortly before it expires."""
         if self._token and time.time() < self._token_expires - 60:
             return self._token
         token_url = self.metadata().get("token_endpoint") or urllib.parse.urljoin(self.api, "oauth/token")
@@ -347,24 +341,24 @@ class StormForge:
         # call answers 401. https://www.rfc-editor.org/rfc/rfc6749#section-4.4.2
         response = _http("POST", token_url, data={
             "grant_type": "client_credentials",
-            "client_id": self._client_id,
-            "client_secret": self._client_secret,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
             "audience": self.api,
-            "scope": " ".join(ORG_SCOPES),
+            "scope": " ".join(API_SCOPES),
         })
         if response.status_code != 200:
             raise StormForgeError(
                 f"StormForge refused the '{CONNECTION_INFO_NAME}' credential "
-                f"(HTTP {response.status_code}): {_error_text(response)}. It must be allowed the "
-                f"scopes {' '.join(ORG_SCOPES)}."
+                f"(HTTP {response.status_code}): {_error_text(response)}. Create it with "
+                "StormForge's default permissions (stormforge auth create)."
             )
         body = response.json()
         self._token = body["access_token"]
         self._token_expires = time.time() + int(body.get("expires_in") or 300)
         return self._token
 
-    def _call(self, method, url, ok=(200,), allow_404=False, bearer=None, **kwargs):
-        headers = {"Authorization": f"Bearer {bearer or self.token()}", "Accept": "application/json"}
+    def _call(self, method, url, ok=(200,), allow_404=False, **kwargs):
+        headers = {"Authorization": f"Bearer {self.token()}", "Accept": "application/json"}
         response = _http(method, url, headers=headers, **kwargs)
         if response.status_code == 404 and allow_404:
             return None
@@ -373,7 +367,8 @@ class StormForge:
             hint = ""
             if response.status_code in (401, 403):
                 hint = (f" The '{CONNECTION_INFO_NAME}' credential may lack one of the scopes "
-                        f"{' '.join(ORG_SCOPES)}.")
+                        f"{' '.join(API_SCOPES)}; create it with StormForge's default permissions "
+                        "(stormforge auth create).")
             raise StormForgeError(
                 f"StormForge {method} {path} returned HTTP {response.status_code}: "
                 f"{_error_text(response)}.{hint}"
@@ -397,37 +392,6 @@ class StormForge:
     def delete_cluster(self, name):
         """Delete the cluster in StormForge. Returns False when it did not exist."""
         return self._call("DELETE", self._cluster_url(name), ok=(200, 202, 204), allow_404=True) is not None
-
-    # -- cluster credentials (OAuth 2.0 dynamic client registration) ---------
-
-    def _registration_endpoint(self):
-        endpoint = self.metadata().get("registration_endpoint")
-        if not endpoint:
-            raise StormForgeError("StormForge discovery lists no registration_endpoint for credentials.")
-        return endpoint
-
-    def register_client(self, name):
-        """A new client-credentials credential named ``name``, as StormForge returns it
-        (client_id, client_secret, registration_client_uri, ...)."""
-        info = self._call("POST", self._registration_endpoint(), ok=(200, 201), json={
-            "client_name": name,
-            "grant_types": ["client_credentials"],
-        })
-        if not info.get("client_id") or not info.get("client_secret"):
-            raise StormForgeError("StormForge registered a credential but returned no client ID or secret.")
-        return info
-
-    def revoke_client(self, client_id):
-        """Delete a credential this module registered. Returns False when it was already gone."""
-        endpoint = self._registration_endpoint().rstrip("/") + "/"
-        client_url = urllib.parse.urljoin(endpoint, urllib.parse.quote(client_id))
-        info = self._call("GET", client_url, allow_404=True)
-        if info is None:
-            return False
-        delete_url = urllib.parse.urljoin(endpoint, info.get("registration_client_uri") or client_url)
-        self._call("DELETE", delete_url, ok=(200, 202, 204), allow_404=True,
-                   bearer=info.get("registration_access_token"))
-        return True
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +607,7 @@ def _ensure_namespace(kube):
         })
 
 
-def _write_auth_secret(kube, sf, client_id, client_secret):
+def _write_auth_secret(kube, sf):
     """The stormforge-auth Secret the chart reads when createAuthSecret=false."""
     def b64(value):
         return base64.b64encode(value.encode("utf-8")).decode("ascii")
@@ -652,8 +616,8 @@ def _write_auth_secret(kube, sf, client_id, client_secret):
         "apiVersion": "v1", "kind": "Secret", "type": "Opaque",
         "metadata": {"name": AUTH_SECRET, "namespace": NAMESPACE, "labels": dict(MANAGED_LABELS)},
         "data": {
-            "STORMFORGE_CLIENT_ID": b64(client_id),
-            "STORMFORGE_CLIENT_SECRET": b64(client_secret),
+            "STORMFORGE_CLIENT_ID": b64(sf.client_id),
+            "STORMFORGE_CLIENT_SECRET": b64(sf.client_secret),
             "STORMFORGE_ISSUER": b64(sf.issuer),
             "STORMFORGE_SERVER": b64(sf.api),
         },
@@ -857,36 +821,37 @@ def _helm_managed(obj):
             or "meta.helm.sh/release-name" in (metadata.get("annotations") or {}))
 
 
-def _ensure_credential(sf, kube, resource, name, progress):
+def _cloudbolt_managed(obj):
+    labels = ((obj or {}).get("metadata") or {}).get("labels") or {}
+    return all(labels.get(key) == value for key, value in MANAGED_LABELS.items())
+
+
+def _ensure_credential(sf, kube, progress):
     """The chart values that point the agent at its credential.
 
-    Reuses the cluster's stormforge-auth Secret when it holds one, otherwise
-    registers a credential and writes the Secret. A Secret the chart itself
-    created (StormForge installed by hand with the default createAuthSecret)
-    stays chart-managed: switching to createAuthSecret=false would make Helm
-    delete it during the upgrade, so its values are handed back to the chart.
+    The agent runs on the connection info's credential: StormForge removes
+    manage:clients from every client-credentials token, so CloudBolt cannot
+    create one per cluster. CloudBolt writes the credential to the
+    stormforge-auth Secret on every run, so updating the connection info and
+    running the action rotates it. A Secret CloudBolt did not write (StormForge
+    installed by hand) is kept. One the chart itself created (the default
+    createAuthSecret) stays chart-managed: switching to createAuthSecret=false
+    would make Helm delete it during the upgrade, so its values are handed
+    back to the chart. The forwarder takes its token URL from
+    authorization.issuer even when the chart does not write the Secret.
     """
     secret = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets/{AUTH_SECRET}")
     client_id = _secret_value(secret, "STORMFORGE_CLIENT_ID")
     client_secret = _secret_value(secret, "STORMFORGE_CLIENT_SECRET")
-    if client_id and client_secret:
-        progress(f"Reusing the StormForge credential in Secret {NAMESPACE}/{AUTH_SECRET}")
+    if client_id and client_secret and not _cloudbolt_managed(secret):
+        progress(f"Keeping the StormForge credential already in Secret {NAMESPACE}/{AUTH_SECRET}")
         if _helm_managed(secret):
             return {"createAuthSecret": True, "authorization": {
                 "clientID": client_id, "clientSecret": client_secret, "issuer": sf.issuer,
             }}
         return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}
-    progress(f"Registering a StormForge credential for cluster {name}")
-    info = sf.register_client(name)
-    _write_auth_secret(kube, sf, info["client_id"], info["client_secret"])
-    previous = resource.get_cf_values_as_dict().get(FIELD_CLIENT)
-    _set_fields(resource, **{FIELD_CLIENT: info["client_id"]})
-    if previous and previous != info["client_id"]:
-        try:
-            sf.revoke_client(previous)
-        except StormForgeError as exc:
-            logger.warning("Could not revoke the replaced StormForge credential %s: %s", previous, exc)
-    # The forwarder takes its token URL from authorization.issuer even when the Secret is ours.
+    progress(f"Writing the '{CONNECTION_INFO_NAME}' credential to Secret {NAMESPACE}/{AUTH_SECRET}")
+    _write_auth_secret(kube, sf)
     return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}
 
 
@@ -926,14 +891,14 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
     # Helm and the agent run as pods; a cluster built without nodes (an EKS
     # cluster before its first node group) has nowhere to run them. Checked
     # after the StormForge credential is proven and before anything is
-    # registered or written to the cluster.
+    # written to the cluster.
     if not _ready_nodes(kube):
         raise StormForgeError(
             f"{kube.kind} cluster {cloud_cluster_name(resource)} has no ready nodes to run the "
             "StormForge agent. Add a node group or node pool first."
         )
     _ensure_namespace(kube)
-    values = _ensure_credential(sf, kube, resource, name, progress)
+    values = _ensure_credential(sf, kube, progress)
     _set_fields(resource, **{FIELD_CLUSTER: name})
 
     values.update({
@@ -980,26 +945,17 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
 
 
 def remove(resource, progress=set_progress):
-    """Revoke the cluster's credential and delete it in StormForge; returns (status, output, error)."""
-    values = resource.get_cf_values_as_dict()
-    name = values.get(FIELD_CLUSTER)
-    client_id = values.get(FIELD_CLIENT)
-    if not name and not client_id:
+    """Delete the cluster in StormForge; returns (status, output, error)."""
+    name = resource.get_cf_values_as_dict().get(FIELD_CLUSTER)
+    if not name:
         return "SUCCESS", "StormForge was never installed on this cluster by CloudBolt; nothing to remove.", ""
     sf = StormForge.from_connection_info()
-    done = []
-    if client_id:
-        progress(f"Revoking StormForge credential {client_id}")
-        if sf.revoke_client(client_id):
-            done.append(f"revoked credential {client_id}")
-    if name:
-        progress(f"Deleting cluster {name} in StormForge")
-        if sf.delete_cluster(name):
-            done.append(f"deleted cluster {name}")
+    progress(f"Deleting cluster {name} in StormForge")
+    deleted = sf.delete_cluster(name)
     _set_fields(resource, **{FIELD_STATUS: "Removed from StormForge"})
-    if not done:
-        return "SUCCESS", "StormForge had no record of this cluster or its credential.", ""
-    return "SUCCESS", "StormForge: " + " and ".join(done) + ".", ""
+    if not deleted:
+        return "SUCCESS", f"StormForge had no cluster named {name}.", ""
+    return "SUCCESS", f"Deleted cluster {name} in StormForge.", ""
 
 
 def version_options(resource):

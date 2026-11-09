@@ -4,7 +4,7 @@
             "shared_modules/SHM-2fd3bhsz"
         ]
     },
-    "description": "After a GKE cluster is deleted, revokes its StormForge credential and deletes the cluster in StormForge.",
+    "description": "After a GKE cluster is deleted, deletes the cluster in StormForge.",
     "id": "OHK-0ywb19s5",
     "max_retries": 0,
     "name": "Remove from StormForge (GKE)",
