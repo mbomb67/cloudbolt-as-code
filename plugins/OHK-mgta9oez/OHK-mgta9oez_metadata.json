@@ -9,7 +9,7 @@
             "global_options": [],
             "hide_if_default_value": true,
             "id": "CF-gb9r1qil",
-            "label": "Action: grant (default), revoke, list, open or restrict",
+            "label": "Action: grant, revoke, list, open, restrict",
             "name": "grant_action",
             "placeholder": "grant",
             "relevant_osfamilies": [],
