@@ -815,7 +815,12 @@
     "readme": "extensions/XUI-wyauaxbl/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-bo8ensty",
+      "packages/PKG-yrpqo1o0",
+      "packages/PKG-xev1ob4t"
+    ]
   },
   {
     "id": "XUI-y40h491l",
@@ -1682,16 +1687,17 @@
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
-    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-bo8ensty",
     "readme": "packages/PKG-bo8ensty/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
-      "extensions/XUI-8a1jocmr"
+      "extensions/XUI-8a1jocmr",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {
@@ -1811,32 +1817,34 @@
     "id": "PKG-xev1ob4t",
     "type": "packages",
     "name": "Google GKE",
-    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-xev1ob4t",
     "readme": "packages/PKG-xev1ob4t/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-g8g8aecx",
       "blueprints/BP-c9ca1i3z",
-      "extensions/XUI-8egdz3e9"
+      "extensions/XUI-8egdz3e9",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {
     "id": "PKG-yrpqo1o0",
     "type": "packages",
     "name": "Azure AKS",
-    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-yrpqo1o0",
     "readme": "packages/PKG-yrpqo1o0/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-20q58q9z",
       "blueprints/BP-dogqi827",
-      "extensions/XUI-nr5iiu60"
+      "extensions/XUI-nr5iiu60",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {

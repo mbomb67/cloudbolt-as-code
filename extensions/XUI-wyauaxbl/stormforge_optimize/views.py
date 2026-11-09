@@ -3,10 +3,11 @@ StormForge Optimize Live XUI
 
 Adds three tabs to every Kubernetes cluster resource that has the StormForge
 agent: Clusters, Namespaces and Workloads. Each tab shows the StormForge icon
-in place of the word StormForge. A tab appears only on resources that carry
-the stormforge_cluster_name parameter, which the StormForge agent install
-(shared module SHM-2fd3bhsz, used by the AWS EKS, Azure Kubernetes Service and
-Google Kubernetes Engine blueprints) writes on the cluster.
+in place of the word StormForge. The tabs appear only on resources that carry
+both stormforge_cluster_name and stormforge_agent_version, which the StormForge
+agent install (shared module SHM-2fd3bhsz, used by the AWS EKS, Azure
+Kubernetes Service and Google Kubernetes Engine blueprints) writes on the
+cluster once Helm has installed the agent.
 
 - Clusters: the optimization score, recommendation summary and impact cards,
   then Namespaces (StormForge's paginated, searchable, sortable namespace
@@ -86,6 +87,8 @@ SHARED_MODULE = "shared_modules.stormforge"
 
 VIEW_PERMISSION = "resource.view"
 CLUSTER_FIELD = "stormforge_cluster_name"
+# Written only after Helm installs the agent (SHM-2fd3bhsz FIELD_VERSION).
+AGENT_VERSION_FIELD = "stormforge_agent_version"
 
 # Scopes the tabs ask for on the connection info's credential.
 READ_SCOPES = ("view:clusters", "view:workloads")
@@ -1823,10 +1826,19 @@ def sfx_workloads_table(request, resource_id):
 # Tabs
 # ---------------------------------------------------------------------------
 class StormForgeTabDelegate(TabExtensionDelegate):
-    """Kubernetes clusters with the StormForge agent (a stormforge_cluster_name parameter)."""
+    """Kubernetes clusters with the StormForge agent installed.
+
+    The agent install records the StormForge cluster name before Helm runs and
+    the agent version only after Helm succeeds, so a failed first install
+    leaves the tabs hidden.
+    """
 
     def should_display(self):
-        return bool(_cluster_name(self.instance))
+        try:
+            installed = bool(self.instance.get_cf_values_as_dict().get(AGENT_VERSION_FIELD))
+        except Exception:  # noqa: BLE001
+            installed = False
+        return installed and bool(_cluster_name(self.instance))
 
 
 def _tab(request, obj_id, view):

@@ -20,7 +20,7 @@ The tabs are read-only. StormForge settings are applied as `live.stormforge.io/*
 
 ## Prerequisites
 - CloudBolt 8.6 or later.
-- The StormForge agent set up as in [StormForge agent on EKS, AKS and GKE clusters](../../docs/stormforge-agent-setup.md). The tabs appear only on clusters that have the `stormforge_cluster_name` parameter, which the agent install writes. The extension uses the `stormforge` shared module ([SHM-2fd3bhsz](../../shared_modules/SHM-2fd3bhsz/)) and the `StormForge` connection info.
+- The StormForge agent set up as in [StormForge agent on EKS, AKS and GKE clusters](../../docs/stormforge-agent-setup.md). The tabs appear only on clusters where the agent install succeeded: they need both `stormforge_cluster_name` and `stormforge_agent_version`, which the install writes. The extension uses the `stormforge` shared module ([SHM-2fd3bhsz](../../shared_modules/SHM-2fd3bhsz/)) and the `StormForge` connection info.
 - The StormForge credential needs the `view:clusters` and `view:workloads` scopes. A credential made with `stormforge auth create` has them.
 - The **Nodes** view reads the cluster through the container orchestrator CloudBolt registered for it (`container_orchestrator_id`). Used CPU and memory need metrics-server in the cluster. GKE and AKS run it by default; EKS clusters need it installed.
 
