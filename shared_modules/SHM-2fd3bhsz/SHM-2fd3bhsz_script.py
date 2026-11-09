@@ -503,7 +503,8 @@ class Kube:
         if response.status_code == 404:
             return None
         if text:
-            return response.text
+            # Pod logs are UTF-8 text/plain with no charset, which requests reads as Latin-1.
+            return response.content.decode("utf-8", "replace")
         if response.text and response.headers.get("Content-Type", "").startswith("application/json"):
             return response.json()
         return {}
@@ -740,6 +741,8 @@ def run_helm(kube, values, version, image, extra_env, progress=set_progress):
         if pod is not None:
             output = kube.request("GET", f"/api/v1/namespaces/{NAMESPACE}/pods/{pod['metadata']['name']}/log",
                                   allow_404=True, text=True) or ""
+        # The chart's NOTES are a banner and production-app links; the release summary above them is what counts.
+        output = output.split("\nNOTES:", 1)[0]
         if succeeded:
             return True, output.strip()
         return False, "\n".join(part for part in (detail, output.strip()) if part)
