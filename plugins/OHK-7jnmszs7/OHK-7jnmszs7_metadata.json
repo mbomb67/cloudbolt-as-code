@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-2fd3bhsz",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Installs the StormForge agent on a new GKE cluster and registers it with StormForge, warning instead of failing the order.",
+    "id": "OHK-7jnmszs7",
+    "max_retries": 0,
+    "name": "Install StormForge Agent (GKE)",
+    "resource_technologies": [],
+    "script_filename": "OHK-7jnmszs7_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

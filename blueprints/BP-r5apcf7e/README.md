@@ -6,8 +6,11 @@ Creates an Amazon EKS cluster in an AWS environment the ordering group can use. 
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-u4k6dg46 | Deploy EKS Cluster |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (EKS) |
 | Teardown | OHK-pgbigmd9 | Delete Cluster |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (EKS) |
 | Discovery | OHK-e9qppbei | Discover EKS |
+| Shared module | SHM-2fd3bhsz | stormforge |
 | Day-2 action | RSA-f9ivvn5q | Add AWS EKS Nodegroup (hook OHK-bfhdr8vx) |
 | Day-2 action | RSA-0g4pfrde | List AWS EKS Nodegroup (hook OHK-prji4iqt) |
 | Day-2 action | RSA-rrbh1ntm | Delete AWS EKS Nodegroup (hook OHK-39mebtxi) |
@@ -17,6 +20,7 @@ Creates an Amazon EKS cluster in an AWS environment the ordering group can use. 
 | Day-2 action | RSA-p2fnjwj3 | Upgrade AWS EKS Nodegroup (hook OHK-el9giuz3) |
 | Day-2 action | RSA-5c06txyi | Create AWS EKS Namespace (hook OHK-oguk4oad, shared module SHM-sa5yqm9j) |
 | Day-2 action | RSA-l3dokgru | Manage AWS EKS Cluster Groups (hook OHK-2lvw9oe0) |
+| Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/) | AWS EKS Cluster tabs (Cluster, Node groups, Workloads, Groups) |
 
@@ -30,6 +34,7 @@ Order form: Environment, Cluster Name, Kubernetes Version, Security Groups, Subn
 ## Setup
 1. Sync the repo. Nothing in this blueprint carries a `FILL-ME` placeholder or a secret.
 2. Entitle the ordering groups to the AWS environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
+3. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, each build ends with a warning that the StormForge agent was not installed.
 
 Nothing version-specific is hardcoded: every list below is read from AWS when the form opens.
 
@@ -51,3 +56,4 @@ Nothing version-specific is hardcoded: every list below is read from AWS when th
 - Discovery returns every EKS cluster in every AWS environment, matched to resources by cluster ARN. CloudBolt's sync creates a resource in the Unassigned group for a new cluster, updates a tracked one, and reactivates a Historical one. Each cluster is registered once as a container orchestrator with its own environment. For clusters CloudBolt already tracks, it also returns their managed node groups as `eks_nodegroup` sub-resources, matched by node group ARN (a newly discovered cluster gets them on the next run).
 - Discovery retires a cluster or node group only when AWS confirms it is gone: the listing that should contain it succeeded, it is missing, and DescribeCluster or DescribeNodegroup returns ResourceNotFoundException. Node groups of a cluster confirmed gone are retired with it. A handler whose credentials cannot list or describe EKS clusters is skipped, with an info line in the job log, and its resources are left as they are, as is anything with a job still running. `auto_historical_resources` stays false. Node group records made before discovery tracked node groups carry no ARN under `arn` yet; run List AWS EKS Nodegroup once on those clusters to record it.
 - Expiration Date defaults to 7 days out. Nothing in this blueprint acts on it; the Expire Servers recurring job (`recurring_jobs/RJB-nsx4v2s1`) expires servers, not resources.
+- After the cluster build, Install StormForge Agent installs the StormForge agent with Helm in a short-lived Job and registers the cluster with StormForge; a problem is only a warning. Install or Upgrade StormForge Agent retries, upgrades or reinstalls it, and teardown removes the cluster from StormForge after deleting it. See [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md).

@@ -13,6 +13,7 @@ Setup runbooks for content that needs configuration outside CloudBolt. Each cont
 | [linux-ad-domain-join-runbook.md](linux-ad-domain-join-runbook.md) | Join Linux Server to AD Domain (`HPA-o6ctckmt`) |
 | [mcp-testing-setup.md](mcp-testing-setup.md) | MCP content-testing tools (`MTA-543b19sa`, `MTA-8j9c0tb0`, `MTA-9oihpumd`, `MTA-thkvyt0v`, `MTA-gnx1ckno`, `MTA-js655cf3`, `MTA-zth0tjjg`, `MTA-ntmcnvv7`) and the `cb-test-content` skill |
 | [servicenow-request-setup.md](servicenow-request-setup.md) | ServiceNow REQ/RITM actions (`HPA-i1x67v4h`, `HPA-smbwmzj0`, `HPA-i8r5x2kc`, `HPA-fxo5hujp`); Approval Sync (`RJB-do33f7f3`); `servicenow_requests` shared module (`SHM-ww6b1uwj`) |
+| [stormforge-agent-setup.md](stormforge-agent-setup.md) | StormForge agent on the EKS, AKS and GKE cluster blueprints (`BP-r5apcf7e`, `BP-20q58q9z`, `BP-g8g8aecx`); Install or Upgrade StormForge Agent (`RSA-76jmctg6`); `stormforge` shared module (`SHM-2fd3bhsz`) |
 | [windows-ca-cert-request-setup.md](windows-ca-cert-request-setup.md) | Request Certificate (Windows CA) (`BP-lt6a3yzf`) |
 
 Other folders:
