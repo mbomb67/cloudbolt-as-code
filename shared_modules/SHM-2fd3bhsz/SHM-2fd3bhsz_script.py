@@ -939,7 +939,7 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
     image = _environment_setting(resource, ENV_HELM_IMAGE) or DEFAULT_HELM_IMAGE
 
     verb = "Installing" if current is None else ("Reinstalling" if current == target else "Upgrading")
-    change = target if current is None else f"{current} -> {target}"
+    change = target if current in (None, target) else f"{current} -> {target}"
     progress(f"{verb} StormForge agent {change} on {kube.kind} cluster {name}")
     succeeded, output = run_helm(kube, values, target, image, extra_env, progress)
     if output:
