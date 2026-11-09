@@ -5,18 +5,26 @@ The AWS EKS ([BP-r5apcf7e](../blueprints/BP-r5apcf7e/)), Azure Kubernetes Servic
 CloudBolt talks to StormForge only through the StormForge API. It installs the agent with Helm, which runs as a short-lived Job inside the cluster, so neither the appliance nor the cluster needs Helm or the StormForge CLI.
 
 ## Prerequisites
-- An org-level StormForge credential (client ID and client secret) allowed to create credentials and manage clusters. Create it once in the StormForge app or with the StormForge CLI. CloudBolt uses it to register a separate credential for each cluster.
+- An org-level StormForge credential (client ID and client secret) with the scopes `manage:clients manage:clusters view:clusters`. Create it once with the StormForge CLI and API. CloudBolt uses it to register a separate credential for each cluster.
 - The appliance reaches your StormForge API host (`api.stormforge.io` unless StormForge gave you another) and `registry.stormforge.io` on port 443.
 - Each cluster reaches the API host, the matching ingest host (`in.` in place of `api.`, for example `in.stormforge.io`), `registry.stormforge.io`, `quay.io` and Docker Hub (`registry-1.docker.io`, `auth.docker.io`, `production.cloudflare.docker.com`) on port 443, directly or through a proxy. Docker Hub serves the Helm image, which the `stormforge_helm_image` parameter can point elsewhere.
 
 ## Setup
-1. In CloudBolt, go to **Admin > Connection Info** and add a connection info:
+1. Create the org credential as a StormForge org admin, in PowerShell. `stormforge login` signs in to `api.stormforge.io`; for another endpoint, pass its URL, for example `stormforge login https://api.example.com/`, and send the request below to that host.
+   ```powershell
+   stormforge login
+   $token = stormforge whoami --token
+   $body = @{ client_name = "cloudbolt-cmp"; grant_types = @("client_credentials"); scope = "manage:clients manage:clusters view:clusters" } | ConvertTo-Json
+   Invoke-RestMethod -Method Post -Uri https://api.stormforge.io/clients -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body $body
+   ```
+   The response holds `client_id` and `client_secret`.
+2. In CloudBolt, go to **Admin > Connection Info** and add a connection info:
    - **Name:** `StormForge`
    - **IP/Hostname:** your StormForge API host, for example `api.stormforge.io`. CloudBolt and the agent use only this endpoint.
    - **Username:** the client ID
    - **Password:** the client secret
-2. Sync the repo, then restart CloudBolt (the job engine and the web server) so running processes load the `stormforge` shared module.
-3. Optional, per environment: create these parameters under **Admin > Parameters** and set them on a cluster environment's **Parameters** tab:
+3. Sync the repo, then restart CloudBolt (the job engine and the web server) so running processes load the `stormforge` shared module.
+4. Optional, per environment: create these parameters under **Admin > Parameters** and set them on a cluster environment's **Parameters** tab:
    - `stormforge_proxy_url`: HTTPS proxy for the agent and for Helm.
    - `stormforge_no_proxy`: the agent's NO_PROXY list.
    - `stormforge_helm_image`: a Helm 4 image, for example a copy in your own registry.

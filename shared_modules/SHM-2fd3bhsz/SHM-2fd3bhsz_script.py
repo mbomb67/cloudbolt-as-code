@@ -26,7 +26,8 @@ to the in. host beside the api. host.
 
   Discovery   GET  https://<api>/.well-known/openid-configuration
               (issuer, token_endpoint, registration_endpoint)
-  Token       POST token_endpoint, grant_type=client_credentials, audience=<api>
+  Token       POST token_endpoint, grant_type=client_credentials, audience=<api>,
+              scope=manage:clients manage:clusters view:clusters
               https://www.rfc-editor.org/rfc/rfc6749#section-4.4
   Credential  POST registration_endpoint {"client_name", "grant_types"}
               (OAuth 2.0 Dynamic Client Registration)
@@ -89,6 +90,9 @@ from utilities.models import ConnectionInfo
 logger = ThreadLogger(__name__)
 
 CONNECTION_INFO_NAME = "StormForge"
+# What the org credential does: register and revoke cluster credentials, read
+# and delete clusters.
+ORG_SCOPES = ("manage:clients", "manage:clusters", "view:clusters")
 
 CHART = "oci://registry.stormforge.io/library/stormforge"
 CHART_REGISTRY = "https://registry.stormforge.io"
@@ -338,16 +342,21 @@ class StormForge:
         if self._token and time.time() < self._token_expires - 60:
             return self._token
         token_url = self.metadata().get("token_endpoint") or urllib.parse.urljoin(self.api, "oauth/token")
+        # StormForge grants a client-credentials token only the scopes it asks
+        # for; without a scope parameter the token carries none and every API
+        # call answers 401. https://www.rfc-editor.org/rfc/rfc6749#section-4.4.2
         response = _http("POST", token_url, data={
             "grant_type": "client_credentials",
             "client_id": self._client_id,
             "client_secret": self._client_secret,
             "audience": self.api,
+            "scope": " ".join(ORG_SCOPES),
         })
         if response.status_code != 200:
             raise StormForgeError(
                 f"StormForge refused the '{CONNECTION_INFO_NAME}' credential "
-                f"(HTTP {response.status_code}): {_error_text(response)}"
+                f"(HTTP {response.status_code}): {_error_text(response)}. It must be allowed the "
+                f"scopes {' '.join(ORG_SCOPES)}."
             )
         body = response.json()
         self._token = body["access_token"]
@@ -363,8 +372,8 @@ class StormForge:
             path = urllib.parse.urlparse(url).path
             hint = ""
             if response.status_code in (401, 403):
-                hint = (f" The '{CONNECTION_INFO_NAME}' credential may lack the manage:clients "
-                        "or manage:clusters permission.")
+                hint = (f" The '{CONNECTION_INFO_NAME}' credential may lack one of the scopes "
+                        f"{' '.join(ORG_SCOPES)}.")
             raise StormForgeError(
                 f"StormForge {method} {path} returned HTTP {response.status_code}: "
                 f"{_error_text(response)}.{hint}"
@@ -827,6 +836,21 @@ def _check_identity(sf, kube, name):
         )
 
 
+def _ready_nodes(kube):
+    """How many nodes can run a pod: Ready and not cordoned.
+
+    https://kubernetes.io/docs/reference/node/node-status/#condition
+    """
+    count = 0
+    for node in (kube.get("/api/v1/nodes") or {}).get("items") or []:
+        if (node.get("spec") or {}).get("unschedulable"):
+            continue
+        conditions = (node.get("status") or {}).get("conditions") or []
+        if any(c.get("type") == "Ready" and c.get("status") == "True" for c in conditions):
+            count += 1
+    return count
+
+
 def _helm_managed(obj):
     metadata = (obj or {}).get("metadata") or {}
     return ((metadata.get("labels") or {}).get("app.kubernetes.io/managed-by") == "Helm"
@@ -899,6 +923,15 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
 
     ingest_url = sf.ingest_url
     _check_identity(sf, kube, name)
+    # Helm and the agent run as pods; a cluster built without nodes (an EKS
+    # cluster before its first node group) has nowhere to run them. Checked
+    # after the StormForge credential is proven and before anything is
+    # registered or written to the cluster.
+    if not _ready_nodes(kube):
+        raise StormForgeError(
+            f"{kube.kind} cluster {cloud_cluster_name(resource)} has no ready nodes to run the "
+            "StormForge agent. Add a node group or node pool first."
+        )
     _ensure_namespace(kube)
     values = _ensure_credential(sf, kube, resource, name, progress)
     _set_fields(resource, **{FIELD_CLUSTER: name})
