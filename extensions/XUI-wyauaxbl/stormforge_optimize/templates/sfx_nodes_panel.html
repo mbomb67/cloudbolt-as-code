@@ -1,0 +1,60 @@
+{% comment %}Clusters tab > Nodes: a live snapshot read from the cluster's Kubernetes API.{% endcomment %}
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+<div class="sfx-card">
+  <div class="sfx-toolbar">
+    <span class="sfx-set-t">Right now</span>
+    <span class="sfx-muted" style="font-size:12.5px">{{ node_count }} node{{ node_count|pluralize }} &middot; read from the cluster{% if not has_usage %}; usage needs metrics-server{% endif %}</span>
+    {% if nodes_link %}<a class="btn btn-sm btn-outline-secondary ms-auto" href="{{ nodes_link }}" target="_blank" rel="noopener"><i class="bi bi-graph-up" aria-hidden="true"></i> History in StormForge</a>{% endif %}
+  </div>
+  <div class="sfx-gauges">
+    {% include "stormforge_optimize/templates/sfx_gauge.html" with g=cpu title="CPU" %}
+    {% include "stormforge_optimize/templates/sfx_gauge.html" with g=memory title="Memory" %}
+    {% include "stormforge_optimize/templates/sfx_gauge.html" with g=pods title="Pods" %}
+  </div>
+  <div class="sfx-section" style="padding-top:0">
+    <div class="sfx-legend">
+      <span><i class="sfx-dot usage"></i> Used</span>
+      <span><i class="sfx-dot rec-req"></i> Allocated (requests)</span>
+      <span><i class="sfx-dot cap"></i> Capacity</span>
+    </div>
+  </div>
+</div>
+
+<div class="sfx-card">
+  <div class="sfx-toolbar"><span class="sfx-set-t">Nodes count by type</span></div>
+  <div class="sfx-section">
+    {% for t in types %}
+    <div class="sfx-bar-row">
+      <span class="sfx-mono">{{ t.type }}{% if t.spot %} <span class="sfx-tag">{{ t.spot }} spot</span>{% endif %}</span>
+      <span><span class="sfx-bar" style="display:block;width:{{ t.pct }}%"></span></span>
+      <span>{{ t.count }}</span>
+    </div>
+    {% empty %}<div class="sfx-empty">No nodes.</div>{% endfor %}
+  </div>
+</div>
+
+<div class="sfx-card">
+  <div class="sfx-table-wrap">
+    <table class="sfx-table">
+      <thead><tr><th>Node</th><th>Type</th><th>Pool</th><th>Zone</th><th>CPU requested / allocatable</th><th>CPU used</th><th>Memory requested / allocatable</th><th>Memory used</th><th>Pods</th></tr></thead>
+      <tbody>
+      {% for n in rows %}
+        <tr>
+          <td><span class="sfx-mono">{{ n.name }}</span>
+            <div>{% if n.ready %}<span class="sfx-pill sfx-pill-ok">Ready</span>{% else %}<span class="sfx-pill sfx-pill-bad">Not ready</span>{% endif %}{% if n.spot %} <span class="sfx-tag">Spot</span>{% endif %}{% if n.category %} <span class="sfx-tag" style="text-transform:none">{{ n.category }}</span>{% endif %}</div></td>
+          <td class="sfx-mono">{{ n.type }}</td>
+          <td>{{ n.pool|default:"--" }}</td>
+          <td>{{ n.zone|default:"--" }}</td>
+          <td>{{ n.cpu }}</td>
+          <td>{{ n.cpu_used }}</td>
+          <td>{{ n.memory }}</td>
+          <td>{{ n.memory_used }}</td>
+          <td>{{ n.pods }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="9" class="sfx-empty">The cluster has no nodes.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="sfx-note">StormForge's node charts show these figures over time; its UI backend accepts only signed-in users, so CloudBolt shows the cluster as it is now.</div>
+</div>
+{% endif %}

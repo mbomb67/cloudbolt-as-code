@@ -1,0 +1,29 @@
+{% comment %}Workloads tab > Patches: StormForge's patches for the latest recommendation, to copy or download and apply with kubectl.{% endcomment %}
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+<div class="sfx-h">Patches</div>
+{% if preview_available %}
+<div class="form-check" style="margin-bottom:12px">
+  <input class="form-check-input" type="checkbox" id="sfx-preview-{{ resource.id }}" data-sfx-preview-toggle{% if preview %} checked{% endif %}>
+  <label class="form-check-label" for="sfx-preview-{{ resource.id }}">Preview with recommended instance category</label>
+</div>
+{% endif %}
+{% for p in patches %}
+<div class="sfx-card">
+  <div class="sfx-section">
+    <div class="sfx-set-t">Patch for {{ p.title }}</div>
+    <div class="sfx-set-d">After you download or copy the patch, you can run this command to apply it:</div>
+    <div class="sfx-code" style="margin-bottom:12px">
+      <pre class="sfx-pre sfx-mono" id="sfx-cmd-{{ resource.id }}-{{ forloop.counter }}">{{ p.command }}</pre>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-copy="sfx-cmd-{{ resource.id }}-{{ forloop.counter }}" aria-label="Copy command"><i class="bi bi-clipboard"></i></button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-copy="sfx-yaml-{{ resource.id }}-{{ forloop.counter }}"><i class="bi bi-clipboard"></i> Copy YAML</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-download="sfx-yaml-{{ resource.id }}-{{ forloop.counter }}" data-sfx-filename="{{ p.filename }}"><i class="bi bi-download"></i> Download</button>
+    </div>
+    <pre class="sfx-pre sfx-mono" id="sfx-yaml-{{ resource.id }}-{{ forloop.counter }}">{{ p.data }}</pre>
+  </div>
+</div>
+{% empty %}
+<div class="sfx-card"><div class="sfx-empty">StormForge has no patch for this workload yet.</div></div>
+{% endfor %}
+{% endif %}

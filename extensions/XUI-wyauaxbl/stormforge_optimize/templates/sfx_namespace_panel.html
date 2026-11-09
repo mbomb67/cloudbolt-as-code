@@ -1,0 +1,25 @@
+{% comment %}Namespaces tab: a namespace's cards and workloads, or the namespace table when none is chosen.{% endcomment %}
+<div class="sfx-card">
+  <div class="sfx-hero">
+    <div>
+      <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
+      <div class="sfx-title">{% if ns %}Namespace: {{ ns }}{% else %}Namespaces{% endif %}</div>
+      <div class="sfx-crumbs">
+        <a href="#" data-sfx-go="cluster">{{ cluster }}</a>
+        {% if ns %}<i class="bi bi-chevron-right" aria-hidden="true"></i><a href="#" data-sfx-go="namespace">All namespaces</a><i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ ns }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="sfx-tools">
+      {% if app_link %}<a class="btn btn-sm btn-outline-secondary" href="{{ app_link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Open in StormForge</a>{% endif %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-refresh="namespace"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button>
+    </div>
+  </div>
+</div>
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}
+{% elif picker %}
+<div class="sfx-intro">Choose a namespace to see its workloads and recommendations.</div>
+{% include "stormforge_optimize/templates/sfx_table.html" %}
+{% else %}
+{% include "stormforge_optimize/templates/sfx_cards.html" with s=summary %}
+{% include "stormforge_optimize/templates/sfx_table.html" %}
+{% endif %}

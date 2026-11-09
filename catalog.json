@@ -807,6 +807,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-wyauaxbl",
+    "type": "extensions",
+    "name": "StormForge Optimize Live",
+    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, drilling down from cluster to namespace to workload.",
+    "path": "extensions/XUI-wyauaxbl",
+    "readme": "extensions/XUI-wyauaxbl/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-y40h491l",
     "type": "extensions",
     "name": "Agent Activity",

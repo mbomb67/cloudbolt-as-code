@@ -1,0 +1,161 @@
+{% comment %}Workloads tab: one workload (Summary, Recommendation, Patches, Settings), or the cluster's workload table.{% endcomment %}
+<div class="sfx-card">
+  <div class="sfx-hero">
+    <div>
+      <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
+      <div class="sfx-title">{% if name %}{{ kind_label }}: {{ name }}{% else %}Workloads{% endif %}</div>
+      <div class="sfx-crumbs">
+        <a href="#" data-sfx-go="cluster">{{ cluster }}</a>
+        {% if name %}
+        <i class="bi bi-chevron-right" aria-hidden="true"></i><a href="#" data-sfx-go="namespace" data-sfx-ns="{{ ns }}">{{ ns }}</a>
+        <i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ name }}</span>
+        <span class="sfx-muted">&middot;</span><a href="#" data-sfx-go="workload">All workloads</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="sfx-tools">
+      {% if app_link %}<a class="btn btn-sm btn-outline-secondary" href="{{ app_link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Open in StormForge</a>{% endif %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-refresh="workload"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button>
+    </div>
+  </div>
+</div>
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}
+{% elif picker %}
+<div class="sfx-intro">Choose a workload to see its summary, recommendation, patches, and optimization settings.</div>
+{% include "stormforge_optimize/templates/sfx_table.html" %}
+{% else %}
+
+<div class="sfx-cards">
+  <div class="sfx-card">
+    <div class="sfx-card-t">Optimization Score</div>
+    <div class="sfx-score">
+      <svg class="sfx-donut sm sfx-score-{{ summary.score_class }}" viewBox="0 0 100 100" role="img" aria-label="Optimization score {{ summary.score }}">
+        <circle class="sfx-donut-track" cx="50" cy="50" r="40"></circle>
+        <circle class="sfx-donut-arc" cx="50" cy="50" r="40" stroke-dasharray="{{ summary.dash }} {{ summary.circumference }}" transform="rotate(-90 50 50)"></circle>
+        <text x="50" y="57" text-anchor="middle">{{ summary.score }}</text>
+      </svg>
+      <div class="sfx-kv2"><span>CPU</span><span>{{ summary.score_cpu }}</span><span>MEM</span><span>{{ summary.score_memory }}</span></div>
+    </div>
+  </div>
+  <div class="sfx-card">
+    <div class="sfx-card-t">{{ potential_label }}</div>
+    <div class="sfx-impact">
+      <span class="big {% if summary.impact_cost_dir == 'up' %}bad{% else %}good{% endif %}">{{ summary.impact_cost }} <span class="sfx-unit">/mo</span></span><span></span>
+      <span>{{ summary.impact_cpu }} <span class="sfx-unit">Cores</span></span>
+      <span class="sfx-dir-{{ summary.impact_cpu_dir|default:'none' }}">{{ summary.impact_cpu_pct }} {% if summary.impact_cpu_dir == "down" %}<i class="bi bi-caret-down-fill"></i>{% elif summary.impact_cpu_dir == "up" %}<i class="bi bi-caret-up-fill"></i>{% endif %}</span>
+      <span>{{ summary.impact_memory }}</span>
+      <span class="sfx-dir-{{ summary.impact_memory_dir|default:'none' }}">{{ summary.impact_memory_pct }} {% if summary.impact_memory_dir == "down" %}<i class="bi bi-caret-down-fill"></i>{% elif summary.impact_memory_dir == "up" %}<i class="bi bi-caret-up-fill"></i>{% endif %}</span>
+    </div>
+  </div>
+  <div class="sfx-card">
+    <div class="sfx-card-t">Recommendation</div>
+    <div class="sfx-set-v" style="margin-bottom:6px"><span class="sfx-pill sfx-pill-{{ status_class }}">{% if status_class == "ok" %}<i class="bi bi-hand-thumbs-up"></i>{% elif status_class == "info" %}<i class="bi bi-hourglass-split"></i>{% elif status_class == "warn" %}<i class="bi bi-exclamation-triangle"></i>{% elif status_class == "bad" %}<i class="bi bi-x-octagon"></i>{% endif %} {{ status }}</span>{% if status_reason %}<span class="sfx-muted">{{ status_reason }}</span>{% endif %}</div>
+    <div class="sfx-kv2">
+      <span>Generated</span><span title="{{ generated_stamp }}">{{ generated|default:"--" }}</span>
+      <span>Next scheduled</span><span>{{ next|default:"--" }}</span>
+      {% if applied %}<span>Applied</span><span>{{ applied }}</span>{% endif %}
+      {% if learning and status_class == "info" %}<span>Learning completes</span><span>{{ learning }}</span>{% endif %}
+      <span>Automatic Deployment</span><span>{% if auto_deploy %}<span class="good">On</span>{% else %}Off{% endif %}</span>
+    </div>
+  </div>
+</div>
+
+<div data-sfx-group>
+  <div class="sfx-subtabs" role="tablist">
+    <button type="button" class="active" role="tab" aria-selected="true" data-sfx-subtab="summary">Summary</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="recommendation">Recommendation</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="patches">Patches</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="settings">Settings</button>
+  </div>
+
+  {# ── Summary ── #}
+  <div data-sfx-pane="summary">
+    <div class="sfx-cards">
+      <div class="sfx-card">
+        <div class="sfx-card-t">Attributes</div>
+        <div class="sfx-set-v" style="font-weight:600">
+          <span><i class="bi bi-boxes"></i> {{ replicas }} Replica{{ replicas_plural|yesno:"s," }} <span class="sfx-muted">(average)</span></span>
+          {% if has_hpa %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-arrows"></i> HPA</span>{% endif %}
+          {% if gpu %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-gpu-card"></i> GPU</span>{% endif %}
+          <span class="sfx-muted">&middot;</span><span title="{% for k, v in labels %}{{ k }}={{ v }}&#10;{% endfor %}"><i class="bi bi-tag"></i> {{ label_count }} Label{{ label_count|pluralize }}</span>
+        </div>
+        <div class="sfx-hint" style="margin-top:8px">Throttling rate {{ throttling }} &middot; OOM rate {{ oom }}{% if created %} &middot; In StormForge since {{ created }}{% endif %}</div>
+        {% if group %}<div class="sfx-hint">Recommendation computed from: {{ group|join:", " }}</div>{% endif %}
+      </div>
+      <div class="sfx-card" style="padding:0">
+        <div class="sfx-card-t" style="padding:14px 18px 0">Status Messages</div>
+        <ul class="sfx-msgs">
+          {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% empty %}<li class="sfx-muted">None</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="sfx-card">
+      <div class="sfx-table-wrap">
+        <table class="sfx-table">
+          <thead><tr><th>Resource</th><th>Per-Pod Requests<div class="sfx-hint">Current → Recommended</div></th><th>Total Requests ({{ replicas }} replica{{ replicas_plural|yesno:"s," }})<div class="sfx-hint">Current → Recommended</div></th><th class="sfx-impact-col">Total Impact ({{ replicas }} replica{{ replicas_plural|yesno:"s," }})</th></tr></thead>
+          <tbody>
+          {% for r in resource_rows %}
+            <tr>
+              <td>{{ r.label }}</td>
+              <td>{{ r.pod }} <span class="sfx-unit">{{ r.pod_unit }}</span></td>
+              <td>{{ r.total }} <span class="sfx-unit">{{ r.total_unit }}</span></td>
+              <td class="sfx-impact-col">{{ r.impact }} <span class="sfx-unit">{{ r.impact_unit }}</span> <span class="sfx-dir-{{ r.dir|default:'none' }}">{{ r.pct }} {% if r.dir == "down" %}<i class="bi bi-caret-down-fill"></i>{% elif r.dir == "up" %}<i class="bi bi-caret-up-fill"></i>{% endif %}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sfx-note">Values based on the recommendation generated {{ generated|default:"--" }}.</div>
+    </div>
+    {% if pod_charts %}
+    <div class="sfx-card">
+      <div class="sfx-section">
+        <div class="sfx-set-t">Usage vs. Requests <span class="sfx-muted" style="font-weight:600">&middot; per pod</span></div>
+        <div class="sfx-set-d">Average usage over the recommendation's observation window{% if window %} (to {{ window }}){% endif %} against current and recommended requests and limits.{% if recommendation_link %} <a href="{{ recommendation_link }}" target="_blank" rel="noopener">Usage over time in StormForge</a>{% endif %}</div>
+        {% for b in pod_charts %}{% include "stormforge_optimize/templates/sfx_bars.html" %}{% endfor %}
+        {% if not has_usage %}<div class="sfx-hint">StormForge has not reported usage for this workload yet.</div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Recommendation ── #}
+  <div data-sfx-pane="recommendation" hidden>
+    <div class="sfx-h">Container Values</div>
+    <div class="sfx-intro">Values based on the recommendation generated {{ generated|default:"--" }}.</div>
+    <div class="sfx-card">
+      <div class="sfx-table-wrap">
+        <table class="sfx-table">
+          <thead><tr><th>Container Name</th><th>CPU Requests<div class="sfx-hint">Current → Recommended</div></th><th>Memory Requests<div class="sfx-hint">Current → Recommended</div></th></tr></thead>
+          <tbody>
+          {% for c in containers %}
+            <tr>
+              <td>{{ c.name }}</td>
+              <td>Req: {{ c.cpu_req }} <span class="sfx-dir-{{ c.cpu_req_change.dir|default:'none' }}">{{ c.cpu_req_change.pct }}{% if c.cpu_req_change.dir == "down" %} <i class="bi bi-caret-down-fill"></i>{% elif c.cpu_req_change.dir == "up" %} <i class="bi bi-caret-up-fill"></i>{% endif %}</span><div class="sfx-hint">Lim: {{ c.cpu_lim }}</div></td>
+              <td>Req: {{ c.mem_req }} <span class="sfx-dir-{{ c.mem_req_change.dir|default:'none' }}">{{ c.mem_req_change.pct }}{% if c.mem_req_change.dir == "down" %} <i class="bi bi-caret-down-fill"></i>{% elif c.mem_req_change.dir == "up" %} <i class="bi bi-caret-up-fill"></i>{% endif %}</span><div class="sfx-hint">Lim: {{ c.mem_lim }}</div></td>
+            </tr>
+            <tr><td colspan="3" style="background:none">
+              <div class="sfx-settings-grid">{% for b in c.charts %}<div>{% include "stormforge_optimize/templates/sfx_bars.html" %}</div>{% endfor %}</div>
+            </td></tr>
+          {% empty %}<tr><td colspan="3" class="sfx-empty">StormForge has no container values for this workload yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="sfx-h">Instance Category</div>
+    <div class="sfx-card"><div class="sfx-section">
+      {% if instance_categories %}We recommend running this workload on the following instance categories: <b>{{ instance_categories|join:", " }}</b>{% else %}<span class="sfx-muted">No instance category recommendation.</span>{% endif %}
+    </div></div>
+  </div>
+
+  {# ── Patches ── #}
+  <div data-sfx-pane="patches" hidden>
+    <div data-sfx-sub="patches" data-sfx-ns="{{ ns }}" data-sfx-type="{{ kind }}" data-sfx-name="{{ name }}"></div>
+  </div>
+
+  {# ── Settings ── #}
+  <div data-sfx-pane="settings" hidden>
+    {% include "stormforge_optimize/templates/sfx_settings.html" with st=settings %}
+  </div>
+</div>
+{% endif %}
