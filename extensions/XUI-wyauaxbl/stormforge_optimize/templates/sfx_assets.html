@@ -166,7 +166,7 @@
   "use strict";
   if (window.sfx) { return; }
   // Query parameters a link, table, or lazy panel may carry as data-sfx-<name>.
-  var PARAM_KEYS = ["ns", "type", "name", "preview", "filterable"];
+  var PARAM_KEYS = ["ns", "type", "name", "preview", "filterable", "pod", "container", "previous", "fresh"];
   var TABLE_KEYS = ["q", "sort", "dir", "offset", "limit", "ns", "filterable"];
   var sfx = window.sfx = { roots: {}, urls: {}, icon: "" };
 
@@ -206,6 +206,7 @@
       .done(function (html) {
         $el.html(html);
         if (window.c2 && c2.tooltips) { c2.tooltips.init($el); }
+        $el.find("[data-sfx-sub][data-sfx-autoload]").each(function () { lazy(this); });
       })
       .fail(function (xhr) { $el.html(failure(xhr)); });
   }
@@ -306,6 +307,36 @@
       this.hidden = !match;
       if (match) { $(this).find("[data-sfx-sub]").each(function () { lazy(this); }); }
     });
+  });
+  // Agent view: choose the pod and container whose log to show, its previous
+  // container's log, or read StormForge and the cluster again.
+  function logHost(el) { return document.getElementById(el.getAttribute("data-sfx-log-host")); }
+  $(document).on("change", ".sfx [data-sfx-log-select]", function () {
+    var host = logHost(this);
+    var parts = this.value.split("|");
+    if (!host) { return; }
+    host.setAttribute("data-sfx-pod", parts[0] || "");
+    host.setAttribute("data-sfx-container", parts[1] || "");
+    lazy(host, true);
+  });
+  $(document).on("change", ".sfx [data-sfx-log-previous]", function () {
+    var host = logHost(this);
+    if (!host) { return; }
+    host.setAttribute("data-sfx-previous", this.checked ? "1" : "");
+    lazy(host, true);
+  });
+  $(document).on("click", ".sfx [data-sfx-log-refresh]", function (e) {
+    e.preventDefault();
+    var host = logHost(this);
+    if (host) { lazy(host, true); }
+  });
+  $(document).on("click", ".sfx [data-sfx-sub-refresh]", function (e) {
+    e.preventDefault();
+    var host = $(this).closest("[data-sfx-sub]")[0];
+    if (!host) { return; }
+    host.setAttribute("data-sfx-fresh", "1");
+    lazy(host, true);
+    host.setAttribute("data-sfx-fresh", "");
   });
   $(document).on("change", ".sfx [data-sfx-preview-toggle]", function () {
     var host = $(this).closest("[data-sfx-sub]")[0];

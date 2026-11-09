@@ -42,12 +42,16 @@
     <button type="button" class="active" role="tab" aria-selected="true" data-sfx-subtab="namespaces">Namespaces</button>
     <button type="button" role="tab" aria-selected="false" data-sfx-subtab="nodes">Nodes</button>
     <button type="button" role="tab" aria-selected="false" data-sfx-subtab="config">Config</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="agent">Agent</button>
   </div>
   <div data-sfx-pane="namespaces">
     {% include "stormforge_optimize/templates/sfx_table.html" %}
   </div>
   <div data-sfx-pane="nodes" hidden>
     <div data-sfx-sub="nodes"></div>
+  </div>
+  <div data-sfx-pane="agent" hidden>
+    <div data-sfx-sub="agent"></div>
   </div>
   <div data-sfx-pane="config" hidden>
     <div class="sfx-card">

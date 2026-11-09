@@ -131,7 +131,16 @@ ENDPOINTS = {
     "workloads_table": "sfx_workloads_table",
     "nodes": "sfx_nodes_panel",
     "patches": "sfx_patches_panel",
+    "agent": "sfx_agent_panel",
+    "agent_log": "sfx_agent_log",
 }
+
+# The agent's namespace and credential Secret (SHM-2fd3bhsz NAMESPACE and AUTH_SECRET).
+AGENT_NAMESPACE = "stormforge-system"
+AGENT_SECRET = "stormforge-auth"
+AGENT_ACTION = "Install or Upgrade StormForge Agent"
+LOG_LINES = 200
+POD_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
 
 
 class PanelError(Exception):
@@ -962,6 +971,252 @@ def _nodes_context(request, resource, reader, cluster):
     }
 
 
+# -- Agent: StormForge's cluster record, the agent pods and their log ---------
+def _agent_action(profile, resource):
+    """The Install or Upgrade StormForge Agent action when the viewer may run it here, else None."""
+    try:
+        from cbhooks.models import ResourceAction
+        from utilities.permissions import resource_action_permitted
+    except ImportError:
+        return None
+    try:
+        for action in ResourceAction.objects.filter(enabled=True, label=AGENT_ACTION):
+            blueprints = list(action.blueprints.values_list("id", flat=True))
+            if blueprints and resource.blueprint_id not in blueprints:
+                continue
+            if resource_action_permitted(profile, resource, action):
+                return action
+    except Exception:  # noqa: BLE001 - a missing action only hides the button
+        logger.exception("Could not resolve the '%s' action for resource %s", AGENT_ACTION, resource.id)
+    return None
+
+
+def _can_read_agent_log(profile, resource):
+    """CloudBolt admins and people who may run Install or Upgrade StormForge Agent on the cluster."""
+    return bool(getattr(profile, "is_cbadmin", False)) or _agent_action(profile, resource) is not None
+
+
+def _kube(reader, resource):
+    try:
+        return reader.sf.Kube.for_resource(resource)
+    except reader.sf.StormForgeError as exc:
+        raise PanelError(str(exc))
+
+
+def _secret_written(secret):
+    """When the credential Secret was last written: the newest managedFields time
+    (https://kubernetes.io/docs/reference/using-api/server-side-apply/#field-management)."""
+    metadata = (secret or {}).get("metadata") or {}
+    times = [_when(entry.get("time")) for entry in metadata.get("managedFields") or []]
+    times = [t for t in times if t] or [_when(metadata.get("creationTimestamp"))]
+    return max((t for t in times if t), default=None)
+
+
+def _container_state(state):
+    state = state or {}
+    if "running" in state:
+        return "Running", "ok"
+    if "waiting" in state:
+        return (state["waiting"] or {}).get("reason") or "Waiting", "warn"
+    if "terminated" in state:
+        terminated = state["terminated"] or {}
+        return terminated.get("reason") or "Terminated", "bad" if terminated.get("exitCode") else "muted"
+    return "--", "muted"
+
+
+def _agent_pods(kube):
+    """Pods in stormforge-system run by a Deployment, DaemonSet or StatefulSet (not CloudBolt's Helm Jobs)."""
+    listing = kube.get(f"/api/v1/namespaces/{AGENT_NAMESPACE}/pods") or {}
+    return [
+        pod for pod in listing.get("items") or []
+        if any(ref.get("kind") in ("ReplicaSet", "DaemonSet", "StatefulSet")
+               for ref in (pod.get("metadata") or {}).get("ownerReferences") or [])
+    ]
+
+
+def _default_log_target(pods):
+    """(pod, container) whose log the panel opens with: the agent's own container when it can tell."""
+    def score(pod):
+        name = (pod.get("metadata") or {}).get("name") or ""
+        return (0 if name.startswith("stormforge-agent") else 1 if "agent" in name else 2, name)
+    for pod in sorted(pods, key=score):
+        containers = [c.get("name") for c in (pod.get("spec") or {}).get("containers") or [] if c.get("name")]
+        if containers:
+            preferred = next((c for c in containers if "agent" in c), containers[0])
+            return pod["metadata"]["name"], preferred
+    return "", ""
+
+
+def _record_view(record):
+    status = (record or {}).get("status") or {}
+    phase = status.get("phase") or "--"
+    conditions, last_seen = [], None
+    for condition in status.get("conditions") or []:
+        kind = condition.get("type") or ""
+        if kind == "stormforge.io/active":
+            last_seen = condition.get("lastProbeTime")
+        state = str(condition.get("status") or "")
+        conditions.append({
+            "type": kind.split("/")[-1].replace("-", " ").capitalize() or "--",
+            "raw": kind,
+            "status": state or "--",
+            "css": "ok" if state == "True" else ("bad" if state == "False" else "muted"),
+            "message": condition.get("message") or condition.get("reason") or "",
+            "probe": _relative(condition.get("lastProbeTime")),
+            "since": _stamp(condition.get("lastTransitionTime")),
+        })
+    products = [
+        {"name": p.get("name") or "--", "version": p.get("version") or "--"}
+        for p in ((record or {}).get("stormforge") or {}).get("products") or []
+    ]
+    kubernetes = (record or {}).get("kubernetes") or {}
+    return {
+        "phase": phase,
+        "phase_class": {"Created": "ok", "Active": "ok", "Inactive": "warn"}.get(phase, "muted"),
+        "last_seen": _relative(last_seen),
+        "last_seen_stamp": _stamp(last_seen),
+        "conditions": conditions,
+        "products": products,
+        "k8s_version": kubernetes.get("version") or "--",
+        "provider": kubernetes.get("provider") or "--",
+        "uid": kubernetes.get("systemNamespaceUID") or "",
+        "nodes": len((record or {}).get("nodes") or []),
+    }
+
+
+def _agent_context(request, resource, reader, cluster):
+    profile = request.get_user_profile()
+    reader.token()
+    results = _parallel(
+        record=lambda: reader.get(f"v3/clusters/{_q(cluster)}", allow_404=True,
+                                  what="StormForge's record of the cluster"),
+        detail=lambda: reader.get(f"management/clusters/{_q(cluster)}", {"limit": 1}, allow_404=True,
+                                  what="the cluster's workloads in StormForge"),
+    )
+    record = results["record"]
+    context = {
+        "registered": record is not None,
+        "record": _record_view(record) if record is not None else None,
+        "workload_count": (results["detail"] or {}).get("workload_count") or 0,
+        "app_link": _app_link(reader, cluster, "namespaces"),
+    }
+    action = _agent_action(profile, resource)
+    context["action_url"] = reverse("run_resource_action", args=[resource.id, action.id]) if action else ""
+    context["can_read_log"] = bool(getattr(profile, "is_cbadmin", False)) or action is not None
+
+    # The cluster side; a failure here leaves StormForge's view on the page.
+    try:
+        kube = _kube(reader, resource)
+        kube_system = kube.get("/api/v1/namespaces/kube-system") or {}
+        secret = kube.get(f"/api/v1/namespaces/{AGENT_NAMESPACE}/secrets/{AGENT_SECRET}")
+        pods = _agent_pods(kube)
+    except (PanelError, reader.sf.StormForgeError) as exc:
+        context["kube_error"] = f"Could not read the agent from the cluster: {exc}"
+        return context
+    written = _secret_written(secret)
+    metadata = (secret or {}).get("metadata") or {}
+    labels, annotations = metadata.get("labels") or {}, metadata.get("annotations") or {}
+    secret = metadata = None  # only labels and timestamps are used; the credential stays here
+    if labels.get("app.kubernetes.io/managed-by") == "cloudbolt":
+        secret_owner = "CloudBolt"
+    elif labels.get("app.kubernetes.io/managed-by") == "Helm" or "meta.helm.sh/release-name" in annotations:
+        secret_owner = "the StormForge chart"
+    else:
+        secret_owner = "someone outside CloudBolt" if written else ""
+
+    rows, stale = [], 0
+    for pod in sorted(pods, key=lambda p: (p.get("metadata") or {}).get("name") or ""):
+        meta, spec, status = pod.get("metadata") or {}, pod.get("spec") or {}, pod.get("status") or {}
+        statuses = {c.get("name"): c for c in status.get("containerStatuses") or []}
+        started = _when(status.get("startTime"))
+        is_stale = bool(written and started and started < written)
+        stale += 1 if is_stale else 0
+        containers = []
+        for container in spec.get("containers") or []:
+            cstatus = statuses.get(container.get("name")) or {}
+            state, css = _container_state(cstatus.get("state"))
+            last = (cstatus.get("lastState") or {}).get("terminated") or {}
+            containers.append({
+                "name": container.get("name") or "",
+                "image": (container.get("image") or "").rsplit("/", 1)[-1],
+                "state": state,
+                "css": css,
+                "restarts": int(cstatus.get("restartCount") or 0),
+                "last": (f"{last.get('reason') or 'Terminated'} (exit {last.get('exitCode')}) "
+                         f"{_relative(last.get('finishedAt'))}").strip() if last else "",
+            })
+        ready = sum(1 for c in statuses.values() if c.get("ready"))
+        rows.append({
+            "name": meta.get("name") or "",
+            "phase": status.get("phase") or "--",
+            "phase_class": {"Running": "ok", "Pending": "warn", "Failed": "bad"}.get(status.get("phase"), "muted"),
+            "ready": f"{ready}/{len(spec.get('containers') or [])}",
+            "restarts": sum(c["restarts"] for c in containers),
+            "started": _relative(status.get("startTime")),
+            "started_stamp": _stamp(status.get("startTime")),
+            "stale": is_stale,
+            "containers": containers,
+        })
+    log_pod, log_container = _default_log_target(pods)
+    ours = (kube_system.get("metadata") or {}).get("uid") or ""
+    theirs = (context["record"] or {}).get("uid") or ""
+    context.update(
+        pods=rows,
+        stale=stale,
+        secret_present=bool(written),
+        secret_written=_relative(written.isoformat()) if written else "",
+        secret_written_stamp=written.strftime("%Y-%m-%d %H:%M UTC") if written else "",
+        secret_owner=secret_owner,
+        identity="match" if ours and theirs and ours == theirs else ("mismatch" if ours and theirs else ""),
+        log_targets=[
+            {"pod": (p.get("metadata") or {}).get("name"), "container": c.get("name"),
+             "selected": (p.get("metadata") or {}).get("name") == log_pod and c.get("name") == log_container}
+            for p in pods for c in (p.get("spec") or {}).get("containers") or []
+        ],
+        log_pod=log_pod,
+        log_container=log_container,
+    )
+    return context
+
+
+def _agent_log_context(request, resource, reader, cluster):
+    if not _can_read_agent_log(request.get_user_profile(), resource):
+        raise PanelError(
+            f"Only CloudBolt admins and people who may run {AGENT_ACTION} on this cluster can read the agent log."
+        )
+    pod_name = _arg(request, "pod", POD_RE)
+    container = _arg(request, "container", NAMESPACE_RE)
+    previous = request.GET.get("previous") == "1"
+    kube = _kube(reader, resource)
+    try:
+        pods = {(p.get("metadata") or {}).get("name"): p for p in _agent_pods(kube)}
+    except reader.sf.StormForgeError as exc:
+        raise PanelError(f"Could not read the agent pods: {exc}")
+    pod = pods.get(pod_name)
+    if pod is None:
+        raise PanelError("Choose one of the agent pods above.")
+    names = [c.get("name") for c in (pod.get("spec") or {}).get("containers") or []]
+    if container not in names:
+        container = names[0] if names else ""
+    params = {"container": container, "tailLines": str(LOG_LINES), "timestamps": "true"}
+    if previous:
+        params["previous"] = "true"
+    # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#get-read-log-of-the-specified-pod
+    try:
+        text = kube.request("GET", f"/api/v1/namespaces/{AGENT_NAMESPACE}/pods/{pod_name}/log",
+                            params=params, allow_404=True, text=True)
+    except reader.sf.StormForgeError as exc:
+        raise PanelError(f"Kubernetes did not return the {'previous ' if previous else ''}log of "
+                         f"{pod_name}/{container}: {exc}")
+    return {
+        "pod": pod_name,
+        "container": container,
+        "previous": previous,
+        "lines": LOG_LINES,
+        "log": text if isinstance(text, str) else "",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Namespace
 # ---------------------------------------------------------------------------
@@ -1530,6 +1785,14 @@ def sfx_workload_panel(request, resource_id):
 
 def sfx_patches_panel(request, resource_id):
     return _panel(request, resource_id, "sfx_patches_panel.html", _patches_context)
+
+
+def sfx_agent_panel(request, resource_id):
+    return _panel(request, resource_id, "sfx_agent_panel.html", _agent_context)
+
+
+def sfx_agent_log(request, resource_id):
+    return _panel(request, resource_id, "sfx_agent_log.html", _agent_log_context)
 
 
 def sfx_namespaces_table(request, resource_id):

@@ -12,6 +12,8 @@
         "__init__.py",
         "views.py",
         "urls.py",
+        "templates/sfx_agent_log.html",
+        "templates/sfx_agent_panel.html",
         "templates/sfx_alert.html",
         "templates/sfx_annotations.html",
         "templates/sfx_assets.html",
