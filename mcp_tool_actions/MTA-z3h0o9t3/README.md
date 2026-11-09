@@ -1,13 +1,13 @@
-# POC Onboarding: Network Addressing
+# Onboarding: Network Addressing
 
 MCP Tool Action published to agents as `custom_onb_network_addressing`. Sets how servers on a network get their IP address (DHCP, static with gateway and netmask, a CloudBolt IP pool, an IPAM endpoint, or an IP typed per order) and verifies it with the network's IP provider.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-z3h0o9t3 | POC Onboarding: Network Addressing |
-| Plugin | [OHK-gjfc20pv](../../plugins/OHK-gjfc20pv/) | POC Onboarding: Network Addressing |
+| MCP Tool Action | MTA-z3h0o9t3 | Onboarding: Network Addressing |
+| Plugin | [OHK-gjfc20pv](../../plugins/OHK-gjfc20pv/) | Onboarding: Network Addressing |
 
 ## Inputs
 | Input | Type | Meaning |

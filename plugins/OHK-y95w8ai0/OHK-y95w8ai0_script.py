@@ -1,5 +1,5 @@
 """
-POC Onboarding: Failure Trace (MCP Tool Action plugin).
+Onboarding: Failure Trace (MCP Tool Action plugin).
 
 Given an order (ORD-) or job (JOB-) global id, returns every failed job
 under it with its errors, output, the tail of its progress messages, its

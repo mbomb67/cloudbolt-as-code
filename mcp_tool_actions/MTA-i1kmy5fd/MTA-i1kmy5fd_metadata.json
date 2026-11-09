@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-i1kmy5fd",
     "is_synchronous": true,
-    "label": "POC Onboarding: Configure Custom Server",
+    "label": "Onboarding: Configure Custom Server",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

@@ -26,7 +26,7 @@
     "description": "Walks an order or job down to the jobs that actually failed and returns their errors, output, progress tail, failed children and a hint for the common provisioning failures, naming the job id to pass to fetch_job_log for the traceback.",
     "id": "OHK-y95w8ai0",
     "max_retries": 0,
-    "name": "POC Onboarding: Failure Trace",
+    "name": "Onboarding: Failure Trace",
     "resource_technologies": [],
     "script_filename": "OHK-y95w8ai0_script.py",
     "shared": false,

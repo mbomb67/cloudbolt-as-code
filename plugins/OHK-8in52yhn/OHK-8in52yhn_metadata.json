@@ -146,7 +146,7 @@
     "description": "Assigns roles in a group to a local POC user; a user that does not exist yet is added by the admin on the Users list with its password, and the tool says how.",
     "id": "OHK-8in52yhn",
     "max_retries": 0,
-    "name": "POC Onboarding: User",
+    "name": "Onboarding: User",
     "resource_technologies": [],
     "script_filename": "OHK-8in52yhn_script.py",
     "shared": false,

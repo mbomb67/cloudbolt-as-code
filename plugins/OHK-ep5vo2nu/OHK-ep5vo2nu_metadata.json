@@ -26,7 +26,7 @@
     "description": "Lists servers left in Provision Failed state by failed orders and deletes the ones named, removing their VMs from the cloud when they exist.",
     "id": "OHK-ep5vo2nu",
     "max_retries": 0,
-    "name": "POC Onboarding: Failed Servers",
+    "name": "Onboarding: Failed Servers",
     "resource_technologies": [],
     "script_filename": "OHK-ep5vo2nu_script.py",
     "shared": false,

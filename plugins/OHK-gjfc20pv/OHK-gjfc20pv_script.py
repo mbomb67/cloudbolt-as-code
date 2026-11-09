@@ -1,5 +1,5 @@
 """
-POC Onboarding: Network Addressing (MCP Tool Action plugin).
+Onboarding: Network Addressing (MCP Tool Action plugin).
 
 Sets how servers on one CloudBolt network get their IP address, the way the
 network's edit page and its IP Pool tab do, and proves the result with

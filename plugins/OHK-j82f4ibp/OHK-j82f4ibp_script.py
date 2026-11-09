@@ -1,5 +1,5 @@
 """
-POC Onboarding: Verify LDAP (MCP Tool Action plugin).
+Onboarding: Verify LDAP (MCP Tool Action plugin).
 
 Runs an LDAP utility's Verify Connection (bind and search) and returns the
 real error text with a hint, the way onb_verify_resource_handler does for

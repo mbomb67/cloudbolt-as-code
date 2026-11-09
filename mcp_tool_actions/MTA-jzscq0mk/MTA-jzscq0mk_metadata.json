@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-jzscq0mk",
     "is_synchronous": true,
-    "label": "POC Onboarding: Failure Trace",
+    "label": "Onboarding: Failure Trace",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

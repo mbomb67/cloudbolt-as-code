@@ -1,5 +1,5 @@
 """
-POC Onboarding: Action Approval (MCP Tool Action plugin).
+Onboarding: Action Approval (MCP Tool Action plugin).
 
 Turns "Requires approval" on or off for a server action or resource
 action (for example Resize VM), so a day-2 action from a requestor pauses

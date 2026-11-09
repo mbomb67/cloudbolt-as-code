@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-i6p4j2l7",
     "is_synchronous": false,
-    "label": "POC Onboarding: Import Environments",
+    "label": "Onboarding: Import Environments",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

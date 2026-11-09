@@ -141,7 +141,7 @@
     "enabled": true,
     "id": "MTA-tuzkb8h4",
     "is_synchronous": true,
-    "label": "POC Onboarding: User",
+    "label": "Onboarding: User",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

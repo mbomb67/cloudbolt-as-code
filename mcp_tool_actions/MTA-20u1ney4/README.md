@@ -1,13 +1,13 @@
-# POC Onboarding: Environment Networks
+# Onboarding: Environment Networks
 
 MCP Tool Action published to agents as `custom_onb_environment_networks`. Lists the networks an environment can offer on its first NIC and makes the chosen ones, up to five, its only NIC 1 choices, removing networks from every other NIC.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-20u1ney4 | POC Onboarding: Environment Networks |
-| Plugin | [OHK-0u7aonmo](../../plugins/OHK-0u7aonmo/) | POC Onboarding: Environment Networks |
+| MCP Tool Action | MTA-20u1ney4 | Onboarding: Environment Networks |
+| Plugin | [OHK-0u7aonmo](../../plugins/OHK-0u7aonmo/) | Onboarding: Environment Networks |
 
 ## Inputs
 | Input | Type | Meaning |

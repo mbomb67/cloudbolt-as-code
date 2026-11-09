@@ -1,7 +1,7 @@
 """
-POC Onboarding: Playbook (MCP Tool Action plugin).
+Onboarding: Playbook (MCP Tool Action plugin).
 
-Returns the POC onboarding skill text (the SKILL.md and its reference
+Returns the onboarding skill text (the SKILL.md and its reference
 sections) from the public cloudbolt-as-code repository, so an MCP client
 with no skill support (a desktop chat app, a web UI) receives the same
 procedure the Claude Code skill follows. The appliance fetches the Markdown
@@ -18,7 +18,7 @@ import re
 
 PLAYBOOK_REPO = "mbomb67/cloudbolt-as-code"
 PLAYBOOK_REF = "main"
-PLAYBOOK_DIR = ".claude/skills/cb-poc-onboarding"
+PLAYBOOK_DIR = ".claude/skills/cb-onboarding"
 SECTIONS = {
     "index": ("SKILL.md", "The skill itself: hard rules, the phase loop, when to call which tool"),
     "bootstrap": ("references/bootstrap.md", "Phase 0: connect the MCP client, install the toolkit, first status"),

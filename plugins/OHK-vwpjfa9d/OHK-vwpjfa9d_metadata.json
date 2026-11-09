@@ -1,0 +1,11 @@
+{
+    "description": "Fills the Maintenance Window dropdown with weekly two-hour UTC windows computed in Python.",
+    "id": "OHK-vwpjfa9d",
+    "max_retries": 0,
+    "name": "Generate options for 'Maintenance Window'",
+    "resource_technologies": [],
+    "script_filename": "OHK-vwpjfa9d_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

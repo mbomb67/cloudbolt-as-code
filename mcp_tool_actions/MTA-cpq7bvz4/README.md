@@ -1,13 +1,13 @@
-# POC Onboarding: Group
+# Onboarding: Group
 
 MCP Tool Action published to agents as `custom_onb_group`. Creates or updates a group with its parent, entitled environments, auto-approval flag and server-count quota, covering the test plan's entitlement, approval and quota items.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-cpq7bvz4 | POC Onboarding: Group |
-| Plugin | [OHK-efxm9m2b](../../plugins/OHK-efxm9m2b/) | POC Onboarding: Group |
+| MCP Tool Action | MTA-cpq7bvz4 | Onboarding: Group |
+| Plugin | [OHK-efxm9m2b](../../plugins/OHK-efxm9m2b/) | Onboarding: Group |
 
 ## Inputs
 | Input | Type | Meaning |

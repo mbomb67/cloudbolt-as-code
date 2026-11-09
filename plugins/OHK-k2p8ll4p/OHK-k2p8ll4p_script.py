@@ -1,5 +1,5 @@
 """
-POC Onboarding: Import OS Build (MCP Tool Action plugin).
+Onboarding: Import OS Build (MCP Tool Action plugin).
 
 Imports one image (an AWS AMI, an Azure marketplace image, a vCenter
 template) into an OS build and attaches that OS build to the handler's

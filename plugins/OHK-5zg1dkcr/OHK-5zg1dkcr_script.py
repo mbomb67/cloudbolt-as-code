@@ -1,5 +1,5 @@
 """
-POC Onboarding: Status (MCP Tool Action plugin).
+Onboarding: Status (MCP Tool Action plugin).
 
 Reports what the appliance has configured for a proof of concept in one
 read: licence, portal URL, SMTP, proxy, Content Library reachability, the
@@ -62,6 +62,10 @@ ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
 MAX_FAILED_SERVERS = 10
 MAX_USERS = 20
+# Parameters the onboarding content creates: the Standard Server blueprint's (with the global id its sync stamps)
+# and the ones the skill makes with onb_parameter (recorded in the state as toolkitParameters).
+CONTENT_PARAMETERS = {"application": "CF-15yw228m", "maintenance_window": "CF-cei72k8x"}
+PLAN_PARAMETERS = ("backup_policy", "cost_center")
 PASSWORD_FIX_STEPS = (
     "CloudBolt asks for the user's current password before it changes one, and this user has none. On the user's page click Delete and confirm, then on the Users list click Add, enter the user again with Password and Confirm password, and click Create."
 )
@@ -448,6 +452,29 @@ def _users(base):
     return rows
 
 
+def _parameter_conflicts(base, state):
+    """Parameters the onboarding content would use that already exist and are not the toolkit's own."""
+    from infrastructure.models import CustomField
+
+    owned = set(state.get("toolkitParameters") or [])
+    rows = []
+    for name in list(CONTENT_PARAMETERS) + list(PLAN_PARAMETERS):
+        cf = CustomField.objects.filter(name=name).first()
+        if cf is None or name in owned or CONTENT_PARAMETERS.get(name) == cf.global_id:
+            continue
+        rows.append(
+            {
+                "name": name,
+                "label": cf.label,
+                "type": cf.type,
+                "id": cf.global_id,
+                "usedFor": "Standard Server blueprint sync" if name in CONTENT_PARAMETERS else "onb_parameter",
+                "url": base + "/admin/customfields/{}/".format(cf.id),
+            }
+        )
+    return rows
+
+
 def _groups_users(base):
     from accounts.models import Group, UserProfile
 
@@ -699,6 +726,7 @@ def run(job, *args, **kwargs):
         "resourceHandlers": _handlers(base, state),
         "customServerBlueprint": _custom_server(base),
         "failedServers": _failed_servers(base),
+        "parameterConflicts": _parameter_conflicts(base, state),
         "groupsAndUsers": _groups_users(base),
         "authentication": _auth(base),
         "toolkit": _toolkit(base),

@@ -122,7 +122,7 @@
     "enabled": true,
     "id": "MTA-cpq7bvz4",
     "is_synchronous": true,
-    "label": "POC Onboarding: Group",
+    "label": "Onboarding: Group",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

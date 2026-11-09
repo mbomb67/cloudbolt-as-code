@@ -198,7 +198,7 @@
     "enabled": true,
     "id": "MTA-z3h0o9t3",
     "is_synchronous": false,
-    "label": "POC Onboarding: Network Addressing",
+    "label": "Onboarding: Network Addressing",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

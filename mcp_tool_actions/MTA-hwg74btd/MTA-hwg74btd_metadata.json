@@ -103,7 +103,7 @@
     "enabled": true,
     "id": "MTA-hwg74btd",
     "is_synchronous": true,
-    "label": "POC Onboarding: Recent Errors",
+    "label": "Onboarding: Recent Errors",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

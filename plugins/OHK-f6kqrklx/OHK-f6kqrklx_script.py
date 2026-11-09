@@ -1,5 +1,5 @@
 """
-POC Onboarding: Parameter (MCP Tool Action plugin).
+Onboarding: Parameter (MCP Tool Action plugin).
 
 Creates or updates a parameter (CustomField) and attaches it to
 environments and groups with options and constraints, the way the
@@ -14,11 +14,17 @@ per-environment mapping's flag. So onb_param_required changes it for every
 environment and group that offers the parameter, and asks for
 onb_param_confirm_global=true when that reaches beyond the targets.
 
+A parameter name is global too, so a name that already exists and is not the
+toolkit's own (created here, agreed to with onb_param_use_existing, or one
+of CloudBolt's expiration_date and power_schedule) changes nothing until the
+user agrees. Names this tool creates are recorded in the onboarding state.
+
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
 """
 import html
+import json
 import re
 
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
@@ -26,6 +32,11 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,99}$")
 TYPES = ("STR", "INT", "DEC", "BOOL", "TXT", "DT", "DTM", "IP", "URL", "EMAIL", "PWD", "CODE", "ETXT")
 MAX_OPTIONS = 100
 MAX_LISTED = 20
+STATE_NAMESPACE = "poc_onboarding"
+STATE_FIELD = "poc_onboarding_state"
+BUILTIN_REUSE = ("expiration_date", "power_schedule")
+# Parameters the Standard Server blueprint brings; a sync stamps these global ids only on parameters it creates.
+CONTENT_PARAMETERS = {"application": "CF-15yw228m", "maintenance_window": "CF-cei72k8x"}
 
 
 def _text(value):
@@ -92,6 +103,7 @@ def _read_inputs():
         "onb_param_min": """{{ onb_param_min }}""",
         "onb_param_show_on_servers": """{{ onb_param_show_on_servers }}""",
         "onb_param_confirm_global": """{{ onb_param_confirm_global }}""",
+        "onb_param_use_existing": """{{ onb_param_use_existing }}""",
     }
     return {
         "name": _text(raw["onb_param_name"]),
@@ -105,7 +117,69 @@ def _read_inputs():
         "minimum": _int(raw["onb_param_min"]),
         "show_on_servers": _text(raw["onb_param_show_on_servers"]),
         "confirm_global": _bool(raw["onb_param_confirm_global"], False),
+        "use_existing": _bool(raw["onb_param_use_existing"], False),
     }
+
+
+def _state_field(create=False):
+    from infrastructure.models import CustomField, Namespace
+
+    if not create:
+        return CustomField.objects.filter(name=STATE_FIELD).first()
+    namespace, _ = Namespace.objects.get_or_create(name=STATE_NAMESPACE)
+    field, _ = CustomField.objects.get_or_create(
+        name=STATE_FIELD,
+        defaults=dict(
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
+            type="TXT",
+            namespace=namespace,
+        ),
+    )
+    return field
+
+
+def _load_state():
+    try:
+        from orders.models import CustomFieldValue
+
+        field = _state_field()
+        cfv = CustomFieldValue.objects.filter(field=field).order_by("id").first() if field else None
+        data = json.loads(cfv.txt_value or "") if cfv else {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _record_owned(name):
+    """Remember that the toolkit created this parameter, or that the user agreed to use it."""
+    from django.db import transaction
+    from infrastructure.models import CustomField
+    from orders.models import CustomFieldValue
+
+    field = _state_field(create=True)
+    with transaction.atomic():
+        list(CustomField.objects.select_for_update().filter(pk=field.pk))
+        cfv = CustomFieldValue.objects.filter(field=field).order_by("id").first()
+        try:
+            state = json.loads(cfv.txt_value or "") if cfv else {}
+        except ValueError:
+            state = {}
+        if not isinstance(state, dict):
+            state = {}
+        owned = set(state.get("toolkitParameters") or [])
+        if name in owned:
+            return
+        state["toolkitParameters"] = sorted(owned | {name})
+        cfv = cfv or CustomFieldValue(field=field)
+        cfv.value = json.dumps(state, indent=2)
+        cfv.save()
+
+
+def _owned(cf):
+    if cf.name in BUILTIN_REUSE or cf.name in (_load_state().get("toolkitParameters") or []):
+        return True
+    return CONTENT_PARAMETERS.get(cf.name) == getattr(cf, "global_id", None)
 
 
 def _resolve_target(ref):
@@ -193,7 +267,7 @@ def run(job, *args, **kwargs):
 
     inputs = _read_inputs()
     if not inputs["name"]:
-        return _failure("onb_param_name is required: the parameter's internal name, for example application_tier.")
+        return _failure("onb_param_name is required: the parameter's internal name, for example backup_policy.")
     if not NAME_RE.match(inputs["name"]):
         return _failure("onb_param_name must be lowercase letters, digits and underscores, starting with a letter.")
     if inputs["name"] == "hostname_template":
@@ -210,6 +284,21 @@ def run(job, *args, **kwargs):
     targets = [(ref,) + _resolve_target(ref) for ref in inputs["targets"]]
     wanted_required = _bool(inputs["required"], False) if inputs["required"] else None
     base = _portal_url()
+    if cf is not None and not inputs["use_existing"] and not _owned(cf):
+        count, others = _other_uses(cf, [])
+        outputs = {
+            "parameter": {"id": getattr(cf, "global_id", None), "name": cf.name, "label": cf.label, "type": cf.type,
+                          "url": base + "/admin/customfields/{}/".format(cf.id)},
+            "existingParameter": True,
+            "usedByCount": count,
+            "usedBy": others,
+            "next": (
+                "Nothing changed. This appliance already has a parameter named '{}' (label '{}', type {}) that the "
+                "onboarding toolkit did not create. Show the user its label and usedBy and ask one question: use it as "
+                "is for this step, or pick another name. Use it: call again with onb_param_use_existing=true."
+            ).format(cf.name, cf.label, cf.type),
+        }
+        return _success("Confirmation needed: parameter '{}' already exists and is not the toolkit's own.".format(cf.name), outputs)
     if cf is not None and wanted_required is not None and bool(cf.required) != wanted_required:
         count, others = _other_uses(cf, targets)
         if count and not inputs["confirm_global"]:
@@ -245,6 +334,11 @@ def run(job, *args, **kwargs):
         )
         created = True
         changes.append("created")
+    if created or inputs["use_existing"]:
+        try:
+            _record_owned(cf.name)
+        except Exception as exc:
+            changes.append("not recorded as the toolkit's own: {}".format(str(exc)[:160]))
     else:
         if inputs["label"] and cf.label != inputs["label"]:
             cf.label = inputs["label"]

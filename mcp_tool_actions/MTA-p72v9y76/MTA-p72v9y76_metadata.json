@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-p72v9y76",
     "is_synchronous": true,
-    "label": "POC Onboarding: Set Item Status",
+    "label": "Onboarding: Set Item Status",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

@@ -66,7 +66,7 @@
     "description": "Creates one environment per listed location on a resource handler the way the Import locations dialog does, brings the networks over (AWS subnets with the environment, Azure subnets synced; vCenter networks are chosen afterwards with onb_environment_networks), and reports existing environments instead of duplicating them.",
     "id": "OHK-8j06wtoe",
     "max_retries": 0,
-    "name": "POC Onboarding: Import Environments",
+    "name": "Onboarding: Import Environments",
     "resource_technologies": [],
     "script_filename": "OHK-8j06wtoe_script.py",
     "shared": false,

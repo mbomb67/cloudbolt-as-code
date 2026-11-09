@@ -46,7 +46,7 @@
     "description": "Lists the regions, locations or clusters a resource handler can turn into environments, flags the ones already imported, lists the existing environments, and for an AWS region lists its VPCs.",
     "id": "OHK-0nuhjdxl",
     "max_retries": 0,
-    "name": "POC Onboarding: Handler Locations",
+    "name": "Onboarding: Handler Locations",
     "resource_technologies": [],
     "script_filename": "OHK-0nuhjdxl_script.py",
     "shared": false,

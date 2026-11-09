@@ -1,5 +1,5 @@
 """
-POC Onboarding: CIT Test from Order (MCP Tool Action plugin).
+Onboarding: CIT Test from Order (MCP Tool Action plugin).
 
 Turns a finished order into a Continuous Infrastructure Testing test, the
 same as the order page's "Add to CIT" action: CloudBolt replays the

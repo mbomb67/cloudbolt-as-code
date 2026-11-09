@@ -1,5 +1,5 @@
 """
-POC Onboarding: Trim Environment Order Form (MCP Tool Action plugin).
+Onboarding: Trim Environment Order Form (MCP Tool Action plugin).
 
 Shortens an environment's order form to what a POC user needs. CloudBolt
 hides a required parameter that has exactly one option, so the tool pins

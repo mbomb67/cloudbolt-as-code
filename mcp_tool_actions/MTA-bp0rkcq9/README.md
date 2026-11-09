@@ -1,13 +1,13 @@
-# POC Onboarding: Action Approval
+# Onboarding: Action Approval
 
 MCP Tool Action published to agents as `custom_onb_action_approval`. Turns Requires approval on or off for a server or resource action, which the API cannot change, so a day-2 action pauses as an order for an approver.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-bp0rkcq9 | POC Onboarding: Action Approval |
-| Plugin | [OHK-ndsuxv0k](../../plugins/OHK-ndsuxv0k/) | POC Onboarding: Action Approval |
+| MCP Tool Action | MTA-bp0rkcq9 | Onboarding: Action Approval |
+| Plugin | [OHK-ndsuxv0k](../../plugins/OHK-ndsuxv0k/) | Onboarding: Action Approval |
 
 ## Inputs
 | Input | Type | Meaning |

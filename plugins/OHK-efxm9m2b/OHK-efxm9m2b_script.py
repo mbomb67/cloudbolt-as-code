@@ -1,5 +1,5 @@
 """
-POC Onboarding: Group (MCP Tool Action plugin).
+Onboarding: Group (MCP Tool Action plugin).
 
 Creates or updates a group for the POC: parent, entitled environments,
 auto-approval and a server-count quota. Covers the test plan's group

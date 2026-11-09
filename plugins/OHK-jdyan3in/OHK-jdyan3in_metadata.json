@@ -26,7 +26,7 @@
     "description": "Sends a test email through the saved SMTP settings and returns the relay's real error with a hint when it fails.",
     "id": "OHK-jdyan3in",
     "max_retries": 0,
-    "name": "POC Onboarding: SMTP Test",
+    "name": "Onboarding: SMTP Test",
     "resource_technologies": [],
     "script_filename": "OHK-jdyan3in_script.py",
     "shared": false,

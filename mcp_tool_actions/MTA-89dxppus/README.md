@@ -1,13 +1,13 @@
-# POC Onboarding: Handler Locations
+# Onboarding: Handler Locations
 
 MCP Tool Action published to agents as `custom_onb_handler_locations`. Lists the regions, locations or clusters a resource handler can turn into environments, flags the ones already imported, lists the existing environments, and for an AWS region lists its VPCs.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-89dxppus | POC Onboarding: Handler Locations |
-| Plugin | [OHK-0nuhjdxl](../../plugins/OHK-0nuhjdxl/) | POC Onboarding: Handler Locations |
+| MCP Tool Action | MTA-89dxppus | Onboarding: Handler Locations |
+| Plugin | [OHK-0nuhjdxl](../../plugins/OHK-0nuhjdxl/) | Onboarding: Handler Locations |
 
 ## Inputs
 | Input | Type | Meaning |

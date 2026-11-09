@@ -1,5 +1,5 @@
 """
-POC Onboarding: Remove Environment (MCP Tool Action plugin).
+Onboarding: Remove Environment (MCP Tool Action plugin).
 
 Deletes an environment that was imported by mistake (wrong region, wrong
 cluster, a duplicate) so the POC can start over cleanly. Refuses when any

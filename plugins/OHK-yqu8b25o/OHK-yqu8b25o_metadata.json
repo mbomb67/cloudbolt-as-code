@@ -26,7 +26,7 @@
     "description": "Builds the POC test plan scorecard from the recorded item statuses and live evidence on the appliance (orders, handlers, environments, groups, mappings, actions, jobs), per category with weights.",
     "id": "OHK-yqu8b25o",
     "max_retries": 0,
-    "name": "POC Onboarding: Scorecard",
+    "name": "Onboarding: Scorecard",
     "resource_technologies": [],
     "script_filename": "OHK-yqu8b25o_script.py",
     "shared": false,

@@ -46,7 +46,7 @@
     "description": "Turns Requires approval on or off for a server or resource action, which the API cannot change, so a day-2 action pauses as an order for an approver.",
     "id": "OHK-ndsuxv0k",
     "max_retries": 0,
-    "name": "POC Onboarding: Action Approval",
+    "name": "Onboarding: Action Approval",
     "resource_technologies": [],
     "script_filename": "OHK-ndsuxv0k_script.py",
     "shared": false,

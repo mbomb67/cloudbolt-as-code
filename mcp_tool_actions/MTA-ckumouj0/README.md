@@ -1,13 +1,13 @@
-# POC Onboarding: CIT Test from Order
+# Onboarding: CIT Test from Order
 
 MCP Tool Action published to agents as `custom_onb_cit_from_order`. Turns a finished blueprint order into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-ckumouj0 | POC Onboarding: CIT Test from Order |
-| Plugin | [OHK-yjow1qql](../../plugins/OHK-yjow1qql/) | POC Onboarding: CIT Test from Order |
+| MCP Tool Action | MTA-ckumouj0 | Onboarding: CIT Test from Order |
+| Plugin | [OHK-yjow1qql](../../plugins/OHK-yjow1qql/) | Onboarding: CIT Test from Order |
 
 ## Inputs
 | Input | Type | Meaning |

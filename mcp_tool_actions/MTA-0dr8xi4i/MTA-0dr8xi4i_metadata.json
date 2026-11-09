@@ -122,7 +122,7 @@
     "enabled": true,
     "id": "MTA-0dr8xi4i",
     "is_synchronous": false,
-    "label": "POC Onboarding: Import OS Build",
+    "label": "Onboarding: Import OS Build",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

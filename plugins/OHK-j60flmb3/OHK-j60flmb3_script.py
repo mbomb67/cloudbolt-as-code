@@ -1,5 +1,5 @@
 """
-POC Onboarding: Install (MCP Tool Action plugin).
+Onboarding: Install (MCP Tool Action plugin).
 
 Finishes the toolkit install after a Source Control Repos sync or a
 Content Package import: turns Synchronous Action on for the tools that
@@ -61,7 +61,7 @@ TOOLS = {
     "run_recurring_job": True,
     "run_cit_tests": True,
 }
-PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-poc-onboarding/SKILL.md"
+PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-onboarding/SKILL.md"
 
 
 def _text(value):
@@ -124,8 +124,8 @@ def _state_field(create=False):
     field, _ = CustomField.objects.get_or_create(
         name=STATE_FIELD,
         defaults=dict(
-            label="POC Onboarding State",
-            description="State recorded by the POC onboarding MCP tools: item statuses, handler verify results, install details.",
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
             type="TXT",
             namespace=namespace,
         ),
@@ -275,7 +275,7 @@ def run(job, *args, **kwargs):
     if missing:
         notes.append(
             "Missing tools: {}. Sync them from the repository (mcp_tool_actions folders) or import the "
-            "POC Onboarding Toolkit content package, then run onb_install again.".format(", ".join(missing))
+            "Onboarding Toolkit content package, then run onb_install again.".format(", ".join(missing))
         )
     if egress.get("playbook", {}).get("reachable") is False:
         notes.append("GitHub is not reachable from the appliance, so onb_playbook will fail; read the skill from the repository instead.")

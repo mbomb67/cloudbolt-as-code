@@ -10,7 +10,7 @@ Status values for `onb_set_item_status`: `done`, `pending`, `skipped`, `not_appl
 |---|---|---|---|---|---|---|---|
 | 1.1.1 | Provision a blueprint from the catalog as a non-admin | 5 | 3, 5 | MCP order flow; the requestor user orders too | Order id, server | [Blueprints](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/blueprints) | No |
 | 1.1.2 | User-defined parameter at order time | 5 | 4 | `onb_parameter` on the environments, order through MCP | Parameter name, order id, value on server | [Parameters](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/parameters) | No |
-| 1.1.3 | Post-provisioning automation from the blueprint | 5 | 8 | POC Server blueprint (Hello World build items), order | Order id, job output | — | No |
+| 1.1.3 | Post-provisioning automation from the blueprint | 5 | 8 | Standard Server blueprint (Hello World build items), order | Order id, job output | — | No |
 | 1.1.4 | Hostname template with preview | 5 | 2 | `onb_configure_custom_server` with `onb_hostname_template` | Hostname of the built server | [Hostname specification](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/hostname-specification) | No |
 | 1.2.1 | One blueprint deploys to two clouds | 5 | 2, 3 | `onb_import_os_build` with the same build name on both handlers; two orders | Two order ids, two servers | — | Yes, single-cloud POC |
 | 1.2.2 | Cross-cloud tagging consistency | 5 | 4 | `onb_tag_mapping` with the same lines on both handlers; order; check tags | Tags on both servers | [Tags](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/tags) | Yes, single-cloud POC |
@@ -55,11 +55,11 @@ Status values for `onb_set_item_status`: `done`, `pending`, `skipped`, `not_appl
 | 4.2.2 | Recurring job on a schedule | 4 | 8 | `onb_install_content_library_item` recurring-jobs, `run_recurring_job` | Job id, file gone | [Recurring jobs](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/recurring-jobs) | Yes, when P5 unmet |
 | 4.2.3 | Rule-based automation | 3 | 8 | Quota rule enabled (UI), `onb_group` quota, executed | Email received | [Rules](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/rules) | Partial without P7 |
 | 4.2.4 | Continuous infrastructure testing | 3 | 8 | `onb_cit_from_order`, `run_cit_tests` | Test run | [CIT](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/continuous-infrastructure-testing) | No |
-| 4.2.5 | Inbound webhook | 4 | 8 | POC Echo webhook synced, curl POST | Response JSON | [Inbound webhooks](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/inbound-webhooks/) | No |
+| 4.2.5 | Inbound webhook | 4 | 8 | Echo webhook synced, curl POST | Response JSON | [Inbound webhooks](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/inbound-webhooks/) | No |
 | 4.2.6 | Customizable notification templates | 0 | 8 | Edit Order Complete template (UI) | Email body | [Email templates](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/customizing-email-templates) | Yes, without P7 |
-| 4.3.1 | Python generated options | 5 | 4, 8 | POC Server's `poc_application_tier` | Dropdown contents | [Generated options](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/options-generated-using-orchestration-actions) | No |
-| 4.3.2 | PowerShell build item | 4 | 8 | POC Server on a Windows OS build | Job output | [Remote scripts](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/remote-scripts) | Yes, when no Windows image |
-| 4.3.3 | Bash build item | 4 | 8 | POC Server on a Linux OS build | Job output | [Remote scripts](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/remote-scripts) | Yes, when no Linux image |
+| 4.3.1 | Python generated options | 5 | 4, 8 | Standard Server's `application` and `maintenance_window` | Dropdown contents | [Generated options](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/options-generated-using-orchestration-actions) | No |
+| 4.3.2 | PowerShell build item | 4 | 8 | Standard Server on a Windows OS build | Job output | [Remote scripts](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/remote-scripts) | Yes, when no Windows image |
+| 4.3.3 | Bash build item | 4 | 8 | Standard Server on a Linux OS build | Job output | [Remote scripts](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/remote-scripts) | Yes, when no Linux image |
 | 4.3.4 | Terraform-backed blueprint | 0 | 8 | Terraform blueprint | Plan and apply logs | [Terraform](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/terraform-integration-through-cmp-blueprints) | Yes, weight 0 |
 | 4.3.5 | Ansible Automation Platform | 0 | 8 | AAP configuration manager | Job template run | [AAP](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/ansible-automation-platform) | Yes, weight 0 |
 

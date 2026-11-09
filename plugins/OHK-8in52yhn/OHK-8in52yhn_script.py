@@ -1,5 +1,5 @@
 """
-POC Onboarding: User (MCP Tool Action plugin).
+Onboarding: User (MCP Tool Action plugin).
 
 Assigns roles in a group to a POC user (a requestor, an approver, a
 resource admin) without ever handling a password. A user that does not exist

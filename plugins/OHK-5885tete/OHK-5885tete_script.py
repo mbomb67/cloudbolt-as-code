@@ -1,5 +1,5 @@
 """
-POC Onboarding: Set Item Status (MCP Tool Action plugin).
+Onboarding: Set Item Status (MCP Tool Action plugin).
 
 Records the state of one POC test plan item or prerequisite: done, skipped,
 not_applicable or pending, with a note saying why. A customer who cannot use
@@ -126,8 +126,8 @@ def _state_field(create=False):
     field, _ = CustomField.objects.get_or_create(
         name=STATE_FIELD,
         defaults=dict(
-            label="POC Onboarding State",
-            description="State recorded by the POC onboarding MCP tools: item statuses, handler verify results, install details.",
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
             type="TXT",
             namespace=namespace,
         ),

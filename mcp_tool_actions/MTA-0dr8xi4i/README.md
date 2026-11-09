@@ -1,13 +1,13 @@
-# POC Onboarding: Import OS Build
+# Onboarding: Import OS Build
 
 MCP Tool Action published to agents as `custom_onb_import_os_build`. Lists a handler's cached images for a location or imports one (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing a build of the same name so one build spans handlers, refreshing an empty cache without the whitelist, and attaching the build to the environments.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-0dr8xi4i | POC Onboarding: Import OS Build |
-| Plugin | [OHK-k2p8ll4p](../../plugins/OHK-k2p8ll4p/) | POC Onboarding: Import OS Build |
+| MCP Tool Action | MTA-0dr8xi4i | Onboarding: Import OS Build |
+| Plugin | [OHK-k2p8ll4p](../../plugins/OHK-k2p8ll4p/) | Onboarding: Import OS Build |
 
 ## Inputs
 | Input | Type | Meaning |

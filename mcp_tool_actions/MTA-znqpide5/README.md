@@ -1,13 +1,13 @@
-# POC Onboarding: Install Content Library Item
+# Onboarding: Install Content Library Item
 
 MCP Tool Action published to agents as `custom_onb_install_content_library_item`. Lists a Content Library collection or downloads one item from content.cloudbolt.app and imports it the way the library page does, for UI extensions, recurring jobs, server and resource actions, rules and blueprints.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-znqpide5 | POC Onboarding: Install Content Library Item |
-| Plugin | [OHK-kst5rkhi](../../plugins/OHK-kst5rkhi/) | POC Onboarding: Install Content Library Item |
+| MCP Tool Action | MTA-znqpide5 | Onboarding: Install Content Library Item |
+| Plugin | [OHK-kst5rkhi](../../plugins/OHK-kst5rkhi/) | Onboarding: Install Content Library Item |
 
 ## Inputs
 | Input | Type | Meaning |

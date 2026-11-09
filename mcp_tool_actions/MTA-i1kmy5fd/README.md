@@ -1,13 +1,13 @@
-# POC Onboarding: Configure Custom Server
+# Onboarding: Configure Custom Server
 
 MCP Tool Action published to agents as `custom_onb_configure_custom_server`. Makes the shipped Custom Server blueprint orderable for the POC: recreates it when missing, activates it, enables every environment on its server tier, and sets a hostname template on the tier or on the listed environments.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-i1kmy5fd | POC Onboarding: Configure Custom Server |
-| Plugin | [OHK-ilstyopk](../../plugins/OHK-ilstyopk/) | POC Onboarding: Configure Custom Server |
+| MCP Tool Action | MTA-i1kmy5fd | Onboarding: Configure Custom Server |
+| Plugin | [OHK-ilstyopk](../../plugins/OHK-ilstyopk/) | Onboarding: Configure Custom Server |
 
 ## Inputs
 | Input | Type | Meaning |

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Install Content Library Item (MCP Tool Action plugin).
+Onboarding: Install Content Library Item (MCP Tool Action plugin).
 
 Downloads an item from CloudBolt's Content Library (content.cloudbolt.app)
 and imports it, the way the library page does, so the POC can add the

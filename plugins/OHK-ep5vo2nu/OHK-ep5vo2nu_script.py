@@ -1,5 +1,5 @@
 """
-POC Onboarding: Failed Servers (MCP Tool Action plugin).
+Onboarding: Failed Servers (MCP Tool Action plugin).
 
 Lists the servers left in Provision Failed state by orders that did not
 clean up after themselves (fetch_server_list only shows active servers, so

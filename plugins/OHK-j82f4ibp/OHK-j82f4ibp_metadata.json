@@ -26,7 +26,7 @@
     "description": "Runs an LDAP utility's Verify Connection and returns the real bind or search error with a hint and the links to fix it.",
     "id": "OHK-j82f4ibp",
     "max_retries": 0,
-    "name": "POC Onboarding: Verify LDAP",
+    "name": "Onboarding: Verify LDAP",
     "resource_technologies": [],
     "script_filename": "OHK-j82f4ibp_script.py",
     "shared": false,

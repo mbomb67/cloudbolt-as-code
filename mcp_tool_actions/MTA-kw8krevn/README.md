@@ -1,13 +1,13 @@
-# POC Onboarding: Verify LDAP
+# Onboarding: Verify LDAP
 
 MCP Tool Action published to agents as `custom_onb_verify_ldap`. Runs an LDAP utility's Verify Connection and returns the real bind or search error with a hint and the links to fix it.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-kw8krevn | POC Onboarding: Verify LDAP |
-| Plugin | [OHK-j82f4ibp](../../plugins/OHK-j82f4ibp/) | POC Onboarding: Verify LDAP |
+| MCP Tool Action | MTA-kw8krevn | Onboarding: Verify LDAP |
+| Plugin | [OHK-j82f4ibp](../../plugins/OHK-j82f4ibp/) | Onboarding: Verify LDAP |
 
 ## Inputs
 | Input | Type | Meaning |

@@ -46,7 +46,7 @@
     "enabled": true,
     "id": "MTA-89dxppus",
     "is_synchronous": false,
-    "label": "POC Onboarding: Handler Locations",
+    "label": "Onboarding: Handler Locations",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

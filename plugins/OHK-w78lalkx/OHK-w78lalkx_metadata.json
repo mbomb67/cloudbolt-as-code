@@ -4,7 +4,7 @@
     "description": "Returns the posted JSON or query fields with the calling user and the time, proving a synchronous authenticated call into CloudBolt.",
     "id": "OHK-w78lalkx",
     "max_retries": 0,
-    "name": "POC Echo",
+    "name": "Echo",
     "resource_technologies": [],
     "script_filename": "OHK-w78lalkx_script.py",
     "shared": false,

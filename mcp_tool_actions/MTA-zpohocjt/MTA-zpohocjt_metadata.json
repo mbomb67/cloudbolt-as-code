@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-zpohocjt",
     "is_synchronous": true,
-    "label": "POC Onboarding: UI Link",
+    "label": "Onboarding: UI Link",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

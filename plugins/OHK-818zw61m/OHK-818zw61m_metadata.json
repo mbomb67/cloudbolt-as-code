@@ -5,7 +5,7 @@
     "execution_timeout": 600,
     "id": "OHK-818zw61m",
     "max_retries": 0,
-    "name": "POC Hello World (Linux)",
+    "name": "Hello World (Linux)",
     "remove_after_run": true,
     "resource_technologies": [],
     "run_with_sudo": false,

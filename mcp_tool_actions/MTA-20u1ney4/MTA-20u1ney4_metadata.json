@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-20u1ney4",
     "is_synchronous": false,
-    "label": "POC Onboarding: Environment Networks",
+    "label": "Onboarding: Environment Networks",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

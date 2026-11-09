@@ -10,7 +10,7 @@
             "description": "",
             "environment_selection_orchestration": null,
             "execute_in_parallel": false,
-            "hostname_template": "poc-{{ group.name|lower|slice:\":3\" }}-{{ os_family.get_base_name|lower|first }}-00X",
+            "hostname_template": "srv-{{ group.name|lower|slice:\":3\" }}-{{ os_family.get_base_name|lower|first }}-00X",
             "id": "BDI-on6ut7bd",
             "name": "Server",
             "os_build": null,
@@ -20,7 +20,7 @@
             "tier_type": "server"
         },
         {
-            "action_name": "POC Hello World (Linux)",
+            "action_name": "Hello World (Linux)",
             "continue_on_failure": true,
             "dependencies": {
                 "hook": "plugins/OHK-818zw61m"
@@ -30,14 +30,14 @@
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-scs7x6ha",
-            "name": "POC Hello World (Linux)",
+            "name": "Hello World (Linux)",
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": false,
             "tier_type": "script"
         },
         {
-            "action_name": "POC Hello World (Windows)",
+            "action_name": "Hello World (Windows)",
             "continue_on_failure": true,
             "dependencies": {
                 "hook": "plugins/OHK-u7j8o0vm"
@@ -47,7 +47,7 @@
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-jm8jq828",
-            "name": "POC Hello World (Windows)",
+            "name": "Hello World (Windows)",
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": false,
@@ -55,22 +55,22 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Deploys one server into any environment, runs a Hello World script inside the guest (Bash on Linux, PowerShell on Windows) and asks for an application tier whose options come from Python, covering the POC test plan's post-provisioning, in-guest scripting and generated-options items.",
+    "description": "Deploys one server into any environment, runs a Hello World script inside the guest (Bash on Linux, PowerShell on Windows) and asks for the application and maintenance window, whose options come from Python.",
     "favorited": false,
-    "icon": null,
+    "icon": "standard_server.png",
     "id": "BP-x78p48gz",
     "is_orderable": true,
     "labels": [],
-    "last_updated": "2026-10-19",
+    "last_updated": "2026-11-09",
     "management_actions": [],
     "metadata_version": "2026.1.0",
-    "name": "POC Server",
+    "name": "Standard Server",
     "parameters": [
         {
             "allow_multiple": false,
             "available_all_servers": false,
             "constraints": "Unconstrained",
-            "description": "Tier of the application this server belongs to; the choices come from the Generate options for 'POC Application Tier' action.",
+            "description": "Business application this server belongs to; the choices come from the Generate options for 'Application' action.",
             "destination": "Build Items",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
@@ -80,13 +80,43 @@
                         "orchestration_hook": "orchestration_actions/HPA-2ud31gkx"
                     },
                     "enabled": true,
-                    "name": "Generate options for 'POC Application Tier'"
+                    "name": "Generate options for 'Application'"
                 }
             ],
             "global_options": [],
-            "id": "CF-lmts2eoj",
-            "label": "POC Application Tier",
-            "name": "poc_application_tier",
+            "id": "CF-15yw228m",
+            "label": "Application",
+            "name": "application",
+            "options": [],
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": true,
+            "show_on_servers": true,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Weekly window when the server may be patched and rebooted; the choices come from the Generate options for 'Maintenance Window' action.",
+            "destination": "Build Items",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "gen_options_hooks": [
+                {
+                    "dependencies": {
+                        "orchestration_hook": "orchestration_actions/HPA-onelxnkw"
+                    },
+                    "enabled": true,
+                    "name": "Generate options for 'Maintenance Window'"
+                }
+            ],
+            "global_options": [],
+            "id": "CF-cei72k8x",
+            "label": "Maintenance Window",
+            "name": "maintenance_window",
             "options": [],
             "placeholder": null,
             "relevant_osfamilies": [],

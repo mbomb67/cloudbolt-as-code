@@ -66,7 +66,7 @@
     "description": "Fills a resource handler's image cache now without the image whitelist and enables the recurring job and rule that keep it fresh, so the image pickers and onb_import_os_build see every image the credentials can.",
     "id": "OHK-bbhlwspa",
     "max_retries": 0,
-    "name": "POC Onboarding: Sync Images",
+    "name": "Onboarding: Sync Images",
     "resource_technologies": [],
     "script_filename": "OHK-bbhlwspa_script.py",
     "shared": false,

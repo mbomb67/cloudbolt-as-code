@@ -1,13 +1,13 @@
-# POC Onboarding: Recent Errors
+# Onboarding: Recent Errors
 
 MCP Tool Action published to agents as `custom_onb_recent_errors`. Reads the tail of a CloudBolt log and returns the recent WARNING-and-above entries grouped by exception and message, secrets redacted, each group with a hint for the failures a new appliance hits most.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-hwg74btd | POC Onboarding: Recent Errors |
-| Plugin | [OHK-4vwq70dg](../../plugins/OHK-4vwq70dg/) | POC Onboarding: Recent Errors |
+| MCP Tool Action | MTA-hwg74btd | Onboarding: Recent Errors |
+| Plugin | [OHK-4vwq70dg](../../plugins/OHK-4vwq70dg/) | Onboarding: Recent Errors |
 
 ## Inputs
 | Input | Type | Meaning |

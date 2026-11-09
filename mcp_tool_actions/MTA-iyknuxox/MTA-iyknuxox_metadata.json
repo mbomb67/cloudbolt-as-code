@@ -103,7 +103,7 @@
     "enabled": true,
     "id": "MTA-iyknuxox",
     "is_synchronous": true,
-    "label": "POC Onboarding: Trim Environment Order Form",
+    "label": "Onboarding: Trim Environment Order Form",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

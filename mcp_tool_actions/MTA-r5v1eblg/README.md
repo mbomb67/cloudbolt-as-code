@@ -1,13 +1,13 @@
-# POC Onboarding: Verify Resource Handler
+# Onboarding: Verify Resource Handler
 
 MCP Tool Action published to agents as `custom_onb_verify_resource_handler`. Runs a resource handler's Verify Connection and returns the real exception text with a technology-specific hint, the minimum-permissions document and the handler's edit and verify links, recording the result for the status tool.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-r5v1eblg | POC Onboarding: Verify Resource Handler |
-| Plugin | [OHK-s7cdvkpr](../../plugins/OHK-s7cdvkpr/) | POC Onboarding: Verify Resource Handler |
+| MCP Tool Action | MTA-r5v1eblg | Onboarding: Verify Resource Handler |
+| Plugin | [OHK-s7cdvkpr](../../plugins/OHK-s7cdvkpr/) | Onboarding: Verify Resource Handler |
 
 ## Inputs
 | Input | Type | Meaning |

@@ -46,7 +46,7 @@
     "enabled": true,
     "id": "MTA-bp0rkcq9",
     "is_synchronous": true,
-    "label": "POC Onboarding: Action Approval",
+    "label": "Onboarding: Action Approval",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

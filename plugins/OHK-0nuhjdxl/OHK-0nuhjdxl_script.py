@@ -1,5 +1,5 @@
 """
-POC Onboarding: Handler Locations (MCP Tool Action plugin).
+Onboarding: Handler Locations (MCP Tool Action plugin).
 
 Lists what a resource handler can turn into environments: AWS regions (and
 the VPCs of one region when onb_region is given), Azure locations, vCenter

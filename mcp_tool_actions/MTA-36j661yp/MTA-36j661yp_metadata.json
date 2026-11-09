@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-36j661yp",
     "is_synchronous": true,
-    "label": "POC Onboarding: Failed Servers",
+    "label": "Onboarding: Failed Servers",
     "last_updated": null,
     "mcp_destructive_hint": true,
     "mcp_idempotent_hint": false,

@@ -1,13 +1,13 @@
-# POC Onboarding: Failed Servers
+# Onboarding: Failed Servers
 
 MCP Tool Action published to agents as `custom_onb_failed_servers`. Lists servers left in Provision Failed state by failed orders and deletes the ones named, removing their VMs from the cloud when they exist.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-36j661yp | POC Onboarding: Failed Servers |
-| Plugin | [OHK-ep5vo2nu](../../plugins/OHK-ep5vo2nu/) | POC Onboarding: Failed Servers |
+| MCP Tool Action | MTA-36j661yp | Onboarding: Failed Servers |
+| Plugin | [OHK-ep5vo2nu](../../plugins/OHK-ep5vo2nu/) | Onboarding: Failed Servers |
 
 ## Inputs
 | Input | Type | Meaning |

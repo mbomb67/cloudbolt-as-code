@@ -1,5 +1,5 @@
 """
-POC Onboarding: UI Link (MCP Tool Action plugin).
+Onboarding: UI Link (MCP Tool Action plugin).
 
 Turns a CloudBolt global id (RH-, ENV-, GRP-, USR-, BP-, ORD-, JOB-, SVR-,
 RSC-, MTA-, ...) or a named admin page into an absolute UI link, so the agent

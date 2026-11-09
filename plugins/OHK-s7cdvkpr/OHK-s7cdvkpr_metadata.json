@@ -26,7 +26,7 @@
     "description": "Runs a resource handler's Verify Connection and returns the real exception text with a technology-specific hint, the minimum-permissions document and the handler's edit and verify links, recording the result for the status tool.",
     "id": "OHK-s7cdvkpr",
     "max_retries": 0,
-    "name": "POC Onboarding: Verify Resource Handler",
+    "name": "Onboarding: Verify Resource Handler",
     "resource_technologies": [],
     "script_filename": "OHK-s7cdvkpr_script.py",
     "shared": false,

@@ -66,7 +66,7 @@
     "description": "Lists the networks an environment can offer on its first NIC and makes the chosen ones, up to five, its only NIC 1 choices, removing networks from every other NIC.",
     "id": "OHK-0u7aonmo",
     "max_retries": 0,
-    "name": "POC Onboarding: Environment Networks",
+    "name": "Onboarding: Environment Networks",
     "resource_technologies": [],
     "script_filename": "OHK-0u7aonmo_script.py",
     "shared": false,

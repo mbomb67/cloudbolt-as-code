@@ -66,7 +66,7 @@
     "description": "Lists a Content Library collection or downloads one item from content.cloudbolt.app and imports it the way the library page does, for UI extensions, recurring jobs, server and resource actions, rules and blueprints.",
     "id": "OHK-kst5rkhi",
     "max_retries": 0,
-    "name": "POC Onboarding: Install Content Library Item",
+    "name": "Onboarding: Install Content Library Item",
     "resource_technologies": [],
     "script_filename": "OHK-kst5rkhi_script.py",
     "shared": false,

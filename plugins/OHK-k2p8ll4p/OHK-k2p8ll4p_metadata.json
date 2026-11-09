@@ -126,7 +126,7 @@
     "description": "Lists a handler's cached images for a location or imports one (AWS AMI, Azure marketplace image, vCenter template) into an OS build, reusing a build of the same name so one build spans handlers, refreshing an empty cache without the whitelist, and attaching the build to the environments.",
     "id": "OHK-k2p8ll4p",
     "max_retries": 0,
-    "name": "POC Onboarding: Import OS Build",
+    "name": "Onboarding: Import OS Build",
     "resource_technologies": [],
     "script_filename": "OHK-k2p8ll4p_script.py",
     "shared": false,

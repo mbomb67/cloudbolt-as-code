@@ -1,10 +1,10 @@
 ---
-name: cb-poc-onboarding
+name: cb-onboarding
 description: Walk a customer from a freshly deployed CloudBolt appliance to one that passes the CloudBolt POC Test Plan, over the CloudBolt MCP server. Reads status, hands the user a direct UI link for every step that involves a secret, verifies resource handlers and reads the appliance's own logs when something fails, imports environments and images, trims the order form, creates groups, users, parameters and mappings, drives the Custom Server order through MCP, records each test-plan item as done or not applicable, and reports a scorecard.
 when_to_use: When the user says "onboard CloudBolt", "set up CloudBolt for a POC", "get this appliance ready", "connect my first cloud", "why did my resource handler fail", "walk me through the POC test plan", or asks for the next step on a new CloudBolt instance. Also when a CloudBolt MCP server is connected and the user asks what is configured. Not for authoring content (the cb-scaffold-* skills) or for testing content changes (cb-test-content).
 ---
 
-# cb-poc-onboarding
+# cb-onboarding
 
 Take a new CloudBolt appliance through the POC Test Plan with the connected CloudBolt MCP server. The procedure is tool-neutral: every step is an MCP tool call, a link the user opens, or a question. Any agent with the same MCP connection can follow it; clients without skill support get this text from the `onb_playbook` tool.
 
@@ -26,7 +26,7 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
 5. **Echo and confirm every write.** Before a tool that changes the appliance or orders infrastructure, state what will change and wait for a clear yes. For `order_catalog_item` follow the server's echo-and-confirm text verbatim. `onb_remove_environment` is destructive: name the environment and get an explicit yes.
 6. **Every step is skippable.** When the customer cannot or does not want to do an item (no SMTP, no LDAP, no SSO, no DNS record, no Terraform or Ansible), offer to skip it, record it with `onb_set_item_status` as `not_applicable` with the reason, and move on. The scorecard reports it as not applicable, never as failed.
 7. **Record progress.** When an item's evidence exists (a successful order, a verified handler, a user who logged in), record it `done` with `onb_set_item_status`. The scorecard is built from these records plus live evidence.
-8. **Scope is the test plan.** Up to two resource handlers, one environment each, the Custom Server and POC Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
+8. **Scope is the test plan.** Up to two resource handlers, one environment each, the Custom Server and Standard Server blueprints, the test-plan items. Anything more is a follow-up to propose at the end, not a step.
 9. **Two response shapes.** A synchronous tool answers inline: read `outputs`. An asynchronous tool answers `{"success": true, "ids": ["JOB-..."]}`: poll `fetch_job` (or `fetch_job_log`) on that id every five seconds and read its `outputs`. The asynchronous tools are the ones that call a cloud, a directory, a mail relay or the internet: `onb_verify_resource_handler`, `onb_sync_images`, `onb_handler_locations`, `onb_import_environments`, `onb_environment_networks`, `onb_network_addressing`, `onb_import_os_build`, `onb_verify_ldap`, `onb_smtp_test`, `onb_install_content_library_item`, `onb_install`. Start the long ones (`onb_sync_images`) and keep working; check them before the step that needs their result. If any other tool answers with a job id, `onb_install` has not run; run it and tell the user to reconnect the client.
 10. **Reconnect after install.** Tool lists are cached per client session. After `onb_install` changes anything, the user reconnects the MCP client before the next phase.
 11. **Links, not hostnames.** Every URL comes from a tool. Never compose an appliance URL from memory.
@@ -53,7 +53,7 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
 
 Built-in CloudBolt MCP tools used here: `fetch_identity`, `fetch_dashboard_link`, `fetch_catalog_items`, `fetch_orderable_groups`, `fetch_blueprint_schema`, `fetch_orderable_environments`, `fetch_blueprint_item_parameters`, `fetch_blueprint_parameter_options`, `order_catalog_item`, `fetch_order`, `fetch_orders_pending_my_approval`, `approve_order`, `fetch_job`, `fetch_server_list`, `fetch_server_actions`, `run_server_action`, `fetch_groups`, `fetch_group_details`, `fetch_environment_list`, `fetch_environment_details`, `set_server_power_schedule`, `fetch_server_power_schedule`.
 
-Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they appear as first-class tools, otherwise `run_mcp_tool_action(mcp_tool_name, parameters)`):
+Toolkit tools (the Onboarding Toolkit package; `custom_` prefix when they appear as first-class tools, otherwise `run_mcp_tool_action(mcp_tool_name, parameters)`):
 
 | Phase | Tool | Mode | Use it to |
 |---|---|---|---|
@@ -86,7 +86,7 @@ Toolkit tools (the POC Onboarding Toolkit package; `custom_` prefix when they ap
 | 8 | `onb_install_content_library_item` | async | List a Content Library collection or install one item |
 | 8 | `onb_cit_from_order` | sync | Turn a finished order into a CIT test |
 | 9 | `onb_scorecard` | sync | The test plan with recorded statuses, live evidence and points |
-| 8 | `sync_from_source_control_repo`, `fetch_job_log`, `manage_blueprint_permissions`, `run_recurring_job`, `run_cit_tests` | sync | Reused from the testing toolkit: sync the POC Server blueprint and echo webhook, read a job's log, restore blueprint entitlements, run a recurring job or CIT test |
+| 8 | `sync_from_source_control_repo`, `fetch_job_log`, `manage_blueprint_permissions`, `run_recurring_job`, `run_cit_tests` | sync | Reused from the testing toolkit: sync the Standard Server blueprint and echo webhook, read a job's log, restore blueprint entitlements, run a recurring job or CIT test |
 
 ## The loop
 
@@ -110,7 +110,7 @@ For every phase:
 | 5 RBAC and governance | Groups, roles, users, entitlements, approvals, quota | phases.md |
 | 6 Authentication | LDAP, LDAP mapping, SSO, branded portal | phases.md |
 | 7 Lifecycle | Power schedule, expiration, decommission, onboarding discovered servers | phases.md |
-| 8 Extensibility | Content Library items, POC Server blueprint with scripts and generated options, webhook, recurring job, rule, CIT | phases.md |
+| 8 Extensibility | Content Library items, Standard Server blueprint with scripts and generated options, webhook, recurring job, rule, CIT | phases.md |
 | 9 Wrap-up | Scorecard from recorded items and live evidence | phases.md |
 
 ## Wrap-up report

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Import Environments (MCP Tool Action plugin).
+Onboarding: Import Environments (MCP Tool Action plugin).
 
 Creates one environment per listed location on a resource handler, the
 same way the handler page's Import locations dialog does

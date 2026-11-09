@@ -1,5 +1,5 @@
 """
-POC Onboarding: SMTP Settings (MCP Tool Action plugin).
+Onboarding: SMTP Settings (MCP Tool Action plugin).
 
 Sets the non-secret email settings (host, port, user, TLS, from address,
 CloudBolt admin email, email on order completion) and returns the link to

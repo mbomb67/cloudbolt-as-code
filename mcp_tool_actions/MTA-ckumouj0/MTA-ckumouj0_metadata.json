@@ -46,7 +46,7 @@
     "enabled": true,
     "id": "MTA-ckumouj0",
     "is_synchronous": true,
-    "label": "POC Onboarding: CIT Test from Order",
+    "label": "Onboarding: CIT Test from Order",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

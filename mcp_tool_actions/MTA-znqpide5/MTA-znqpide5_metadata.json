@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-znqpide5",
     "is_synchronous": false,
-    "label": "POC Onboarding: Install Content Library Item",
+    "label": "Onboarding: Install Content Library Item",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Scorecard (MCP Tool Action plugin).
+Onboarding: Scorecard (MCP Tool Action plugin).
 
 Builds the POC Test Plan scorecard: every item with its weight, the status
 recorded with onb_set_item_status, and the live evidence on the appliance
@@ -172,8 +172,8 @@ def _ev_1_1_3():
     from servicecatalog.models import RunRemoteScriptHookServiceItem, ServiceBlueprint
 
     scripts = RunRemoteScriptHookServiceItem.objects.filter(blueprint__status="ACTIVE").count()
-    bps = ServiceBlueprint.objects.filter(status="ACTIVE", name="POC Server").count()
-    return _ev(scripts, "{} remote-script build item(s) on active blueprints; POC Server blueprint present: {}".format(scripts, bool(bps)))
+    bps = ServiceBlueprint.objects.filter(status="ACTIVE", global_id="BP-x78p48gz").count()
+    return _ev(scripts, "{} remote-script build item(s) on active blueprints; Standard Server blueprint present: {}".format(scripts, bool(bps)))
 
 
 def _ev_1_1_4():

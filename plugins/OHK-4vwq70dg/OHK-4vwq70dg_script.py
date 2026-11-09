@@ -1,5 +1,5 @@
 """
-POC Onboarding: Recent Errors (MCP Tool Action plugin).
+Onboarding: Recent Errors (MCP Tool Action plugin).
 
 Reads the tail of a CloudBolt log (application, jobengine, authentication,
 mcp, saml2) and returns the WARNING-and-above entries of the last N minutes

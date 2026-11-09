@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-zfoxwh12",
     "is_synchronous": true,
-    "label": "POC Onboarding: Scorecard",
+    "label": "Onboarding: Scorecard",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

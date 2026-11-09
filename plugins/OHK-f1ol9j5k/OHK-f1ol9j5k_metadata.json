@@ -1,8 +1,8 @@
 {
-    "description": "Fills the POC Application Tier dropdown from Python (web, app, db), dropping the database tier for production groups, to show Python-backed parameter options.",
+    "description": "Fills the Application dropdown from Python with a list of business applications, to show Python-backed parameter options.",
     "id": "OHK-f1ol9j5k",
     "max_retries": 0,
-    "name": "Generate options for 'POC Application Tier'",
+    "name": "Generate options for 'Application'",
     "resource_technologies": [],
     "script_filename": "OHK-f1ol9j5k_script.py",
     "shared": false,

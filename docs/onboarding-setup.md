@@ -1,6 +1,6 @@
-# POC Onboarding — Setup
+# Onboarding — Setup
 
-Get an AI agent ready to take a new CloudBolt appliance through the POC Test Plan. After these steps the agent does the rest: it reads what is configured, sends you a link for every step that needs a password or key, verifies each resource handler, reads the appliance's own logs when something fails, orders the Custom Server blueprint through MCP, and keeps the scorecard. The procedure the agent follows is [.claude/skills/cb-poc-onboarding/SKILL.md](../.claude/skills/cb-poc-onboarding/SKILL.md); agents without skill support fetch the same text with the `onb_playbook` tool.
+Get an AI agent ready to take a new CloudBolt appliance through the POC Test Plan. After these steps the agent does the rest: it reads what is configured, sends you a link for every step that needs a password or key, verifies each resource handler, reads the appliance's own logs when something fails, orders the Custom Server blueprint through MCP, and keeps the scorecard. The procedure the agent follows is [.claude/skills/cb-onboarding/SKILL.md](../.claude/skills/cb-onboarding/SKILL.md); agents without skill support fetch the same text with the `onb_playbook` tool.
 
 ## 1. Appliance
 
@@ -113,8 +113,8 @@ The toolkit installs through the Content Package Manager, a UI extension from th
    systemctl restart httpd
    ```
 
-4. **Import the package.** Admin > Admin Extensions > **Content Packages** > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **POC Onboarding Toolkit** (`PKG-8aaadefz`) under Packages on this branch, then **Import**.
-5. **Sync it.** The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**. Each member syncs as its own job: the MCP tools, the POC Server blueprint and the POC Echo webhook. The package's Last sync shows the result.
+4. **Import the package.** Admin > Admin Extensions > **Content Packages** > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **Onboarding Toolkit** (`PKG-8aaadefz`) under Packages on this branch, then **Import**.
+5. **Sync it.** The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**. Each member syncs as its own job: the MCP tools, the Standard Server blueprint and the Echo webhook. The package's Last sync shows the result.
 
 ## 5. Finish the install
 
@@ -122,13 +122,13 @@ Ask the agent: "Run onb_install and tell me what changed." The importer leaves S
 
 ## 6. Start
 
-In Claude Code, started in the `cloudbolt-as-code` folder, run `/cb-poc-onboarding` or say "Onboard CloudBolt for a POC". Have the [POC Test Plan](https://docs.cloudbolt.io) prerequisites at hand: the licence, the two clouds you will connect, credentials with the minimum permissions for each (the agent never asks for them; it sends you to the page where they are entered), and whether SMTP, LDAP, SSO or a DNS record for a branded portal are available. Anything that is not available is recorded as not applicable, not as a failure.
+In Claude Code, started in the `cloudbolt-as-code` folder, run `/cb-onboarding` or say "Onboard CloudBolt for a POC". Have the [POC Test Plan](https://docs.cloudbolt.io) prerequisites at hand: the licence, the two clouds you will connect, credentials with the minimum permissions for each (the agent never asks for them; it sends you to the page where they are entered), and whether SMTP, LDAP, SSO or a DNS record for a branded portal are available. Anything that is not available is recorded as not applicable, not as a failure.
 
 ## 7. Updating the toolkit
 
 Sync uses the member list saved at import, so import the package again first; that picks up tools added since.
 
-1. Admin > Admin Extensions > Content Packages > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **POC Onboarding Toolkit**, then **Import**. The message says the package was updated from the repository.
+1. Admin > Admin Extensions > Content Packages > **Import from repository**. Choose `CloudBolt as Code` and branch `main`, select **Onboarding Toolkit**, then **Import**. The message says the package was updated from the repository.
 2. The Sync dialog opens next. Keep the same repository and branch, check **Refresh content that already exists**, and click **Sync**.
 3. Ask the agent to run `onb_install`, then reconnect the MCP client so it lists the new tools.
 
@@ -139,7 +139,7 @@ Sync uses the member list saved at import, so import the package again first; th
 | `self signed certificate in certificate chain` when connecting | Claude does not trust the appliance's certificate | Section 2: replace it, set `NODE_EXTRA_CA_CERTS`, restart Claude |
 | `does not match certificate's altnames` or `ERR_TLS_CERT_ALTNAME_INVALID` | The address in the MCP URL is not in the certificate | Regenerate it with that IP or DNS name (section 2, option 1), or connect with the name the certificate carries |
 | `/mcp` does not list `cloudbolt` | The server was added without `--scope user`, from another folder | `claude mcp remove cloudbolt` in that folder, then add it again with `--scope user` (section 3) |
-| `/cb-poc-onboarding` is not available | Claude Code was started outside the repository folder | Start `claude` in the `cloudbolt-as-code` folder |
+| `/cb-onboarding` is not available | Claude Code was started outside the repository folder | Start `claude` in the `cloudbolt-as-code` folder |
 | A tool is missing from the agent's list | Cached tool list, or not imported | Reconnect the client; check Actions > MCP Tool Actions |
 | Content Packages page missing or returns an error after the extension sync | The web server has not loaded the extension's URL paths | `systemctl restart httpd` as root on the appliance |
 | Every custom tool fails with a scope error | Token has `read` only | Reconnect and grant `write` |

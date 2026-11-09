@@ -1,5 +1,5 @@
 """
-POC Onboarding: Environment Networks (MCP Tool Action plugin).
+Onboarding: Environment Networks (MCP Tool Action plugin).
 
 Lists the networks an environment can offer on its first NIC and, when
 onb_networks names up to five, makes exactly those the NIC 1 choices on the

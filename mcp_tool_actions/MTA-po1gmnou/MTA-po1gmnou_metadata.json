@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-po1gmnou",
     "is_synchronous": false,
-    "label": "POC Onboarding: Sync Images",
+    "label": "Onboarding: Sync Images",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

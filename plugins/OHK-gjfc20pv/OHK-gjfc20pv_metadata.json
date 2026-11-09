@@ -206,7 +206,7 @@
     "description": "Sets how servers on a network get their IP address (DHCP, static with gateway and netmask, a CloudBolt IP pool, an IPAM endpoint, or an IP typed per order) and verifies it with the network's IP provider.",
     "id": "OHK-gjfc20pv",
     "max_retries": 0,
-    "name": "POC Onboarding: Network Addressing",
+    "name": "Onboarding: Network Addressing",
     "resource_technologies": [],
     "script_filename": "OHK-gjfc20pv_script.py",
     "shared": false,

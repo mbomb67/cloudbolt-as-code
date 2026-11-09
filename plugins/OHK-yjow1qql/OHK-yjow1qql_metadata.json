@@ -46,7 +46,7 @@
     "description": "Turns a finished blueprint order into a Continuous Infrastructure Testing test, the same as the order page's Add to CIT action.",
     "id": "OHK-yjow1qql",
     "max_retries": 0,
-    "name": "POC Onboarding: CIT Test from Order",
+    "name": "Onboarding: CIT Test from Order",
     "resource_technologies": [],
     "script_filename": "OHK-yjow1qql_script.py",
     "shared": false,

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Sync Images (MCP Tool Action plugin).
+Onboarding: Sync Images (MCP Tool Action plugin).
 
 Fills a resource handler's image cache now, without the image whitelist,
 and turns on the recurring job and rule that keep it fresh, with their

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Verify Resource Handler (MCP Tool Action plugin).
+Onboarding: Verify Resource Handler (MCP Tool Action plugin).
 
 Calls the handler's own Verify Connection and returns the real exception
 text, which the UI form replaces with "Unable to connect to handler with
@@ -131,8 +131,8 @@ def _state_field(create=False):
     field, _ = CustomField.objects.get_or_create(
         name=STATE_FIELD,
         defaults=dict(
-            label="POC Onboarding State",
-            description="State recorded by the POC onboarding MCP tools: item statuses, handler verify results, install details.",
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
             type="TXT",
             namespace=namespace,
         ),

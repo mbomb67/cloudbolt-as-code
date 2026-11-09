@@ -1,5 +1,5 @@
 """
-POC Onboarding: Configure Custom Server (MCP Tool Action plugin).
+Onboarding: Configure Custom Server (MCP Tool Action plugin).
 
 Makes the shipped Custom Server blueprint orderable for the POC: recreates
 it when it is missing, activates it, opens it to every environment (or the
