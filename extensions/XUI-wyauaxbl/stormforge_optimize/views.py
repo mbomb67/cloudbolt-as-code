@@ -1554,9 +1554,17 @@ def _containers(detail, recommendation, categories):
     pod_totals = {"cur_cpu": 0.0, "rec_cpu": 0.0, "cur_mem": 0.0, "rec_mem": 0.0, "use_cpu": 0.0, "use_mem": 0.0,
                   "cur_cpu_lim": 0.0, "rec_cpu_lim": 0.0, "cur_mem_lim": 0.0, "rec_mem_lim": 0.0}
     seen_usage = False
+    def no_zero_limit(side):
+        # StormForge reports "no limit" as a limit of 0.
+        side = dict(side or {})
+        for key in ("currentLimits", "recommendedLimits"):
+            if _quantity(side.get(key)) == 0:
+                side[key] = ""
+        return side
+
     for container in detail.get("containers") or []:
-        cpu = container.get("cpu") or {}
-        memory = container.get("memory") or {}
+        cpu = no_zero_limit(container.get("cpu"))
+        memory = no_zero_limit(container.get("memory"))
         values = {
             "cur_cpu": _quantity(cpu.get("currentRequests")), "rec_cpu": _quantity(cpu.get("recommendedRequests")),
             "cur_cpu_lim": _quantity(cpu.get("currentLimits")), "rec_cpu_lim": _quantity(cpu.get("recommendedLimits")),

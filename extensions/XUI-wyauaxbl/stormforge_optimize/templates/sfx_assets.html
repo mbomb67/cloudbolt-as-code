@@ -170,24 +170,31 @@
   var TABLE_KEYS = ["q", "sort", "dir", "offset", "limit", "ns", "filterable"];
   var sfx = window.sfx = { roots: {}, urls: {}, icon: "" };
 
+  // CloudBolt's tab bar keeps a second copy of every tab link in its "More"
+  // overflow menu, so labels and listeners go on every copy.
+  function tabLinks(id) {
+    return Array.prototype.slice.call(document.querySelectorAll(
+      '.nav-link[data-bs-target="#' + id + '"], .nav-link[href="#' + id + '"], .dropdown-item[href="#' + id + '"]'));
+  }
   function tabLink(id) {
-    return document.querySelector('.nav-link[data-bs-target="#' + id + '"]') ||
-      document.querySelector('.nav-link[href="#' + id + '"]');
+    var links = tabLinks(id);
+    return links.filter(function (l) { return l.offsetParent !== null; })[0] || links[0];
   }
   function relabel(id, label) {
-    var link = tabLink(id);
-    if (!link || link.getAttribute("data-sfx-labelled")) { return; }
-    link.setAttribute("data-sfx-labelled", "1");
-    link.textContent = "";
-    var img = document.createElement("img");
-    img.src = sfx.icon;
-    img.alt = "";
-    img.width = 16;
-    img.height = 16;
-    img.style.cssText = "border-radius:3px;vertical-align:-3px;margin-right:6px;";
-    link.appendChild(img);
-    link.appendChild(document.createTextNode(label));
-    link.title = "StormForge " + label;
+    tabLinks(id).forEach(function (link) {
+      if (link.getAttribute("data-sfx-labelled")) { return; }
+      link.setAttribute("data-sfx-labelled", "1");
+      link.textContent = "";
+      var img = document.createElement("img");
+      img.src = sfx.icon;
+      img.alt = "";
+      img.width = 16;
+      img.height = 16;
+      img.style.cssText = "border-radius:3px;vertical-align:-3px;margin-right:6px;";
+      link.appendChild(img);
+      link.appendChild(document.createTextNode(label));
+      link.title = "StormForge " + label;
+    });
   }
   function spinner() {
     return '<div class="sfx-loading"><i class="bi bi-arrow-repeat sfx-spin" aria-hidden="true"></i> Loading from StormForge…</div>';
@@ -258,8 +265,7 @@
     function first() { if (!root.loaded) { sfx.show(cfg.view, {}); } }
     var pane = document.getElementById(cfg.tab);
     if (pane && pane.classList.contains("active")) { first(); }
-    var link = tabLink(cfg.tab);
-    if (link) { link.addEventListener("shown.bs.tab", first); }
+    tabLinks(cfg.tab).forEach(function (link) { link.addEventListener("shown.bs.tab", first); });
   };
 
   function lazy(el, force) {
