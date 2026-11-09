@@ -13,7 +13,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 None.
 
 ## Output
-One report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] with environments[], customServerBlueprint, failedServers (count, newest servers[]), parameterConflicts[] (existing parameters named like the toolkit's, which a sync or onb_parameter would reuse), groupsAndUsers (groups[], users[] with roles, passwordSet, passwordNeeded and their own url, passwordFixSteps), authentication, toolkit, pocItems, install, nextSteps[].
+One report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] with environments[] (each with sshKeys[]: the key pairs it offers and materialUploaded) and sshKeysUrl, customServerBlueprint, failedServers (count, newest servers[]), parameterConflicts[] (existing parameters named like the toolkit's, which a sync or onb_parameter would reuse), groupsAndUsers (groups[], users[] with roles, passwordSet, passwordNeeded and their own url, passwordFixSteps), authentication, toolkit, pocItems, install, nextSteps[].
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

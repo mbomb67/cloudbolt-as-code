@@ -19,7 +19,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_remove` | text | Field names to remove from the environment in addition to the profile's list. |
 
 ## Output
-before[] and after[] (every parameter with options, required, hiddenOnOrderForm), actions[] (pinned, removed, left with reason), protectedFromSync[], visibleNow[], next.
+before[] and after[] (every parameter with options, required, hiddenOnOrderForm), actions[] (pinned, removed, left with reason), protectedFromSync[], visibleNow[], keyMaterial (keys[] with materialUploaded, uploadUrl, steps, why) when the environment offers key pairs, next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

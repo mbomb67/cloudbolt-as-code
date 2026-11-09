@@ -62,6 +62,11 @@ ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
 MAX_GROUPS = 25
 MAX_FAILED_SERVERS = 10
 MAX_USERS = 20
+MAX_KEYS = 10
+SSH_KEY_STEPS = "Click the pencil in the Actions column of the key's row, paste the private key (PEM) into Key material, then Save."
+SSH_KEY_WHY = (
+    "CloudBolt needs it to sign in to Linux servers over SSH (remote scripts such as Standard Server's Hello World) and to read the Administrator password of Windows servers on AWS."
+)
 # Parameters the onboarding content creates: the Standard Server blueprint's (with the global id its sync stamps)
 # and the ones the skill makes with onb_parameter (recorded in the state as toolkitParameters).
 CONTENT_PARAMETERS = {"application": "CF-15yw228m", "maintenance_window": "CF-cei72k8x"}
@@ -279,6 +284,23 @@ def _network_problems(env):
     return problems
 
 
+def _ssh_keys(env):
+    """Key pairs the environment offers and whether CloudBolt holds each one's private key (the handler's SSH Keys tab)."""
+    from common.methods import find_key_material
+
+    handler = env.resource_handler.cast() if env.resource_handler else None
+    field = getattr(handler, "ssh_keyname_field_name", None) if handler else None
+    if not field:
+        return []
+    names = env.custom_field_options.filter(field__name=field).values_list("str_value", flat=True).distinct()
+    rows = []
+    for name in list(names)[:MAX_KEYS]:
+        if name:
+            have, _material = find_key_material(name, handler)  # the material itself is never returned
+            rows.append({"name": name, "materialUploaded": bool(have)})
+    return rows
+
+
 def _environment_row(env, base):
     try:
         network_count = len(env.networks())
@@ -307,6 +329,7 @@ def _environment_row(env, base):
         # Group.environments (Environment.groups_served is deprecated); Unassigned is the placeholder for restricted new environments.
         "groups": env.group_set.exclude(name="Unassigned").count(),
         "lifecycleParameters": sorted(flags),
+        "sshKeys": _ssh_keys(env),
         "url": base + "/environments/{}/".format(env.id),
         "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),
     }
@@ -359,6 +382,7 @@ def _handlers(base, state):
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
                 "editClick": "Edit Credentials on the Overview tab",
                 "importLocationsUrl": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
+                "sshKeysUrl": base + "/admin/resourcehandlers/{}/#tab-ssh-keys".format(handler.id),
             }
         )
     return rows
@@ -640,6 +664,17 @@ def _next_steps(report, base):
                         "url": env["url"],
                     }
                 )
+            for key in env.get("sshKeys") or []:
+                if not key["materialUploaded"]:
+                    steps.append(
+                        {
+                            "step": "Have the admin upload the private key of key pair '{}', which '{}' offers: on the handler's SSH Keys tab, {} {}".format(
+                                key["name"], env["name"], SSH_KEY_STEPS[0].lower() + SSH_KEY_STEPS[1:], SSH_KEY_WHY),
+                            "item": "P4",
+                            "environment": env["id"],
+                            "url": handler["sshKeysUrl"],
+                        }
+                    )
             if env["osBuilds"] == 0:
                 steps.append(
                     {

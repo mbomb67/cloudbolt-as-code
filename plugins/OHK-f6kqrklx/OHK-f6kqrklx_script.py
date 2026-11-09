@@ -34,7 +34,7 @@ MAX_OPTIONS = 100
 MAX_LISTED = 20
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
-BUILTIN_REUSE = ("expiration_date", "power_schedule")
+BUILTIN_REUSE = ("expiration_date", "power_schedule", "key_name")
 # Parameters the Standard Server blueprint brings; a sync stamps these global ids only on parameters it creates.
 CONTENT_PARAMETERS = {"application": "CF-15yw228m", "maintenance_window": "CF-cei72k8x"}
 

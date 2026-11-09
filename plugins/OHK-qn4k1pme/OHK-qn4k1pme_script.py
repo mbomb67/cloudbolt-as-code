@@ -239,6 +239,23 @@ def _protect(env, names):
         env.save()
 
 
+def _ssh_keys(env):
+    """Key pairs the environment offers and whether CloudBolt holds each one's private key (the handler's SSH Keys tab)."""
+    from common.methods import find_key_material
+
+    handler = env.resource_handler.cast() if env.resource_handler else None
+    field = getattr(handler, "ssh_keyname_field_name", None) if handler else None
+    if not field:
+        return []
+    names = env.custom_field_options.filter(field__name=field).values_list("str_value", flat=True).distinct()
+    rows = []
+    for name in list(names)[:10]:
+        if name:
+            have, _material = find_key_material(name, handler)  # the material itself is never returned
+            rows.append({"name": name, "materialUploaded": bool(have)})
+    return rows
+
+
 def run(job, *args, **kwargs):
     profile = _caller(job, kwargs)
     if profile is None:
@@ -363,8 +380,19 @@ def run(job, *args, **kwargs):
     after = [_public(r, slug) for r in after_rows.values()]
     visible = [r["name"] for r in after if not r["hiddenOnOrderForm"]]
     outputs.update({"actions": actions, "protectedFromSync": sorted(set(protected)), "after": after, "visibleNow": visible})
+    keys = _ssh_keys(env)
+    missing = [k["name"] for k in keys if not k["materialUploaded"]]
+    if keys:
+        outputs["keyMaterial"] = {
+            "keys": keys,
+            "uploadUrl": base + "/admin/resourcehandlers/{}/#tab-ssh-keys".format(handler.id),
+            "steps": "Click the pencil in the Actions column of the key's row, paste the private key (PEM) into Key material, then Save.",
+            "why": "CloudBolt needs it to sign in to Linux servers over SSH (remote scripts such as Standard Server's Hello World) and to read the Administrator password of Windows servers on AWS.",
+        }
     outputs["next"] = (
-        "Order the Custom Server into this environment through MCP and confirm the form shows only {}. "
+        ("Before the first order, have the admin upload the private key of {} at keyMaterial.uploadUrl (keyMaterial.steps; "
+         "the key is pasted there, never in chat). ".format(", ".join(missing)) if missing else "")
+        + "Order the Custom Server into this environment through MCP and confirm the form shows only {}. "
         "Pass onb_keep to bring a field back, onb_pin field=value to change a pin, onb_pin field=a|b|c to offer "
         "exactly those sizes.".format(", ".join(visible) or "the size")
     )
