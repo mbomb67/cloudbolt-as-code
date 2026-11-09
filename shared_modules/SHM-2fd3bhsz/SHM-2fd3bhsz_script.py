@@ -855,6 +855,8 @@ def _ensure_credential(sf, kube, progress):
     would make Helm delete it during the upgrade, so its values are handed
     back to the chart. The forwarder takes its token URL from
     authorization.issuer even when the chart does not write the Secret.
+
+    Returns (values, written): written is True when CloudBolt wrote the Secret.
     """
     secret = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets/{AUTH_SECRET}")
     client_id = _secret_value(secret, "STORMFORGE_CLIENT_ID")
@@ -864,11 +866,71 @@ def _ensure_credential(sf, kube, progress):
         if _helm_managed(secret):
             return {"createAuthSecret": True, "authorization": {
                 "clientID": client_id, "clientSecret": client_secret, "issuer": sf.issuer,
-            }}
-        return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}
+            }}, False
+        return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}, False
     progress(f"Writing the '{CONNECTION_INFO_NAME}' credential to Secret {NAMESPACE}/{AUTH_SECRET}")
     _write_auth_secret(kube, sf)
-    return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}
+    return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}, True
+
+
+def _kube_time(value):
+    try:
+        return datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def secret_written_at(secret):
+    """When the stormforge-auth Secret was last written, from its managed fields; None if unknown.
+
+    The API server stamps each managedFields entry with the time of that
+    manager's last write.
+    https://kubernetes.io/docs/reference/using-api/server-side-apply/#field-management
+    """
+    metadata = (secret or {}).get("metadata") or {}
+    times = [_kube_time(entry.get("time")) for entry in metadata.get("managedFields") or []]
+    times = [t for t in times if t] or [_kube_time(metadata.get("creationTimestamp"))]
+    return max((t for t in times if t), default=None)
+
+
+def agent_pods(kube):
+    """Pods in stormforge-system that a Deployment, DaemonSet or StatefulSet runs (not Helm Jobs)."""
+    listing = kube.get(f"/api/v1/namespaces/{NAMESPACE}/pods") or {}
+    return [
+        pod for pod in listing.get("items") or []
+        if any(ref.get("kind") in ("ReplicaSet", "DaemonSet", "StatefulSet")
+               for ref in (pod.get("metadata") or {}).get("ownerReferences") or [])
+    ]
+
+
+def stale_agent_pods(kube, secret=None):
+    """Agent pods that started before stormforge-auth was last written, so run on an older credential.
+
+    The agent reads the Secret only when a container starts, and a Helm
+    upgrade that leaves the pod templates alone restarts nothing.
+    https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
+    """
+    if secret is None:
+        secret = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets/{AUTH_SECRET}")
+    written = secret_written_at(secret)
+    if written is None:
+        return []
+    stale = []
+    for pod in agent_pods(kube):
+        started = _kube_time(((pod.get("status") or {}).get("startTime")))
+        if started is not None and started < written:
+            stale.append(pod)
+    return stale
+
+
+def _restart_stale_agent(kube, progress):
+    """Delete agent pods older than the credential; their controllers start them again on it."""
+    stale = stale_agent_pods(kube)
+    if not stale:
+        return
+    progress(f"Restarting {len(stale)} StormForge agent pod(s) that still run on the previous credential")
+    for pod in stale:
+        kube.delete(f"/api/v1/namespaces/{NAMESPACE}/pods/{pod['metadata']['name']}")
 
 
 def _wait_for_connection(sf, name, progress):
@@ -915,7 +977,7 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
             "StormForge agent. Add a node group or node pool first."
         )
     _ensure_namespace(kube)
-    values = _ensure_credential(sf, kube, progress)
+    values, credential_written = _ensure_credential(sf, kube, progress)
     _set_fields(resource, **{FIELD_CLUSTER: name})
 
     values.update({
@@ -958,6 +1020,8 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
         return "FAILURE", "", f"Helm could not install StormForge {target}: {output}"
 
     _set_fields(resource, **{FIELD_VERSION: target})
+    if credential_written:
+        _restart_stale_agent(kube, progress)
     connected, agent_version = _wait_for_connection(sf, name, progress)
     if not connected:
         _set_fields(resource, **{FIELD_STATUS: f"{target} installed; agent not connected"})

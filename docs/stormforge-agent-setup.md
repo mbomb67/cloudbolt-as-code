@@ -36,7 +36,7 @@ CloudBolt talks to StormForge only through the StormForge API. It installs the a
   3. It waits for the agent to check in.
 
   A problem is a warning, so the cluster order still completes; run the action to retry.
-- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to (newer versions only: StormForge charts cannot be downgraded), for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info, so after you change the credential, run the action on each cluster to rotate it.
+- **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to (newer versions only: StormForge charts cannot be downgraded), for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info and restarts agent pods that started before the Secret changed (the agent reads its credential only at startup), so after you change the credential, run the action on each cluster to rotate it.
 - **Teardown:** the Remove from StormForge item runs after the cluster is deleted. It deletes the cluster in StormForge. A cluster that fails to delete stays registered.
 
 ## Notes
