@@ -300,7 +300,7 @@ def _environment_row(env, base):
         "osBuildProblems": problems,
         "networkProblems": _network_problems(env),
         "networks": network_count,
-        "groups": env.groups_served.count(),
+        "groups": env.group_set.count(),  # Group.environments; Environment.groups_served is deprecated and unused
         "lifecycleParameters": sorted(flags),
         "url": base + "/environments/{}/".format(env.id),
         "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),

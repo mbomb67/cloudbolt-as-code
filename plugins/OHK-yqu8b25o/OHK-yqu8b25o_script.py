@@ -269,7 +269,8 @@ def _ev_2_3_2():
 def _ev_2_3_3():
     from infrastructure.models import Environment
 
-    rows = [e.name for e in Environment.objects.all() if e.groups_served.exists()][:8]
+    # Entitlement lives on Group.environments; Environment.groups_served is deprecated and unused.
+    rows = list(Environment.objects.filter(group__isnull=False).distinct().order_by("name").values_list("name", flat=True)[:8])
     return _ev(rows, "environments entitled to specific groups: {}".format(", ".join(rows) or "none"))
 
 

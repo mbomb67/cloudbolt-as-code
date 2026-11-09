@@ -92,7 +92,7 @@ def run(job, *args, **kwargs):
         "name": env.name,
         "handler": env.resource_handler.name if env.resource_handler else None,
         "osBuildsDetached": env.os_builds.count(),
-        "groupsDetached": env.groups_served.count(),
+        "groupsDetached": env.group_set.count(),
     }
     env.delete()
     return _success("Environment '{}' removed.".format(info["name"]), info)
