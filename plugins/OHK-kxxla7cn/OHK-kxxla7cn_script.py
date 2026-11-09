@@ -4,8 +4,9 @@ CloudBolt day-2 resource action: Install or Upgrade StormForge Agent.
 One action on the AWS EKS (BP-r5apcf7e), Azure Kubernetes Service
 (BP-20q58q9z) and Google Kubernetes Engine (BP-g8g8aecx) cluster blueprints.
 It installs the StormForge agent on a cluster that does not have it (a
-discovered cluster, or one whose build item warned), upgrades or downgrades
-it to the chosen chart version, or reinstalls the same version. The version
+discovered cluster, or one whose build item warned), upgrades it to a newer
+chart version, or reinstalls the same version. StormForge charts cannot be
+downgraded, so older versions are not offered. The version
 dropdown shows what is installed now and what each choice changes it to, for
 example "Upgrade 3.4.0 -> 3.5.0 (latest)".
 

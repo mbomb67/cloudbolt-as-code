@@ -803,6 +803,19 @@ def _check_identity(sf, kube, name):
         )
 
 
+def _refuse_downgrade(current, target):
+    """StormForge charts cannot go back: a newer chart can move its CRDs to a new
+    storage version, which Kubernetes then refuses to drop (3.5.0 -> 3.4.0 fails
+    with "v2 was previously a storage version"). Helm would roll back, so stop first.
+    https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#upgrade-existing-objects-to-a-new-stored-version
+    """
+    if current and _stable(current) and _version_key(target) < _version_key(current):
+        raise StormForgeError(
+            f"StormForge {current} is installed; going back to {target} is not supported "
+            "because newer charts change the stored version of StormForge's custom resources."
+        )
+
+
 def _ready_nodes(kube):
     """How many nodes can run a pod: Ready and not cordoned.
 
@@ -884,6 +897,7 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
         raise StormForgeError(f"'{target}' is not a released StormForge chart version.")
     release = deployed_release(kube)
     current = installed_version(kube, release)
+    _refuse_downgrade(current, target)
     # Keep the name an existing install registered under, so StormForge's history carries over.
     name = (resource.get_cf_values_as_dict().get(FIELD_CLUSTER)
             or ((release or {}).get("config") or {}).get("clusterName")
@@ -931,7 +945,16 @@ def install_or_upgrade(resource, version=None, progress=set_progress):
     if output:
         logger.info("Helm output:\n%s", output)
     if not succeeded:
-        _set_fields(resource, **{FIELD_STATUS: f"Install of {target} failed"})
+        # --rollback-on-failure puts an existing release back, so report what is running now.
+        try:
+            still = installed_version(kube)
+        except StormForgeError:
+            still = None
+        if still:
+            _set_fields(resource, **{FIELD_VERSION: still,
+                                     FIELD_STATUS: f"{target} failed; {still} still installed"})
+        else:
+            _set_fields(resource, **{FIELD_STATUS: f"Install of {target} failed"})
         return "FAILURE", "", f"Helm could not install StormForge {target}: {output}"
 
     _set_fields(resource, **{FIELD_VERSION: target})
@@ -973,14 +996,14 @@ def version_options(resource):
     options = []
     for version in versions:
         suffix = " (latest)" if version == latest else ""
-        if current is None:
+        if current is None or not _stable(current):
             label = f"Install {version}{suffix}"
         elif version == current:
             label = f"Reinstall {version} (installed)"
-        elif _stable(current) and _version_key(version) > _version_key(current):
+        elif _version_key(version) > _version_key(current):
             label = f"Upgrade {current} → {version}{suffix}"
         else:
-            label = f"Downgrade {current} → {version}"
+            continue  # downgrades are refused; see _refuse_downgrade
         options.append((version, label))
     return options
 
