@@ -56,9 +56,11 @@ API references:
     https://github.com/kubernetes-sigs/metrics-server
 """
 
+import base64
 import concurrent.futures
 import hashlib
 import importlib
+import json
 import math
 import re
 import threading
@@ -153,6 +155,33 @@ def _sf():
         )
 
 
+def _granted_scopes(body, token):
+    """The scopes StormForge granted, from the token response or the token's claims; None if unknown.
+
+    A token response names the granted scope when it differs from the request
+    (https://www.rfc-editor.org/rfc/rfc6749#section-5.1), and a JWT access
+    token carries it as a claim (https://www.rfc-editor.org/rfc/rfc9068#section-2.2.3).
+    The claims are read only to explain a refusal; nothing here trusts them.
+    """
+    if body.get("scope"):
+        return set(str(body["scope"]).split())
+    parts = str(token or "").split(".")
+    if len(parts) != 3:
+        return None
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+    except (ValueError, TypeError):
+        return None
+    granted = set()
+    for key in ("scope", "scp", "permissions"):
+        value = claims.get(key) if isinstance(claims, dict) else None
+        if isinstance(value, str):
+            granted.update(value.split())
+        elif isinstance(value, list):
+            granted.update(str(v) for v in value)
+    return granted if any(k in claims for k in ("scope", "scp", "permissions")) else None
+
+
 class Reader:
     """GETs against the StormForge API with a token cached per web process."""
 
@@ -163,6 +192,7 @@ class Reader:
         except self.sf.StormForgeError as exc:
             raise PanelError(str(exc))
         self.fresh = fresh
+        self.granted = None
 
     @property
     def app_url(self):
@@ -175,6 +205,7 @@ class Reader:
         with _TOKENS_LOCK:
             entry = _TOKENS.get(key)
         if entry and not renew and time.time() < entry[1] - 60:
+            self.granted = entry[2]
             return entry[0]
         try:
             token_url = (self.client.metadata().get("token_endpoint")
@@ -201,8 +232,9 @@ class Reader:
         token = body.get("access_token")
         if not token:
             raise PanelError("StormForge returned no access token.")
+        self.granted = _granted_scopes(body, token)
         with _TOKENS_LOCK:
-            _TOKENS[key] = (token, time.time() + int(body.get("expires_in") or 300))
+            _TOKENS[key] = (token, time.time() + int(body.get("expires_in") or 300), self.granted)
         return token
 
     def _send(self, url, renew=False):
@@ -247,10 +279,23 @@ class Reader:
     def _failure(self, response, what):
         code = response.status_code
         if code in (401, 403):
-            return (
-                f"StormForge denied access to {what} (HTTP {code}). The '{self.sf.CONNECTION_INFO_NAME}' "
-                f"connection info credential needs the {' and '.join(READ_SCOPES)} scopes; create it "
-                "with StormForge's default permissions."
+            name = self.sf.CONNECTION_INFO_NAME
+            reason = self.sf._error_text(response)
+            message = f"StormForge denied access to {what} (HTTP {code}{': ' + reason if reason else ''})."
+            if self.granted is None:
+                message += f" StormForge did not say which scopes it granted the '{name}' credential."
+            else:
+                missing = [scope for scope in READ_SCOPES if scope not in self.granted]
+                have = ", ".join(sorted(self.granted)) or "no scopes"
+                message += f" The token StormForge issued to the '{name}' credential carries {have}"
+                if missing:
+                    message += f" and lacks {', '.join(missing)}."
+                else:
+                    message += ", which includes every scope these tabs ask for."
+            logger.warning("StormForge %s for %s; granted scopes %s", code, what, self.granted)
+            return message + (
+                f" These tabs need {' and '.join(READ_SCOPES)}; a credential created with StormForge's "
+                "default permissions (stormforge auth create) has them."
             )
         if code == 402:
             return "StormForge reports that the organization's subscription does not cover this (HTTP 402)."
