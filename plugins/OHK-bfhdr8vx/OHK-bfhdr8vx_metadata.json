@@ -179,6 +179,11 @@
         "max_nodes",
         "desired_nodes"
     ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-uj1izdsm"
+        ]
+    },
     "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
     "id": "OHK-bfhdr8vx",
     "max_retries": 0,

@@ -21,12 +21,61 @@
             "tier_type": "plugin"
         },
         {
+            "action_name": "Create Node Group",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-c4gue79a"
+            },
+            "deploy_seq": 2,
+            "description": "Creates the cluster's first managed node group and waits until its nodes are Ready; a failed node group fails the order.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-9197lckm",
+            "name": "Create Node Group",
+            "parameter_defaults": [
+                {
+                    "label": "Ami Type",
+                    "name": "ami_type_a1",
+                    "value": "x86_64/AL2023_x86_64_STANDARD"
+                },
+                {
+                    "label": "Desired Nodes",
+                    "name": "desired_nodes_a1",
+                    "value": "2"
+                },
+                {
+                    "label": "Disk Size",
+                    "name": "disk_size_a1",
+                    "value": "20"
+                },
+                {
+                    "label": "Instance Type",
+                    "name": "instance_type_a1",
+                    "value": "t3.medium"
+                },
+                {
+                    "label": "Max Nodes",
+                    "name": "max_nodes_a1",
+                    "value": "2"
+                },
+                {
+                    "label": "Min Nodes",
+                    "name": "min_nodes_a1",
+                    "value": "2"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
             "action_name": "Install StormForge Agent",
             "continue_on_failure": true,
             "dependencies": {
                 "hook": "plugins/OHK-8mtfn5x1"
             },
-            "deploy_seq": 2,
+            "deploy_seq": 3,
             "description": "Installs the StormForge agent and registers the cluster with StormForge; a problem is a warning.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -40,7 +89,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
+    "description": "Creates Amazon EKS clusters with a first managed node group, deletes and discovers them, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-e9qppbei"

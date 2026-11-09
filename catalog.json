@@ -483,12 +483,13 @@
     "id": "BP-r5apcf7e",
     "type": "blueprints",
     "name": "AWS EKS",
-    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
+    "description": "Creates Amazon EKS clusters with a first managed node group, deletes and discovers them, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
     "path": "blueprints/BP-r5apcf7e",
     "readme": "blueprints/BP-r5apcf7e/README.md",
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
       "plugins/OHK-8mtfn5x1",
+      "plugins/OHK-c4gue79a",
       "plugins/OHK-e9qppbei",
       "plugins/OHK-pgbigmd9",
       "plugins/OHK-u4k6dg46",
@@ -2979,7 +2980,9 @@
     "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
     "path": "plugins/OHK-bfhdr8vx",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-uj1izdsm"
+    ],
     "used_by": [
       "resource_actions/RSA-f9ivvn5q"
     ],
@@ -3057,6 +3060,21 @@
     ],
     "used_by": [
       "webhooks/IWH-vfkvduxm"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-c4gue79a",
+    "type": "plugins",
+    "name": "Create AWS EKS Node Group",
+    "description": "Creates the first managed node group of a new EKS cluster during the AWS EKS blueprint's build and waits until its nodes are Ready.",
+    "path": "plugins/OHK-c4gue79a",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-uj1izdsm"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -6487,6 +6505,19 @@
       "plugins/OHK-7sq2hqrb",
       "plugins/OHK-gyl8wlrq",
       "plugins/OHK-3bgpjmlr"
+    ]
+  },
+  {
+    "id": "SHM-uj1izdsm",
+    "type": "shared_modules",
+    "name": "eks_nodegroups",
+    "description": "Creates managed node groups on AWS EKS clusters and records them as cluster sub-resources, for the AWS EKS blueprint's Create Node Group build item and Add AWS EKS Nodegroup action.",
+    "path": "shared_modules/SHM-uj1izdsm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-bfhdr8vx",
+      "plugins/OHK-c4gue79a"
     ]
   },
   {

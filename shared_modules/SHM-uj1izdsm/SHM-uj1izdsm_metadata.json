@@ -1,0 +1,12 @@
+{
+    "description": "Creates managed node groups on AWS EKS clusters and records them as cluster sub-resources, for the AWS EKS blueprint's Create Node Group build item and Add AWS EKS Nodegroup action.",
+    "id": "SHM-uj1izdsm",
+    "label": "EKS Node Groups",
+    "max_retries": 0,
+    "module_name": "eks_nodegroups",
+    "name": "eks_nodegroups",
+    "resource_technologies": [],
+    "script_filename": "SHM-uj1izdsm_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}
