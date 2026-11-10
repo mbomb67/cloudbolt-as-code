@@ -7,12 +7,12 @@ Shows StormForge in CloudBolt on Kubernetes clusters that run the StormForge age
 
 ## Cluster tabs
 
-- **Clusters**: the optimization score, recommendation summary and recommendation impact cards, **More Information** (waste and risk, agent versions, status messages), and four views:
+- **Clusters**: the optimization score, recommendation summary and recommendation impact cards, **More Information** (waste and risk, agent versions, status messages), and five views:
   - **Namespaces**: StormForge's namespace table, with search, sorting and pages.
   - **Nodes**: the cluster as it is now. CPU, memory and pods (used, allocated and capacity), node count by type, and every node.
-  - **Settings**: the optimization settings set for the whole cluster, the cluster's ClusterOptimizationConfiguration objects, the agent chart values that decide which namespaces StormForge watches and how it applies, and the order StormForge ranks the levels in. Each section folds away; the order of precedence opens folded. See [Settings and where they come from](#settings-and-where-they-come-from).
   - **Config**: cluster labels, node instance categories and cost estimates.
   - **Agent**: StormForge's record of the cluster (state, last seen, conditions, workloads and nodes reported, agent version, and whether it is the same cluster by `kube-system` UID), the agent pods in `stormforge-system` (status, restarts, start time, a warning on pods older than the `stormforge-auth` credential), and the last 200 lines of an agent container's log. An **Install or Upgrade StormForge Agent** button opens the action for people who may run it.
+  - **Settings**: the optimization settings set for the whole cluster, the cluster's ClusterOptimizationConfiguration objects, the agent chart values that decide which namespaces StormForge watches and how it applies, and the order StormForge ranks the levels in. Each section folds away; the order of precedence opens folded. See [Settings and where they come from](#settings-and-where-they-come-from).
 - **Namespaces**: a namespace's cards, its workload table, and **Settings**: the settings its workloads start from, each marked Namespace or Cluster. With no namespace chosen, the namespace table.
 - **Workloads**: a workload's score, potential savings and recommendation status, then four views:
   - **Summary**: attributes, status messages, per-pod and total requests with their impact, and usage against requests and limits.
