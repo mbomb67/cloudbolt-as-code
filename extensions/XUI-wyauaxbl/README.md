@@ -10,7 +10,7 @@ Shows StormForge in CloudBolt on Kubernetes clusters that run the StormForge age
 - **Clusters**: the optimization score, recommendation summary and recommendation impact cards, **More Information** (waste and risk, agent versions, status messages), and four views:
   - **Namespaces**: StormForge's namespace table, with search, sorting and pages.
   - **Nodes**: the cluster as it is now. CPU, memory and pods (used, allocated and capacity), node count by type, and every node.
-  - **Settings**: the optimization settings set for the whole cluster, the order StormForge ranks the levels in, the cluster's ClusterOptimizationConfiguration objects, and the agent chart values that decide which namespaces StormForge watches and how it applies. See [Settings and where they come from](#settings-and-where-they-come-from).
+  - **Settings**: the optimization settings set for the whole cluster, the cluster's ClusterOptimizationConfiguration objects, the agent chart values that decide which namespaces StormForge watches and how it applies, and the order StormForge ranks the levels in. Each section folds away; the order of precedence opens folded. See [Settings and where they come from](#settings-and-where-they-come-from).
   - **Config**: cluster labels, node instance categories and cost estimates.
   - **Agent**: StormForge's record of the cluster (state, last seen, conditions, workloads and nodes reported, agent version, and whether it is the same cluster by `kube-system` UID), the agent pods in `stormforge-system` (status, restarts, start time, a warning on pods older than the `stormforge-auth` credential), and the last 200 lines of an agent container's log. An **Install or Upgrade StormForge Agent** button opens the action for people who may run it.
 - **Namespaces**: a namespace's cards, its workload table, and **Settings**: the settings its workloads start from, each marked Namespace or Cluster. With no namespace chosen, the namespace table.
@@ -18,14 +18,14 @@ Shows StormForge in CloudBolt on Kubernetes clusters that run the StormForge age
   - **Summary**: attributes, status messages, per-pod and total requests with their impact, and usage against requests and limits.
   - **Recommendation**: each container's current and recommended requests and limits, with a chart, and the recommended instance category.
   - **Patches**: the kubectl command and YAML to copy or download, with the node affinity preview.
-  - **Settings**: first every setting in effect with the level it is set at (Workload, Namespace, Cluster or StormForge) and the values it overrides, then Goals, Schedule, Apply Settings, Reliability, CPU and Memory, HPA, Runtime and Pod Scheduling, each with StormForge's annotation examples.
+  - **Settings**: Goals, Schedule, Apply Settings, Reliability, CPU and Memory, HPA, Runtime and Pod Scheduling, each with StormForge's annotation examples, and **Setting Sources**: every setting in effect with the level it is set at (Workload, Namespace, Cluster or StormForge) and the values it overrides.
 
   With no workload chosen, the cluster's workload table with a namespace filter.
 
 The cluster tabs are read-only. StormForge settings are changed in Kubernetes, so the Settings pages show where each one is set and the annotations that change it.
 
 ## Settings and where they come from
-A StormForge setting can be given at several levels, and the most specific one wins. The Settings views show each setting something sets, a badge for the level that wins, and the values that level overrides.
+A StormForge setting can be given at several levels, and the most specific one wins. The cluster's and a namespace's Settings view and a workload's Setting Sources page show each setting something sets, a badge for the level that wins, and the values that level overrides.
 
 | Level | Where it is set in Kubernetes |
 |---|---|

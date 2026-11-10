@@ -2,11 +2,12 @@
   Workloads tab > Settings: StormForge's optimization settings for the
   workload, read-only, with StormForge's annotation examples. Context `st`
   from views._settings. Settings change through annotations in Kubernetes.
-  The workload panel puts sfx_settings_sources.html above it, which says
-  where each value is set.
+  The last page, Setting Sources, loads sfx_settings_sources.html, which
+  says where each value is set; `ns`, `kind` and `name` come from the
+  workload panel's context.
 {% endcomment %}
 <div class="sfx-h">Optimization Settings</div>
-<div class="sfx-intro">The values in effect for this workload, by topic. To change one for this workload alone, set its <span class="sfx-mono">live.stormforge.io/*</span> annotation on the workload in Kubernetes; each page shows the annotations.</div>
+<div class="sfx-intro">The values in effect for this workload, by topic. To change one for this workload alone, set its <span class="sfx-mono">live.stormforge.io/*</span> annotation on the workload in Kubernetes; each page shows the annotations. <b>Setting Sources</b> lists every value with the level it is set at: the workload, the namespace or the cluster.</div>
 <div class="sfx-side" data-sfx-group>
   <div class="sfx-side-nav" role="tablist">
     <button type="button" class="active" data-sfx-subtab="goals">Goals</button>
@@ -17,6 +18,7 @@
     <button type="button" data-sfx-subtab="hpa">HPA</button>
     <button type="button" data-sfx-subtab="runtime">Runtime</button>
     <button type="button" data-sfx-subtab="scheduling">Pod Scheduling</button>
+    <button type="button" data-sfx-subtab="sources">Setting Sources</button>
   </div>
   <div>
     {# Goals #}
@@ -140,6 +142,11 @@
       <div class="sfx-card sfx-set"><div class="sfx-set-t">Affinity Weight</div><div class="sfx-set-d">Specifies a weight for a preferred affinity.</div>
         <div class="sfx-set-v">{{ st.scheduling.weight }}{% if st.scheduling.weight_default %} <span class="sfx-default">(default)</span>{% endif %}</div></div>
       {% include "stormforge_optimize/templates/sfx_annotations.html" with text=st.annotations.scheduling key="scheduling" %}
+    </div>
+
+    {# Setting Sources #}
+    <div data-sfx-pane="sources" hidden>
+      <div data-sfx-sub="settings" data-sfx-ns="{{ ns }}" data-sfx-type="{{ kind }}" data-sfx-name="{{ name }}"></div>
     </div>
   </div>
 </div>
