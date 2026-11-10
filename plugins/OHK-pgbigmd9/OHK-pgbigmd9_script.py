@@ -33,8 +33,11 @@ def error_code(err):
 
 def delete_node_groups(client, resource):
     """
-    Delete every managed node group and wait until EKS lists none.
+    Delete every managed node group and wait until EKS lists none. A node
+    group already DELETING (a rerun after an interrupted Delete) is waited on,
+    not deleted again.
     https://docs.aws.amazon.com/eks/latest/APIReference/API_DeleteNodegroup.html
+    https://docs.aws.amazon.com/eks/latest/APIReference/API_DescribeNodegroup.html
     """
     try:
         node_groups = client.list_nodegroups(clusterName=resource.name)["nodegroups"]
@@ -44,6 +47,17 @@ def delete_node_groups(client, resource):
         raise
 
     for node_group in node_groups:
+        try:
+            status = client.describe_nodegroup(
+                clusterName=resource.name, nodegroupName=node_group
+            )["nodegroup"]["status"]
+        except ClientError as err:
+            if error_code(err) == "ResourceNotFoundException":
+                continue
+            raise
+        if status == "DELETING":
+            set_progress(f"Node group {node_group} is already being deleted")
+            continue
         set_progress(f"Deleting node group {node_group}")
         client.delete_nodegroup(clusterName=resource.name, nodegroupName=node_group)
 
@@ -65,15 +79,18 @@ def delete_cluster(client, resource):
     https://docs.aws.amazon.com/eks/latest/APIReference/API_DeleteCluster.html
     """
     try:
-        client.describe_cluster(name=resource.name)
+        status = client.describe_cluster(name=resource.name)["cluster"]["status"]
     except ClientError as err:
         if error_code(err) == "ResourceNotFoundException":
             set_progress(f"Cluster {resource.name} is already gone from AWS")
             return
         raise
 
-    set_progress(f"Deleting cluster {resource.name}")
-    client.delete_cluster(name=resource.name)
+    if status == "DELETING":
+        set_progress(f"Cluster {resource.name} is already being deleted")
+    else:
+        set_progress(f"Deleting cluster {resource.name}")
+        client.delete_cluster(name=resource.name)
 
     while True:
         time.sleep(30)

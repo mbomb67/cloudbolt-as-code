@@ -19,6 +19,24 @@
             "run_on_scale_up": true,
             "show_on_order_form": true,
             "tier_type": "plugin"
+        },
+        {
+            "action_name": "Install StormForge Agent",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-8mtfn5x1"
+            },
+            "deploy_seq": 2,
+            "description": "Installs the StormForge agent and registers the cluster with StormForge; a problem is a warning.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-7wt3no1k",
+            "name": "Install StormForge Agent",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
         }
     ],
     "deployment_permissions": [],
@@ -114,6 +132,13 @@
             },
             "enabled": true,
             "label": "Manage GKE Cluster Groups"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-76jmctg6"
+            },
+            "enabled": true,
+            "label": "Install or Upgrade StormForge Agent"
         }
     ],
     "metadata_version": "2026.1.0",
@@ -181,6 +206,23 @@
             "rate": null,
             "run_on_scale_up": true,
             "show_on_order_form": true,
+            "tier_type": "teardown_plugin"
+        },
+        {
+            "action_name": "Remove from StormForge",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-vdr6oo2z"
+            },
+            "deploy_seq": 1,
+            "description": "After the cluster is deleted, deletes it in StormForge; a problem is a warning.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-j9iav6op",
+            "name": "Remove from StormForge",
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
             "tier_type": "teardown_plugin"
         }
     ]

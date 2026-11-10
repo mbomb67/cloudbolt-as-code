@@ -44,8 +44,11 @@
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
       "plugins/OHK-27oemiwb",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-uof2rcaa",
+      "plugins/OHK-vdr6oo2z",
       "plugins/OHK-x13tmam0",
+      "resource_actions/RSA-76jmctg6",
       "resource_actions/RSA-ehxck39g",
       "resource_actions/RSA-gp2aywcz",
       "resource_actions/RSA-j4f98ti1",
@@ -285,8 +288,11 @@
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
       "plugins/OHK-6l86xugc",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-shr5y3i6",
+      "plugins/OHK-vdr6oo2z",
       "plugins/OHK-y9wx9bga",
+      "resource_actions/RSA-76jmctg6",
       "resource_actions/RSA-afixcgmf",
       "resource_actions/RSA-gpa7ywnn",
       "resource_actions/RSA-gqwszlzf",
@@ -477,16 +483,20 @@
     "id": "BP-r5apcf7e",
     "type": "blueprints",
     "name": "AWS EKS",
-    "description": "Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
+    "description": "Creates Amazon EKS clusters with a first managed node group, deletes and discovers them, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones.",
     "path": "blueprints/BP-r5apcf7e",
     "readme": "blueprints/BP-r5apcf7e/README.md",
     "uses": [
       "orchestration_actions/HPA-qb0w86mi",
+      "plugins/OHK-8mtfn5x1",
+      "plugins/OHK-c4gue79a",
       "plugins/OHK-e9qppbei",
       "plugins/OHK-pgbigmd9",
       "plugins/OHK-u4k6dg46",
+      "plugins/OHK-vdr6oo2z",
       "resource_actions/RSA-0g4pfrde",
       "resource_actions/RSA-5c06txyi",
+      "resource_actions/RSA-76jmctg6",
       "resource_actions/RSA-dhgwoj3z",
       "resource_actions/RSA-f9ivvn5q",
       "resource_actions/RSA-inhs50gi",
@@ -795,6 +805,22 @@
     "uses": [],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "XUI-wyauaxbl",
+    "type": "extensions",
+    "name": "StormForge Optimize Live",
+    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, drilling down from cluster to namespace to workload.",
+    "path": "extensions/XUI-wyauaxbl",
+    "readme": "extensions/XUI-wyauaxbl/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-bo8ensty",
+      "packages/PKG-yrpqo1o0",
+      "packages/PKG-xev1ob4t"
+    ]
   },
   {
     "id": "XUI-y40h491l",
@@ -1661,16 +1687,17 @@
     "id": "PKG-bo8ensty",
     "type": "packages",
     "name": "AWS EKS",
-    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-bo8ensty",
     "readme": "packages/PKG-bo8ensty/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-r5apcf7e",
       "blueprints/BP-e4c0q58z",
-      "extensions/XUI-8a1jocmr"
+      "extensions/XUI-8a1jocmr",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {
@@ -1790,32 +1817,34 @@
     "id": "PKG-xev1ob4t",
     "type": "packages",
     "name": "Google GKE",
-    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions Google Kubernetes Engine clusters and namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-xev1ob4t",
     "readme": "packages/PKG-xev1ob4t/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-g8g8aecx",
       "blueprints/BP-c9ca1i3z",
-      "extensions/XUI-8egdz3e9"
+      "extensions/XUI-8egdz3e9",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {
     "id": "PKG-yrpqo1o0",
     "type": "packages",
     "name": "Azure AKS",
-    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "path": "packages/PKG-yrpqo1o0",
     "readme": "packages/PKG-yrpqo1o0/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contents": [
       "blueprints/BP-20q58q9z",
       "blueprints/BP-dogqi827",
-      "extensions/XUI-nr5iiu60"
+      "extensions/XUI-nr5iiu60",
+      "extensions/XUI-wyauaxbl"
     ]
   },
   {
@@ -2537,6 +2566,24 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-8mtfn5x1",
+    "type": "plugins",
+    "name": "Install StormForge Agent",
+    "description": "Installs the StormForge agent on a new EKS, AKS or GKE cluster and registers it with StormForge, warning instead of failing the order.",
+    "path": "plugins/OHK-8mtfn5x1",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-2fd3bhsz",
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-g8g8aecx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-8px9e3ws",
     "type": "plugins",
     "name": "Teardown Azure Storage Account",
@@ -2909,7 +2956,9 @@
     "description": "Creates a managed node group on the EKS cluster with the chosen AMI type, instance type, disk size, and scaling bounds, and records it as a sub-resource.",
     "path": "plugins/OHK-bfhdr8vx",
     "readme": null,
-    "uses": [],
+    "uses": [
+      "shared_modules/SHM-uj1izdsm"
+    ],
     "used_by": [
       "resource_actions/RSA-f9ivvn5q"
     ],
@@ -2987,6 +3036,21 @@
     ],
     "used_by": [
       "webhooks/IWH-vfkvduxm"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-c4gue79a",
+    "type": "plugins",
+    "name": "Create AWS EKS Node Group",
+    "description": "Creates the first managed node group of a new EKS cluster during the AWS EKS blueprint's build and waits until its nodes are Ready.",
+    "path": "plugins/OHK-c4gue79a",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-uj1izdsm"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3546,6 +3610,22 @@
       "blueprints/BP-qo1stxre"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-kxxla7cn",
+    "type": "plugins",
+    "name": "Install or Upgrade StormForge Agent",
+    "description": "Installs, upgrades or reinstalls the StormForge agent on an EKS, AKS or GKE cluster at the chosen chart version.",
+    "path": "plugins/OHK-kxxla7cn",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-2fd3bhsz",
+      "shared_modules/SHM-4yw92b8x"
+    ],
+    "used_by": [
+      "resource_actions/RSA-76jmctg6"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-l25x6wd8",
@@ -4408,6 +4488,23 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-vdr6oo2z",
+    "type": "plugins",
+    "name": "Remove from StormForge",
+    "description": "After an EKS, AKS or GKE cluster is deleted, deletes the cluster in StormForge.",
+    "path": "plugins/OHK-vdr6oo2z",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-2fd3bhsz"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-g8g8aecx"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-vg0rmi7i",
     "type": "plugins",
     "name": "Azure Resource Manager Rate Hook",
@@ -5043,6 +5140,23 @@
     "used_by": [
       "blueprints/BP-p7zmh96m",
       "blueprints/BP-nibk4erf"
+    ],
+    "enabled": true
+  },
+  {
+    "id": "RSA-76jmctg6",
+    "type": "resource_actions",
+    "name": "Install or Upgrade StormForge Agent",
+    "description": "Installs, upgrades or reinstalls the StormForge agent on an EKS, AKS or GKE cluster at the chosen chart version.",
+    "path": "resource_actions/RSA-76jmctg6",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-kxxla7cn"
+    ],
+    "used_by": [
+      "blueprints/BP-r5apcf7e",
+      "blueprints/BP-20q58q9z",
+      "blueprints/BP-g8g8aecx"
     ],
     "enabled": true
   },
@@ -5933,6 +6047,20 @@
     "enabled": true
   },
   {
+    "id": "SHM-2fd3bhsz",
+    "type": "shared_modules",
+    "name": "stormforge",
+    "description": "Installs, upgrades and removes the StormForge agent on CloudBolt-built EKS, AKS and GKE clusters through the StormForge API and an in-cluster Helm job.",
+    "path": "shared_modules/SHM-2fd3bhsz",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-kxxla7cn",
+      "plugins/OHK-8mtfn5x1",
+      "plugins/OHK-vdr6oo2z"
+    ]
+  },
+  {
     "id": "SHM-4yw92b8x",
     "type": "shared_modules",
     "name": "gcp_gke",
@@ -5952,6 +6080,8 @@
       "plugins/OHK-y9wx9bga",
       "plugins/OHK-32pzj98f",
       "plugins/OHK-egyf9q28",
+      "plugins/OHK-kxxla7cn",
+      "plugins/OHK-8mtfn5x1",
       "plugins/OHK-niw4hc9m",
       "plugins/OHK-m8iwylq8",
       "plugins/OHK-vdhjpyg2",
@@ -6334,6 +6464,19 @@
       "plugins/OHK-7sq2hqrb",
       "plugins/OHK-gyl8wlrq",
       "plugins/OHK-3bgpjmlr"
+    ]
+  },
+  {
+    "id": "SHM-uj1izdsm",
+    "type": "shared_modules",
+    "name": "eks_nodegroups",
+    "description": "Creates managed node groups on AWS EKS clusters and records them as cluster sub-resources, for the AWS EKS blueprint's Create Node Group build item and Add AWS EKS Nodegroup action.",
+    "path": "shared_modules/SHM-uj1izdsm",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-bfhdr8vx",
+      "plugins/OHK-c4gue79a"
     ]
   },
   {

@@ -6,9 +6,12 @@ Creates an AKS cluster in an Azure environment the ordering group can use. The c
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-x13tmam0 | AKS Cluster Build |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (shared by the EKS, AKS and GKE blueprints) |
 | Teardown | OHK-27oemiwb | AKS Cluster Teardown |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (shared by the EKS, AKS and GKE blueprints) |
 | Discovery | OHK-uof2rcaa | AKS Cluster Discovery |
 | Shared module | SHM-ptvp0km4 | azure_aks |
+| Shared module | SHM-2fd3bhsz | stormforge |
 | Day-2 action | RSA-wxd1o7s8 | Add AKS Node Pool (hook OHK-b7poza8x) |
 | Day-2 action | RSA-v9717mtc | List AKS Node Pools (hook OHK-0fp008gh) |
 | Day-2 action | RSA-ehxck39g | Scale AKS Node Pool (hook OHK-80c4ibdb) |
@@ -17,6 +20,7 @@ Creates an AKS cluster in an Azure environment the ordering group can use. The c
 | Day-2 action | RSA-gp2aywcz | Upgrade AKS Version (hook OHK-ojf2vvq1) |
 | Day-2 action | RSA-jttbwkm5 | Create AKS Namespace (hook OHK-kb4pv2yq, shared module SHM-cozv547n) |
 | Day-2 action | RSA-my8fifei | Manage AKS Cluster Groups (hook OHK-yzmq0kzu) |
+| Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-nr5iiu60](../../extensions/XUI-nr5iiu60/) | Azure AKS Cluster tabs (Cluster, Node pools, Workloads, Groups) |
 
@@ -31,6 +35,7 @@ Order form: Cluster Name, Environment, Resource Group, Kubernetes Version, Syste
 1. Sync the repo, then restart CloudBolt: every plugin here imports the `azure_aks` shared module, which running processes cache.
 2. Entitle the ordering groups to the Azure environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
 3. Choose who may order namespaces on a cluster with Entitled CloudBolt Groups on the order form, or later on the cluster's Groups tab (Manage AKS Cluster Groups); no environment administrator is needed. Both change the groups of the cluster's `Resource-<cluster> Environment#<region>` environment. On an appliance that restricts new environments, that environment starts in the Unassigned group, and no group sees the cluster until groups are entitled or all groups are allowed.
+4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, StormForge is not enabled: the build skips the agent install and says where to find these steps.
 
 ## Notes
 - Kubernetes Version lists the generally available minor versions AKS offers in the environment's region (`kubernetesVersions`), newest first, with AKS's default preselected; AKS installs the latest patch of the chosen minor version.
@@ -46,3 +51,4 @@ Order form: Cluster Name, Environment, Resource Group, Kubernetes Version, Syste
 - Discovery returns every AKS cluster in each Azure handler's subscription, matched by Azure resource ID, and CloudBolt's sync adopts new ones into the `Unassigned` group, refreshes the ones it tracks, reactivates Historical ones, and recovers a cluster whose build failed after Azure created it. It also refreshes the node pools of tracked clusters (a new cluster's pools follow on the next discovery or with List AKS Node Pools) and registers or refreshes each running cluster's orchestrator; stopped clusters keep their existing orchestrator credentials. A cluster whose build is still running is skipped.
 - Discovery decides what to retire, so leave the blueprint's `auto_historical_resources` off. A tracked cluster or node pool is marked Historical only when its handler was read, it is missing from the listing, and Azure answers a GET of its resource ID with not found (`ResourceNotFound`, `NotFound`, `ParentResourceNotFound`, or `ResourceGroupNotFound`); a retired cluster's node pools go with it. A handler, cluster, or call that fails retires nothing, and a resource found again is set back to Active. Retiring a cluster leaves its orchestrator and environments in place.
 - Expiration Date defaults to 7 days out. Nothing in this blueprint acts on it.
+- After the cluster build, Install StormForge Agent installs the StormForge agent with Helm in a short-lived Job and registers the cluster with StormForge; a problem is only a warning. Install or Upgrade StormForge Agent retries, upgrades or reinstalls it, and teardown removes the cluster from StormForge after deleting it. See [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md).

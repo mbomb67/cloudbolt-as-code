@@ -6,9 +6,12 @@ Creates a GKE Standard cluster in a GCP environment the ordering group can use. 
 | Role | ID | Name |
 |---|---|---|
 | Build | OHK-shr5y3i6 | GKE Cluster Build |
+| Build | OHK-8mtfn5x1 | Install StormForge Agent (shared by the EKS, AKS and GKE blueprints) |
 | Teardown | OHK-y9wx9bga | GKE Cluster Teardown |
+| Teardown | OHK-vdr6oo2z | Remove from StormForge (shared by the EKS, AKS and GKE blueprints) |
 | Discovery | OHK-6l86xugc | GKE Cluster Discovery |
 | Shared module | SHM-4yw92b8x | gcp_gke |
+| Shared module | SHM-2fd3bhsz | stormforge |
 | Day-2 action | RSA-hg13ra5x | Add GKE Node Pool (hook OHK-aaltlvmb) |
 | Day-2 action | RSA-afixcgmf | List GKE Node Pools (hook OHK-niw4hc9m) |
 | Day-2 action | RSA-vz9sbjto | Scale GKE Node Pool (hook OHK-m0s3j1ax) |
@@ -17,6 +20,7 @@ Creates a GKE Standard cluster in a GCP environment the ordering group can use. 
 | Day-2 action | RSA-wlihlt2z | Upgrade GKE Version (hook OHK-91bx99mg) |
 | Day-2 action | RSA-yrnl5j6j | Create GKE Namespace (hook OHK-cco2r73h, shared module SHM-kephq8iq) |
 | Day-2 action | RSA-gqwszlzf | Manage GKE Cluster Groups (hook OHK-m8iwylq8) |
+| Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-8egdz3e9](../../extensions/XUI-8egdz3e9/) | Google GKE Cluster tabs (Cluster, Node pools, Workloads, Groups) |
 
@@ -31,6 +35,7 @@ Order form: Cluster Name, Environment, Region, Availability, Subnetwork, Release
 1. Sync the repo, then restart CloudBolt (the job engine and the web server): every plugin here imports the `gcp_gke` shared module, which running processes cache.
 2. Entitle the ordering groups to the GCP environments. `any_group_can_deploy` is true, so every group may order the blueprint itself.
 3. Choose who may order namespaces on a cluster with Entitled CloudBolt Groups on the order form, or later on the cluster's Groups tab (Manage GKE Cluster Groups); no environment administrator is needed. Both change the groups of the cluster's `Resource-<cluster> Environment#<location>` environment. On an appliance that restricts new environments, that environment starts in the Unassigned group, and no group sees the cluster until groups are entitled or all groups are allowed.
+4. For StormForge, add the `StormForge` connection info as [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md) describes. Without it, StormForge is not enabled: the build skips the agent install and says where to find these steps.
 
 ## Notes
 - A regional cluster runs the control plane and nodes in several zones of the region; a zonal cluster runs in the first of the region's zones the environment offers. Node counts are per zone, so a regional cluster's default pool runs Nodes per Zone in each of its zones. When Autoscale Maximum is greater, the cluster autoscaler runs between the two per zone.
@@ -49,3 +54,4 @@ Order form: Cluster Name, Environment, Region, Availability, Subnetwork, Release
 - Discovery returns every GKE cluster in the projects of the GCP environments, matched by GKE's cluster ID, and the node pools of the clusters CloudBolt already tracks; new clusters land in the Unassigned group. It registers or refreshes each running cluster's orchestrator, recovers a resource whose build failed after GKE created the cluster, and leaves a cluster whose build is still running alone.
 - Discovery retires a cluster or node pool only on proof: the listing that should hold it succeeded without it and a direct GET answers 404 (a pool goes with its cluster). A project a handler cannot list, a location GKE could not list, or a job running on the resource leaves it unchanged. Keep `auto_historical_resources` off.
 - Expiration Date defaults to 7 days out. Nothing in this blueprint acts on it.
+- After the cluster build, Install StormForge Agent installs the StormForge agent with Helm in a short-lived Job and registers the cluster with StormForge; a problem is only a warning. Install or Upgrade StormForge Agent retries, upgrades or reinstalls it, and teardown removes the cluster from StormForge after deleting it. See [docs/stormforge-agent-setup.md](../../docs/stormforge-agent-setup.md).

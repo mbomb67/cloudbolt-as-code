@@ -2,13 +2,14 @@
     "contents": [
         "blueprints/BP-r5apcf7e",
         "blueprints/BP-e4c0q58z",
-        "extensions/XUI-8a1jocmr"
+        "extensions/XUI-8a1jocmr",
+        "extensions/XUI-wyauaxbl"
     ],
-    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions AWS EKS clusters and namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "id": "PKG-bo8ensty",
-    "last_updated": "2026-10-15",
+    "last_updated": "2026-11-09",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "AWS EKS",
-    "version": "1.0.0"
+    "version": "1.1.0"
 }

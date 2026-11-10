@@ -1,0 +1,12 @@
+{% comment %}One resource chart from views._bars: average usage as a bar, requests and limits as markers.{% endcomment %}
+<div class="sfx-chart">
+  <div class="sfx-chart-h"><span>{{ b.kind }}</span><span class="sfx-muted">avg usage {{ b.usage }}</span></div>
+  <div class="sfx-track">
+    {% if b.usage_pct %}<span class="sfx-fill" style="width:{{ b.usage_pct }}%" title="Average usage {{ b.usage }}"></span>{% endif %}
+    {% for m in b.markers %}{% if m.pct %}<span class="sfx-mark {{ m.key }}" style="left:{{ m.pct }}%" title="{{ m.label }} {{ m.value }}" data-bs-toggle="tooltip"></span>{% endif %}{% endfor %}
+  </div>
+  <div class="sfx-legend">
+    <span><i class="sfx-dot usage"></i> Usage {{ b.usage }}</span>
+    {% for m in b.markers %}<span><i class="sfx-dot {{ m.key }}"></i> {{ m.label }} {{ m.value }}</span>{% endfor %}
+  </div>
+</div>
