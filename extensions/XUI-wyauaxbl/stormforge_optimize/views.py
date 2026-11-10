@@ -86,7 +86,7 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.html import format_html, format_html_join
 
 from cbhooks.services.parsing import get_hook_action_input_dict
@@ -1840,7 +1840,12 @@ def _apply_url(request, resource, kind, name):
         return ""
     if _apply_action(request.get_user_profile(), resource) is None:
         return ""
-    return reverse("sfx_apply", args=[resource.id]) + "?" + urllib.parse.urlencode({"type": kind, "name": name})
+    try:
+        url = reverse("sfx_apply", args=[resource.id])
+    except NoReverseMatch:
+        # CloudBolt loads an extension's new URL paths only when the web server starts.
+        return ""
+    return url + "?" + urllib.parse.urlencode({"type": kind, "name": name})
 
 
 class ApplyForm(C2Form):
