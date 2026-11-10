@@ -13,7 +13,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 None.
 
 ## Output
-One report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] with environments[] (each with sshKeys[]: the key pairs it offers and materialUploaded) and sshKeysUrl, customServerBlueprint, failedServers (count, newest servers[]), parameterConflicts[] (existing parameters named like the toolkit's, which a sync or onb_parameter would reuse), groupsAndUsers (groups[], users[] with roles, passwordSet, passwordNeeded and their own url, passwordFixSteps), authentication, toolkit, pocItems, install, nextSteps[].
+A summary report: appliance, license, preferences (smtp, proxy), contentLibrary, setupWizard, resourceHandlers[] (imagesUrl, sshKeysUrl, compact lastVerify) with environments[] (osBuildProblems, guestCredentials[]: per image whether a username, password and key are set, AWS username only; newPasswordSet on vCenter; sshKeys[] with materialUploaded), customServerBlueprint, failedServers (count, newest servers[]), parameterConflicts[], groupsAndUsers (users[] with roles, passwordSet, passwordNeeded and url), authentication, lifecycleJobs.expireServers (enabled, url), toolkit (count, missing, disabled, notSynchronous, lastSync, listUrl), pocItems (id: status; onb_scorecard has the notes), install (with olderThanToolkitSync), nextSteps[]. Credentials are booleans only.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

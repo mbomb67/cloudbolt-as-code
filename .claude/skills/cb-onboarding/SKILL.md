@@ -41,10 +41,11 @@ Before the first phase, read [references/bootstrap.md](references/bootstrap.md).
     | Environments | `onb_status` lists the one POC environment under each handler, with `networks` at least 1 and no environment the POC does not use |
     | Networks | `onb_environment_networks` returns `verified: true` with exactly the chosen networks on NIC 1, every `onb_network_addressing` call returns `verified: true`, and `onb_status` shows no `networkProblems` |
     | OS build | `onb_import_os_build` returns `verified: true`: CloudBolt resolves the image in every environment, the lookup an order makes |
-    | Order form trimmed | `fetch_blueprint_item_parameters` for the environment shows only the fields in `visibleNow` |
+    | Image credentials | `onb_import_os_build` again for the build shows `password` or `key` true for each image (or `guestCredentials` in `onb_status`); after a build, `fetch_server_details` shows `credentials.password` masked, not null |
+    | Order form trimmed | `fetch_blueprint_item_parameters` for the environment shows the fields in `visibleNow` with their options; pinned fields come back with `is_provided` true. `key_name` comes back with no options and `is_provided` false, so MCP orders pass the environment's one key pair |
     | Custom Server configured | `fetch_catalog_items` lists it as orderable |
-    | Group | `fetch_group_details` shows the group with its environments |
-    | User | `fetch_group_details` lists the user in the POC group; the user's first login proves the password link worked |
+    | Group | `onb_group` with only the group name shows its environments, members, quota and auto-approval |
+    | User | `onb_group` with only the group name lists the user with their role; the user's first login proves the password worked |
     | Parameter, tag or mapping | the field appears in `fetch_blueprint_item_parameters`, or the mapping in the tool's list output |
     | Order | `fetch_order` is COMPLETE, the provision job is SUCCESS, and `fetch_server_list` shows the server |
     | Anything done in the UI | the matching status or list call shows the change; never take the user's word alone |

@@ -11,7 +11,7 @@
             "id": "CF-5jkupf06",
             "label": "Server or resource action (id or label)",
             "name": "onb_action",
-            "placeholder": "Resize VM",
+            "placeholder": "Change Resources",
             "relevant_osfamilies": [],
             "required": true,
             "show_as_attribute": false,

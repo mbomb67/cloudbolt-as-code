@@ -17,9 +17,10 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_item_note` | string | Why the item is skipped or not applicable, or any note; the scorecard prints it. |
 
 ## Output
-item, status, note, items{} (every recorded item), summary.
+item, title, weight, status, note, recordedAt for the item just recorded; summary (counts per status) and byStatus (item ids per status, without notes). onb_status and onb_scorecard return every item's note.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- A note longer than 2000 characters is refused with its length; nothing is cut.
 - State lives in the poc_onboarding_state parameter (namespace poc_onboarding), created on first use.

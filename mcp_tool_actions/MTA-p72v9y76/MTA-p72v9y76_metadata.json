@@ -71,7 +71,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Record the state of one POC test plan item (1.1.1 to 4.3.5) or prerequisite (P1 to P12): done, skipped, not_applicable or pending, with a note. Use not_applicable, with the reason, when the customer cannot or does not want to exercise an item in this POC (no SMTP, no LDAP, no SSO, no DNS record for a branded portal, no Terraform or Ansible); the scorecard then reports it as not applicable instead of failed. Returns every recorded item and a summary. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Record the state of one POC test plan item (1.1.1 to 4.3.5) or prerequisite (P1 to P12): done, skipped, not_applicable or pending, with a note. Use not_applicable, with the reason, when the customer cannot or does not want to exercise an item in this POC (no SMTP, no LDAP, no SSO, no DNS record for a branded portal, no Terraform or Ansible); the scorecard then reports it as not applicable instead of failed. A note may be up to 2000 characters; a longer one is refused, not cut. Returns the item just recorded with its note, counts per status (summary) and the item ids per status (byStatus), without the other items' notes; onb_status and onb_scorecard show every item's note. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_set_item_status",
     "mcp_tool_title": ""
 }

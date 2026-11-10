@@ -12,7 +12,7 @@
             "id": "CF-5jkupf06",
             "label": "Server or resource action (id or label)",
             "name": "onb_action",
-            "placeholder": "Resize VM",
+            "placeholder": "Change Resources",
             "relevant-osfamilies": [],
             "required": true,
             "show-as-attribute": false,
@@ -52,7 +52,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Turn 'Requires approval' on or off for a server action or resource action by global id (SVA-, RSA-) or label, for example Resize VM, so a requestor's day-2 action pauses as an order for an approver (test plan 2.4.2). The v3 API cannot change this flag. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Turn 'Requires approval' on or off for a server action or resource action by global id (SVA-, RSA-) or label, for example Change Resources, so a requestor's day-2 action pauses as an order for an approver (test plan 2.4.2). The v3 API cannot change this flag. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_action_approval",
     "mcp_tool_title": ""
 }

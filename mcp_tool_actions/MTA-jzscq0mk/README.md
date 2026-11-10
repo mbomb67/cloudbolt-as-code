@@ -15,8 +15,9 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_target_id` | string, required | The order or job to trace. |
 
 ## Output
-target, failedJobs[] (errors, output, progressTail, hints, url), failedServers[] (id, hostname, environment, inCloud, url) left in Provision Failed state, hints[], next.
+target, failedJobs[] (errors, output, progressTail, hints, logTailChecked, url), failedServers[] (id, hostname, environment, inCloud, url) left in Provision Failed state, hints[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- A failed job with empty errors gets its hints from the ERROR lines in the last 256 KB of its log file; logTailChecked marks it.

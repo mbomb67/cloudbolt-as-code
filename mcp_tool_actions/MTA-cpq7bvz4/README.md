@@ -20,8 +20,9 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_group_description` | string | Group description. |
 
 ## Output
-group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl, quotasClick), environments[], serverQuota, changes[], next.
+group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl, quotasClick); the group as it now stands: environments[] (its own entitlements), inheritedEnvironments[] and unconstrainedEnvironments[] when there are any, memberCount, members[] (username, email, roles), serverQuota (limit, unlimited, used); changes[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- Empty inputs change nothing. With only `onb_group_name` it reports an existing group and refuses to create a new one.

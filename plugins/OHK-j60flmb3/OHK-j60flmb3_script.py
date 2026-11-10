@@ -10,6 +10,11 @@ records the toolkit version so onb_status can report it. Idempotent: run it
 after every toolkit sync. Runs as a job (asynchronous) so it works before
 any Synchronous flag is set. Admin only.
 
+The result lists only the tools that need attention: the ones install
+changed (or, with onb_action=status, would change) and the missing ones,
+with counts for the rest. The install record saved in the onboarding state
+keeps toolkitVersion, when, by, missing and egress for onb_status.
+
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
@@ -208,45 +213,47 @@ def run(job, *args, **kwargs):
 
     base = _portal_url()
     present = {a.mcp_tool_name: a for a in MCPToolAction.objects.filter(mcp_tool_name__in=list(TOOLS))}
-    rows = {}
+    missing = []
     changed = []
     for name, wants_sync in TOOLS.items():
         tool = present.get(name)
         if tool is None:
-            rows[name] = {"present": False}
+            missing.append(name)
             continue
-        before = {"enabled": bool(tool.enabled), "isSynchronous": bool(tool.is_synchronous)}
+        updates = []
+        if bool(tool.is_synchronous) != wants_sync:
+            updates.append("isSynchronous={}".format(wants_sync))
+        if not tool.enabled:
+            updates.append("enabled=True")
+        if not updates:
+            continue
         if action == "install":
-            updates = []
-            if bool(tool.is_synchronous) != wants_sync:
-                tool.is_synchronous = wants_sync
-                updates.append("isSynchronous={}".format(wants_sync))
-            if not tool.enabled:
-                tool.enabled = True
-                updates.append("enabled=True")
-            if updates:
-                tool.save()
-                changed.append({"tool": name, "changes": updates})
-        rows[name] = {
-            "present": True,
+            tool.is_synchronous = wants_sync
+            tool.enabled = True
+            tool.save()
+        changed.append({
+            "tool": name,
             "id": tool.global_id,
-            "enabled": bool(tool.enabled),
-            "isSynchronous": bool(tool.is_synchronous),
-            "wantsSynchronous": wants_sync,
-            "before": before,
+            "changes": updates,
             "editUrl": base + "/actions/mcp_tool_action/{}/".format(tool.id),
-        }
-    missing = [name for name, row in rows.items() if not row["present"]]
+        })
 
     _progress(job, "Checking outbound access to the Content Library and GitHub")
     egress = _egress()
 
+    # install reports what it changed; status reports what install would change.
+    change_key = "changed" if action == "install" else "needsChange"
     outputs = {
         "action": action,
         "toolkitVersion": TOOLKIT_VERSION,
-        "tools": rows,
+        "counts": {
+            "expected": len(TOOLS),
+            "present": len(TOOLS) - len(missing),
+            "missing": len(missing),
+            change_key: len(changed),
+        },
         "missing": missing,
-        "changed": changed,
+        change_key: changed,
         "egress": egress,
         "mcpToolActionsUrl": base + "/actions/mcp_tool_actions/",
     }
@@ -267,11 +274,13 @@ def run(job, *args, **kwargs):
         except Exception as exc:
             outputs["stateNote"] = "Could not record the install: {}".format(str(exc)[:200])
     notes = []
-    if changed:
+    if changed and action == "install":
         notes.append(
-            "Synchronous Action was changed on {} tool(s). Reconnect the MCP client now: tool lists and "
+            "{} tool(s) were enabled or had Synchronous Action changed. Reconnect the MCP client now: tool lists and "
             "behaviour are cached per session.".format(len(changed))
         )
+    elif changed:
+        notes.append("{} tool(s) are disabled or have the wrong Synchronous Action; onb_install fixes them.".format(len(changed)))
     if missing:
         notes.append(
             "Missing tools: {}. Sync them from the repository (mcp_tool_actions folders) or import the "
@@ -282,7 +291,8 @@ def run(job, *args, **kwargs):
     if egress.get("contentLibrary", {}).get("reachable") is False:
         notes.append("The Content Library is not reachable; the extensibility phase will need the proxy or SSL settings fixed first.")
     outputs["notes"] = notes
-    message = "Toolkit {}: {} present, {} missing, {} changed.".format(
-        TOOLKIT_VERSION, len(TOOLS) - len(missing), len(missing), len(changed)
+    message = "Toolkit {}: {} present, {} missing, {} {}.".format(
+        TOOLKIT_VERSION, len(TOOLS) - len(missing), len(missing), len(changed),
+        "changed" if action == "install" else "need a change",
     )
     return _success(message, outputs)

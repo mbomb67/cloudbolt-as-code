@@ -1,6 +1,6 @@
 # Onboarding: UI Link
 
-MCP Tool Action published to agents as `custom_onb_ui_link`. Turns a CloudBolt global id or a named admin page (new resource handler per technology, LDAP, SMTP, user edit, environment parameters, group quotas, and more) into an absolute UI link so the agent can send the user to the exact page where a secret is entered or an object is edited.
+MCP Tool Action published to agents as `custom_onb_ui_link`. Turns a CloudBolt global id or a named admin page (new resource handler per technology, a handler's images and their guest credentials, LDAP, SMTP, user edit, environment parameters, group quotas, and more) into an absolute UI link so the agent can send the user to the exact page where a secret is entered or an object is edited.
 Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents

@@ -33,7 +33,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": true,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Finish installing the onboarding toolkit after its folders were synced or its content package imported: turn Synchronous Action on for the tools that answer inline (the importer leaves it off and the API cannot set it), enable every tool, check outbound access to the Content Library and to GitHub, and record the toolkit version. Idempotent; run it after every toolkit sync, then reconnect the MCP client because tool lists are cached per session. Runs as a job: poll the returned id with fetch_job. onb_action=status reports without changing anything. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Finish installing the onboarding toolkit after its folders were synced or its content package imported: turn Synchronous Action on for the tools that answer inline (the importer leaves it off and the API cannot set it), enable every tool, check outbound access to the Content Library and to GitHub, and record the toolkit version. Idempotent; run it after every toolkit sync, then reconnect the MCP client because tool lists are cached per session. Runs as a job: poll the returned id with fetch_job. The outputs hold counts, only the tools it changed (changed) and the missing ones (missing), and egress. onb_action=status changes nothing and lists the tools install would change as needsChange. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_install",
     "mcp_tool_title": ""
 }

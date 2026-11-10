@@ -2,7 +2,7 @@
 Onboarding: Action Approval (MCP Tool Action plugin).
 
 Turns "Requires approval" on or off for a server action or resource
-action (for example Resize VM), so a day-2 action from a requestor pauses
+action (for example Change Resources), so a day-2 action from a requestor pauses
 as an order for an approver (test plan 2.4.2). The v3 API offers no way to
 change it, hence this tool. Synchronous. Admin only.
 
@@ -84,7 +84,7 @@ def run(job, *args, **kwargs):
 
     inputs = _read_inputs()
     if not inputs["action"]:
-        return _failure("onb_action is required: a server or resource action global id (SVA-, RSA-) or its label, for example Resize VM.")
+        return _failure("onb_action is required: a server or resource action global id (SVA-, RSA-) or its label, for example Change Resources.")
     if inputs["requires_approval"] not in ("true", "false", "1", "0", "yes", "no", "on", "off", ""):
         return _failure("onb_requires_approval must be true or false.")
     wanted = inputs["requires_approval"] in ("true", "1", "yes", "on", "")

@@ -16,8 +16,12 @@ onb_param_confirm_global=true when that reaches beyond the targets.
 
 A parameter name is global too, so a name that already exists and is not the
 toolkit's own (created here, agreed to with onb_param_use_existing, or one
-of CloudBolt's expiration_date and power_schedule) changes nothing until the
+of CloudBolt's own parameters in BUILTIN_REUSE) changes nothing until the
 user agrees. Names this tool creates are recorded in the onboarding state.
+
+Attaching expiration_date to a target also enables CloudBolt's "Expire
+Servers" recurring job, which acts on the dates; the result reports it as
+lifecycleJob.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -34,9 +38,11 @@ MAX_OPTIONS = 100
 MAX_LISTED = 20
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
-BUILTIN_REUSE = ("expiration_date", "power_schedule", "key_name")
+BUILTIN_REUSE = ("expiration_date", "power_schedule", "key_name", "new_password", "tech_specific_script_execution")
 # Parameters the Standard Server blueprint brings; a sync stamps these global ids only on parameters it creates.
 CONTENT_PARAMETERS = {"application": "CF-15yw228m", "maintenance_window": "CF-cei72k8x"}
+# The recurring job CloudBolt ships disabled that acts on expiration dates.
+EXPIRE_JOB_NAME = "Expire Servers"
 
 
 def _text(value):
@@ -258,6 +264,27 @@ def _constraints(cf, inputs, env=None, group=None):
     return changed
 
 
+def _expire_job(base, enable):
+    """Report the Expire Servers recurring job, enabling it first when asked. None when it does not exist."""
+    from jobs.models import RecurringJob
+
+    rj = RecurringJob.objects.filter(name=EXPIRE_JOB_NAME).first()
+    if rj is None:
+        return None
+    row = {"name": rj.name, "id": rj.global_id, "enabled": bool(rj.enabled), "changed": False,
+           "schedule": rj.schedule or None, "url": base + rj.get_absolute_url()}
+    if enable and not rj.enabled:
+        try:
+            rj.enabled = True
+            rj.save()
+            row.update(enabled=True, changed=True)
+        except Exception as exc:
+            row["error"] = "Could not enable it: {}: {}".format(type(exc).__name__, str(exc)[:200])
+    if row["enabled"] and not rj.schedule:
+        row["note"] = "The job has no schedule, so it never runs on its own; set one on its page."
+    return row
+
+
 def run(job, *args, **kwargs):
     profile = _caller(job, kwargs)
     if profile is None:
@@ -334,11 +361,6 @@ def run(job, *args, **kwargs):
         )
         created = True
         changes.append("created")
-    if created or inputs["use_existing"]:
-        try:
-            _record_owned(cf.name)
-        except Exception as exc:
-            changes.append("not recorded as the toolkit's own: {}".format(str(exc)[:160]))
     else:
         if inputs["label"] and cf.label != inputs["label"]:
             cf.label = inputs["label"]
@@ -358,6 +380,11 @@ def run(job, *args, **kwargs):
             cf.save()
         if inputs["type"] and cf.type != inputs["type"]:
             changes.append("type left as {} (changing a parameter's type is a UI operation)".format(cf.type))
+    if created or inputs["use_existing"]:
+        try:
+            _record_owned(cf.name)
+        except Exception as exc:
+            changes.append("not recorded as the toolkit's own: {}".format(str(exc)[:160]))
 
     attached = []
     for ref, kind, obj in targets:
@@ -407,7 +434,25 @@ def run(job, *args, **kwargs):
     if cf.type in ("DT", "DTM") and inputs["maximum"] is not None:
         notes.append("For a date parameter the maximum is the number of days from today a user may pick.")
     if cf.name == "expiration_date":
-        notes.append("Expiration needs the 'Expire Servers' recurring job enabled (Admin > Recurring Jobs) to act on the date.")
+        attached_any = any(a["status"] == "attached" for a in attached)
+        try:
+            lifecycle = _expire_job(base, enable=attached_any)
+        except Exception as exc:
+            lifecycle = {"name": EXPIRE_JOB_NAME, "error": "{}: {}".format(type(exc).__name__, str(exc)[:200])}
+        if lifecycle is None:
+            notes.append(
+                "No recurring job named '{}' exists on this appliance; expiration needs it enabled "
+                "(Admin > Recurring Jobs) to act on the date.".format(EXPIRE_JOB_NAME)
+            )
+        else:
+            outputs["lifecycleJob"] = lifecycle
+            if lifecycle.get("error"):
+                notes.append("'{}' could not be enabled (lifecycleJob.error); enable it under Admin > Recurring Jobs.".format(EXPIRE_JOB_NAME))
+            elif not lifecycle.get("enabled"):
+                notes.append(
+                    "'{}' is still disabled because expiration_date was not attached to any target; call again with "
+                    "onb_param_targets and it is enabled.".format(EXPIRE_JOB_NAME)
+                )
     if cf.name == "power_schedule":
         notes.append("Servers ordered with a schedule are powered by the scheduler every 15 minutes; set_server_power_schedule reads it back.")
     if inputs["options"] and not inputs["targets"]:

@@ -4,30 +4,44 @@ Onboarding: Failure Trace (MCP Tool Action plugin).
 Given an order (ORD-) or job (JOB-) global id, returns every failed job
 under it with its errors, output, the tail of its progress messages, its
 failed children and a hint for the provisioning failures a new appliance
-hits most (no image in the region, no subnet, missing key pair, Windows
-password, datastore not pinned). The built-in fetch_order and fetch_job
-tools stop at the top-level status; this tool walks down to the job that
-actually failed and tells the agent which job id to pass to fetch_job_log
-for the full traceback. Read-only, synchronous. Admin only.
+hits most (no image in the region, no subnet, missing key pair or its
+private key, Windows password, guest credentials, unreachable ESXi hosts,
+datastore not pinned).
+Some failures leave the job's errors field empty and write the exception
+only to the job's log file, so for a failed job with no errors the hints are
+also matched against the error lines in the tail of that file. The built-in
+fetch_order and fetch_job tools stop at the top-level status; this tool
+walks down to the job that actually failed and tells the agent which job id
+to pass to fetch_job_log for the full traceback. Read-only, synchronous.
+Admin only.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
 """
 import html
+import json
+import os
 import re
 
 PROGRESS_TAIL = 15
 MAX_DEPTH = 6
 MAX_FAILED = 25
+LOG_TAIL_BYTES = 256 * 1024
+LOG_LEVEL_RE = re.compile(r"\b(ERROR|CRITICAL)\b")
+EXCEPTION_LINE_RE = re.compile(r"^\s*[\w.]*(Error|Exception)\b.*:")
 
 HINTS = [
+    (re.compile(r"server's password is unknown", re.I), "CloudBolt has no guest password for this server because the vCenter template has no credentials. Set them on the template: onb_ui_link handler_images:<RH id> opens the handler's Templates tab; in the template's Credentials column click + (Add credentials to template), or the pencil when some are set, enter the guest username and password, and Save. Later orders copy them onto the server."),
+    (re.compile(r"No password parameter set|cannot set the Administrator password", re.I), "vCenter customization of a Windows server had no Administrator password. Set the Windows template's credentials: onb_ui_link handler_images:<RH id> opens the handler's Templates tab; in the template's Credentials column click + (Add credentials to template) or the pencil, enter Administrator and its password, and Save. Orders copy them onto the server and customization uses that password. Alternative: new_password on the environment (onb_trim_environment reports newPasswordSet and the steps), equal to the template's password unless the customer wants it changed at build."),
+    (re.compile(r"guestFile[\s\S]{0,800}?(ConnectTimeout|NewConnectionError|timed out|Connection refused|No route to host|unreachable)|failed to make the HTTP PUT request to the VMware API", re.I), "The appliance could not upload the script to the VM's ESXi host on port 443: VMware Tools file transfer goes straight to the host, not through vCenter, which hosted or provider-managed vCenter often blocks. Set tech_specific_script_execution (Use Tech-Specific Script Execution) to False on the environment: onb_parameter onb_param_name=tech_specific_script_execution, onb_param_targets=<ENV id>, onb_param_options=False. Scripts then run over SSH (22) and WinRM (5985/5986), which must be open from the appliance to the guests. Do not pass the parameter in orders: the order form supplies it and an explicit value is refused. Opening 443 from the appliance to every ESXi host also works."),
+    (re.compile(r"Could not find required key material|no matching key material uploaded|key pair has not been added", re.I), "CloudBolt holds no private key for the key pair named in the error. The admin uploads it: onb_ui_link handler_ssh_keys:<RH id> opens the handler's SSH Keys tab; click the pencil in the Actions column of the key's row, paste the private key into Key material, and Save. The key is pasted there, never in chat."),
     (re.compile(r"is required for Azure windows servers|password_arm", re.I), "Azure Windows builds need the password_arm parameter; add it to the environment or order form."),
     (re.compile(r"vmware_datastore parameter must be specified", re.I), "Pin a vmware_datastore value on the vCenter environment's VMware Parameters tab."),
     (re.compile(r"Memory and CPU are required", re.I), "The vCenter environment needs cpu_cnt and mem_size options."),
     (re.compile(r"InvalidAMIID|image.*not found|No (image|template|AMI)|not available in (this )?(region|location)", re.I), "The OS build has no image for this environment's region or location; import one on the handler's images page and attach the OS build to the environment."),
     (re.compile(r"subnet|sc_nic_0|No network", re.I), "No network or subnet is attached to the environment; add one on the environment's Networks tab (sc_nic_0)."),
-    (re.compile(r"InvalidKeyPair|key pair|key_name", re.I), "The key pair named in key_name does not exist in this region; pin an existing one on the environment."),
+    (re.compile(r"InvalidKeyPair|key pair(?! has not been added)|key_name", re.I), "The key pair named in key_name does not exist in this region; pin an existing one on the environment."),
     (re.compile(r"InsufficientInstanceCapacity|QuotaExceeded|exceeds quota|OperationNotAllowed.*quota", re.I), "The cloud account's quota or capacity blocked the build; pick a smaller size or another region."),
     (re.compile(r"UnauthorizedOperation|AuthorizationFailed|AccessDenied|Permission to perform this operation was denied", re.I), "The handler's credentials lack a permission for this step; compare with CloudBolt's minimum permissions document for the technology."),
     (re.compile(r"CERTIFICATE_VERIFY_FAILED|SSLError", re.I), "TLS verification failed; add the CA under Admin > SSL Certificates or disable verification for the POC."),
@@ -102,8 +116,38 @@ def _progress_tail(job):
     ]
 
 
+def _log_error_text(job):
+    """ERROR and CRITICAL entries and exception lines from the last LOG_TAIL_BYTES of the job's log file."""
+    try:
+        path = job.get_log_file_path()
+        size = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            if size > LOG_TAIL_BYTES:
+                handle.seek(size - LOG_TAIL_BYTES)
+            data = handle.read(LOG_TAIL_BYTES)
+    except (OSError, AttributeError, ValueError):
+        return ""
+    keep = []
+    for line in data.decode("utf-8", errors="replace").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            # CloudBolt 2026.2+ writes one JSON object per line, with the traceback in exc_info.
+            try:
+                entry = json.loads(stripped)
+            except ValueError:
+                continue
+            if isinstance(entry, dict) and str(entry.get("levelname") or "").upper() in ("ERROR", "CRITICAL"):
+                keep.append("{}\n{}".format(entry.get("message") or "", entry.get("exc_info") or entry.get("exc_text") or ""))
+        elif LOG_LEVEL_RE.search(line) or EXCEPTION_LINE_RE.match(line):
+            keep.append(line)
+    return "\n".join(keep)
+
+
 def _summary(job, base, with_progress=True):
     text = "{}\n{}".format(job.errors or "", job.output or "")
+    log_checked = job.status == "FAILURE" and not (job.errors or "").strip()
+    if log_checked:
+        text += "\n" + _log_error_text(job)
     row = {
         "id": job.global_id,
         "pk": job.id,
@@ -117,6 +161,8 @@ def _summary(job, base, with_progress=True):
         "url": base + "/jobs/{}/".format(job.id),
         "hints": _hints_for(text),
     }
+    if log_checked:
+        row["logTailChecked"] = True
     if with_progress:
         row["progressTail"] = _progress_tail(job)
     return row

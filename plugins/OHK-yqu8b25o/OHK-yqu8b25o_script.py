@@ -5,8 +5,9 @@ Builds the POC Test Plan scorecard: every item with its weight, the status
 recorded with onb_set_item_status, and the live evidence on the appliance
 (orders, handlers, environments, parameters, mappings, roles, approvals,
 quotas, lifecycle parameters, recurring jobs, rules, CIT tests, webhooks,
-extensions). A recorded status wins; evidence only suggests. Read-only,
-synchronous. Admin only.
+extensions). Any recorded status wins, pending included; evidence only
+suggests a status for items nobody recorded. Evidence rules lean strict: a
+missed item is better than a false done. Read-only, synchronous. Admin only.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -14,6 +15,7 @@ deletes the input when the script is saved.
 """
 import html
 import json
+import os
 
 from django.conf import settings
 
@@ -82,6 +84,11 @@ PREREQS = [
     ("P11", "Ansible or AAP prerequisites"), ("P12", "Terraform scripts in git"),
 ]
 BUILTIN_TAG_ATTRIBUTES = {"environment", "group", "hostname", "os_build", "os_family", "owner"}
+MAX_JOBS = 2000
+CIT_JOB_TYPE = "functionaltest"
+# A decom under one of these job types is cleanup (failed provision or blueprint deploy), a CIT run or a lease expiry.
+NOT_SELF_SERVICE_DECOM_PARENTS = {"provision", "deploy_blueprint", CIT_JOB_TYPE, "expire"}
+APPROVED_ORDER_STATUSES = ["ACTIVE", "SUCCESS", "WARNING", "FAILURE"]
 
 
 def _text(value):
@@ -136,6 +143,40 @@ def _ev(found, detail):
     return {"found": bool(found), "detail": detail}
 
 
+def _ancestor_types(job, depth=10):
+    types = set()
+    parent = job.parent_job
+    while parent is not None and depth > 0:
+        types.add(parent.type)
+        parent = parent.parent_job
+        depth -= 1
+    return types
+
+
+def _successful_jobs(job_type, excluded_ancestors):
+    """The latest successful jobs of one type, minus those started under an excluded job type."""
+    from jobs.models import Job
+
+    rows = Job.objects.filter(type=job_type, status="SUCCESS").select_related("parent_job__parent_job__parent_job").order_by("-id")[:MAX_JOBS]
+    return [job for job in rows if not (_ancestor_types(job) & excluded_ancestors)]
+
+
+def _blueprint_servers():
+    """(id, status, blueprint, technology) for servers a successful provision job built from a blueprint server tier, CIT runs excluded."""
+    from infrastructure.models import Server
+
+    job_ids = [job.id for job in _successful_jobs("provision", {CIT_JOB_TYPE})]
+    return list(Server.objects.filter(jobs__id__in=job_ids, service_item__isnull=False).exclude(resource_handler__isnull=True).values_list(
+        "id", "status", "service_item__blueprint__name", "resource_handler__resource_technology__name").distinct())
+
+
+def _seed():
+    """CloudBolt's seed definitions: the roles, recurring jobs and rules every appliance ships with."""
+    from initialize import cb_minimal
+
+    return cb_minimal
+
+
 # --- evidence per item -----------------------------------------------------
 
 def _ev_1_1_1():
@@ -185,19 +226,12 @@ def _ev_1_1_4():
     return _ev(envs or tiers, "{} environment(s) and {} server tier(s) carry a hostname template".format(envs, tiers))
 
 
-def _server_tech_counts():
-    from infrastructure.models import Server
-
-    rows = Server.objects.filter(status="ACTIVE").exclude(resource_handler__isnull=True).values_list("resource_handler__resource_technology__name", flat=True)
-    counts = {}
-    for name in rows:
-        counts[name] = counts.get(name, 0) + 1
-    return counts
-
-
 def _ev_1_2_1():
-    counts = _server_tech_counts()
-    return _ev(len(counts) >= 2, "active servers per technology: {}".format(", ".join("{} ({})".format(k, v) for k, v in sorted(counts.items())) or "none"))
+    per_blueprint = {}
+    for _server_id, _status, blueprint, tech in _blueprint_servers():
+        per_blueprint.setdefault(blueprint, set()).add(tech)
+    rows = ["{} ({})".format(bp, ", ".join(sorted(techs))) for bp, techs in sorted(per_blueprint.items()) if len(techs) >= 2]
+    return _ev(rows, "blueprints that provisioned servers on two or more technologies: {}".format("; ".join(rows[:8]) or "none"))
 
 
 def _ev_1_2_2():
@@ -212,8 +246,12 @@ def _ev_1_2_2():
 
 
 def _ev_1_2_3():
-    counts = _server_tech_counts()
-    return _ev(len(counts) >= 2, "servers visible from {} technologies".format(len(counts)))
+    counts = {}
+    for _server_id, status, _blueprint, tech in _blueprint_servers():
+        if status == "ACTIVE":
+            counts[tech] = counts.get(tech, 0) + 1
+    return _ev(len(counts) >= 2, "active blueprint-provisioned servers per technology: {}".format(
+        ", ".join("{} ({})".format(k, v) for k, v in sorted(counts.items())) or "none"))
 
 
 def _ev_2_1_1():
@@ -280,15 +318,11 @@ def _ev_2_3_3():
 def _ev_2_3_4():
     from accounts.models import Role
 
-    seed = set()
-    try:
-        from initialize.cb_minimal import all_grouptype_roles, all_roles
-
-        seed = {r["name"] for r in list(all_roles) + list(all_grouptype_roles)}
-    except Exception:
-        seed = {"requestor", "approver", "viewer", "resource_admin", "group_admin", "job_owner", "reassigner", "resource_viewer"}
-    custom = sorted(Role.objects.exclude(name__in=seed).values_list("name", flat=True))
-    return _ev(custom, "custom roles: {}".format(", ".join(custom) or "none"))
+    # The built-in set is the one CloudBolt's own custom-role count excludes (analytics register_role_counts).
+    seed = _seed()
+    builtin = {r["name"] for r in list(seed.all_default_roles) + list(seed.all_special_roles) + list(seed.all_grouptype_roles)}
+    custom = sorted(Role.objects.exclude(name__in=builtin).values_list("name", flat=True))
+    return _ev(custom, "roles that are not built in: {}".format(", ".join(custom) or "none"))
 
 
 def _ev_2_4_1():
@@ -301,11 +335,16 @@ def _ev_2_4_1():
 
 
 def _ev_2_4_2():
-    from cbhooks.models import ResourceAction, ServerAction
+    # An action that requires approval runs through an order with an ActionJobOrderItem; one without approval never
+    # creates an order. Auto-approval records the owner as approver, and a denial also fills approved_by.
+    from django.db.models import F
+    from orders.models import ActionJobOrderItem
 
-    labels = list(ServerAction.objects.filter(requires_approval=True).values_list("label", flat=True)) + list(
-        ResourceAction.objects.filter(requires_approval=True).values_list("label", flat=True))
-    return _ev(labels, "actions requiring approval: {}".format(", ".join(labels[:8]) or "none"))
+    items = ActionJobOrderItem.objects.exclude(order__isnull=True)
+    approved = items.filter(order__status__in=APPROVED_ORDER_STATUSES, order__approved_by__isnull=False).exclude(
+        order__approved_by=F("order__owner")).values("order").distinct().count()
+    pending = items.filter(order__status="PENDING").values("order").distinct().count()
+    return _ev(approved, "{} server or resource action order(s) approved by someone other than the requester; {} pending now".format(approved, pending))
 
 
 def _ev_2_5_1():
@@ -349,10 +388,12 @@ def _ev_3_1_2():
 
 
 def _ev_3_1_3():
-    from jobs.models import Job
+    from infrastructure.models import Server
 
-    count = Job.objects.filter(type="decom", status="SUCCESS").count()
-    return _ev(count, "{} successful decommission job(s)".format(count))
+    decoms = [job.id for job in _successful_jobs("decom", NOT_SELF_SERVICE_DECOM_PARENTS)]
+    provisioned = Server.objects.filter(jobs__type="provision", jobs__status="SUCCESS")
+    count = Server.jobs.through.objects.filter(job_id__in=decoms, server__in=provisioned).values("job_id").distinct().count()
+    return _ev(count, "{} successful decommission job(s) of servers CloudBolt provisioned; CIT, cleanup and expiry excluded".format(count))
 
 
 def _ev_3_1_4():
@@ -402,24 +443,43 @@ def _ev_4_1_2():
 
 
 def _ev_4_2_1():
+    # A Content Library import keeps the library item's global id, and the stock Content Library Caching job writes
+    # the library index to CONTENTLIBRARY_CACHE_LOCATION_PATH/<collection>.json, so a match there names its origin.
     from extensions.models import UIExtension
 
-    names = list(UIExtension.objects.values_list("name", flat=True))
-    return _ev(names, "UI extensions: {}".format(", ".join(names[:10]) or "none"))
+    local = UIExtension.objects.filter(enabled=True, source_code_repo__isnull=True, remote_source_url="")
+    path = os.path.join(settings.CONTENTLIBRARY_CACHE_LOCATION_PATH, "ui-extension-packages.json")
+    if not os.path.isfile(path):
+        names = sorted(local.values_list("name", flat=True))
+        return {"found": None, "detail": "Content Library index not cached on the appliance; extensions not synced from a repository: {}".format(
+            ", ".join(names[:10]) or "none")}
+    with open(path) as handle:
+        index = json.load(handle)
+    ids = {str(item.get("id")) for item in index if isinstance(item, dict) and item.get("id")}
+    names = sorted(local.filter(global_id__in=ids).values_list("name", flat=True))
+    return _ev(names, "UI extensions installed from the Content Library: {}".format(", ".join(names[:10]) or "none"))
 
 
 def _ev_4_2_2():
+    from cbhooks.models import RecurringActionJob
     from jobs.models import RecurringJob
 
-    names = list(RecurringJob.objects.filter(enabled=True).values_list("name", flat=True))
-    return _ev(names, "enabled recurring jobs: {}".format(", ".join(names[:10]) or "none"))
+    stock = _seed().recurring_jobs
+    stock_names = {job["name"] for job in stock}
+    # A stock job the customer renamed still runs its stock action.
+    stock_hooks = {job["hook_name"] for job in stock if job.get("hook_name")}
+    renamed = RecurringActionJob.objects.filter(hook__name__in=stock_hooks).values_list("pk", flat=True)
+    names = sorted(RecurringJob.objects.filter(enabled=True).exclude(name__in=stock_names).exclude(id__in=renamed).values_list("name", flat=True))
+    return _ev(names, "enabled recurring jobs that are not stock: {}".format(", ".join(names[:10]) or "none"))
 
 
 def _ev_4_2_3():
     from cbhooks.models import TriggerPoint
 
-    names = list(TriggerPoint.objects.filter(enabled=True).values_list("name", flat=True))
-    return _ev(names, "enabled rules: {}".format(", ".join(names[:10]) or "none"))
+    stock = {rule["name"] for rule in _seed().rules}
+    rows = TriggerPoint.objects.filter(enabled=True).exclude(name__in=stock).values_list("name", "label")
+    names = sorted(label or name for name, label in rows)
+    return _ev(names, "enabled rules that are not stock: {}".format(", ".join(names[:10]) or "none"))
 
 
 def _ev_4_2_4():
@@ -499,6 +559,7 @@ def run(job, *args, **kwargs):
     recorded = (_load_state().get("items") or {})
 
     categories = []
+    pending_with_evidence = []
     totals = {"items": 0, "done": 0, "notApplicable": 0, "pending": 0, "pointsPossible": 0, "pointsPossibleApplicable": 0}
     for name, items in CATEGORIES:
         if wanted and name != wanted:
@@ -510,10 +571,15 @@ def run(job, *args, **kwargs):
             record = recorded.get(item_id) or {}
             evidence = _safe(EVIDENCE[item_id]) if item_id in EVIDENCE else {"found": None, "detail": ""}
             status = record.get("status")
+            # Any recorded status wins over evidence, pending included; evidence only fills in unrecorded items.
             if status in ("skipped", "not_applicable"):
                 suggested = "not_applicable"
             elif status == "done":
                 suggested = "done"
+            elif status:
+                suggested = "pending"
+                if evidence.get("found"):
+                    pending_with_evidence.append(item_id)
             elif evidence.get("found"):
                 suggested = "done (evidence)"
             else:
@@ -544,8 +610,12 @@ def run(job, *args, **kwargs):
         "categories": categories,
         "prerequisites": prereqs if not wanted else [],
         "totals": totals,
+        "recordedPendingWithEvidence": pending_with_evidence,
         "scoring": "The workbook multiplies a 0 to 5 score per item by its weight; points possible are 5 times the weight. Items recorded not applicable are excluded from pointsPossibleApplicable.",
-        "next": "Read the pending items to the user; record each outcome with onb_set_item_status (done, or not_applicable with a reason), then call this tool again for the final table.",
+        "next": "Read the pending items to the user; record each outcome with onb_set_item_status (done, or not_applicable with a reason), then call this tool again for the final table. "
+                "Items in recordedPendingWithEvidence were recorded pending but now show evidence: ask the user whether to record them done.",
     }
     message = "{} item(s): {} done, {} not applicable, {} pending.".format(totals["items"], totals["done"], totals["notApplicable"], totals["pending"])
+    if pending_with_evidence:
+        message += " Recorded pending but evidence found: {}.".format(", ".join(pending_with_evidence))
     return _success(message, outputs)

@@ -90,6 +90,10 @@ PAGES = {
     "handler_edit:{arg}": ("/admin/resourcehandlers/{pk}/", "A handler's page, to edit its credentials (RH- id)"),
     "handler_import_locations:{arg}": ("/admin/resourcehandlers/{pk}/#tab-locations", "A handler's Locations tab, to import locations or clusters as environments (RH- id)"),
     "handler_ssh_keys:{arg}": ("/admin/resourcehandlers/{pk}/#tab-ssh-keys", "A handler's SSH Keys tab, to upload a key pair's private key (RH- id)"),
+    "handler_images:{arg}": (
+        "/admin/resourcehandlers/{pk}/#tab-images",
+        "A handler's images tab (AMIs on AWS, Templates on vCenter), to set an image's guest credentials (RH- id)",
+    ),
     "environments": ("/environments/", "Environment list"),
     "new_ipam": ("/setup/add-ipam/", "Add an IPAM endpoint (Infoblox, BlueCat, phpIPAM, SolarWinds); credentials are entered there"),
     "ipam_list": ("/ipam/", "IPAM endpoints"),
@@ -140,6 +144,10 @@ CLICKS = {
     "handler_edit": "Edit Credentials on the Overview tab",
     "handler_import_locations": "Import Locations on the Locations tab",
     "handler_ssh_keys": "the pencil in the Actions column of the key's row",
+    "handler_images": (
+        "the + next to None configured (Add credentials), or the pencil (Edit credentials) when some are set, "
+        "in the Credentials column of the image's row"
+    ),
     "new_ldap": "Add",
     "ldap_verify": "Verify Connection on the Overview tab",
     "ldap_mappings": "New LDAP Mapping on the Group Mappings tab",
@@ -264,6 +272,27 @@ def _handler_chooser(arg, outputs):
     return path
 
 
+def _handler_images_path(pk):
+    """The handler page with its images tab open; the tab's slug differs by technology.
+
+    resourcehandlers/aws/views.py names the tab amis; vmware/views.py (and proxmox) use the
+    title-cased plural of template_label (Templates); every other handler uses images
+    (ResourceHandler.get_templates_tab_as_tuple).
+    """
+    from django.template.defaultfilters import title
+    from resourcehandlers.models import ResourceHandler
+
+    slug = "images"
+    handler = ResourceHandler.objects.filter(pk=pk).first()
+    if handler is not None:
+        module = handler.type_slug
+        if module == "aws":
+            slug = "amis"
+        elif module in ("vmware", "proxmox"):
+            slug = title("{}s".format(handler.cast().template_label))
+    return "/admin/resourcehandlers/{}/#tab-{}".format(pk, slug)
+
+
 def _pages_help():
     rows = []
     for key, (_path, meaning) in PAGES.items():
@@ -309,6 +338,7 @@ def run(job, *args, **kwargs):
     key, _sep, arg = target.partition(":")
     key = key.strip().lower()
     arg = arg.strip()
+    pk = None
     if arg and (key + ":{arg}") in PAGES:
         path, meaning = PAGES[key + ":{arg}"]
         if "{pk}" in path:
@@ -328,6 +358,8 @@ def run(job, *args, **kwargs):
         )
     if key == "new_resource_handler":
         path = _handler_chooser(arg, outputs)
+    elif key == "handler_images" and pk is not None:
+        path = _handler_images_path(pk)
     outputs.update({"page": key, "argument": arg or None, "meaning": meaning, "url": base + path})
     if key in CLICKS:
         outputs["click"] = CLICKS[key]

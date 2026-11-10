@@ -20,7 +20,9 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_replace_existing` | string | `true` replaces the handler's other image in the OS build after the user confirms; CloudBolt allows one per handler (per region on AWS and Azure). |
 
 ## Output
-When listing: images[] (ids, names, OS). When importing: osBuild (id, name, requestedName, osFamily, reused, url), image, location, attachedToEnvironments[], replacedImages[], verified, unresolved[], notes[], next. When the build already holds another image of the handler: confirmationRequired, existingImages[], next, and nothing is changed.
+When listing: images[] (ids, names, OS). When importing: osBuild (id, name, requestedName, osFamily, reused, url), image, location, attachedToEnvironments[], credentials[], replacedImages[], verified, unresolved[], notes[], next.
+
+credentials[] has one entry per image the environments resolve: osBuild, environments[], image (IMG- id, name), whether username, password and key are set (booleans only; username only on AWS, where the key pair is checked by onb_trim_environment and onb_status), missing[], imagesUrl, click, values (suggested username), steps, why. A vCenter Windows entry adds newPassword (environments with and without new_password, and the remedy). CloudBolt copies an image's credentials onto each server built from it, so set them before the first order. When the build already holds another image of the handler: confirmationRequired, existingImages[], next, and nothing is changed.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

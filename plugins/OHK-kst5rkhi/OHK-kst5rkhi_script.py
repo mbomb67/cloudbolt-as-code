@@ -3,8 +3,8 @@ Onboarding: Install Content Library Item (MCP Tool Action plugin).
 
 Downloads an item from CloudBolt's Content Library (content.cloudbolt.app)
 and imports it, the way the library page does, so the POC can add the
-Jupyter Notebooks UI extension, the tmp cleanup recurring job, the Resize
-VM and Ad-Hoc Script server actions or any other item without clicking
+Jupyter Notebook UI extension, the tmp cleanup recurring job, the Resize
+Instance server action or any other item without clicking
 through the UI. With onb_cl_item empty it lists the collection's items.
 Runs as a job because it downloads from the internet. Admin only.
 

@@ -31,7 +31,7 @@
             "id": "CF-rbunxfpb",
             "label": "Item name or id (empty lists the collection)",
             "name": "onb_cl_item",
-            "placeholder": "Resize VM",
+            "placeholder": "Resize Instance",
             "relevant-osfamilies": [],
             "required": false,
             "show-as-attribute": false,

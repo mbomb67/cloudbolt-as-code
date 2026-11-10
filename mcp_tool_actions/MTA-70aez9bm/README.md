@@ -26,7 +26,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_param_show_on_servers` | string | Whether the value appears on the server and can be mapped to a cloud tag. |
 
 ## Output
-parameter (id, name, type, required, created, changes, url), attached[] per target with options, constraints and status, notes[]. A required change that reaches beyond the targets returns confirmationRequired, alsoAffectsCount and alsoAffects[] instead, and changes nothing; so does a name that exists but is not the toolkit's own, with existingParameter and usedBy[]. A parameter counts as the toolkit's own when onb_parameter created it (or the user agreed to use it), or when it is one the Standard Server blueprint brings with the global id the sync gave it.
+parameter (id, name, type, required, created, changes, url), attached[] per target with options, constraints and status, notes[]. For expiration_date, lifecycleJob (name, id, enabled, changed, schedule, url): the Expire Servers recurring job, enabled when expiration_date is attached to a target. A required change that reaches beyond the targets returns confirmationRequired, alsoAffectsCount and alsoAffects[] instead, and changes nothing; so does a name that exists but is not the toolkit's own, with existingParameter and usedBy[]. A parameter counts as the toolkit's own when onb_parameter created it (or the user agreed to use it), or when it is one the Standard Server blueprint brings with the global id the sync gave it.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

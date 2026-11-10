@@ -29,7 +29,7 @@ Status values for `onb_set_item_status`: `done`, `pending`, `skipped`, `not_appl
 | 2.3.3 | Environment entitlement by group | 4 | 5 | `onb_group` with environments, `fetch_orderable_environments` | Which group sees it | [Ordering environments](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/ordering-servers-environments) | No |
 | 2.3.4 | Custom role | 3 | 5 | Role (UI), `onb_user` with that role, login | Permissions seen | [Custom roles](https://docs.cloudbolt.io/articles/cloudbolt-latest-docs/groups-permissions/a/h2__322854237) | No |
 | 2.4.1 | Order approval | 3 | 5 | Requestor orders, `approve_order` as approver | Order id, approval | — | No |
-| 2.4.2 | Approval on a day-2 action | 3 | 5 | `onb_action_approval` on Resize VM, `run_server_action` returns an order | Order id | — | No |
+| 2.4.2 | Approval on a day-2 action | 3 | 5 | `onb_action_approval` on Change Resources (vCenter), the requestor runs it in the UI and it becomes an order | Order id | — | No |
 | 2.5.1 | Tagging policy from a parameter | 5 | 4 | `onb_parameter` cost_center on the group, `onb_tag_mapping` | Tag in the cloud | [Tags](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/tags) | No |
 | 2.5.2 | Group quota | 2 | 5 | `onb_group` with `onb_group_quota_servers=3`, fourth order refused | Refused order | [Quotas](https://docs.cloudbolt.io/articles/cloudbolt-latest-docs/groups-permissions/a/h2_878037613) | No |
 
@@ -41,7 +41,7 @@ Status values for `onb_set_item_status`: `done`, `pending`, `skipped`, `not_appl
 | 3.1.2 | Leases (expiration) | 5 | 7 | `onb_parameter` expiration_date with `onb_param_max`, Expire Servers job | Expiration on server, job enabled | [Server expiration](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/server-expiration) | No |
 | 3.1.3 | Self-service decommission | 4 | 7 | Owner deletes, or `run_server_action` Delete | Job id, server gone | — | No |
 | 3.1.4 | Onboard existing cloud resources | 5 | 7 | Change Attributes on Unassigned servers | Servers in the group | — | Yes, when no existing VMs |
-| 3.2.1 | Resize | 4 | 7 | `onb_install_content_library_item` Resize VM, `run_server_action` | Job id, new size | — | No |
+| 3.2.1 | Resize | 4 | 7 | Change Resources (vCenter) or Resize VM / Resize Instance (AWS), `run_server_action` | Job id, new size | — | No |
 | 3.2.2 | Configuration update through Ansible | 0 | 8 | Ansible day-2 action | Job output | [Ansible](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/ansible) | Yes, weight 0 |
 | 3.2.3 | Lifecycle actions | 3 | 3 | `run_server_action` stop, start, reboot | Job ids | [Lifecycle actions](https://academy.university.cloudbolt.io/guides/019403d1-422e-7471-826c-4a6c12820e2a/tasks/0193e483-6d74-7c94-a8c4-464683bd3b51) | No |
 
@@ -50,7 +50,7 @@ Status values for `onb_set_item_status`: `done`, `pending`, `skipped`, `not_appl
 | Id | Item | Weight | Phase | How | Evidence | Docs | Skippable |
 |---|---|---|---|---|---|---|---|
 | 4.1.1 | No in-guest agents | 5 | — | Architecture statement; the workbook pre-scores it | — | — | No |
-| 4.1.2 | Agentless in-guest script | 5 | 8 | Ad-Hoc Script action from the Content Library | Script output | — | No |
+| 4.1.2 | Agentless in-guest script | 5 | 8 | Ad Hoc Script server action (on the appliance or from the Content Library) | Script output | — | No |
 | 4.2.1 | UI extension from the Content Library | 5 | 8 | `onb_install_content_library_item` ui-extension-packages | Extension launches | [UI extensions](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/ui-extensions) | Yes, when P5 unmet |
 | 4.2.2 | Recurring job on a schedule | 4 | 8 | `onb_install_content_library_item` recurring-jobs, `run_recurring_job` | Job id, file gone | [Recurring jobs](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/recurring-jobs) | Yes, when P5 unmet |
 | 4.2.3 | Rule-based automation | 3 | 8 | Quota rule enabled (UI), `onb_group` quota, executed | Email received | [Rules](https://docs.cloudbolt.io/articles/#!cloudbolt-latest-docs/rules) | Partial without P7 |

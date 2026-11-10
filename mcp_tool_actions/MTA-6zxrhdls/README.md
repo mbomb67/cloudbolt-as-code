@@ -15,7 +15,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_action` | string | install applies the flags; status only reports. |
 
 ## Output
-tools{} (present, enabled, isSynchronous, wantsSynchronous, before), missing[], changed[], egress (contentLibrary, playbook), notes[].
+counts (expected, present, missing, changed), missing[], changed[] (tool, id, changes, editUrl) for the tools it enabled or made synchronous or asynchronous, egress (contentLibrary, playbook), notes[]. With `onb_action=status` nothing changes and the same rows come back as needsChange[]. Tools already in the wanted state are only counted.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

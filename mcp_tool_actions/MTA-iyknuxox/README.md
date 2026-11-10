@@ -19,10 +19,11 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_remove` | text | Field names to remove from the environment in addition to the profile's list. |
 
 ## Output
-before[] and after[] (every parameter with options, required, hiddenOnOrderForm), actions[] (pinned, removed, left with reason), protectedFromSync[], visibleNow[], keyMaterial (keys[] with materialUploaded, uploadUrl, steps, why) when the environment offers key pairs, next.
+before[] and after[] (every parameter with options, required, hiddenOnOrderForm), actions[] (pinned, removed, left with reason), protectedFromSync[], visibleNow[], keyMaterial (keys[] with materialUploaded, uploadUrl, steps, why) when the environment offers key pairs, newPasswordSet on vCenter (plus newPassword with parametersUrl, steps, whatToEnter, why, alternative when false), next. Password values show as asterisks.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
 - Handler-level fields cannot be removed from one environment; they are pinned instead.
 - On Azure node_size, availability_set_arm and azure_authentication_type never hide.
+- On vCenter new_password is never pinned or removed: Windows customization fails when the server has neither it nor the template's password. The admin enters either in CloudBolt; onb_pin refuses password fields.

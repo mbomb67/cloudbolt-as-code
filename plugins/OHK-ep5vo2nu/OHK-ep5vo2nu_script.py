@@ -139,12 +139,32 @@ def _delete(ids, profile, base):
         except Exception as error:
             skipped.append({"id": ref, "hostname": server.hostname, "reason": "{}: {}".format(type(error).__name__, error)})
             continue
+        if job is None and order is not None:
+            # An auto-approved decommission order already has its delete job.
+            try:
+                jobs = order.list_of_jobs()
+                job = jobs[0] if jobs else None
+            except Exception:
+                job = None
         row["deleteJob"] = job.global_id if job else None
         row["deleteOrder"] = order.global_id if order else None
         if order is not None:
             row["deleteOrderStatus"] = order.status
+        row["next"] = _delete_next(job, order)
         deleted.append(row)
     return deleted, skipped
+
+
+def _delete_next(job, order):
+    """What to poll for one delete: the job when there is one, otherwise the order it waits on."""
+    if job is not None:
+        return "Poll deleteJob {} with fetch_job until it finishes.".format(job.global_id)
+    if order is not None:
+        return (
+            "No delete job yet: the deletion waits on deleteOrder {} (status {}). Check it with fetch_order; it may "
+            "need approval (approve_order). Once approved, fetch_order lists its job; poll that with fetch_job."
+        ).format(order.global_id, order.status)
+    return "CloudBolt returned neither a job nor an order; open the server page (url) to see its state."
 
 
 def run(job, *args, **kwargs):
@@ -166,8 +186,10 @@ def run(job, *args, **kwargs):
     outputs = {"deleted": deleted, "skipped": skipped}
     if deleted:
         outputs["next"] = (
-            "Poll each deleteJob with fetch_job until it finishes (a deleteOrder in PENDING needs approve_order first). "
-            "Then call this tool with no input: the deleted servers are gone from the list. A failed delete job: "
+            "Follow each row's next. Where deleteJob is set, poll it with fetch_job until it finishes. Where deleteJob "
+            "is null, the deletion waits on deleteOrder: check it with fetch_order; it may need approval (approve_order), "
+            "and once approved fetch_order lists the delete job to poll with fetch_job. When every delete job has "
+            "finished, call this tool with no input: the deleted servers are gone from the list. A failed delete job: "
             "onb_failure_trace with its id; when the cloud refused the delete the server comes back as active."
         )
     message = "Delete started for {} server(s), {} skipped.".format(len(deleted), len(skipped))

@@ -15,9 +15,10 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 | `onb_score_section` | string | all (default), self-service, rbac, resource-management or extensibility. |
 
 ## Output
-categories[] with items[] (id, title, weight, recorded, evidence, suggested, note), pointsPossible per category, totals, prerequisites[].
+categories[] with items[] (id, title, weight, recorded, recordedNote, evidence, evidenceFound, suggested), pointsPossible per category, totals, prerequisites[], recordedPendingWithEvidence[].
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
-- Evidence is indicative; the customer's score column is their judgement.
+- Any recorded status wins, pending included; evidence only suggests a status for unrecorded items.
+- Evidence is strict and indicative; the customer's score column is their judgement. Built-in roles, stock recurring jobs and stock rules are excluded using CloudBolt's seed definitions (`initialize.cb_minimal`); 4.2.1 needs the Content Library index cache.

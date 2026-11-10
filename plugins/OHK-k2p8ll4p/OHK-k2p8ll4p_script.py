@@ -10,7 +10,9 @@ from onb_sync_images (or the Fetch and Cache recurring jobs); an AMI id
 that is not cached is fetched on the spot, and an empty Azure or vCenter
 cache is refreshed without the whitelist before the lookup. An OS build
 name that already exists is reused, so one build can carry an image per
-handler and a single blueprint deploys to both clouds. Runs as a job
+handler and a single blueprint deploys to both clouds. After the import
+it reports whether each image holds the guest credentials CloudBolt copies
+onto servers built from it (booleans only, never the values). Runs as a job
 because it calls the cloud API. Admin only.
 
 Every declared input is read from its rendered template token in
@@ -23,6 +25,17 @@ import re
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
 LOCATION_FIELD = {"aws": "aws_region", "aws_govcloud": "aws_region", "aws_china": "aws_region", "azure_arm": "node_location"}
 MAX_LIST = 60
+# The default user of AWS images by OS family, from AWS's list of default usernames
+# (root sign-in is disabled on them, so CloudBolt's root fallback fails there):
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/managing-users.html#ami-default-user-names
+AWS_USERNAMES = {
+    "Amazon Linux": "ec2-user", "CentOS": "centos", "Debian": "admin", "Fedora": "fedora",
+    "Oracle Enterprise Linux": "ec2-user", "Red Hat": "ec2-user", "SUSE": "ec2-user", "Ubuntu": "ubuntu",
+}
+NEW_PASSWORD_REMEDY = (
+    "onb_parameter with onb_param_name new_password and onb_param_targets set to the environment, without "
+    "onb_param_options, so the order form asks for the Administrator password"
+)
 
 
 def _text(value):
@@ -432,6 +445,195 @@ def _import_generic(handler, image, os_build_name, existing_osb, job):
     return osba.os_build, None
 
 
+# --- guest credentials -----------------------------------------------------
+# CloudBolt copies every parameter value of the image (username, password, key_name) onto a
+# server it builds from it (_assign_nonunique_server_info in jobengine/jobmodules/provisionjob.py),
+# and Server.get_credentials reads them back (ResourceHandler.get_server_credentials).
+
+def _family_names(osb):
+    names = []
+    family = getattr(osb, "os_family", None)
+    while family is not None and len(names) < 5:
+        names.append(family.name)
+        family = getattr(family, "parent", None)
+    return names
+
+
+def _default_username(osb):
+    """The user CloudBolt signs in as when the image has none (ResourceHandler.get_server_credentials)."""
+    if osb.is_windows():
+        return "Administrator"
+    if osb.os_family is not None and osb.os_family.name == "Ubuntu":
+        return "ubuntu"
+    return "root"
+
+
+def _suggested_username(osb, slug):
+    if osb.is_windows():
+        return "Administrator", "the Windows built-in administrator"
+    families = _family_names(osb)
+    if slug.startswith("aws"):
+        for name in families:
+            if name in AWS_USERNAMES:
+                return AWS_USERNAMES[name], "AWS's default user for {} AMIs".format(name)
+        return "ec2-user", "the default user of most AWS Linux AMIs; check with the AMI provider"
+    if "Ubuntu" in families:
+        return "ubuntu", "the default user of Ubuntu images"
+    return "root", "CloudBolt's default user for Linux"
+
+
+def _images_tab(handler):
+    """The handler page's images tab slug, and the noun its credentials icons use in their titles.
+
+    resourcehandlers/aws/views.py names the tab amis; vmware/views.py (and proxmox) use the
+    title-cased plural of template_label; every other handler uses images
+    (ResourceHandler.get_templates_tab_as_tuple). The noun is what each tab-templates.html passes
+    to the template_credentials tag.
+    """
+    from django.template.defaultfilters import title
+
+    module = handler.type_slug
+    noun = getattr(handler, "template_label", None) or "image"
+    if module == "aws":
+        return "amis", "AMI"
+    if module in ("vmware", "proxmox"):
+        return title("{}s".format(noun)), noun
+    if module == "azure_arm":
+        return "images", "image"
+    return "images", noun
+
+
+def _has_new_password(env):
+    return (env.custom_fields.filter(name="new_password").exists()
+            or env.custom_field_options.filter(field__name="new_password").exists())
+
+
+def _credentials_entry(handler, slug, osb, osba, envs, base):
+    """Which guest credentials one image holds (booleans, never values) and how to set the missing ones."""
+    try:
+        creds = osba.get_credentials()
+    except Exception:
+        creds = {}
+    has_user = bool(creds.get("username"))
+    has_password = bool(creds.get("password"))
+    has_key = bool(creds.get("keyfile"))
+    windows = osb.is_windows()
+    tab, noun = _images_tab(handler)
+    image = {"id": osba.global_id, "name": osba.template_name or str(osba)}
+    for key, field in (("amiId", "ami_id"), ("region", "region")):
+        value = getattr(osba, field, None)
+        if value:
+            image[key] = value
+    if has_user or has_password or has_key:
+        click = "the pencil (Edit credentials for {}) in the Credentials column of the image's row".format(noun)
+    else:
+        click = "the + (Add credentials to {}) next to None configured in the Credentials column of the image's row".format(noun)
+    suggested, basis = _suggested_username(osb, slug)
+    default = _default_username(osb)
+    entry = {
+        "osBuild": {"id": osb.global_id, "name": osb.name},
+        "environments": [{"id": env.global_id, "name": env.name} for env in envs],
+        "image": image,
+        "username": has_user,
+    }
+    if slug.startswith("aws"):
+        missing = ["username"] if not has_user and suggested != default else []
+        entry.update({
+            "missing": missing,
+            "imagesUrl": base + "/admin/resourcehandlers/{}/#tab-{}".format(handler.id, tab),
+            "click": click,
+            "values": {"Username": suggested, "suggestion": "Suggested: {}. Confirm it against the AMI.".format(basis)},
+            "steps": "Click {}, type the username in Username, leave Password and Key name empty, then Save.".format(click),
+            "why": (
+                "Without it CloudBolt signs in to servers from this AMI as {}, which AWS images refuse, so remote scripts fail.".format(default)
+                if missing else
+                "CloudBolt signs in to servers from this AMI as the username set on it."
+                if has_user else
+                "CloudBolt signs in as {} when the image names no user, which suits this AMI.".format(default)
+            ),
+            "keyPair": "AWS servers sign in with the key pair, not a password; its private key is checked by onb_trim_environment (keyMaterial) and onb_status (sshKeys).",
+        })
+        return entry
+    entry["password"] = has_password
+    if not windows:
+        entry["key"] = has_key
+    values = {"Username": suggested, "suggestion": "Suggested: {}. Use the account the image actually has.".format(basis)}
+    steps = ("Click {}, type the image's Username and Password (the password goes in the dialog, never in chat), "
+             "then Save.".format(click))
+    if slug == "azure_arm":
+        missing = []
+        values = {}
+        steps = "Nothing to set: the order form supplies the password (password_arm)."
+        why = ("Azure sets the admin account at build: the password comes from the order form's password_arm, "
+               "and the username from this image unless it is empty, root, admin or Administrator, when CloudBolt "
+               "uses the server owner's username.")
+    elif slug == "vmware" and windows:
+        without = [env.name for env in envs if not _has_new_password(env)]
+        missing = [] if has_password or not without else ["password"]
+        why = ("vCenter's Windows customization sets the Administrator password to new_password when the order "
+               "carries one and otherwise falls back to the server's password, which CloudBolt copies from this "
+               "template, and in-guest scripts then sign in with it; with neither, the build fails with \"No password "
+               "parameter set\".")
+        entry["newPassword"] = {
+            "setOn": [env.name for env in envs if env.name not in without],
+            "notSetOn": without,
+            "remedy": NEW_PASSWORD_REMEDY,
+            "note": ("The template password should be enough on its own, but that is not yet confirmed on an "
+                     "appliance; new_password on the environment is the sure remedy."),
+        }
+    elif slug == "vmware":
+        missing = [] if has_password else ["password"]
+        why = ("vCenter runs in-guest scripts through VMware Tools as the server's username and password, which "
+               "CloudBolt copies from this template; without a password every script fails with \"Cannot run script, "
+               "server's password is unknown\".")
+    else:
+        missing = [] if has_password or (has_key and not windows) else ["password"]
+        why = ("Remote scripts sign in with the server's username and password or key, which CloudBolt copies from "
+               "this image at build.")
+    entry.update({
+        "missing": missing,
+        "imagesUrl": base + "/admin/resourcehandlers/{}/#tab-{}".format(handler.id, tab),
+        "click": click,
+        "values": values,
+        "steps": steps,
+        "why": why,
+    })
+    if not has_user and missing:
+        entry["defaultUsername"] = default
+    return entry
+
+
+def _image_credentials(handler, slug, osb, resolved, base):
+    """One entry per image the target environments resolve, in environment order."""
+    entries = []
+    for osba, envs in resolved.values():
+        try:
+            entries.append(_credentials_entry(handler, slug, osb, osba, envs, base))
+        except Exception as exc:
+            entries.append({"image": {"id": getattr(osba, "global_id", None)}, "error": "{}: {}".format(type(exc).__name__, str(exc)[:300])})
+    return entries
+
+
+def _credentials_next(entries):
+    """The credentials step for next, or an empty string when nothing is missing."""
+    missing = [e for e in entries if e.get("missing")]
+    text = ""
+    if missing:
+        text = (
+            "Before the first order, have the admin set the guest credentials of {} on the handler's images tab: "
+            "open credentials[].imagesUrl, click credentials[].click, type credentials[].values (suggestions) and the "
+            "password in the dialog, never in chat. ".format(", ".join("'{}'".format(e["image"]["name"]) for e in missing))
+        )
+    for entry in entries:
+        without = (entry.get("newPassword") or {}).get("notSetOn") or []
+        if without:
+            text += (
+                "For the Windows template '{}', the sure way past \"No password parameter set\" is new_password on {}: "
+                "{}. ".format(entry["image"]["name"], ", ".join(without), NEW_PASSWORD_REMEDY)
+            )
+    return text
+
+
 def run(job, *args, **kwargs):
     profile = _caller(job, kwargs)
     if profile is None:
@@ -516,6 +718,7 @@ def run(job, *args, **kwargs):
 
     attached = []
     unresolved = []
+    images = {}  # OSBA id -> (OSBA, environments that resolve it)
     for env in envs:
         if not osb.environments.filter(id=env.id).exists():
             osb.environments.add(env)
@@ -528,6 +731,13 @@ def run(job, *args, **kwargs):
         else:
             if resolved is None:
                 unresolved.append("{}: no image of OS build '{}' for this environment".format(env.name, osb.name))
+            else:
+                try:
+                    resolved = resolved.cast()
+                except Exception:
+                    pass
+                images.setdefault(resolved.id, (resolved, []))[1].append(env)
+    credentials = _image_credentials(handler, slug, osb, images, base)
 
     outputs = {
         "handler": {"id": handler.global_id, "name": handler.name, "technologySlug": slug},
@@ -542,7 +752,8 @@ def run(job, *args, **kwargs):
             "url": base + "/externalcontent/osbuilds/{}/".format(osb.id),
         },
         "attachedToEnvironments": attached,
-        "next": (
+        "credentials": credentials,
+        "next": _credentials_next(credentials) + (
             "For a second cloud, call this tool again with the same onb_os_build_name and that handler's image so one "
             "blueprint deploys to both. Then onb_trim_environment on each environment."
         ),
@@ -569,8 +780,10 @@ def run(job, *args, **kwargs):
             "the image's region against the environment's.".format(osb.name, len(unresolved), "; ".join(unresolved))
         )
         return {"status": "FAILURE", "output_message": "", "error_message": message, "outputs": outputs}
+    lacking = [e for e in credentials if e.get("missing")]
     return _success(
-        "OS build '{}' holds {} and is attached to {} environment(s); verified that each environment resolves the image.".format(
-            osb.name, inputs["image"], len(attached)),
+        "OS build '{}' holds {} and is attached to {} environment(s); verified that each environment resolves the image.{}".format(
+            osb.name, inputs["image"], len(attached),
+            " {} image(s) lack guest credentials; see credentials.".format(len(lacking)) if lacking else ""),
         outputs,
     )

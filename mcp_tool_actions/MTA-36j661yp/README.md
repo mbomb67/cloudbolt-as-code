@@ -16,7 +16,7 @@ Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaad
 
 ## Output
 List: failedServerCount, failedServers[] (id, hostname, environment, group, owner, created, provisionJob, order, inCloud, locked, url), next.
-Delete: deleted[] (the same fields plus deleteJob, or deleteOrder and deleteOrderStatus), skipped[] (id, reason), next.
+Delete: deleted[] (the same fields plus deleteJob, deleteOrder, deleteOrderStatus and next), skipped[] (id, reason), next. Poll deleteJob with `fetch_job` when it is set; when it is null the deletion waits on deleteOrder, which `fetch_order` shows and which may need approval.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

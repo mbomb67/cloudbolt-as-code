@@ -5,7 +5,9 @@ Reads the tail of a CloudBolt log (application, jobengine, authentication,
 mcp, saml2) and returns the WARNING-and-above entries of the last N minutes
 grouped by exception and message, newest first, with secrets redacted and a
 hint for the patterns a new appliance hits most (failed handler
-verification, missing egress, proxy, SSL inspection, LDAP bind). The agent
+verification, missing egress, proxy, SSL inspection, LDAP bind, guest
+credentials, Windows password, unreachable ESXi hosts, a key pair's private
+key). The agent
 calls it right after something failed in the UI, since the handler form
 masks the real error but logs it. Read-only, synchronous. Admin only.
 
@@ -67,6 +69,10 @@ HINTS = [
     (re.compile(r"vmware_datastore parameter must be specified", re.I), "Pin a vmware_datastore value on the vCenter environment."),
     (re.compile(r"Memory and CPU are required", re.I), "The vCenter environment needs cpu_cnt and mem_size options."),
     (re.compile(r"No (image|template|AMI).*(region|location)|not available in", re.I), "The OS build has no image in this environment's region or location; import one for that region."),
+    (re.compile(r"server's password is unknown", re.I), "The vCenter template has no guest credentials, so CloudBolt cannot run scripts on the server. Set them with onb_ui_link handler_images:<RH id> (the handler's Templates tab): in the template's Credentials column click + (Add credentials to template) or the pencil, enter the guest username and password, and Save."),
+    (re.compile(r"No password parameter set|cannot set the Administrator password", re.I), "vCenter Windows customization had no Administrator password. Set the Windows template's credentials with onb_ui_link handler_images:<RH id> (the handler's Templates tab): + (Add credentials to template) or the pencil in the Credentials column, enter Administrator and its password, Save. Alternative: new_password on the environment (onb_trim_environment shows the steps)."),
+    (re.compile(r"guestFile[\s\S]{0,800}?(ConnectTimeout|NewConnectionError|timed out|Connection refused|No route to host|unreachable)|failed to make the HTTP PUT request to the VMware API", re.I), "The appliance cannot reach the VM's ESXi host on 443 to upload a script (VMware Tools file transfer skips vCenter), common with hosted vCenter. Set tech_specific_script_execution to False on the environment: onb_parameter onb_param_name=tech_specific_script_execution, onb_param_targets=<ENV id>, onb_param_options=False. Scripts then use SSH (22) and WinRM (5985/5986) from the appliance; never pass the parameter in orders."),
+    (re.compile(r"Could not find required key material|no matching key material uploaded|key pair has not been added", re.I), "CloudBolt holds no private key for the key pair named in the message. Upload it with onb_ui_link handler_ssh_keys:<RH id> (the handler's SSH Keys tab): the pencil in the Actions column of the key's row, paste it into Key material, Save. Never in chat."),
 ]
 
 

@@ -4,11 +4,17 @@ Onboarding: Status (MCP Tool Action plugin).
 Reports what the appliance has configured for a proof of concept in one
 read: licence, portal URL, SMTP, proxy, Content Library reachability, the
 Setup Wizard's derived step states, every resource handler with its
-environments (OS builds, networks, groups, lifecycle parameters, last
-verify result), the Custom Server blueprint, groups and users, LDAP and SSO,
-which onboarding tools are installed and synchronous, the POC items the
-agent has recorded as done or not applicable, and the next steps with the
-UI link for each. Read-only, no inputs, synchronous. Admin only.
+environments (OS builds, image guest credentials, networks, groups,
+lifecycle parameters, key pairs, last verify result), the Expire Servers
+job, the Custom Server blueprint, groups and users, LDAP and SSO, a summary
+of the onboarding tools, the POC item statuses, the install record, and the
+next steps with the UI link for each. Read-only, no inputs, synchronous.
+Admin only.
+
+The report is a summary: tools are counted with only the missing, disabled
+and not-synchronous ones named, and POC items carry their status only
+(onb_scorecard and onb_set_item_status return the notes). Credentials are
+reported as booleans; no password, username or key material is returned.
 
 The only network call is a HEAD against the Content Library host with a
 five-second timeout; everything else is the ORM.
@@ -58,11 +64,39 @@ TOOLKIT_TOOLS = [
     "run_recurring_job",
     "run_cit_tests",
 ]
+# Tools that run as jobs; onb_install turns Synchronous Action on for every other toolkit tool (its TOOLS map).
+ASYNC_TOOLS = {
+    "onb_verify_resource_handler",
+    "onb_install",
+    "onb_handler_locations",
+    "onb_import_environments",
+    "onb_import_os_build",
+    "onb_verify_ldap",
+    "onb_smtp_test",
+    "onb_install_content_library_item",
+    "onb_sync_images",
+    "onb_environment_networks",
+    "onb_network_addressing",
+}
+INSTALL_STEP = "Run onb_install (asynchronous; poll the job), then reconnect the MCP client."
 ENV_PARAM_FLAGS = ["hostname_template", "expiration_date", "power_schedule"]
+EXPIRE_JOB_NAME = "Expire Servers"
 MAX_GROUPS = 25
-MAX_FAILED_SERVERS = 10
+MAX_FAILED_SERVERS = 5
 MAX_USERS = 20
 MAX_KEYS = 10
+# Guest credentials. A server's password comes from these parameters (ResourceHandler.get_server_credentials);
+# provisioning copies the order's values and then the image's username, password and key_name onto the server.
+GUEST_PASSWORD_PARAMS = ["password", "initial_password", "initial_linux_password", "initial_windows_password", "template_root_password"]
+# The order form carries the guest password on these technologies, so an image without one is fine there.
+ORDER_PASSWORD_TECH = {"azure_arm", "alibaba"}
+# vCenter: new_password is the Windows guest password that guest customization sets. On "vmware" handlers
+# scripts also run through VMware Tools (Server.use_tech_specific_script_execution), which needs a password:
+# a key alone fails with "Cannot run script, server's password is unknown".
+VCENTER_TECH = {"vmware", "vmc_aws"}
+TOOLS_SCRIPT_TECH = {"vmware"}
+# The handler page's tab that lists images, by handler type (resourcehandlers/<type>/views.py); the rest use "images".
+IMAGES_TAB = {"vmware": "Templates", "proxmox": "Templates", "aws": "amis"}
 SSH_KEY_STEPS = "Click the pencil in the Actions column of the key's row, paste the private key (PEM) into Key material, then Save."
 SSH_KEY_WHY = (
     "CloudBolt needs it to sign in to Linux servers over SSH (remote scripts such as Standard Server's Hello World) and to read the Administrator password of Windows servers on AWS."
@@ -111,6 +145,29 @@ def _iso(value):
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
+
+
+def _local_to_utc(value):
+    """A naive database datetime as aware UTC. CloudBolt runs with USE_TZ=False, so it is appliance-local time."""
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+
+        return value.replace(tzinfo=ZoneInfo(settings.TIME_ZONE)).astimezone(timezone.utc)
+    except Exception:
+        return value.astimezone(timezone.utc)  # a naive datetime is read as the process's local time
+
+
+def _parse_utc(text):
+    """An ISO string the toolkit stored with datetime.now(timezone.utc), as aware UTC; None when unreadable."""
+    try:
+        value = datetime.fromisoformat(str(text))
+    except (TypeError, ValueError):
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 def _load_state():
@@ -284,11 +341,10 @@ def _network_problems(env):
     return problems
 
 
-def _ssh_keys(env):
+def _ssh_keys(env, handler):
     """Key pairs the environment offers and whether CloudBolt holds each one's private key (the handler's SSH Keys tab)."""
     from common.methods import find_key_material
 
-    handler = env.resource_handler.cast() if env.resource_handler else None
     field = getattr(handler, "ssh_keyname_field_name", None) if handler else None
     if not field:
         return []
@@ -301,38 +357,80 @@ def _ssh_keys(env):
     return rows
 
 
-def _environment_row(env, base):
+def _image_credentials(osb, osba, slug):
+    """Which guest credentials the image (OSBuildAttribute) carries, as booleans; the values are never returned."""
+    creds = osba.get_credentials()  # username, password and keyfile parameters on the image
+    row = {"osBuild": osb.name, "image": getattr(osba, "global_id", None) or osba.template_name}
+    if osb.is_windows():
+        row["windows"] = True
+    row["username"] = bool(creds.get("username"))
+    if not slug.startswith("aws"):  # on AWS the key pair is the environment's (sshKeys)
+        row["password"] = bool(creds.get("password"))
+        row["key"] = bool(creds.get("keyfile"))
+    # Not output: the template name, and whether a server without a username would sign in as root
+    # (get_server_credentials defaults to Administrator on Windows, ubuntu on the Ubuntu family, else root).
+    row["_template"] = osba.template_name or row["image"]
+    row["_rootDefault"] = not osb.is_windows() and getattr(osb.os_family, "name", None) != "Ubuntu"
+    return row
+
+
+def _new_password_set(env):
+    """Whether the environment offers New Password (new_password) with a value; the value is only tested, never returned."""
+    if not env.custom_fields.filter(name="new_password").exists():
+        return False
+    for cfv in env.custom_field_options.filter(field__name="new_password"):
+        if cfv.value:
+            return True
+    return False
+
+
+def _environment_row(env, base, handler, slug):
     try:
         network_count = len(env.networks())
     except Exception:
         network_count = None
     flags = list(env.custom_fields.filter(name__in=ENV_PARAM_FLAGS).values_list("name", flat=True))
     problems = []
+    guest = []
     try:
-        handler = env.resource_handler.cast() if env.resource_handler else None
         for osb in env.os_builds.all():
             try:
-                if handler is not None and osb.osba_for_resource_handler(handler, environment=env) is None:
+                osba = osb.osba_for_resource_handler(handler, environment=env) if handler is not None else None
+                if handler is not None and osba is None:
                     problems.append({"osBuild": osb.name, "problem": "no image of this OS build for the environment"})
             except Exception as exc:
                 problems.append({"osBuild": osb.name, "problem": str(exc)[:300]})
+                continue
+            if osba is not None:
+                try:
+                    guest.append(_image_credentials(osb, osba, slug))
+                except Exception:
+                    pass
     except Exception:
         pass
-    return {
+    row = {
         "id": env.global_id,
-        "pk": env.id,
         "name": env.name,
         "osBuilds": env.os_builds.count(),
         "osBuildProblems": problems,
+        "guestCredentials": guest,
         "networkProblems": _network_problems(env),
         "networks": network_count,
         # Group.environments (Environment.groups_served is deprecated); Unassigned is the placeholder for restricted new environments.
         "groups": env.group_set.exclude(name="Unassigned").count(),
         "lifecycleParameters": sorted(flags),
-        "sshKeys": _ssh_keys(env),
+        "sshKeys": _ssh_keys(env, handler),
         "url": base + "/environments/{}/".format(env.id),
         "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),
     }
+    try:
+        # Not output: whether servers get a guest password from the order instead of the image.
+        row["_orderPassword"] = slug in ORDER_PASSWORD_TECH or env.custom_fields.filter(name__in=GUEST_PASSWORD_PARAMS).exists()
+        if slug in VCENTER_TECH:
+            row["newPasswordSet"] = _new_password_set(env)
+    except Exception:
+        pass
+    return row
 
 
 def _cached_images(handler, slug):
@@ -355,6 +453,27 @@ def _cached_images(handler, slug):
     return None
 
 
+def _images_tab(handler):
+    """(fragment, label) of the handler page's image tab: tabs/views.py makes the pane id 'tab-' + the tab's slug."""
+    try:
+        type_slug = handler.type_slug
+    except Exception:
+        type_slug = ""
+    fragment = IMAGES_TAB.get(type_slug, "images")
+    if fragment == "amis":
+        return fragment, "AMIs"
+    return fragment, "{}s".format(getattr(handler, "template_label", None) or "image").title()
+
+
+def _last_verify(entry):
+    """The verify result onb_verify_resource_handler recorded, with the error cut to 300 characters."""
+    verify = (entry or {}).get("lastVerify")
+    if not verify:
+        return verify
+    error = verify.get("error")
+    return {"ok": verify.get("ok"), "when": verify.get("when"), "error": error[:300] if error else None}
+
+
 def _handlers(base, state):
     from resourcehandlers.models import ResourceHandler
 
@@ -367,22 +486,26 @@ def _handlers(base, state):
             pass
         tech = handler.resource_technology
         slug = tech.slug if tech else None
-        envs = [_environment_row(env, base) for env in handler.environment_set.all().order_by("id")]
+        envs = [_environment_row(env, base, handler, slug or "") for env in handler.environment_set.all().order_by("id")]
+        fragment, images_label = _images_tab(handler)
         rows.append(
             {
                 "id": handler.global_id,
-                "pk": handler.id,
                 "name": handler.name,
                 "technology": tech.name if tech else None,
                 "technologySlug": slug,
                 "endpoint": handler.ip,
                 "environments": envs,
                 "cachedImages": _cached_images(handler, slug),
-                "lastVerify": (verify_state.get(handler.global_id) or {}).get("lastVerify"),
+                "lastVerify": _last_verify(verify_state.get(handler.global_id)),
                 "url": base + "/admin/resourcehandlers/{}/".format(handler.id),
                 "editClick": "Edit Credentials on the Overview tab",
                 "importLocationsUrl": base + "/admin/resourcehandlers/{}/#tab-locations".format(handler.id),
                 "sshKeysUrl": base + "/admin/resourcehandlers/{}/#tab-ssh-keys".format(handler.id),
+                "imagesUrl": base + "/admin/resourcehandlers/{}/#tab-{}".format(handler.id, fragment),
+                # Not output: the tab's label and what the handler calls an image, for the step text.
+                "_imagesTab": images_label,
+                "_imageLabel": "AMI" if fragment == "amis" else (getattr(handler, "template_label", None) or "image").lower(),
             }
         )
     return rows
@@ -421,7 +544,6 @@ def _custom_server(base):
         "name": name,
         "exists": True,
         "id": blueprint.global_id,
-        "pk": blueprint.id,
         "status": blueprint.status,
         "isOrderable": bool(blueprint.is_orderable),
         "anyGroupCanDeploy": bool(blueprint.any_group_can_deploy),
@@ -507,22 +629,25 @@ def _groups_users(base):
     except AttributeError:
         groups_qs = Group.objects.exclude(name="Unassigned")
     groups = [
-        {"id": g.global_id, "pk": g.id, "name": g.name, "url": base + "/groups/{}/".format(g.id)}
+        {"id": g.global_id, "name": g.name, "url": base + "/groups/{}/".format(g.id)}
         for g in groups_qs.order_by("name")[:MAX_GROUPS]
     ]
     total_groups = groups_qs.count()
     users = UserProfile.objects.count()
     admins = UserProfile.objects.filter(super_admin=True).count()
-    return {
+    local_users = _users(base)
+    result = {
         "groups": groups,
         "groupCount": total_groups,
         "groupsUrl": base + "/groups/",
         "userCount": users,
         "superAdminCount": admins,
-        "users": _users(base),
-        "passwordFixSteps": PASSWORD_FIX_STEPS,
+        "users": local_users,
         "usersUrl": base + "/users/",
     }
+    if any(u["passwordNeeded"] for u in local_users):
+        result["passwordFixSteps"] = PASSWORD_FIX_STEPS
+    return result
 
 
 def _auth(base):
@@ -558,18 +683,63 @@ def _auth(base):
 
 
 def _toolkit(base):
+    """Counts the toolkit's tools and names only the missing, disabled and not-synchronous ones.
+
+    lastSync is the newest last_cached of the tools and their plugins: SourceCodeRepoMixin.refresh_from_remote_source
+    stamps it on every refresh from a repository (a first import leaves it empty).
+    """
     from cbhooks.models import MCPToolAction
 
-    present = {}
-    for action in MCPToolAction.objects.filter(mcp_tool_name__in=TOOLKIT_TOOLS):
-        present[action.mcp_tool_name] = {
-            "id": action.global_id,
-            "enabled": bool(action.enabled),
-            "isSynchronous": bool(action.is_synchronous),
-            "editUrl": base + "/actions/mcp_tool_action/{}/".format(action.id),
-        }
-    missing = [name for name in TOOLKIT_TOOLS if name not in present]
-    return {"tools": present, "missing": missing, "listUrl": base + "/actions/mcp_tool_actions/"}
+    present, disabled, not_sync, synced = set(), [], [], []
+    rows = MCPToolAction.objects.filter(mcp_tool_name__in=TOOLKIT_TOOLS).values_list(
+        "mcp_tool_name", "enabled", "is_synchronous", "last_cached", "hook__last_cached"
+    )
+    for name, enabled, is_sync, cached, hook_cached in rows:
+        present.add(name)
+        if not enabled:
+            disabled.append(name)
+        if name not in ASYNC_TOOLS and not is_sync:
+            not_sync.append(name)
+        synced.extend(t for t in (_local_to_utc(cached), _local_to_utc(hook_cached)) if t is not None)
+    return {
+        "count": len(present),
+        "missing": [name for name in TOOLKIT_TOOLS if name not in present],
+        "disabled": sorted(disabled),
+        "notSynchronous": sorted(not_sync),
+        "lastSync": max(synced).isoformat() if synced else None,
+        "listUrl": base + "/actions/mcp_tool_actions/",
+    }
+
+
+def _install(state, toolkit):
+    """The record onb_install saved, compacted, with whether a toolkit sync came after it."""
+    record = state.get("install")
+    if not isinstance(record, dict):
+        return None
+    egress = record.get("egress") or {}
+    result = {
+        "toolkitVersion": record.get("toolkitVersion"),
+        "when": record.get("when"),
+        "by": record.get("by"),
+        "missing": record.get("missing") or [],
+        "egress": {name: (check or {}).get("reachable") for name, check in egress.items() if isinstance(check, dict)},
+    }
+    installed = _parse_utc(record.get("when"))
+    synced = _parse_utc(toolkit.get("lastSync"))
+    result["olderThanToolkitSync"] = bool(installed and synced and synced > installed)
+    return result
+
+
+def _lifecycle_jobs(base):
+    """The Expire Servers recurring job, which acts on expiration_date (seeded disabled)."""
+    from jobs.models import RecurringJob
+
+    job = RecurringJob.objects.filter(name=EXPIRE_JOB_NAME).first()
+    if job is None:
+        expire = {"exists": False, "listUrl": base + "/recurring_jobs/"}
+    else:
+        expire = {"enabled": bool(job.enabled), "url": base + job.get_absolute_url()}
+    return {"expireServers": expire}
 
 
 def _next_steps(report, base):
@@ -577,16 +747,27 @@ def _next_steps(report, base):
     items = report["pocItems"]
 
     def skipped(item_id):
-        return (items.get(item_id) or {}).get("status") in ("skipped", "not_applicable", "done")
+        return items.get(item_id) in ("skipped", "not_applicable", "done")
 
-    if report["toolkit"]["missing"]:
+    toolkit = report["toolkit"]
+    install = report["install"] or {}
+    if toolkit["missing"]:
         steps.append(
             {
                 "step": "Sync the missing onboarding tools, then run onb_install and reconnect the MCP client.",
-                "tools": report["toolkit"]["missing"],
-                "url": report["toolkit"]["listUrl"],
+                "tools": toolkit["missing"],
+                "url": toolkit["listUrl"],
             }
         )
+    elif toolkit["disabled"] or toolkit["notSynchronous"] or install.get("olderThanToolkitSync"):
+        reasons = []
+        if toolkit["disabled"]:
+            reasons.append("disabled: " + ", ".join(toolkit["disabled"]))
+        if toolkit["notSynchronous"]:
+            reasons.append("not synchronous: " + ", ".join(toolkit["notSynchronous"]))
+        if install.get("olderThanToolkitSync"):
+            reasons.append("the install record ({}) is older than the last toolkit sync ({})".format(install.get("when"), toolkit["lastSync"]))
+        steps.append({"step": INSTALL_STEP + " Why: " + "; ".join(reasons) + ".", "url": toolkit["listUrl"]})
     handlers = report["resourceHandlers"]
     if not handlers:
         steps.append(
@@ -596,6 +777,8 @@ def _next_steps(report, base):
                 "url": base + "/setup/add-resource-handler/",
             }
         )
+    guest_seen = set()  # one step per image, however many environments offer it
+    advice = []  # steps that keep things tidy but block nothing, listed last
     for handler in handlers:
         verify = handler.get("lastVerify") or {}
         if verify and not verify.get("ok"):
@@ -675,6 +858,71 @@ def _next_steps(report, base):
                             "url": handler["sshKeysUrl"],
                         }
                     )
+            for image in env.get("guestCredentials") or []:
+                if image["image"] in guest_seen:
+                    continue
+                if "password" not in image:  # AWS: the key is the environment's, the username is the image's
+                    if not image["username"] and image.get("_rootDefault"):
+                        guest_seen.add(image["image"])
+                        steps.append(
+                            {
+                                "step": "SSH scripts on servers built from OS build '{}' would sign in as root, which AWS images normally refuse: "
+                                "AMI '{}' has no username. Have the admin set it on the handler's AMIs tab: in that AMI's row, "
+                                "Credentials column, click the + (Add credentials) next to None configured, enter the image's login "
+                                "user as Username (ec2-user on Amazon Linux), then Save.".format(image["osBuild"], image["_template"]),
+                                "item": "P4",
+                                "environment": env["id"],
+                                "url": handler["imagesUrl"],
+                            }
+                        )
+                    continue
+                if env.get("_orderPassword"):
+                    continue
+                if image.get("windows") and env.get("newPasswordSet"):
+                    continue  # vCenter guest customization saves new_password as the Windows server's password
+                # VMware Tools needs a password; SSH also takes a key, which a Windows image cannot carry.
+                password_only = handler["technologySlug"] in TOOLS_SCRIPT_TECH or image.get("windows")
+                if image["password"] or (image["key"] and not password_only):
+                    continue
+                guest_seen.add(image["image"])
+                steps.append(
+                    {
+                        "step": "Remote scripts on servers built from OS build '{}' would fail{}: {} '{}' has no guest {}. "
+                        "Have the admin enter it on the handler's {} tab: in that {}'s row, Credentials column, click the + (Add "
+                        "credentials) next to None configured, or the pencil (Edit credentials) when a username or key is set; enter Username and Password{}, then Save. "
+                        "Never ask for the password in chat.".format(
+                            image["osBuild"],
+                            " with 'Cannot run script, server's password is unknown'"
+                            if handler["technologySlug"] in TOOLS_SCRIPT_TECH else "",
+                            handler["_imageLabel"],
+                            image["_template"],
+                            "password" if password_only else "password or SSH key",
+                            handler["_imagesTab"],
+                            handler["_imageLabel"],
+                            "" if password_only else " (or choose an SSH key)",
+                        ),
+                        "item": "P4",
+                        "environment": env["id"],
+                        "url": handler["imagesUrl"],
+                    }
+                )
+            if env.get("newPasswordSet") is False:
+                windows = [i["osBuild"] for i in env.get("guestCredentials") or [] if i.get("windows")]
+                if windows:
+                    advice.append(
+                        {
+                            "step": "Advice, not a blocker: environment '{}' offers Windows OS build '{}' without New Password. Builds "
+                            "pass on the {}'s password, but New Password is the Windows guest password CloudBolt sets at build and "
+                            "stores for the server, so setting it keeps the two in agreement. Have the admin open the environment's "
+                            "Parameters tab; unless New Password is listed, click Add, choose New Password and click Add; then click "
+                            "the pencil in its Options column, enter the password and Save. Use the {}'s password unless the customer "
+                            "wants it changed at build. Never ask for it in chat.".format(
+                                env["name"], windows[0], handler["_imageLabel"], handler["_imageLabel"]),
+                            "item": "P4",
+                            "environment": env["id"],
+                            "url": env["parametersUrl"],
+                        }
+                    )
             if env["osBuilds"] == 0:
                 steps.append(
                     {
@@ -723,6 +971,20 @@ def _next_steps(report, base):
                     "url": user["url"],
                 }
             )
+    expire = (report["lifecycleJobs"] or {}).get("expireServers") or {}
+    uses_expiration = any(
+        "expiration_date" in env["lifecycleParameters"] for handler in handlers for env in handler["environments"]
+    )
+    if uses_expiration and expire.get("enabled") is False:
+        steps.append(
+            {
+                "step": "The Expire Servers recurring job is disabled, so expiration_date never acts on expired servers. It must be "
+                "enabled for expiration to work: enable it (onb_parameter does this when it attaches expiration_date), or have "
+                "the admin turn on the Enabled switch at the top right of the job's Overview tab.",
+                "item": "3.1.2",
+                "url": expire.get("url"),
+            }
+        )
     if not report["preferences"]["smtp"]["configured"] and not skipped("P7"):
         steps.append(
             {
@@ -739,7 +1001,26 @@ def _next_steps(report, base):
                 "url": report["preferences"]["proxy"]["editUrl"],
             }
         )
-    return steps[:10]
+    return (steps + advice)[:10]
+
+
+def _strip_private(handlers):
+    """Drop the underscore keys the next steps read (template names, tab labels) from the output."""
+    for handler in handlers:
+        for key in [k for k in handler if k.startswith("_")]:
+            del handler[key]
+        for env in handler["environments"]:
+            for key in [k for k in env if k.startswith("_")]:
+                del env[key]
+            for image in env.get("guestCredentials") or []:
+                image.pop("_template", None)
+                image.pop("_rootDefault", None)
+
+
+def _poc_items(state):
+    """Each recorded POC item's status; the notes stay in the state."""
+    items = state.get("items") or {}
+    return {item_id: (entry.get("status") if isinstance(entry, dict) else entry) for item_id, entry in items.items()}
 
 
 def run(job, *args, **kwargs):
@@ -751,6 +1032,11 @@ def run(job, *args, **kwargs):
 
     base = _portal_url()
     state = _load_state()
+    toolkit = _toolkit(base)
+    try:
+        lifecycle_jobs = _lifecycle_jobs(base)
+    except Exception as exc:
+        lifecycle_jobs = {"error": str(exc)[:200]}
     report = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "appliance": _appliance(base),
@@ -764,11 +1050,14 @@ def run(job, *args, **kwargs):
         "parameterConflicts": _parameter_conflicts(base, state),
         "groupsAndUsers": _groups_users(base),
         "authentication": _auth(base),
-        "toolkit": _toolkit(base),
-        "pocItems": state.get("items") or {},
-        "install": state.get("install"),
+        "lifecycleJobs": lifecycle_jobs,
+        "toolkit": toolkit,
+        "pocItems": _poc_items(state),
+        "pocItemsNote": "Statuses only; onb_scorecard or onb_set_item_status returns each item's note.",
+        "install": _install(state, toolkit),
     }
     report["nextSteps"] = _next_steps(report, base)
+    _strip_private(report["resourceHandlers"])
     if not base:
         report["note"] = (
             "The default portal has no domain, so URLs are relative; prefix them with the appliance's https address."
