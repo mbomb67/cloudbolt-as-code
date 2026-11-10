@@ -384,6 +384,24 @@ def _new_password_set(env):
     return False
 
 
+def _script_path(env):
+    """How scripts reach a vCenter server: VMware Tools (tech-specific) or SSH/WinRM, and the WinRM protocol."""
+    tech = None
+    for cfv in env.custom_field_options.filter(field__name="tech_specific_script_execution"):
+        tech = bool(cfv.value)
+    if tech is None:
+        tech = bool(getattr(settings, "TECH_SPECIFIC_SCRIPT_EXECUTION", True))
+    path = {"techSpecific": tech}
+    if not tech:
+        protocol = None
+        for cfv in env.custom_field_options.filter(field__name="winrm_protocol"):
+            protocol = str(cfv.value or "").lower() or None
+        path["winrmProtocol"] = protocol or "https"
+        path["ports"] = "SSH 22 (Linux) and WinRM {} (Windows) from the appliance to the servers".format(
+            5985 if protocol == "http" else 5986)
+    return path
+
+
 def _environment_row(env, base, handler, slug):
     try:
         network_count = len(env.networks())
@@ -428,6 +446,7 @@ def _environment_row(env, base, handler, slug):
         row["_orderPassword"] = slug in ORDER_PASSWORD_TECH or env.custom_fields.filter(name__in=GUEST_PASSWORD_PARAMS).exists()
         if slug in VCENTER_TECH:
             row["newPasswordSet"] = _new_password_set(env)
+            row["scriptPath"] = _script_path(env)
     except Exception:
         pass
     return row
