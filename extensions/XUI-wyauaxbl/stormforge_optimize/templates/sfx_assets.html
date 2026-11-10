@@ -160,6 +160,16 @@
   .sfx .sfx-bar { height: 14px; border-radius: 4px; background: var(--sfx-primary); min-width: 2px; }
   .sfx .sfx-gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; padding: 14px 20px; }
   .sfx .sfx-gauge .sfx-track .sfx-fill.req { background: color-mix(in srgb, var(--sfx-rec-req) 45%, transparent); }
+  .sfx .sfx-src { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--sfx-soft); }
+  .sfx .sfx-src.sm { font-size: 10.5px; padding: 1px 7px; }
+  .sfx .sfx-src-workload { background: color-mix(in srgb, var(--sfx-primary) 14%, transparent); color: var(--sfx-primary); }
+  .sfx .sfx-src-namespace { background: color-mix(in srgb, var(--sfx-ok) 15%, transparent); color: var(--sfx-ok); }
+  .sfx .sfx-src-cluster { background: color-mix(in srgb, var(--sfx-cur-req) 20%, transparent); color: color-mix(in srgb, var(--sfx-cur-req) 70%, var(--bs-body-color, #212529)); }
+  .sfx .sfx-src-platform { background: color-mix(in srgb, var(--sfx-rec-req) 22%, transparent); color: color-mix(in srgb, var(--sfx-rec-req) 60%, var(--bs-body-color, #212529)); }
+  .sfx .sfx-src-summary { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; font-size: 12.5px; }
+  .sfx .sfx-src-table .sfx-src-group td { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--sfx-muted); background: var(--sfx-surface-2); padding: 6px 14px; }
+  .sfx .sfx-src-line { margin-bottom: 3px; }
+  .sfx .sfx-struck { text-decoration: line-through; color: var(--sfx-muted); }
   @keyframes sfx-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
@@ -209,6 +219,12 @@
     return sfx.urls[key] + (query ? "?" + query : "");
   }
   function fill($el, key, params) {
+    // CloudBolt loads an extension's new URL paths only when the web server starts.
+    if (!sfx.urls[key]) {
+      $el.html('<div class="sfx-card"><div class="sfx-note">This view came with an update to the StormForge extension. ' +
+        'It opens once the CloudBolt web server has restarted.</div></div>');
+      return;
+    }
     $el.html(spinner());
     $.ajax({ url: endpoint(key, params), dataType: "html" })
       .done(function (html) {

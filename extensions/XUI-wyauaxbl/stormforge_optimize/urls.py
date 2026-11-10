@@ -16,5 +16,6 @@ xui_urlpatterns = [
     path("stormforge/<int:resource_id>/agent/log/", views.sfx_agent_log, name="sfx_agent_log"),
     path("stormforge/<int:resource_id>/namespaces/", views.sfx_namespaces_table, name="sfx_namespaces_table"),
     path("stormforge/<int:resource_id>/workloads/", views.sfx_workloads_table, name="sfx_workloads_table"),
+    path("stormforge/<int:resource_id>/settings/", views.sfx_settings_panel, name="sfx_settings_panel"),
     path("stormforge/<int:resource_id>/apply/", views.sfx_apply, name="sfx_apply"),
 ]

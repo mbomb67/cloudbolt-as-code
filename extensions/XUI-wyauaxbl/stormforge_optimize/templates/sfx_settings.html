@@ -2,9 +2,11 @@
   Workloads tab > Settings: StormForge's optimization settings for the
   workload, read-only, with StormForge's annotation examples. Context `st`
   from views._settings. Settings change through annotations in Kubernetes.
+  The workload panel puts sfx_settings_sources.html above it, which says
+  where each value is set.
 {% endcomment %}
 <div class="sfx-h">Optimization Settings</div>
-<div class="sfx-intro">These settings are applied as <span class="sfx-mono">live.stormforge.io/*</span> annotations on the workload in Kubernetes{% if st.managed_in_cluster %} (this workload's settings are managed in the cluster){% endif %}. Each page shows the annotations that change it.</div>
+<div class="sfx-intro">The values in effect for this workload, by topic. To change one for this workload alone, set its <span class="sfx-mono">live.stormforge.io/*</span> annotation on the workload in Kubernetes; each page shows the annotations.</div>
 <div class="sfx-side" data-sfx-group>
   <div class="sfx-side-nav" role="tablist">
     <button type="button" class="active" data-sfx-subtab="goals">Goals</button>
