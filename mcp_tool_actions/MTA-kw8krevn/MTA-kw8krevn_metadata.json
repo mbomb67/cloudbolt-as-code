@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-kw8krevn",
     "is_synchronous": false,
-    "label": "POC Onboarding: Verify LDAP",
+    "label": "Onboarding: Verify LDAP",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

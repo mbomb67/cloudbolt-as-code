@@ -26,7 +26,7 @@
     "description": "Deletes an environment imported by mistake so the POC can start over; refuses while active servers live in it.",
     "id": "OHK-1wmzl7sp",
     "max_retries": 0,
-    "name": "POC Onboarding: Remove Environment",
+    "name": "Onboarding: Remove Environment",
     "resource_technologies": [],
     "script_filename": "OHK-1wmzl7sp_script.py",
     "shared": false,

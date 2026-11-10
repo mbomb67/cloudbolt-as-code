@@ -86,7 +86,7 @@
     "description": "Maps an AD or LDAP group DN to a CloudBolt group with roles on an existing LDAP utility, so directory users land in the right group at first login.",
     "id": "OHK-s76tknmk",
     "max_retries": 0,
-    "name": "POC Onboarding: LDAP Mapping",
+    "name": "Onboarding: LDAP Mapping",
     "resource_technologies": [],
     "script_filename": "OHK-s76tknmk_script.py",
     "shared": false,

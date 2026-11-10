@@ -1,13 +1,13 @@
-# POC Onboarding: Group
+# Onboarding: Group
 
 MCP Tool Action published to agents as `custom_onb_group`. Creates or updates a group with its parent, entitled environments, auto-approval flag and server-count quota, covering the test plan's entitlement, approval and quota items.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-cpq7bvz4 | POC Onboarding: Group |
-| Plugin | [OHK-efxm9m2b](../../plugins/OHK-efxm9m2b/) | POC Onboarding: Group |
+| MCP Tool Action | MTA-cpq7bvz4 | Onboarding: Group |
+| Plugin | [OHK-efxm9m2b](../../plugins/OHK-efxm9m2b/) | Onboarding: Group |
 
 ## Inputs
 | Input | Type | Meaning |
@@ -20,8 +20,9 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_group_description` | string | Group description. |
 
 ## Output
-group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl), environments[], serverQuota, changes[], next.
+group (id, name, type, parent, allowAutoApproval, created, url, quotasUrl, quotasClick); the group as it now stands: environments[] (its own entitlements), inheritedEnvironments[] and unconstrainedEnvironments[] when there are any, memberCount, members[] (username, email, roles), serverQuota (limit, unlimited, used); changes[], next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- Empty inputs change nothing. With only `onb_group_name` it reports an existing group and refuses to create a new one.

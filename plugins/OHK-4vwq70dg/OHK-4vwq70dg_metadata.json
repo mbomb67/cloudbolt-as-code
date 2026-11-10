@@ -106,7 +106,7 @@
     "description": "Reads the tail of a CloudBolt log and returns the recent WARNING-and-above entries grouped by exception and message, secrets redacted, each group with a hint for the failures a new appliance hits most.",
     "id": "OHK-4vwq70dg",
     "max_retries": 0,
-    "name": "POC Onboarding: Recent Errors",
+    "name": "Onboarding: Recent Errors",
     "resource_technologies": [],
     "script_filename": "OHK-4vwq70dg_script.py",
     "shared": false,

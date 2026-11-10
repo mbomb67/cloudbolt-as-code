@@ -4,13 +4,13 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "grant (default) adds the permission, revoke removes it, list only reports the blueprint's current permissions.",
+            "description": "grant (default) adds the permission, revoke removes it, list only reports the blueprint's current permissions; open turns Any group can deploy on, restrict turns it off (with grant_group it also grants that group DEPLOY).",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
             "hide-if-default-value": true,
             "id": "CF-gb9r1qil",
-            "label": "Action: grant (default), revoke, or list",
+            "label": "Action: grant, revoke, list, open, restrict",
             "name": "grant_action",
             "placeholder": "grant",
             "relevant-osfamilies": [],
@@ -42,7 +42,7 @@
         {
             "allow-multiple": false,
             "available-all-servers": false,
-            "description": "Group global id (GRP-...) or exact group name. Required for grant and revoke, ignored for list.",
+            "description": "Group global id (GRP-...) or exact group name. Required for grant and revoke, optional for restrict (granted DEPLOY first), ignored for list and open.",
             "field-dependency-controlling-set": [],
             "field-dependency-dependent-set": [],
             "global-options": [],
@@ -90,7 +90,7 @@
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "List, grant, or revoke a group's DEPLOY (default) or MANAGE permission on a blueprint, the same rows the blueprint's Permissions tab manages. grant_action list returns anyGroupCanDeploy and the groups that can deploy and manage, for every group (fetch_orderable_groups shows only the caller's). Use list before syncing a blueprint from a Source Control Repository and grant the same groups back afterwards: the importer keeps only the groups named in the metadata and repo exports name none, so a sync of a blueprint whose any_group_can_deploy is false removes every group's permission. Revoke what you granted when a test is over. Give the blueprint's global id (BP-...) or exact name and, for grant and revoke, the group's global id (GRP-...) or exact name. Idempotent. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "List, grant, or revoke a group's DEPLOY (default) or MANAGE permission on a blueprint, the same rows the blueprint's Permissions tab manages. grant_action list returns anyGroupCanDeploy and the groups that can deploy and manage, for every group (fetch_orderable_groups shows only the caller's). Use list before syncing a blueprint from a Source Control Repository and grant the same groups back afterwards: the importer keeps only the groups named in the metadata and repo exports name none, so a sync of a blueprint whose any_group_can_deploy is false removes every group's permission. Revoke what you granted when a test is over. grant_action open turns the blueprint's Any group can deploy checkbox on, so every group may order it whatever the DEPLOY rows say; restrict turns it off, leaving only the groups with DEPLOY (pass grant_group to grant one in the same call; it refuses when no group would be left). Give the blueprint's global id (BP-...) or exact name and, for grant, revoke and restrict, the group's global id (GRP-...) or exact name. Idempotent. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "manage_blueprint_permissions",
     "mcp_tool_title": ""
 }

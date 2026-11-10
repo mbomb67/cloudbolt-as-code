@@ -1,13 +1,13 @@
-# POC Onboarding: SMTP Settings
+# Onboarding: SMTP Settings
 
 MCP Tool Action published to agents as `custom_onb_smtp`. Sets the non-secret email settings and returns the link where the SMTP password is entered; with no inputs it reports the current settings.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-89w58iux | POC Onboarding: SMTP Settings |
-| Plugin | [OHK-be18kqal](../../plugins/OHK-be18kqal/) | POC Onboarding: SMTP Settings |
+| MCP Tool Action | MTA-89w58iux | Onboarding: SMTP Settings |
+| Plugin | [OHK-be18kqal](../../plugins/OHK-be18kqal/) | Onboarding: SMTP Settings |
 
 ## Inputs
 | Input | Type | Meaning |
@@ -20,7 +20,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_smtp_admin_email` | string | Where test emails and admin notifications go. |
 
 ## Output
-settings (host, port, user, useTls, fromAddress, adminEmail, passwordSet), changes[], editUrl, testUrl, next.
+settings (host, port, user, useTls, fromAddress, adminEmail, passwordSet), changes[], editUrl with editClick (the button that opens the form), next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

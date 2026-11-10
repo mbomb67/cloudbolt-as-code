@@ -126,7 +126,7 @@
     "description": "Sets the non-secret email settings and returns the link where the SMTP password is entered; with no inputs it reports the current settings.",
     "id": "OHK-be18kqal",
     "max_retries": 0,
-    "name": "POC Onboarding: SMTP Settings",
+    "name": "Onboarding: SMTP Settings",
     "resource_technologies": [],
     "script_filename": "OHK-be18kqal_script.py",
     "shared": false,

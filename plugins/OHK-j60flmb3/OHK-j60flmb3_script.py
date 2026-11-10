@@ -1,5 +1,5 @@
 """
-POC Onboarding: Install (MCP Tool Action plugin).
+Onboarding: Install (MCP Tool Action plugin).
 
 Finishes the toolkit install after a Source Control Repos sync or a
 Content Package import: turns Synchronous Action on for the tools that
@@ -10,6 +10,11 @@ records the toolkit version so onb_status can report it. Idempotent: run it
 after every toolkit sync. Runs as a job (asynchronous) so it works before
 any Synchronous flag is set. Admin only.
 
+The result lists only the tools that need attention: the ones install
+changed (or, with onb_action=status, would change) and the missing ones,
+with counts for the rest. The install record saved in the onboarding state
+keeps toolkitVersion, when, by, missing and egress for onb_status.
+
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
 deletes the input when the script is saved.
@@ -18,7 +23,7 @@ import html
 import json
 from datetime import datetime, timezone
 
-TOOLKIT_VERSION = "0.1.0"
+TOOLKIT_VERSION = "1.0.0"
 STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 
@@ -38,6 +43,7 @@ TOOLS = {
     "onb_trim_environment": True,
     "onb_configure_custom_server": True,
     "onb_remove_environment": True,
+    "onb_failed_servers": True,
     "onb_parameter": True,
     "onb_group": True,
     "onb_user": True,
@@ -47,12 +53,20 @@ TOOLS = {
     "onb_verify_ldap": False,
     "onb_smtp": True,
     "onb_smtp_test": False,
+    "onb_install_content_library_item": False,
+    "onb_cit_from_order": True,
+    "onb_scorecard": True,
+    "onb_sync_images": False,
+    "onb_environment_networks": False,
+    "onb_network_addressing": False,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,
     "manage_blueprint_permissions": True,
+    "run_recurring_job": True,
+    "run_cit_tests": True,
 }
-PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-poc-onboarding/SKILL.md"
+PLAYBOOK_URL = "https://raw.githubusercontent.com/mbomb67/cloudbolt-as-code/main/.claude/skills/cb-onboarding/SKILL.md"
 
 
 def _text(value):
@@ -115,8 +129,8 @@ def _state_field(create=False):
     field, _ = CustomField.objects.get_or_create(
         name=STATE_FIELD,
         defaults=dict(
-            label="POC Onboarding State",
-            description="State recorded by the POC onboarding MCP tools: item statuses, handler verify results, install details.",
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
             type="TXT",
             namespace=namespace,
         ),
@@ -199,45 +213,47 @@ def run(job, *args, **kwargs):
 
     base = _portal_url()
     present = {a.mcp_tool_name: a for a in MCPToolAction.objects.filter(mcp_tool_name__in=list(TOOLS))}
-    rows = {}
+    missing = []
     changed = []
     for name, wants_sync in TOOLS.items():
         tool = present.get(name)
         if tool is None:
-            rows[name] = {"present": False}
+            missing.append(name)
             continue
-        before = {"enabled": bool(tool.enabled), "isSynchronous": bool(tool.is_synchronous)}
+        updates = []
+        if bool(tool.is_synchronous) != wants_sync:
+            updates.append("isSynchronous={}".format(wants_sync))
+        if not tool.enabled:
+            updates.append("enabled=True")
+        if not updates:
+            continue
         if action == "install":
-            updates = []
-            if bool(tool.is_synchronous) != wants_sync:
-                tool.is_synchronous = wants_sync
-                updates.append("isSynchronous={}".format(wants_sync))
-            if not tool.enabled:
-                tool.enabled = True
-                updates.append("enabled=True")
-            if updates:
-                tool.save()
-                changed.append({"tool": name, "changes": updates})
-        rows[name] = {
-            "present": True,
+            tool.is_synchronous = wants_sync
+            tool.enabled = True
+            tool.save()
+        changed.append({
+            "tool": name,
             "id": tool.global_id,
-            "enabled": bool(tool.enabled),
-            "isSynchronous": bool(tool.is_synchronous),
-            "wantsSynchronous": wants_sync,
-            "before": before,
-            "editUrl": base + "/actions/mcp_tool_actions/{}/edit/".format(tool.id),
-        }
-    missing = [name for name, row in rows.items() if not row["present"]]
+            "changes": updates,
+            "editUrl": base + "/actions/mcp_tool_action/{}/".format(tool.id),
+        })
 
     _progress(job, "Checking outbound access to the Content Library and GitHub")
     egress = _egress()
 
+    # install reports what it changed; status reports what install would change.
+    change_key = "changed" if action == "install" else "needsChange"
     outputs = {
         "action": action,
         "toolkitVersion": TOOLKIT_VERSION,
-        "tools": rows,
+        "counts": {
+            "expected": len(TOOLS),
+            "present": len(TOOLS) - len(missing),
+            "missing": len(missing),
+            change_key: len(changed),
+        },
         "missing": missing,
-        "changed": changed,
+        change_key: changed,
         "egress": egress,
         "mcpToolActionsUrl": base + "/actions/mcp_tool_actions/",
     }
@@ -258,22 +274,25 @@ def run(job, *args, **kwargs):
         except Exception as exc:
             outputs["stateNote"] = "Could not record the install: {}".format(str(exc)[:200])
     notes = []
-    if changed:
+    if changed and action == "install":
         notes.append(
-            "Synchronous Action was changed on {} tool(s). Reconnect the MCP client now: tool lists and "
+            "{} tool(s) were enabled or had Synchronous Action changed. Reconnect the MCP client now: tool lists and "
             "behaviour are cached per session.".format(len(changed))
         )
+    elif changed:
+        notes.append("{} tool(s) are disabled or have the wrong Synchronous Action; onb_install fixes them.".format(len(changed)))
     if missing:
         notes.append(
             "Missing tools: {}. Sync them from the repository (mcp_tool_actions folders) or import the "
-            "POC Onboarding Toolkit content package, then run onb_install again.".format(", ".join(missing))
+            "Onboarding Toolkit content package, then run onb_install again.".format(", ".join(missing))
         )
     if egress.get("playbook", {}).get("reachable") is False:
         notes.append("GitHub is not reachable from the appliance, so onb_playbook will fail; read the skill from the repository instead.")
     if egress.get("contentLibrary", {}).get("reachable") is False:
         notes.append("The Content Library is not reachable; the extensibility phase will need the proxy or SSL settings fixed first.")
     outputs["notes"] = notes
-    message = "Toolkit {}: {} present, {} missing, {} changed.".format(
-        TOOLKIT_VERSION, len(TOOLS) - len(missing), len(missing), len(changed)
+    message = "Toolkit {}: {} present, {} missing, {} {}.".format(
+        TOOLKIT_VERSION, len(TOOLS) - len(missing), len(missing), len(changed),
+        "changed" if action == "install" else "need a change",
     )
     return _success(message, outputs)

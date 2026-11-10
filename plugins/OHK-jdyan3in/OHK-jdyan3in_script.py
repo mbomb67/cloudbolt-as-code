@@ -1,5 +1,5 @@
 """
-POC Onboarding: SMTP Test (MCP Tool Action plugin).
+Onboarding: SMTP Test (MCP Tool Action plugin).
 
 Sends a test email through the saved SMTP settings, the same as the Email
 Settings page's test button, and returns the relay's real error when it
@@ -72,7 +72,8 @@ def run(job, *args, **kwargs):
     outputs = {
         "recipient": recipient or None,
         "settings": {"host": gp.smtp_host or None, "port": gp.smtp_port or None, "userSet": bool(gp.smtp_user), "useTls": bool(gp.smtp_use_tls), "passwordSet": bool(gp.smtp_password)},
-        "editUrl": base + "/admin/email_settings/edit/",
+        "editUrl": base + "/admin/email_settings/",
+        "editClick": "Edit on the Overview tab",
     }
     if not gp.smtp_host:
         return _failure("No SMTP host is configured; set it with onb_smtp (and the password on the Email Settings page) first.")
@@ -85,7 +86,7 @@ def run(job, *args, **kwargs):
         when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         email(
             recipients=recipient,
-            context={"subject": "CloudBolt email test", "message": "This test email was sent from CloudBolt on {} by the POC onboarding toolkit.".format(when)},
+            context={"subject": "CloudBolt email test", "message": "This test email was sent from CloudBolt on {} by the onboarding toolkit.".format(when)},
         )
         outputs["sent"] = True
         outputs["next"] = "Ask the user to confirm the message arrived; then record prerequisite P7 as done."

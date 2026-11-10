@@ -1,13 +1,13 @@
-# POC Onboarding: User
+# Onboarding: User
 
-MCP Tool Action published to agents as `custom_onb_user`. Creates a local user with no usable password and assigns roles in a group, returning the edit link where the admin sets the password; an existing user only gets the roles.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+MCP Tool Action published to agents as `custom_onb_user`. Assigns roles in a group to a local POC user. A user that does not exist yet is added by the admin on the Users list, password included; the tool returns the link, button and values, and assigns the roles when called again.
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-tuzkb8h4 | POC Onboarding: User |
-| Plugin | [OHK-8in52yhn](../../plugins/OHK-8in52yhn/) | POC Onboarding: User |
+| MCP Tool Action | MTA-tuzkb8h4 | Onboarding: User |
+| Plugin | [OHK-8in52yhn](../../plugins/OHK-8in52yhn/) | Onboarding: User |
 
 ## Inputs
 | Input | Type | Meaning |
@@ -21,7 +21,7 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_user_super_admin` | string | Grant or remove the super admin flag. |
 
 ## Output
-user (id, username, created, url, setPasswordUrl), memberships[], changes[], next.
+user (id, username, url, passwordSet), memberships[], changes[], next; passwordFix (url, steps) for a user with no password. For a user that does not exist: createInUi (url, click, values, steps), next.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.

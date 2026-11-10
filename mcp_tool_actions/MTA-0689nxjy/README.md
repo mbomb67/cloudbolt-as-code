@@ -1,13 +1,13 @@
-# POC Onboarding: Tag Mapping
+# Onboarding: Tag Mapping
 
 MCP Tool Action published to agents as `custom_onb_tag_mapping`. Lists, adds or removes a resource handler's mappings from CloudBolt attributes or parameters to cloud tags, giving cross-cloud tagging and the cost-center tag.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-0689nxjy | POC Onboarding: Tag Mapping |
-| Plugin | [OHK-b8c90uok](../../plugins/OHK-b8c90uok/) | POC Onboarding: Tag Mapping |
+| MCP Tool Action | MTA-0689nxjy | Onboarding: Tag Mapping |
+| Plugin | [OHK-b8c90uok](../../plugins/OHK-b8c90uok/) | Onboarding: Tag Mapping |
 
 ## Inputs
 | Input | Type | Meaning |

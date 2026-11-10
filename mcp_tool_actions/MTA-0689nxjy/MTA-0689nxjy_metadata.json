@@ -65,7 +65,7 @@
     "enabled": true,
     "id": "MTA-0689nxjy",
     "is_synchronous": true,
-    "label": "POC Onboarding: Tag Mapping",
+    "label": "Onboarding: Tag Mapping",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

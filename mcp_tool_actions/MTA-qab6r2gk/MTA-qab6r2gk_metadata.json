@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-qab6r2gk",
     "is_synchronous": false,
-    "label": "POC Onboarding: SMTP Test",
+    "label": "Onboarding: SMTP Test",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,
