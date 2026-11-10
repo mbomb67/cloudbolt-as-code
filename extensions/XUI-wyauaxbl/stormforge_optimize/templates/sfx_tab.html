@@ -8,6 +8,7 @@
   $(function () {
     window.sfx.init("{{ root_id|escapejs }}", {
       view: "{{ view|escapejs }}",
+      views: [{% for v in views %}"{{ v|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
       tab: "{{ tab_id|escapejs }}",
       label: "{{ label|escapejs }}",
       icon: "{{ icon|escapejs }}",

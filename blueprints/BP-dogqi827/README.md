@@ -16,6 +16,7 @@ Creates a governed namespace for a team on an existing AKS cluster as an AKS [ma
 | Day-2 | RSA-2f01ppuc / OHK-vi009xb8 | AKS Namespace Connection Details |
 | Day-2 | RSA-rwaszep5 / OHK-4rucefwc | Manage AKS Namespace Pipeline Identity |
 | Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
+| Day-2 | RSA-d2zufawc / OHK-5nmq32do | Apply StormForge Recommendation |
 
 Order form: AKS Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Policy (required), Additional CloudBolt Group, Team Entra Principals, Team Access Level, and an optional Expiration Date.
 
@@ -35,6 +36,7 @@ Order form: AKS Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Polic
 - **Manage AKS Namespace Pipeline Identity** gives a GitHub Actions workflow access to the namespace without stored credentials, or removes it; see Pipeline identities below.
 - **AKS Namespace Connection Details** returns the commands that connect kubectl to the namespace and who has access. The Azure AKS Cluster extension ([XUI-nr5iiu60](../../extensions/XUI-nr5iiu60/)) shows the same on a Connect tab.
 - **Deploy Test Workload** runs a two-pod unprivileged nginx Deployment and a ClusterIP Service named `cb-test-workload` in the namespace, so the Workloads tab has something to show, or removes them. The same action serves the EKS, AKS and GKE namespace and OpenShift project blueprints.
+- **Apply StormForge Recommendation** applies StormForge's latest recommendation to one workload in the namespace, or turns the workload's automatic deployment on or off. It appears only when the namespace's cluster runs the StormForge agent ([setup](../../docs/stormforge-agent-setup.md)); the namespace then also has a StormForge tab ([XUI-wyauaxbl](../../extensions/XUI-wyauaxbl/)) with the namespace's optimization score, workloads and recommendations.
 
 ## Access
 Team Entra Principals takes Microsoft Entra object IDs, one per line, each optionally prefixed with its type (`Group:`, `User:`, or `ServicePrincipal:`; a type avoids a failed lookup for a principal created moments ago). Each gets two role assignments scoped to the managed namespace, as Microsoft documents: Azure Kubernetes Service Namespace User (see the namespace and download its kubeconfig) and the access level's data-plane role (Azure Kubernetes Service RBAC Writer, Reader, or Admin). Granting another level replaces the previous one.

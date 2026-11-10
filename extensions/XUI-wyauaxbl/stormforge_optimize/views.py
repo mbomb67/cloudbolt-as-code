@@ -23,8 +23,20 @@ cluster once Helm has installed the agent.
   cluster's workload table with a namespace filter.
 
 Clicking a namespace or workload anywhere switches to its tab with it chosen.
-Every tab is read-only: StormForge settings are applied as annotations in
-Kubernetes, so the tabs show them with the annotations that change them.
+The cluster tabs are read-only: StormForge settings are applied as
+annotations in Kubernetes, so the tabs show them with the annotations that
+change them.
+
+Namespace resources (AWS EKS Namespace, AKS Namespace, GKE Namespace) on such
+a cluster get one tab, Optimization, when this CloudBolt has the StormForge
+connection info. It shows that namespace only: its cards and workload table,
+and each workload's Summary, Recommendation, Patches and Settings in the same
+tab. The namespace comes from the resource, never from the request, so a
+team sees its own namespace and nothing else of the cluster; the cluster,
+nodes, agent and namespace-list views refuse namespace resources. A
+workload's Apply recommendation button starts the Apply StormForge
+Recommendation action (RSA-d2zufawc) as a CloudBolt job for people who may
+run that action on the namespace.
 
 Data comes from the StormForge API with the credential in the "StormForge"
 connection info (the one the agent install uses), asking for the
@@ -69,13 +81,21 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
+from django import forms
+from django.contrib import messages
 from django.core.cache import cache
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
+from cbhooks.services.parsing import get_hook_action_input_dict
+from common.forms import C2Form
 from extensions.views import tab_extension, TabExtensionDelegate
 from resources.models import Resource
+from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
+from utilities.models import ConnectionInfo
 
 logger = ThreadLogger(__name__)
 
@@ -89,6 +109,22 @@ VIEW_PERMISSION = "resource.view"
 CLUSTER_FIELD = "stormforge_cluster_name"
 # Written only after Helm installs the agent (SHM-2fd3bhsz FIELD_VERSION).
 AGENT_VERSION_FIELD = "stormforge_agent_version"
+
+# The connection info that enables StormForge (SHM-2fd3bhsz CONNECTION_INFO_NAME).
+CONNECTION_INFO = "StormForge"
+
+# Field prefixes of the namespace blueprints' resources (<prefix>name,
+# <prefix>cluster_resource_id): SHM-sa5yqm9j, SHM-cozv547n and SHM-kephq8iq.
+NAMESPACE_PREFIXES = ("eks_namespace_", "aks_namespace_", "gke_namespace_")
+
+# Plugin (hook) name of the namespace blueprints' apply action, and the
+# values its stormforge_apply_mode input accepts (SHM-2fd3bhsz APPLY_MODES).
+APPLY_ACTION = "Apply StormForge Recommendation"
+APPLY_MODES = (
+    ("now", "Apply the latest recommendation now"),
+    ("auto_on", "Turn automatic deployment on"),
+    ("auto_off", "Turn automatic deployment off"),
+)
 
 # Scopes the tabs ask for on the connection info's credential.
 READ_SCOPES = ("view:clusters", "view:workloads")
@@ -124,6 +160,8 @@ TABS = {
     "cluster": ("SF Clusters", "Clusters"),
     "namespace": ("SF Namespaces", "Namespaces"),
     "workload": ("SF Workloads", "Workloads"),
+    # The one tab of a namespace resource, which already has a Workloads tab.
+    "scoped": ("SF Optimization", "Optimization"),
 }
 
 ENDPOINTS = {
@@ -338,6 +376,45 @@ def _cluster_name(resource):
         return ""
     value = str(value or "").strip()
     return value if NAMESPACE_RE.match(value) else ""
+
+
+def _agent_installed(resource):
+    try:
+        return bool(resource.get_cf_values_as_dict().get(AGENT_VERSION_FIELD))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+class Scope:
+    """What of StormForge a resource may show.
+
+    A cluster resource shows its whole cluster (``ns`` is ''). A namespace
+    resource shows the one namespace it stands for, on its cluster resource's
+    StormForge cluster; ``cluster`` is '' when that cluster has no agent.
+    """
+
+    def __init__(self, cluster="", ns=""):
+        self.cluster = cluster
+        self.ns = ns
+
+
+def _scope(resource):
+    try:
+        values = resource.get_cf_values_as_dict()
+    except Exception:  # noqa: BLE001
+        return Scope()
+    for prefix in NAMESPACE_PREFIXES:
+        ns = str(values.get(prefix + "name") or "").strip()
+        if not NAMESPACE_RE.match(ns):
+            continue
+        parent = resource.parent_resource
+        if parent is None:
+            parent_id = str(values.get(prefix + "cluster_resource_id") or "").strip()
+            parent = Resource.objects.filter(id=int(parent_id)).first() if parent_id.isdigit() else None
+        if parent is None or not _agent_installed(parent):
+            return Scope(ns=ns)
+        return Scope(_cluster_name(parent), ns)
+    return Scope(_cluster_name(resource))
 
 
 def _can_view(profile, resource):
@@ -1612,6 +1689,10 @@ def _workload_context(request, resource, reader, cluster):
     if not ns:
         params = _table_params(request, WORKLOAD_SORTS)
         filter_ns = _arg(request, "ns", NAMESPACE_RE)
+        if getattr(request, "sfx_scoped", False):
+            # A namespace resource: its own workloads, and no list of the cluster's namespaces.
+            return {"picker": True, "table_ctx": _workload_table(reader, cluster, params, filter_ns),
+                    "app_link": _app_link(reader, cluster, filter_ns)}
         reader.token()
         results = _parallel(
             table=lambda: _workload_table(reader, cluster, params, filter_ns),
@@ -1726,8 +1807,152 @@ def _workload_context(request, resource, reader, cluster):
         ],
         "window": window,
         "settings": _settings(results["config"]),
+        "apply_url": _apply_url(request, resource, kind, name),
         "app_link": _app_link(reader, cluster, ns, kind, name, "summary"),
         "recommendation_link": _app_link(reader, cluster, ns, kind, name, "recommendations"),
+    }
+
+
+# -- Apply: start the namespace blueprint's apply action as a job -------------
+def _apply_action(profile, resource):
+    """The Apply StormForge Recommendation action when it is on the resource's
+    blueprint and the viewer may run it on this resource, else None."""
+    try:
+        from cbhooks.models import ResourceAction
+        from utilities.permissions import resource_action_permitted
+    except ImportError:
+        return None
+    try:
+        for action in ResourceAction.objects.filter(enabled=True, hook__name=APPLY_ACTION):
+            blueprints = list(action.blueprints.values_list("id", flat=True))
+            if not blueprints or resource.blueprint_id not in blueprints:
+                continue
+            if resource_action_permitted(profile, resource, action):
+                return action
+    except Exception:  # noqa: BLE001 - a missing action only hides the button
+        logger.exception("Could not resolve the '%s' action for resource %s", APPLY_ACTION, resource.id)
+    return None
+
+
+def _apply_url(request, resource, kind, name):
+    """The Apply dialog for a workload of a namespace resource, or '' when the viewer may not apply."""
+    if not getattr(request, "sfx_scoped", False):
+        return ""
+    if _apply_action(request.get_user_profile(), resource) is None:
+        return ""
+    return reverse("sfx_apply", args=[resource.id]) + "?" + urllib.parse.urlencode({"type": kind, "name": name})
+
+
+class ApplyForm(C2Form):
+    mode = forms.ChoiceField(
+        label="What to do",
+        choices=APPLY_MODES,
+        initial=APPLY_MODES[0][0],
+        help_text="Automatic deployment lets StormForge apply every new recommendation once the "
+                  "workload's learning period is over.",
+    )
+
+
+def _dialog_message(title, text):
+    return {"title": title, "content": format_html('<p class="text-danger">{}</p>', text)}
+
+
+def _run_action(request, profile, resource, action, values, what):
+    """Start the resource action as a job (or an order when it requires
+    approval), the path CloudBolt's own action dialog takes, and report the
+    outcome as a page message."""
+    try:
+        context = get_hook_action_input_dict(action.hook, values, input_names_clean=True)
+        result = action.run_hook_as_job(owner=profile, resources=[resource], context=context)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("%s failed to start on resource %s", what, resource.id)
+        messages.error(request, f"{what} could not be started: {exc}")
+        return
+    if isinstance(result, (list, tuple)):
+        jobs = [job for job in result if hasattr(job, "get_absolute_url")]
+        if jobs:
+            links = format_html_join(
+                ", ", '<a href="{}">Job {}</a>', ((job.get_absolute_url(), job.id) for job in jobs)
+            )
+            messages.info(request, format_html("{} started: {}.", what, links))
+        else:
+            messages.error(request, f"{what} did not start a job; check the action's configuration.")
+        return
+    order = getattr(result, "order", None)
+    if order is not None:
+        messages.info(request, format_html(
+            '{} was added to <a href="{}">Order {}</a>, which needs approval before it runs.',
+            what, order.get_absolute_url(), order.id,
+        ))
+    else:
+        messages.info(request, f"{what} was submitted.")
+
+
+@dialog_view
+def sfx_apply(request, resource_id):
+    """Apply a workload's latest recommendation, or switch its automatic
+    deployment, through the Apply StormForge Recommendation action."""
+    title = "Apply StormForge recommendation"
+    resource = get_object_or_404(Resource, pk=resource_id)
+    profile = request.get_user_profile()
+    if not _can_view(profile, resource):
+        return _dialog_message(title, "You do not have permission to view this resource.")
+    scope = _scope(resource)
+    if not (scope.ns and scope.cluster):
+        return _dialog_message(
+            title, "Recommendations are applied from a namespace whose cluster runs the StormForge agent.")
+    kind = _arg(request, "type", OBJECT_RE)
+    name = _arg(request, "name", OBJECT_RE)
+    if not (kind and name):
+        return _dialog_message(title, "Choose a workload first.")
+    action = _apply_action(profile, resource)
+    if action is None:
+        return _dialog_message(
+            title,
+            f"The {APPLY_ACTION} action is not available on this namespace: it is not synced, not on the "
+            "namespace's blueprint, or you are not allowed to run it.",
+        )
+    # The workload must be one StormForge reports in this resource's namespace.
+    try:
+        detail = Reader().get(
+            f"management/workloads/{_q('_'.join((scope.cluster, scope.ns, kind, name)))}",
+            allow_404=True, what=f"workload {name}")
+    except PanelError as exc:
+        return _dialog_message(title, str(exc))
+    if detail is None:
+        return _dialog_message(title, f"StormForge has no workload {kind}/{name} in namespace {scope.ns}.")
+
+    if request.method == "POST":
+        form = ApplyForm(request.POST)
+        if form.is_valid():
+            mode = form.cleaned_data["mode"]
+            _run_action(
+                request, profile, resource, action,
+                {"stormforge_workload": f"{kind}/{name}", "stormforge_apply_mode": mode},
+                f"{dict(APPLY_MODES)[mode]} for {name}",
+            )
+            return HttpResponseRedirect(request.META.get("HTTP_REFERER") or resource.get_absolute_url())
+    else:
+        form = ApplyForm()
+
+    row = _row(detail)
+    content = format_html(
+        "<p><b>{}</b> ({}) in namespace <b>{}</b>. StormForge recommends CPU requests {} &rarr; {} cores "
+        "and memory requests {} &rarr; {}, a net {} per month. Automatic deployment is {}.</p>"
+        "<p>Applying changes the workload's requests and limits, and Kubernetes rolls its pods to the new "
+        "values. The change runs as a CloudBolt job through the <b>{}</b> action.</p>",
+        name, KIND_LABELS.get(kind, kind), scope.ns,
+        row["cur_cpu"], row["rec_cpu"], row["cur_mem"], row["rec_mem"], row["imp_cost"],
+        "on" if detail.get("auto_deploy") else "off", action.label,
+    )
+    return {
+        "title": title,
+        "content": content,
+        "form": form,
+        "action_url": reverse("sfx_apply", args=[resource.id]) + "?"
+                      + urllib.parse.urlencode({"type": kind, "name": name}),
+        "use_ajax": True,
+        "submit": "Run",
     }
 
 
@@ -1756,16 +1981,27 @@ def _patches_context(request, resource, reader, cluster):
 # ---------------------------------------------------------------------------
 # Panels (HTML fragments the tabs load asynchronously)
 # ---------------------------------------------------------------------------
-def _panel(request, resource_id, template, build):
+def _panel(request, resource_id, template, build, cluster_only=False):
     resource = get_object_or_404(Resource, pk=resource_id)
     profile = request.get_user_profile()
-    cluster = _cluster_name(resource)
+    scope = _scope(resource)
+    cluster = scope.cluster
+    request.sfx_scoped = bool(scope.ns)
     context = {}
     if not _can_view(profile, resource):
         context = {"error": "You do not have permission to view this resource."}
+    elif not cluster and scope.ns:
+        context = {"error": "This namespace's cluster does not run the StormForge agent."}
     elif not cluster:
         context = {"error": "This resource has no StormForge cluster name; install the StormForge agent first."}
+    elif scope.ns and cluster_only:
+        context = {"error": "This view belongs to the cluster, not to a namespace."}
     else:
+        if scope.ns:
+            # A namespace resource shows its own namespace, whatever the request names.
+            query = request.GET.copy()
+            query["ns"] = scope.ns
+            request.GET = query
         try:
             reader = Reader(fresh=request.GET.get("fresh") == "1")
             context = build(request, resource, reader, cluster)
@@ -1774,16 +2010,18 @@ def _panel(request, resource_id, template, build):
         except Exception:  # noqa: BLE001
             logger.exception("StormForge panel %s failed for resource %s", template, resource.id)
             context = {"error": "Could not load this panel. The CloudBolt application log has the details."}
-    context.update(resource=resource, cluster=cluster, icon=ICON)
+    context.update(resource=resource, cluster=cluster, icon=ICON, scoped=bool(scope.ns))
+    if scope.ns:
+        context.setdefault("ns", scope.ns)
     return render(request, TEMPLATES + template, context)
 
 
 def sfx_cluster_panel(request, resource_id):
-    return _panel(request, resource_id, "sfx_cluster_panel.html", _cluster_context)
+    return _panel(request, resource_id, "sfx_cluster_panel.html", _cluster_context, cluster_only=True)
 
 
 def sfx_nodes_panel(request, resource_id):
-    return _panel(request, resource_id, "sfx_nodes_panel.html", _nodes_context)
+    return _panel(request, resource_id, "sfx_nodes_panel.html", _nodes_context, cluster_only=True)
 
 
 def sfx_namespace_panel(request, resource_id):
@@ -1799,25 +2037,25 @@ def sfx_patches_panel(request, resource_id):
 
 
 def sfx_agent_panel(request, resource_id):
-    return _panel(request, resource_id, "sfx_agent_panel.html", _agent_context)
+    return _panel(request, resource_id, "sfx_agent_panel.html", _agent_context, cluster_only=True)
 
 
 def sfx_agent_log(request, resource_id):
-    return _panel(request, resource_id, "sfx_agent_log.html", _agent_log_context)
+    return _panel(request, resource_id, "sfx_agent_log.html", _agent_log_context, cluster_only=True)
 
 
 def sfx_namespaces_table(request, resource_id):
     def build(request, resource, reader, cluster):
         _detail, table = _namespace_table(reader, cluster, _table_params(request, NAMESPACE_SORTS))
         return {"table_ctx": table}
-    return _panel(request, resource_id, "sfx_table.html", build)
+    return _panel(request, resource_id, "sfx_table.html", build, cluster_only=True)
 
 
 def sfx_workloads_table(request, resource_id):
     def build(request, resource, reader, cluster):
         ns = _arg(request, "ns", NAMESPACE_RE)
         table = _workload_table(reader, cluster, _table_params(request, WORKLOAD_SORTS), ns)
-        table["filterable"] = request.GET.get("filterable") == "1"
+        table["filterable"] = request.GET.get("filterable") == "1" and not getattr(request, "sfx_scoped", False)
         return {"table_ctx": table}
     return _panel(request, resource_id, "sfx_table.html", build)
 
@@ -1834,19 +2072,33 @@ class StormForgeTabDelegate(TabExtensionDelegate):
     """
 
     def should_display(self):
+        return _agent_installed(self.instance) and bool(_cluster_name(self.instance))
+
+
+class StormForgeNamespaceTabDelegate(TabExtensionDelegate):
+    """EKS, AKS and GKE namespaces whose cluster runs the StormForge agent, on
+    a CloudBolt that has the StormForge connection info."""
+
+    def should_display(self):
         try:
-            installed = bool(self.instance.get_cf_values_as_dict().get(AGENT_VERSION_FIELD))
-        except Exception:  # noqa: BLE001
-            installed = False
-        return installed and bool(_cluster_name(self.instance))
+            scope = _scope(self.instance)
+            if not (scope.ns and scope.cluster):
+                return False
+            return ConnectionInfo.objects.filter(name=CONNECTION_INFO).exists()
+        except Exception:  # noqa: BLE001 - never break the resource page
+            logger.exception("StormForge namespace tab check failed for resource %s", self.instance.id)
+            return False
 
 
 def _tab(request, obj_id, view):
     resource = get_object_or_404(Resource, pk=obj_id)
     title, label = TABS[view]
+    # A namespace's tab holds the namespace view and the workload view.
+    views = ["namespace", "workload"] if view == "scoped" else [view]
     return render(request, TEMPLATES + "sfx_tab.html", {
         "resource": resource,
-        "view": view,
+        "view": views[0],
+        "views": views,
         "label": label,
         "tab_id": "tab-" + title.lower().replace(" ", "-"),
         "root_id": f"sfx-{view}-{resource.id}",
@@ -1883,3 +2135,13 @@ def stormforge_namespaces_tab(request, obj_id):
 )
 def stormforge_workloads_tab(request, obj_id):
     return _tab(request, obj_id, "workload")
+
+
+@tab_extension(
+    model=Resource,
+    title=TABS["scoped"][0],
+    delegate=StormForgeNamespaceTabDelegate,
+    description="StormForge optimization score, recommendation impact, workloads and recommendations for the namespace",
+)
+def stormforge_namespace_tab(request, obj_id):
+    return _tab(request, obj_id, "scoped")

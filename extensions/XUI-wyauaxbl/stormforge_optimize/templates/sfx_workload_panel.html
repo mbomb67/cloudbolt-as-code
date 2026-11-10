@@ -5,15 +5,22 @@
       <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
       <div class="sfx-title">{% if name %}{{ kind_label }}: {{ name }}{% else %}Workloads{% endif %}</div>
       <div class="sfx-crumbs">
+        {% if scoped %}
+        <span>{{ cluster }}</span>
+        <i class="bi bi-chevron-right" aria-hidden="true"></i><a href="#" data-sfx-go="namespace">{{ ns }}</a>
+        {% if name %}<i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ name }}</span>{% endif %}
+        {% else %}
         <a href="#" data-sfx-go="cluster">{{ cluster }}</a>
         {% if name %}
         <i class="bi bi-chevron-right" aria-hidden="true"></i><a href="#" data-sfx-go="namespace" data-sfx-ns="{{ ns }}">{{ ns }}</a>
         <i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ name }}</span>
         <span class="sfx-muted">&middot;</span><a href="#" data-sfx-go="workload">All workloads</a>
         {% endif %}
+        {% endif %}
       </div>
     </div>
     <div class="sfx-tools">
+      {% if apply_url %}<a class="btn btn-sm btn-primary open-dialog" href="{{ apply_url }}" title="Apply the latest recommendation, or turn automatic deployment on or off"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Apply recommendation</a>{% endif %}
       {% if app_link %}<a class="btn btn-sm btn-outline-secondary" href="{{ app_link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Open in StormForge</a>{% endif %}
       <button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-refresh="workload"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button>
     </div>

@@ -100,6 +100,13 @@
             },
             "enabled": true,
             "label": "Deploy Test Workload"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-d2zufawc"
+            },
+            "enabled": true,
+            "label": "Apply StormForge Recommendation"
         }
     ],
     "metadata_version": "2026.1.0",

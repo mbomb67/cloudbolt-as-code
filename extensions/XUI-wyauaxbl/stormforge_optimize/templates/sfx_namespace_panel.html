@@ -5,8 +5,12 @@
       <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
       <div class="sfx-title">{% if ns %}Namespace: {{ ns }}{% else %}Namespaces{% endif %}</div>
       <div class="sfx-crumbs">
+        {% if scoped %}
+        <span>{{ cluster }}</span><i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ ns }}</span>
+        {% else %}
         <a href="#" data-sfx-go="cluster">{{ cluster }}</a>
         {% if ns %}<i class="bi bi-chevron-right" aria-hidden="true"></i><a href="#" data-sfx-go="namespace">All namespaces</a><i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ ns }}</span>{% endif %}
+        {% endif %}
       </div>
     </div>
     <div class="sfx-tools">
@@ -20,6 +24,7 @@
 <div class="sfx-intro">Choose a namespace to see its workloads and recommendations.</div>
 {% include "stormforge_optimize/templates/sfx_table.html" %}
 {% else %}
+{% if scoped %}<div class="sfx-intro">StormForge's recommendations for this namespace. Choose a workload to see its recommendation, patches and optimization settings{% if not summary.has_data %}; StormForge has no recommendations for this namespace yet{% endif %}.</div>{% endif %}
 {% include "stormforge_optimize/templates/sfx_cards.html" with s=summary %}
 {% include "stormforge_optimize/templates/sfx_table.html" %}
 {% endif %}

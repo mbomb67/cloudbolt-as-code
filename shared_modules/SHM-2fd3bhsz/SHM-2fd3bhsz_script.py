@@ -15,6 +15,17 @@ Upgrade StormForge Agent action (RSA-76jmctg6):
   version_options(resource)
       Dropdown entries for the action: installed version -> target version.
 
+and by the Apply StormForge Recommendation action (RSA-d2zufawc) on the AWS
+EKS Namespace (BP-e4c0q58z), AKS Namespace (BP-dogqi827) and GKE Namespace
+(BP-c9ca1i3z) blueprints:
+
+  namespace_scope(resource)
+      The namespace a namespace resource stands for and its cluster's name
+      in StormForge, when that cluster runs the agent.
+  apply_to_workload(resource, workload, mode)
+      Applies StormForge's patches for a workload's latest recommendation to
+      the namespace, or turns the workload's automatic deployment on or off.
+
 Every StormForge call goes to the StormForge API; nothing uses the StormForge
 CLI. The credential lives in a CloudBolt connection info named "StormForge":
 Username = client ID, Password = client secret, IP/Hostname = the StormForge
@@ -37,6 +48,18 @@ blueprint's README.
   Cluster     GET | DELETE https://<api>/v3/clusters/<name>
               (StormForge API v3; status.phase, kubernetes.systemNamespaceUID,
               stormforge.products[].version)
+  Workloads   GET  https://<api>/management/workloads?cluster=&namespace=
+              GET  https://<api>/management/workloads/<id>/patches
+              (id = cluster_namespace_type_name; token scope view:workloads)
+
+Applying a recommendation follows StormForge's documented kubectl path
+(https://docs.stormforge.io/optimize-live/recommendations/apply/): StormForge
+publishes each patch with the command
+`kubectl patch --field-manager=stormforge <resource>/<name> --patch-file=...`,
+which is a strategic merge patch, and this module sends the same patch to the
+Kubernetes API. Automatic deployment is the documented workload annotation
+live.stormforge.io/auto-deploy
+(https://docs.stormforge.io/docs/configure/settings/apply-settings/).
 
 The agent install follows StormForge's documented chart and externally
 managed Secret:
@@ -92,6 +115,8 @@ logger = ThreadLogger(__name__)
 CONNECTION_INFO_NAME = "StormForge"
 # What CloudBolt's own calls need: read and delete clusters.
 API_SCOPES = ("view:clusters", "manage:clusters")
+# What reading a namespace's workloads and their patches needs.
+WORKLOAD_SCOPES = ("view:clusters", "view:workloads")
 
 CHART = "oci://registry.stormforge.io/library/stormforge"
 CHART_REGISTRY = "https://registry.stormforge.io"
@@ -117,6 +142,7 @@ REQUEST_TIMEOUT = 30
 MANAGED_LABELS = {"app.kubernetes.io/managed-by": "cloudbolt"}
 
 CLUSTER_ORCHESTRATOR_FIELD = "container_orchestrator_id"
+STRATEGIC_MERGE_PATCH = "application/strategic-merge-patch+json"
 
 # Which blueprint built the cluster: the field its build stores, and the
 # chart's clusterProvider value.
@@ -269,7 +295,7 @@ def _set_fields(resource, **values):
 class StormForge:
     """The StormForge API as one org-level client-credentials client."""
 
-    def __init__(self, api_host, client_id, client_secret):
+    def __init__(self, api_host, client_id, client_secret, scopes=API_SCOPES):
         host = (api_host or "").strip()
         if not host:
             raise StormForgeError("No StormForge API host given.")
@@ -278,12 +304,13 @@ class StormForge:
         self.api = host.rstrip("/") + "/"
         self.client_id = client_id
         self.client_secret = client_secret
+        self.scopes = tuple(scopes)
         self._metadata = None
         self._token = None
         self._token_expires = 0
 
     @classmethod
-    def from_connection_info(cls):
+    def from_connection_info(cls, scopes=API_SCOPES):
         conn = ConnectionInfo.objects.filter(name=CONNECTION_INFO_NAME).first()
         if conn is None:
             raise StormForgeError(
@@ -295,7 +322,7 @@ class StormForge:
                 f"Connection info '{CONNECTION_INFO_NAME}' needs the StormForge API host (for example "
                 "api.stormforge.io) as IP/Hostname, the client ID as Username and the client secret as Password."
             )
-        return cls(conn.ip, conn.username, conn.password)
+        return cls(conn.ip, conn.username, conn.password, scopes=scopes)
 
     @property
     def host(self):
@@ -346,7 +373,7 @@ class StormForge:
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "audience": self.api,
-            "scope": " ".join(API_SCOPES),
+            "scope": " ".join(self.scopes),
         })
         if response.status_code != 200:
             raise StormForgeError(
@@ -369,7 +396,7 @@ class StormForge:
             hint = ""
             if response.status_code in (401, 403):
                 hint = (f" The '{CONNECTION_INFO_NAME}' credential may lack one of the scopes "
-                        f"{' '.join(API_SCOPES)}; create it with StormForge's default permissions "
+                        f"{' '.join(self.scopes)}; create it with StormForge's default permissions "
                         "(stormforge auth create).")
             raise StormForgeError(
                 f"StormForge {method} {path} returned HTTP {response.status_code}: "
@@ -483,8 +510,9 @@ class Kube:
             from shared_modules.gcp_gke import GKEError
 
             try:
-                result = self._gke.request(method, path, json_body=body, params=params,
-                                           allow_404=allow_404, ok=(200, 201, 202))
+                result = self._gke.request(
+                    method, path, json_body=body, params=params, allow_404=allow_404, ok=(200, 201, 202),
+                    content_type=STRATEGIC_MERGE_PATCH if method == "PATCH" else None)
             except GKEError as exc:
                 raise StormForgeError(str(exc))
             if text and isinstance(result, dict) and set(result) == {"text"}:
@@ -526,6 +554,16 @@ class Kube:
     def delete(self, path, params=None):
         """Delete an object; returns False when it was already gone."""
         return self.request("DELETE", path, params=params, allow_404=True) is not None
+
+    def patch(self, path, body, params=None):
+        """Strategic merge patch of a built-in object; None when it does not exist.
+
+        CloudBolt's orchestrator wrapper sends every PATCH as
+        application/strategic-merge-patch+json, which Kubernetes accepts for
+        built-in kinds only, so custom resources cannot be patched here.
+        https://kubernetes.io/docs/reference/using-api/api-concepts/#patch-and-apply
+        """
+        return self.request("PATCH", path, body=body, params=params, allow_404=True)
 
 
 def cluster_kind(resource):
@@ -1133,3 +1171,291 @@ def run_teardown_step(job, resource, kwargs):
             f"The cluster was deleted, but removing it from StormForge failed: {exc} "
             "Delete it in the StormForge app."
         )
+
+
+# ---------------------------------------------------------------------------
+# Namespaces: one team's namespace on a cluster that runs the agent
+# ---------------------------------------------------------------------------
+
+# The field prefix each namespace blueprint's build stores (<prefix>name,
+# <prefix>cluster_resource_id, <prefix>orchestrator_id): shared_modules
+# eks_namespace (SHM-sa5yqm9j), aks_namespace (SHM-cozv547n) and
+# gke_namespace (SHM-kephq8iq).
+NAMESPACE_KINDS = (
+    ("eks_namespace_", "EKS", "aws"),
+    ("aks_namespace_", "AKS", "azure"),
+    ("gke_namespace_", "GKE", "gcp"),
+)
+
+APPLY_NOW = "now"
+AUTO_DEPLOY_ON = "auto_on"
+AUTO_DEPLOY_OFF = "auto_off"
+APPLY_MODES = (
+    (APPLY_NOW, "Apply the latest recommendation now"),
+    (AUTO_DEPLOY_ON, "Turn automatic deployment on"),
+    (AUTO_DEPLOY_OFF, "Turn automatic deployment off"),
+)
+AUTO_DEPLOY_ANNOTATION = "live.stormforge.io/auto-deploy"
+# The field manager StormForge's own patch command names.
+PATCH_FIELD_MANAGER = "stormforge"
+
+# StormForge workload types (plural resources) CloudBolt can annotate, with
+# their API group and version and the kind shown to people.
+WORKLOAD_TYPES = {
+    "deployments": ("apps/v1", "Deployment"),
+    "statefulsets": ("apps/v1", "StatefulSet"),
+    "daemonsets": ("apps/v1", "DaemonSet"),
+    "replicasets": ("apps/v1", "ReplicaSet"),
+    "cronjobs": ("batch/v1", "CronJob"),
+    "jobs": ("batch/v1", "Job"),
+}
+# Kinds a StormForge patch may target here: (apiVersion, kind) -> plural resource.
+PATCH_TARGETS = {
+    ("apps/v1", "Deployment"): "deployments",
+    ("apps/v1", "StatefulSet"): "statefulsets",
+    ("apps/v1", "DaemonSet"): "daemonsets",
+    ("apps/v1", "ReplicaSet"): "replicasets",
+    ("batch/v1", "CronJob"): "cronjobs",
+    ("batch/v1", "Job"): "jobs",
+    ("autoscaling/v2", "HorizontalPodAutoscaler"): "horizontalpodautoscalers",
+}
+
+_NAMESPACE_RE = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
+_OBJECT_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
+_WORKLOAD_PAGE = 100
+_WORKLOAD_PAGES = 10
+
+
+class NamespaceScope:
+    """A namespace resource's namespace and where it lives."""
+
+    def __init__(self, namespace, cluster, cluster_resource, kind, provider, orchestrator_id):
+        self.namespace = namespace
+        self.cluster = cluster                      # the cluster's name in StormForge
+        self.cluster_resource = cluster_resource
+        self.kind = kind
+        self.provider = provider
+        self.orchestrator_id = orchestrator_id
+
+
+def namespace_scope(resource):
+    """The NamespaceScope of an EKS, AKS or GKE namespace resource, or None.
+
+    None when the resource is not such a namespace, when CloudBolt has no
+    resource for its cluster, or when the agent install has not succeeded on
+    that cluster (it writes both the StormForge name and the agent version).
+    """
+    from resources.models import Resource
+
+    try:
+        values = resource.get_cf_values_as_dict()
+    except Exception:  # noqa: BLE001
+        return None
+    for prefix, kind, provider in NAMESPACE_KINDS:
+        namespace = str(values.get(prefix + "name") or "").strip()
+        if not _NAMESPACE_RE.match(namespace):
+            continue
+        cluster = resource.parent_resource
+        if cluster is None:
+            cluster_id = str(values.get(prefix + "cluster_resource_id") or "").strip()
+            cluster = Resource.objects.filter(id=int(cluster_id)).first() if cluster_id.isdigit() else None
+        if cluster is None:
+            return None
+        cluster_values = cluster.get_cf_values_as_dict()
+        name = str(cluster_values.get(FIELD_CLUSTER) or "").strip()
+        if not name or not cluster_values.get(FIELD_VERSION):
+            return None
+        orchestrator_id = values.get(prefix + "orchestrator_id") or cluster_values.get(CLUSTER_ORCHESTRATOR_FIELD)
+        return NamespaceScope(namespace, name, cluster, kind, provider, orchestrator_id)
+    return None
+
+
+def _namespace_kube(scope):
+    from containerorchestrators.kuberneteshandler.models import Kubernetes
+
+    orchestrator = None
+    if str(scope.orchestrator_id or "").strip().isdigit():
+        orchestrator = Kubernetes.objects.filter(id=int(str(scope.orchestrator_id).strip())).first()
+    if orchestrator is None:
+        raise StormForgeError(
+            f"Namespace '{scope.namespace}' has no CloudBolt container orchestrator, so CloudBolt cannot "
+            "reach its cluster's Kubernetes API."
+        )
+    try:
+        return Kube(scope.kind, scope.provider, orchestrator)
+    except StormForgeError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise StormForgeError(f"Could not open the Kubernetes API of cluster '{scope.cluster}': {exc}")
+
+
+def _require_scope(resource):
+    scope = namespace_scope(resource)
+    if scope is None:
+        raise StormForgeError(
+            f"'{resource.name}' is not an EKS, AKS or GKE namespace on a cluster that runs the StormForge agent."
+        )
+    return scope
+
+
+def _workload_id(scope, kind, name):
+    """StormForge's workload ID: cluster, namespace, type and name joined by '_'."""
+    return urllib.parse.quote("_".join((scope.cluster, scope.namespace, kind, name)), safe="")
+
+
+def parse_workload(value):
+    """('deployments', 'web') from 'deployments/web'; raises StormForgeError when malformed."""
+    kind, _, name = str(value or "").strip().partition("/")
+    if not (_OBJECT_RE.match(kind) and _OBJECT_RE.match(name)):
+        raise StormForgeError("Choose a workload.")
+    return kind, name
+
+
+def namespace_workloads(sf, scope):
+    """StormForge's workloads in the namespace: [{'type', 'name', 'auto_deploy', 'status'}]."""
+    url = urllib.parse.urljoin(sf.api, "management/workloads")
+    found = []
+    for page in range(_WORKLOAD_PAGES):
+        listing = sf._call("GET", url, params={
+            "cluster": scope.cluster, "namespace": scope.namespace,
+            "sort_field": "workload_name", "sort_direction": "asc",
+            "offset": page * _WORKLOAD_PAGE, "limit": _WORKLOAD_PAGE,
+        }) or {}
+        results = listing.get("results") or []
+        for item in results:
+            # The namespace filter is StormForge's; check it again here.
+            if item.get("namespace_name") != scope.namespace or not item.get("workload_name"):
+                continue
+            found.append({
+                "type": item.get("type") or "",
+                "name": item["workload_name"],
+                "auto_deploy": bool(item.get("auto_deploy")),
+                "status": item.get("status") or "",
+            })
+        if len(results) < _WORKLOAD_PAGE:
+            break
+    return found
+
+
+def workload_options(resource):
+    """[(value, label)] for the action's Workload dropdown."""
+    scope = _require_scope(resource)
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    options = []
+    for workload in namespace_workloads(sf, scope):
+        kind = WORKLOAD_TYPES.get(workload["type"], (None, workload["type"]))[1]
+        detail = [kind, workload["status"] or "no recommendation yet"]
+        if workload["auto_deploy"]:
+            detail.append("automatic deployment on")
+        options.append((f"{workload['type']}/{workload['name']}", f"{workload['name']} ({', '.join(detail)})"))
+    return options
+
+
+def _object_path(api_version, namespace, plural, name):
+    root = "/api/v1" if api_version == "v1" else f"/apis/{api_version}"
+    return f"{root}/namespaces/{namespace}/{plural}/{name}"
+
+
+def _apply_patches(sf, scope, kind, name, progress):
+    """Send StormForge's patches for the workload's latest recommendation to the cluster."""
+    import yaml
+
+    url = urllib.parse.urljoin(sf.api, f"management/workloads/{_workload_id(scope, kind, name)}/patches")
+    patches = (sf._call("GET", url, allow_404=True) or {}).get("patches") or []
+    if not patches:
+        raise StormForgeError(
+            f"StormForge has no patch for {kind}/{name} in namespace {scope.namespace} yet. A workload gets "
+            "its first recommendation after StormForge has watched it for a while."
+        )
+    targets = []
+    for patch in patches:
+        try:
+            body = yaml.safe_load(patch.get("data") or "")
+        except yaml.YAMLError as exc:
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} is not readable YAML: {exc}")
+        if not isinstance(body, dict):
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} is empty.")
+        metadata = body.get("metadata") or {}
+        target = str(metadata.get("name") or "")
+        plural = PATCH_TARGETS.get((body.get("apiVersion"), body.get("kind")))
+        if plural is None:
+            raise StormForgeError(
+                f"CloudBolt cannot apply StormForge's patch for {body.get('kind') or 'this object'} "
+                f"({body.get('apiVersion') or 'no apiVersion'}). Apply it with kubectl from the workload's "
+                "Patches view."
+            )
+        if not _OBJECT_RE.match(target):
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} names no object.")
+        if metadata.get("namespace") not in (None, "", scope.namespace):
+            raise StormForgeError(
+                f"StormForge's patch for {body.get('kind')} {target} is for namespace "
+                f"{metadata.get('namespace')}, not {scope.namespace}; nothing was applied."
+            )
+        targets.append((body, plural, target))
+
+    kube = _namespace_kube(scope)
+    applied = []
+    for body, plural, target in targets:
+        progress(f"Patching {body['kind']} {target} in namespace {scope.namespace}")
+        # The object is always addressed inside this resource's namespace.
+        # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/#patch-partially-update-the-specified-deployment
+        result = kube.patch(_object_path(body["apiVersion"], scope.namespace, plural, target), body,
+                            params={"fieldManager": PATCH_FIELD_MANAGER})
+        if result is None:
+            raise StormForgeError(
+                f"{body['kind']} {target} is not in namespace {scope.namespace} any more."
+                + (f" Already patched: {', '.join(applied)}." if applied else "")
+            )
+        applied.append(f"{body['kind']} {target}")
+    return applied
+
+
+def _set_auto_deploy(scope, kind, name, enabled, progress):
+    if kind not in WORKLOAD_TYPES:
+        raise StormForgeError(
+            f"CloudBolt cannot annotate workloads of type {kind}. Set {AUTO_DEPLOY_ANNOTATION} on it with kubectl."
+        )
+    api_version, label = WORKLOAD_TYPES[kind]
+    value = "Enabled" if enabled else "Disabled"
+    progress(f"Setting {AUTO_DEPLOY_ANNOTATION}={value} on {label} {name} in namespace {scope.namespace}")
+    # https://docs.stormforge.io/docs/configure/settings/apply-settings/
+    result = _namespace_kube(scope).patch(
+        _object_path(api_version, scope.namespace, kind, name),
+        {"metadata": {"annotations": {AUTO_DEPLOY_ANNOTATION: value}}},
+        params={"fieldManager": "cloudbolt"},
+    )
+    if result is None:
+        raise StormForgeError(f"{label} {name} is not in namespace {scope.namespace}.")
+    return label
+
+
+def apply_to_workload(resource, workload, mode, progress=set_progress):
+    """Apply a workload's latest recommendation, or switch its automatic deployment.
+
+    ``workload`` is 'type/name' as workload_options offers it. Only workloads
+    StormForge reports in the resource's own namespace are accepted. Returns
+    (status, output, error).
+    """
+    scope = _require_scope(resource)
+    kind, name = parse_workload(workload)
+    if mode not in dict(APPLY_MODES):
+        raise StormForgeError("Choose what to do with the workload.")
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    if not any(w["type"] == kind and w["name"] == name for w in namespace_workloads(sf, scope)):
+        raise StormForgeError(f"StormForge has no workload {kind}/{name} in namespace {scope.namespace}.")
+    if mode == APPLY_NOW:
+        applied = _apply_patches(sf, scope, kind, name, progress)
+        return "SUCCESS", (
+            f"Applied StormForge's latest recommendation for {name} in namespace {scope.namespace}: "
+            f"patched {', '.join(applied)}. Kubernetes rolls the pods to the new requests and limits."
+        ), ""
+    label = _set_auto_deploy(scope, kind, name, mode == AUTO_DEPLOY_ON, progress)
+    if mode == AUTO_DEPLOY_ON:
+        return "SUCCESS", (
+            f"Automatic deployment is on for {label} {name} in namespace {scope.namespace}. StormForge applies "
+            "each new recommendation once the workload's learning period is over."
+        ), ""
+    return "SUCCESS", (
+        f"Automatic deployment is off for {label} {name} in namespace {scope.namespace}. Requests and limits "
+        "stay as they are until a recommendation is applied again."
+    ), ""

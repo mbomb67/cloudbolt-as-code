@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-2fd3bhsz"
+        ]
+    },
+    "description": "Shows Apply StormForge Recommendation only on a namespace whose cluster runs the StormForge agent.",
+    "id": "OHK-cgxi7wge",
+    "max_retries": 0,
+    "name": "Show If Namespace Cluster Runs StormForge",
+    "resource_technologies": [],
+    "script_filename": "OHK-cgxi7wge_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
