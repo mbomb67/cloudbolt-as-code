@@ -1,6 +1,7 @@
 {% comment %}
   Shared styles and script for the StormForge tabs (Clusters, Namespaces,
-  Workloads). Each tab includes this file; the script runs once per page.
+  Workloads on a cluster; Optimization on a namespace). Each tab includes
+  this file; the script runs once per page.
   Styles derive from CloudBolt's theme tokens (--bs-primary, --bs-body-color,
   --surface, --neutral-*) so Branded Themes and dark mode re-theme the tabs.
   The chart colors are StormForge's series colors (usage, current and
@@ -258,7 +259,9 @@
     $.extend(sfx.urls, cfg.urls);
     sfx.icon = sfx.icon || cfg.icon;
     var root = { $root: $root, $body: $root.find("[data-sfx-body]"), tabId: cfg.tab, params: {}, loaded: false };
-    sfx.roots[cfg.view] = root;
+    // A namespace resource's one tab holds both the namespace and the
+    // workload view, so drilling down swaps the tab's content in place.
+    (cfg.views && cfg.views.length ? cfg.views : [cfg.view]).forEach(function (view) { sfx.roots[view] = root; });
     relabel(cfg.tab, cfg.label);
     // Panels load the first time their tab is shown, so the resource page
     // never calls StormForge for a tab nobody opens.

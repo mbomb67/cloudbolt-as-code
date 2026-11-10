@@ -16,6 +16,7 @@ Creates a governed namespace for a team on an existing GKE cluster: a ResourceQu
 | Day-2 | RSA-0f3na70j / OHK-egyf9q28 | GKE Namespace Connection Details |
 | Day-2 | RSA-0k2xcobm / OHK-l3j30r89 | Manage GKE Namespace Pipeline Identity |
 | Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
+| Day-2 | RSA-d2zufawc / OHK-5nmq32do | Apply StormForge Recommendation |
 
 Order form: GKE Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Policy (required), Additional CloudBolt Group, Team Google Principals, Team Access Level, and an optional Expiration Date.
 
@@ -35,6 +36,7 @@ Order form: GKE Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Polic
 - **Manage GKE Namespace Pipeline Identity** gives a GitHub Actions workflow access to the namespace without a stored key, or removes it; see Pipeline identities below.
 - **GKE Namespace Connection Details** returns the commands and kubeconfig that connect kubectl to the namespace and who has access. The Google GKE Cluster extension ([XUI-8egdz3e9](../../extensions/XUI-8egdz3e9/)) shows the same on a Connect tab.
 - **Deploy Test Workload** runs a two-pod unprivileged nginx Deployment and a ClusterIP Service named `cb-test-workload` in the namespace, so the Workloads tab has something to show, or removes them. The same action serves the EKS, AKS and GKE namespace and OpenShift project blueprints.
+- **Apply StormForge Recommendation** applies StormForge's latest recommendation to one workload in the namespace, or turns the workload's automatic deployment on or off. It appears only when the namespace's cluster runs the StormForge agent ([setup](../../docs/stormforge-agent-setup.md)); the namespace then also has a StormForge tab ([XUI-wyauaxbl](../../extensions/XUI-wyauaxbl/)) with the namespace's optimization score, workloads and recommendations.
 
 ## Access
 Team Google Principals takes one principal per line: `user:EMAIL` for a Google account, `group:EMAIL` for a Google Group, or `serviceAccount:EMAIL` for a Google service account (a bare email is a user, or a service account when it ends in `.gserviceaccount.com`). Each gets a RoleBinding in the namespace to Kubernetes' built-in `edit`, `view`, or `admin` ClusterRole; granting another level replaces the previous one.
