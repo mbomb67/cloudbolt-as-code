@@ -1,5 +1,5 @@
 {
-    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, drilling down from cluster to namespace to workload, and adds an Optimization tab to each EKS, AKS and GKE namespace on those clusters that shows only that namespace's workloads and applies their recommendations.",
+    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, the level (cluster, namespace or workload) every setting is set at, drilling down from cluster to namespace to workload, and adds an Optimization tab to each EKS, AKS and GKE namespace on those clusters that shows only that namespace's workloads and applies their recommendations.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-wyauaxbl",
@@ -12,6 +12,7 @@
         "__init__.py",
         "views.py",
         "urls.py",
+        "settings_sources.py",
         "templates/sfx_agent_log.html",
         "templates/sfx_agent_panel.html",
         "templates/sfx_alert.html",
@@ -27,6 +28,8 @@
         "templates/sfx_nodes_panel.html",
         "templates/sfx_patches_panel.html",
         "templates/sfx_settings.html",
+        "templates/sfx_settings_rules.html",
+        "templates/sfx_settings_sources.html",
         "templates/sfx_tab.html",
         "templates/sfx_table.html",
         "templates/sfx_workload_panel.html"

@@ -1,4 +1,4 @@
-{% comment %}Clusters tab: header, the three cards, More Information, then Namespaces / Nodes / Config.{% endcomment %}
+{% comment %}Clusters tab: header, the three cards, More Information, then Namespaces / Nodes / Config / Agent / Settings.{% endcomment %}
 <div class="sfx-card">
   <div class="sfx-hero">
     <div>
@@ -43,12 +43,16 @@
     <button type="button" role="tab" aria-selected="false" data-sfx-subtab="nodes">Nodes</button>
     <button type="button" role="tab" aria-selected="false" data-sfx-subtab="config">Config</button>
     <button type="button" role="tab" aria-selected="false" data-sfx-subtab="agent">Agent</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="settings">Settings</button>
   </div>
   <div data-sfx-pane="namespaces">
     {% include "stormforge_optimize/templates/sfx_table.html" %}
   </div>
   <div data-sfx-pane="nodes" hidden>
     <div data-sfx-sub="nodes"></div>
+  </div>
+  <div data-sfx-pane="settings" hidden>
+    <div data-sfx-sub="settings"></div>
   </div>
   <div data-sfx-pane="agent" hidden>
     <div data-sfx-sub="agent"></div>

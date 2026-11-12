@@ -26,5 +26,16 @@
 {% else %}
 {% if scoped %}<div class="sfx-intro">StormForge's recommendations for this namespace. Choose a workload to see its recommendation, patches and optimization settings{% if not summary.has_data %}; StormForge has no recommendations for this namespace yet{% endif %}.</div>{% endif %}
 {% include "stormforge_optimize/templates/sfx_cards.html" with s=summary %}
-{% include "stormforge_optimize/templates/sfx_table.html" %}
+<div data-sfx-group>
+  <div class="sfx-subtabs" role="tablist">
+    <button type="button" class="active" role="tab" aria-selected="true" data-sfx-subtab="workloads">Workloads</button>
+    <button type="button" role="tab" aria-selected="false" data-sfx-subtab="settings">Settings</button>
+  </div>
+  <div data-sfx-pane="workloads">
+    {% include "stormforge_optimize/templates/sfx_table.html" %}
+  </div>
+  <div data-sfx-pane="settings" hidden>
+    <div data-sfx-sub="settings" data-sfx-ns="{{ ns }}"></div>
+  </div>
+</div>
 {% endif %}

@@ -27,6 +27,16 @@ The cluster tabs are read-only: StormForge settings are applied as
 annotations in Kubernetes, so the tabs show them with the annotations that
 change them.
 
+Settings, on the cluster, on a namespace and on a workload's Settings view,
+lists every optimization setting something sets and the level it is set at:
+the workload, the namespace, the cluster, or StormForge itself. The levels
+are read from the cluster's Kubernetes API (the cluster-defaults ConfigMap,
+ClusterOptimizationConfiguration and OptimizationConfiguration objects, and
+live.stormforge.io annotations on the namespace, the workload and its pod
+template) and ranked in the order the cluster agent's own configuration
+gives; settings_sources.py holds the rules. For a workload the result is
+checked against the configuration StormForge reports.
+
 Namespace resources (AWS EKS Namespace, AKS Namespace, GKE Namespace) on such
 a cluster get one tab, Optimization, when this CloudBolt has the StormForge
 connection info. It shows that namespace only: its cards and workload table,
@@ -46,7 +56,7 @@ view:clusters and view:workloads scopes:
     GET /management/workloads?cluster=&namespace=      workload tables
     GET /management/namespaces/{cluster}_{namespace}   namespace cards
     GET /management/workloads/{id}                     workload header, Summary
-    GET /management/workloads/{id}/config              Settings
+    GET /management/workloads/{id}/config[?no_defaults=true]   Settings
     GET /management/workloads/{id}/patches             Patches
     GET /v3/workloads/{cluster}/{ns}/{type}/{name}[/recommendations[/{name}]]
                                                        labels, usage, instance category
@@ -96,6 +106,8 @@ from resources.models import Resource
 from utilities.decorators import dialog_view
 from utilities.logger import ThreadLogger
 from utilities.models import ConnectionInfo
+
+from . import settings_sources as sources
 
 logger = ThreadLogger(__name__)
 
@@ -174,6 +186,7 @@ ENDPOINTS = {
     "patches": "sfx_patches_panel",
     "agent": "sfx_agent_panel",
     "agent_log": "sfx_agent_log",
+    "settings": "sfx_settings_panel",
 }
 
 # The agent's namespace and credential Secret (SHM-2fd3bhsz NAMESPACE and AUTH_SECRET).
@@ -1984,6 +1997,222 @@ def _patches_context(request, resource, reader, cluster):
 
 
 # ---------------------------------------------------------------------------
+# Settings: where each optimization setting is set
+# ---------------------------------------------------------------------------
+OPTIMIZE_GROUP = "optimize.stormforge.io"
+AGENT_CONFIGMAP = "stormforge-cluster-agent"
+AGENT_CONFIG_KEY = "cluster-agent.yml"
+DEFAULTS_CONFIGMAP = "cluster-defaults"
+DEFAULTS_KEY = "cluster-defaults.yaml"
+
+
+def _yaml_map(text):
+    """A YAML mapping as a dict; {} when empty, None when it is not a mapping."""
+    import yaml
+
+    if not str(text or "").strip():
+        return {}
+    try:
+        document = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return None
+    if document is None:
+        return {}
+    return document if isinstance(document, dict) else None
+
+
+def _resource_kube(reader, resource):
+    """The Kubernetes API of a cluster resource, or of a namespace resource's cluster."""
+    sf = reader.sf
+    try:
+        scope = sf.namespace_scope(resource)
+        return sf._namespace_kube(scope) if scope is not None else sf.Kube.for_resource(resource)
+    except sf.StormForgeError as exc:
+        raise PanelError(str(exc))
+
+
+def _rule_object(item):
+    """A ClusterOptimizationConfiguration or OptimizationConfiguration reduced to what the page shows.
+
+    https://docs.stormforge.io/docs/configure/optimization-configurations/
+    """
+    spec = item.get("spec") or {}
+    return {
+        "name": (item.get("metadata") or {}).get("name") or "",
+        "order": spec.get("order") or 0,
+        "match": spec.get("match") or {},
+        "rules": [
+            {"name": rule.get("name") or "", "match": rule.get("match") or {},
+             "settings": [
+                 {"name": str(s.get("name") or ""), "value": s.get("value"), "values": s.get("values")}
+                 for s in rule.get("settings") or [] if isinstance(s, dict)
+             ]}
+            for rule in spec.get("rules") or [] if isinstance(rule, dict)
+        ],
+    }
+
+
+def _stormforge_annotations(annotations):
+    return {k: str(v) for k, v in (annotations or {}).items() if str(k).startswith(sources.PREFIX)}
+
+
+def _setting_layers(reader, resource, ns, kind, name):
+    """The objects that set StormForge settings, read from the cluster and cached for a minute."""
+    sf = reader.sf
+    key = CACHE_PREFIX + "layers:" + hashlib.sha256(
+        "|".join((str(resource.id), ns, kind, name)).encode("utf-8")).hexdigest()
+    if not reader.fresh:
+        try:
+            hit = cache.get(key)
+        except Exception:  # noqa: BLE001
+            hit = None
+        if hit is not None:
+            return hit
+    kube = _resource_kube(reader, resource)
+    system = sf.NAMESPACE
+    problems = []
+
+    def read(what, path):
+        try:
+            return kube.get(path)
+        except sf.StormForgeError as exc:
+            problems.append(f"Could not read {what}: {exc}")
+            return None
+
+    layers = {
+        "cascade": [], "cascade_read": False, "cluster_defaults": {}, "defaults_present": False,
+        "defaults_stale": False, "cluster_rules": [], "namespace_rules": [], "rules_installed": True,
+        "namespace": None, "workload": None, "values": None,
+    }
+    # The order of precedence the agent runs with (rendered by the Helm chart).
+    agent_config = read("the agent's configuration", f"/api/v1/namespaces/{system}/configmaps/{AGENT_CONFIGMAP}")
+    document = _yaml_map(((agent_config or {}).get("data") or {}).get(AGENT_CONFIG_KEY))
+    cascade = sources.parse_cascade(document)
+    layers["cascade_read"] = bool(cascade)
+    layers["cascade"] = cascade or sources.default_cascade()
+
+    # https://docs.stormforge.io/docs/configure/cluster-defaults/
+    defaults = read("the cluster defaults", f"/api/v1/namespaces/{system}/configmaps/{DEFAULTS_CONFIGMAP}")
+    if defaults is not None:
+        layers["defaults_present"] = True
+        document = _yaml_map((defaults.get("data") or {}).get(DEFAULTS_KEY))
+        if document is None:
+            problems.append(f"The {DEFAULTS_CONFIGMAP} ConfigMap's {DEFAULTS_KEY} is not a YAML list of settings.")
+        else:
+            layers["cluster_defaults"] = {str(k): str(v) for k, v in document.items()}
+        # The agent loads the file when it starts, so a later edit waits for a restart.
+        written = sf.secret_written_at(defaults)
+        try:
+            started = [
+                sf._kube_time((pod.get("status") or {}).get("startTime")) for pod in sf.agent_pods(kube)
+                if "cluster-agent" in ((pod.get("metadata") or {}).get("name") or "")
+            ]
+        except sf.StormForgeError:
+            started = []
+        started = [t for t in started if t]
+        layers["defaults_stale"] = bool(written and started and min(started) < written)
+
+    rules = read("the cluster's optimization configurations",
+                 f"/apis/{OPTIMIZE_GROUP}/v2/clusteroptimizationconfigurations")
+    if rules is None:
+        layers["rules_installed"] = False
+    else:
+        layers["cluster_rules"] = [_rule_object(i) for i in rules.get("items") or []]
+    if ns:
+        obj = read(f"namespace {ns}", f"/api/v1/namespaces/{_q(ns)}") or {}
+        metadata = obj.get("metadata") or {}
+        layers["namespace"] = {"labels": metadata.get("labels") or {},
+                               "annotations": _stormforge_annotations(metadata.get("annotations"))}
+        if layers["rules_installed"]:
+            rules = read(f"the optimization configurations of namespace {ns}",
+                         f"/apis/{OPTIMIZE_GROUP}/v2/namespaces/{_q(ns)}/optimizationconfigurations") or {}
+            layers["namespace_rules"] = [_rule_object(i) for i in rules.get("items") or []]
+    if ns and name:
+        api_version = (sf.WORKLOAD_TYPES.get(kind) or (None,))[0]
+        if api_version is None:
+            problems.append(
+                f"CloudBolt cannot read workloads of type {kind}, so annotations on the workload itself are "
+                "left out.")
+        else:
+            obj = read(f"workload {name}", sf._object_path(api_version, ns, kind, name))
+            if obj is None:
+                problems.append(f"Kubernetes has no {kind}/{name} in namespace {ns}.")
+            else:
+                metadata = obj.get("metadata") or {}
+                spec = obj.get("spec") or {}
+                # A CronJob's pod template sits one level down.
+                # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/cron-job-v1/
+                template = spec.get("template") or ((spec.get("jobTemplate") or {}).get("spec") or {}).get("template")
+                layers["workload"] = {
+                    "labels": metadata.get("labels") or {},
+                    "annotations": _stormforge_annotations(metadata.get("annotations")),
+                    "pod_annotations": _stormforge_annotations(
+                        ((template or {}).get("metadata") or {}).get("annotations")),
+                }
+    if not ns:
+        # Chart values that decide what StormForge watches and how it applies.
+        try:
+            release = sf.deployed_release(kube) or {}
+        except sf.StormForgeError as exc:
+            problems.append(f"Could not read the agent's Helm release: {exc}")
+            release = {}
+        if release:
+            values = sources.merged((release.get("chart") or {}).get("values"), release.get("config"))
+            # Only the values the page shows; the release also holds the agent's credential.
+            layers["values"] = {key: values.get(key) for key in ("clusterAgent", "agent", "applier", "webhook")}
+    layers["problems"] = problems
+    try:
+        cache.set(key, layers, CACHE_SECONDS)
+    except Exception:  # noqa: BLE001
+        logger.debug("Could not cache the setting layers of resource %s", resource.id)
+    return layers
+
+
+def _settings_sources_context(request, resource, reader, cluster):
+    ns = _arg(request, "ns", NAMESPACE_RE)
+    _ns, kind, name = _workload_args(request)
+    level = "workload" if name else ("namespace" if ns else "cluster")
+    layers = _setting_layers(reader, resource, ns, kind, name)
+    rows = sources.resolve(layers, namespace=ns, workload=bool(name and layers["workload"] is not None))
+    checked = False
+    if name:
+        wid = _q("_".join((cluster, ns, kind, name)))
+        reader.token()
+        results = _parallel(
+            config=lambda: reader.get(f"management/workloads/{wid}/config", allow_404=True,
+                                      what=f"the settings of workload {name}"),
+            explicit=lambda: reader.get(f"management/workloads/{wid}/config", {"no_defaults": "true"},
+                                        allow_404=True, what=f"the settings of workload {name}"),
+        )
+        if results["config"] is not None:
+            sources.verify(rows, results["config"], results["explicit"])
+            checked = True
+    context = {
+        "level": level,
+        "ns": ns, "kind": kind, "name": name,
+        "groups": sources.grouped(rows),
+        "counts": sources.counts(rows),
+        "default_count": sources.default_count(rows),
+        "checked": checked,
+        "unreported": any(row["reported"] for row in rows),
+        "problems": layers["problems"],
+        "cascade_read": layers["cascade_read"],
+        "defaults_present": layers["defaults_present"],
+        "defaults_stale": layers["defaults_stale"],
+        "rules_installed": layers["rules_installed"],
+    }
+    if level == "cluster":
+        context.update(
+            cascade=sources.describe_cascade(layers["cascade"]),
+            cluster_rules=sources.rule_objects(layers["cluster_rules"]),
+            behavior=sources.behavior(layers["values"]) if layers["values"] else [],
+        )
+    elif level == "namespace":
+        context["namespace_rules"] = sources.rule_objects(layers["namespace_rules"])
+    return context
+
+
+# ---------------------------------------------------------------------------
 # Panels (HTML fragments the tabs load asynchronously)
 # ---------------------------------------------------------------------------
 def _panel(request, resource_id, template, build, cluster_only=False):
@@ -2049,6 +2278,10 @@ def sfx_agent_log(request, resource_id):
     return _panel(request, resource_id, "sfx_agent_log.html", _agent_log_context, cluster_only=True)
 
 
+def sfx_settings_panel(request, resource_id):
+    return _panel(request, resource_id, "sfx_settings_sources.html", _settings_sources_context)
+
+
 def sfx_namespaces_table(request, resource_id):
     def build(request, resource, reader, cluster):
         _detail, table = _namespace_table(reader, cluster, _table_params(request, NAMESPACE_SORTS))
@@ -2095,6 +2328,18 @@ class StormForgeNamespaceTabDelegate(TabExtensionDelegate):
             return False
 
 
+def _endpoint_url(name, resource):
+    """A panel's URL, or '' for one added since the web server started.
+
+    CloudBolt loads an extension's URL paths only when the web server starts,
+    so right after an update a new path does not resolve yet.
+    """
+    try:
+        return reverse(name, args=[resource.id])
+    except NoReverseMatch:
+        return ""
+
+
 def _tab(request, obj_id, view):
     resource = get_object_or_404(Resource, pk=obj_id)
     title, label = TABS[view]
@@ -2108,7 +2353,7 @@ def _tab(request, obj_id, view):
         "tab_id": "tab-" + title.lower().replace(" ", "-"),
         "root_id": f"sfx-{view}-{resource.id}",
         "icon": ICON,
-        "urls": {key: reverse(name, args=[resource.id]) for key, name in ENDPOINTS.items()},
+        "urls": {key: _endpoint_url(name, resource) for key, name in ENDPOINTS.items()},
     })
 
 

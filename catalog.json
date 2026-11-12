@@ -819,7 +819,7 @@
     "id": "XUI-wyauaxbl",
     "type": "extensions",
     "name": "StormForge Optimize Live",
-    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, drilling down from cluster to namespace to workload, and adds an Optimization tab to each EKS, AKS and GKE namespace on those clusters that shows only that namespace's workloads and applies their recommendations.",
+    "description": "Adds Clusters, Namespaces and Workloads tabs, marked with the StormForge icon, to Kubernetes clusters running the StormForge agent, with StormForge's optimization score, recommendation impact, namespace and workload tables, a live node snapshot, cluster configuration, and each workload's summary, recommendation, patches and optimization settings, the level (cluster, namespace or workload) every setting is set at, drilling down from cluster to namespace to workload, and adds an Optimization tab to each EKS, AKS and GKE namespace on those clusters that shows only that namespace's workloads and applies their recommendations.",
     "path": "extensions/XUI-wyauaxbl",
     "readme": "extensions/XUI-wyauaxbl/README.md",
     "uses": [],
