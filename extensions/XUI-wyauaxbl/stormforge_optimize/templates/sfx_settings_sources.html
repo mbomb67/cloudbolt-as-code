@@ -1,0 +1,125 @@
+{% comment %}
+  Settings: every optimization setting something sets, the level it is set at
+  (workload, namespace, cluster, StormForge) and the values it overrides.
+  One template for the cluster, a namespace and a workload; `level` says
+  which. On the cluster and a namespace each section folds away; on a
+  workload this is the Setting Sources page of its Settings view. Context
+  from views._settings_sources_context.
+{% endcomment %}
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+{% if level == "workload" %}
+<div class="sfx-h">Where each setting comes from</div>
+{% else %}
+<details class="sfx-fold" open>
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">{% if level == "namespace" %}Optimization settings for this namespace{% else %}Optimization settings for this cluster{% endif %}</span></summary>
+{% endif %}
+<div class="sfx-hero" style="padding:0 0 10px">
+  <div class="sfx-intro" style="margin-bottom:0">
+    {% if level == "workload" %}A setting can be given for the cluster, for the namespace and on the workload itself. The most specific one wins: the workload over the namespace, the namespace over the cluster.
+    {% elif level == "namespace" %}Workloads in this namespace start from these values. Rows marked Cluster are inherited from the cluster; a workload's own annotations override both.
+    {% else %}Every workload in the cluster starts from these values. A namespace or a workload that sets its own value overrides them.{% endif %}
+  </div>
+  <div class="sfx-tools"><button type="button" class="btn btn-sm btn-outline-secondary" data-sfx-sub-refresh><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh</button></div>
+</div>
+
+<div class="sfx-src-summary">
+  {% for c in counts %}<span class="sfx-src sfx-src-{{ c.level }}">{{ c.count }} from {% if c.level == "platform" %}StormForge{% else %}the {{ c.label|lower }}{% endif %}</span>{% endfor %}
+  <span class="sfx-muted">{% if counts %}{{ default_count }} other{{ default_count|pluralize }} use{{ default_count|pluralize:"s," }}{% else %}Nothing is set here; every setting uses{% endif %} StormForge's default</span>
+</div>
+
+{% if problems or defaults_stale or unreported or not cascade_read %}
+<div class="sfx-card"><ul class="sfx-msgs">
+  {% if defaults_stale %}<li class="warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div><b>Cluster defaults changed after the agent started.</b> The <span class="sfx-mono">cluster-defaults</span> ConfigMap was edited after the StormForge cluster agent last started, and the agent reads it only at start. Restart the <span class="sfx-mono">stormforge-cluster-agent</span> deployment in <span class="sfx-mono">stormforge-system</span> for the change to take effect.</div></li>{% endif %}
+  {% if unreported %}<li class="warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div><b>StormForge reports a different value for some settings.</b> They are marked below. The usual causes are a cluster default the agent has not loaded yet and a rule whose match CloudBolt cannot evaluate.</div></li>{% endif %}
+  {% if not cascade_read %}<li><i class="bi bi-info-circle" aria-hidden="true"></i><div>The agent's own order of precedence could not be read, so the order of StormForge agent 3.5 is assumed.</div></li>{% endif %}
+  {% for p in problems %}<li class="warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>{{ p }}</div></li>{% endfor %}
+</ul></div>
+{% endif %}
+
+{% if groups %}
+<div class="sfx-card">
+  <div class="sfx-table-wrap">
+    <table class="sfx-table sfx-src-table">
+      <thead><tr><th>Setting</th><th>Value</th><th>Set at</th><th>Other values</th></tr></thead>
+      <tbody>
+      {% for g in groups %}
+        <tr class="sfx-src-group"><td colspan="4">{{ g.title }}</td></tr>
+        {% for r in g.rows %}
+        <tr>
+          <td>{{ r.label }}<div class="sfx-hint sfx-mono">{{ r.key }}</div></td>
+          <td>
+            {% if r.value is None %}<span class="sfx-muted">{{ r.default|default:"Not set" }}{% if r.default %} (default){% endif %}</span>
+            {% else %}<span class="sfx-mono">{{ r.value }}</span>{% endif %}
+            {% if r.reported %}<div class="sfx-hint" style="color:var(--sfx-warn-text)"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> StormForge reports {{ r.reported }}</div>{% endif %}
+          </td>
+          <td>
+            {% if r.value is None %}<span class="sfx-muted">Default</span>
+            {% else %}<span class="sfx-src sfx-src-{{ r.level }}">{{ r.level_label }}</span><div class="sfx-hint">{{ r.source }}</div>{% endif %}
+          </td>
+          <td>
+            {% for o in r.overridden %}<div class="sfx-src-line"><span class="sfx-mono sfx-struck">{{ o.value }}</span> <span class="sfx-src sfx-src-{{ o.level }} sm">{{ o.level_label }}</span> <span class="sfx-hint">{{ o.source }}</span></div>{% endfor %}
+            {% for c in r.conditional %}<div class="sfx-src-line"><span class="sfx-mono">{{ c.value }}</span> <span class="sfx-src sfx-src-{{ c.level }} sm">{{ c.level_label }}</span> <span class="sfx-hint">for {{ c.when }} ({{ c.source }})</span></div>{% endfor %}
+            {% if not r.overridden and not r.conditional %}<span class="sfx-muted">&ndash;</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="sfx-note">{% if level == "workload" %}{% if checked %}Checked against the configuration StormForge reports for this workload.{% else %}StormForge has not reported this workload's configuration yet, so the values are as Kubernetes holds them.{% endif %}{% else %}Read from the cluster's Kubernetes API. Settings kept in StormForge itself, such as organization settings, show on a workload's Setting Sources page.{% endif %}</div>
+</div>
+{% endif %}
+{% if level != "workload" %}</details>{% endif %}
+
+{% if level == "namespace" and namespace_rules %}
+<details class="sfx-fold" open>
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Optimization configurations in this namespace</span></summary>
+  <div class="sfx-intro">OptimizationConfiguration objects set values for the workloads they match. They rank above the namespace's annotations and below a workload's own.</div>
+  {% include "stormforge_optimize/templates/sfx_settings_rules.html" with objects=namespace_rules %}
+</details>
+{% endif %}
+
+{% if level == "cluster" %}
+<details class="sfx-fold" open>
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Cluster optimization configurations</span></summary>
+  <div class="sfx-intro">ClusterOptimizationConfiguration objects set values for the namespaces and workloads they match. They rank above the cluster defaults and below a namespace's annotations.</div>
+  {% if not rules_installed %}<div class="sfx-card"><div class="sfx-empty">This cluster does not have StormForge's optimization configuration resources.</div></div>
+  {% elif cluster_rules %}{% include "stormforge_optimize/templates/sfx_settings_rules.html" with objects=cluster_rules %}
+  {% else %}<div class="sfx-card"><div class="sfx-empty">None.</div></div>{% endif %}
+</details>
+
+{% if behavior %}
+<details class="sfx-fold" open>
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Agent behavior</span></summary>
+  <div class="sfx-intro">Values of the agent's Helm chart that decide which namespaces StormForge watches and how it applies recommendations. They change with the Install or Upgrade StormForge Agent action or a Helm upgrade.</div>
+  <div class="sfx-card">
+    <div class="sfx-table-wrap">
+      <table class="sfx-table">
+        <tbody>
+        {% for label, value, note in behavior %}<tr><td>{{ label }}</td><td>{{ value }}</td><td class="sfx-muted">{{ note }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+{% endif %}
+
+<details class="sfx-fold">
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Order of precedence</span></summary>
+  <div class="sfx-intro">The StormForge cluster agent applies these sources in order; each one overrides the ones above it.</div>
+  <div class="sfx-card">
+    <div class="sfx-table-wrap">
+      <table class="sfx-table">
+        <thead><tr><th></th><th>Source</th><th>Level</th><th>Applies to</th></tr></thead>
+        <tbody>
+        {% for c in cascade %}
+          <tr><td class="sfx-muted">{{ forloop.counter }}</td><td>{{ c.source }}<div class="sfx-hint sfx-mono">{{ c.name }}</div></td><td><span class="sfx-src sfx-src-{{ c.level }}">{{ c.level_label }}</span></td><td>{{ c.detail|default:"Every workload it names or matches" }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+{% endif %}
+{% endif %}
