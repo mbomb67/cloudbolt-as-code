@@ -17,6 +17,7 @@ Creates a governed namespace for a team on an existing EKS cluster: a namespace 
 | Day-2 | RSA-l59xsi54 / OHK-h9moajbi | Manage Pipeline Identity |
 | Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
 | Day-2 | RSA-d2zufawc / OHK-5nmq32do | Apply StormForge Recommendation |
+| Day-2 | RSA-v35tl317 / OHK-fdl64nk7 | Set StormForge Optimization Settings |
 
 Order form: EKS Cluster, Namespace Name, Size Tier (required), Additional CloudBolt Group, Allow Ingress From Other Namespaces, Team IAM Principals, Team Access Level, and an optional Expiration Date.
 

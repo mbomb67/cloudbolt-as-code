@@ -23,6 +23,7 @@ Creates an Amazon EKS cluster in an AWS environment the ordering group can use. 
 | Day-2 action | RSA-5c06txyi | Create AWS EKS Namespace (hook OHK-oguk4oad, shared module SHM-sa5yqm9j) |
 | Day-2 action | RSA-l3dokgru | Manage AWS EKS Cluster Groups (hook OHK-2lvw9oe0) |
 | Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
+| Day-2 action | RSA-d3y9kiq0 | Set StormForge Cluster Defaults (hook OHK-nq6rrjxm) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-8a1jocmr](../../extensions/XUI-8a1jocmr/) | AWS EKS Cluster tabs (Cluster, Node groups, Workloads, Groups) |
 

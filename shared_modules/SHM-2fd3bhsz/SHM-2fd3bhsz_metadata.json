@@ -1,5 +1,5 @@
 {
-    "description": "Installs, upgrades and removes the StormForge agent on CloudBolt-built EKS, AKS and GKE clusters through the StormForge API and an in-cluster Helm job, and applies StormForge recommendations to workloads in the namespaces on those clusters.",
+    "description": "Installs, upgrades and removes the StormForge agent on CloudBolt-built EKS, AKS and GKE clusters through the StormForge API and an in-cluster Helm job, applies StormForge recommendations to workloads in the namespaces on those clusters, and sets StormForge optimization settings on the clusters, namespaces and workloads.",
     "id": "SHM-2fd3bhsz",
     "label": "StormForge",
     "max_retries": 0,

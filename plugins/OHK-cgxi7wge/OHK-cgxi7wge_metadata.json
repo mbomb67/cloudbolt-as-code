@@ -4,7 +4,7 @@
             "shared_modules/SHM-2fd3bhsz"
         ]
     },
-    "description": "Shows Apply StormForge Recommendation only on a namespace whose cluster runs the StormForge agent.",
+    "description": "Shows the StormForge namespace actions only on a namespace whose cluster runs the StormForge agent.",
     "id": "OHK-cgxi7wge",
     "max_retries": 0,
     "name": "Show If Namespace Cluster Runs StormForge",

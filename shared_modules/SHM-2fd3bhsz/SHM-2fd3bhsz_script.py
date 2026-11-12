@@ -26,6 +26,17 @@ EKS Namespace (BP-e4c0q58z), AKS Namespace (BP-dogqi827) and GKE Namespace
       Applies StormForge's patches for a workload's latest recommendation to
       the namespace, or turns the workload's automatic deployment on or off.
 
+and by the settings actions, Set StormForge Cluster Defaults (RSA-d3y9kiq0) on
+the cluster blueprints and Set StormForge Optimization Settings
+(RSA-v35tl317) on the namespace blueprints:
+
+  set_cluster_defaults(resource, values)
+      Writes settings to the cluster-defaults ConfigMap in stormforge-system
+      and restarts the cluster agent, which reads it only at start.
+  set_namespace_settings(resource, target, values)
+      Sets settings as live.stormforge.io annotations on the namespace, or on
+      one workload in it.
+
 Every StormForge call goes to the StormForge API; nothing uses the StormForge
 CLI. The credential lives in a CloudBolt connection info named "StormForge":
 Username = client ID, Password = client secret, IP/Hostname = the StormForge
@@ -1459,3 +1470,323 @@ def apply_to_workload(resource, workload, mode, progress=set_progress):
         f"Automatic deployment is off for {label} {name} in namespace {scope.namespace}. Requests and limits "
         "stay as they are until a recommendation is applied again."
     ), ""
+
+
+# ---------------------------------------------------------------------------
+# Optimization settings: cluster defaults, namespace and workload annotations
+# ---------------------------------------------------------------------------
+# A StormForge setting is a live.stormforge.io/<name> annotation. The same
+# names are given as cluster defaults in the cluster-defaults ConfigMap, on a
+# Namespace and on a workload; a workload's value overrides its namespace's,
+# which overrides the cluster's.
+#   https://docs.stormforge.io/docs/configure/
+#   https://docs.stormforge.io/docs/configure/cluster-defaults/
+#   https://docs.stormforge.io/docs/configure/annotate-namespaces/
+#   https://docs.stormforge.io/docs/configure/annotate-workloads/
+SETTING_PREFIX = "live.stormforge.io/"
+CLUSTER_DEFAULTS_CONFIGMAP = "cluster-defaults"
+CLUSTER_DEFAULTS_KEY = "cluster-defaults.yaml"
+CLUSTER_AGENT_DEPLOYMENT = "stormforge-cluster-agent"
+AGENT_RESTART_SECONDS = 120
+
+# What an action input may hold besides a value.
+SETTING_KEEP = "keep"
+SETTING_REMOVE = "remove"
+_KEEP_VALUES = ("", "None", SETTING_KEEP)
+_REMOVE_VALUES = ("-", SETTING_REMOVE)
+TARGET_NAMESPACE = "namespace"
+
+# https://docs.stormforge.io/docs/configure/settings/goal/
+_GOALS = (
+    ("Savings", "Savings: closer to actual usage"),
+    ("Balanced", "Balanced (StormForge's default)"),
+    ("Reliability", "Reliability: more headroom"),
+)
+# https://docs.stormforge.io/docs/configure/settings/apply-settings/
+_AUTO_DEPLOY = (
+    ("Enabled", "Enabled: StormForge applies each new recommendation"),
+    ("Disabled", "Disabled: recommendations are applied by hand (StormForge's default)"),
+)
+# https://docs.stormforge.io/docs/configure/settings/cpu-and-memory/
+_POLICIES = (
+    ("RequestsRaiseLimitsIfNeeded", "Requests; raise limits only when needed (StormForge's default)"),
+    ("RequestsAndLimits", "Requests and limits"),
+    ("RequestsOnly", "Requests only"),
+    ("DoNotOptimize", "Do not optimize"),
+)
+# (action input, setting, kind, choices). Kinds: choice, schedule, cpu, memory.
+SETTING_INPUTS = (
+    ("stormforge_cpu_goal", "cpu.optimization-goal", "choice", _GOALS),
+    ("stormforge_memory_goal", "memory.optimization-goal", "choice", _GOALS),
+    ("stormforge_schedule", "schedule", "schedule", ()),
+    ("stormforge_auto_deploy", "auto-deploy", "choice", _AUTO_DEPLOY),
+    ("stormforge_cpu_policy", "containers.cpu.optimization-policy", "choice", _POLICIES),
+    ("stormforge_memory_policy", "containers.memory.optimization-policy", "choice", _POLICIES),
+    ("stormforge_cpu_requests_min", "containers.cpu.requests.min", "cpu", ()),
+    ("stormforge_cpu_requests_max", "containers.cpu.requests.max", "cpu", ()),
+    ("stormforge_memory_requests_min", "containers.memory.requests.min", "memory", ()),
+    ("stormforge_memory_requests_max", "containers.memory.requests.max", "memory", ()),
+)
+SETTING_INPUT_NAMES = tuple(row[0] for row in SETTING_INPUTS)
+
+# https://docs.stormforge.io/docs/configure/settings/schedule/
+_SCHEDULE_MACROS = ("@never", "@hourly", "@daily", "@weekly", "@midnight")
+_DURATION_RE = re.compile(r"^P(?=\d|T\d)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$")
+_CRON_FIELD_RE = re.compile(r"^[0-9A-Za-z*/,?-]+$")
+# https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/quantity/
+_CPU_RE = re.compile(r"^[0-9]+(\.[0-9]+)?m?$")
+_MEMORY_RE = re.compile(r"^[0-9]+(\.[0-9]+)?(k|M|G|T|Ki|Mi|Gi|Ti)$")
+_CONTAINER_RE = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
+_QUANTITY_UNITS = {"": 1, "m": 1e-3, "k": 1e3, "M": 1e6, "G": 1e9, "T": 1e12,
+                   "Ki": 2 ** 10, "Mi": 2 ** 20, "Gi": 2 ** 30, "Ti": 2 ** 40}
+
+
+def setting_options(input_name):
+    """Dropdown entries for a choice input: leave as it is, each value, remove."""
+    for name, _setting, kind, choices in SETTING_INPUTS:
+        if name == input_name and kind == "choice":
+            return ([(SETTING_KEEP, "Leave as it is")] + list(choices)
+                    + [(SETTING_REMOVE, "Remove (use the inherited value or StormForge's default)")])
+    return []
+
+
+def _quantity_number(text):
+    match = re.match(r"^([0-9.]+)([A-Za-z]*)$", text)
+    return float(match.group(1)) * _QUANTITY_UNITS[match.group(2)]
+
+
+def _check_quantities(label, value, pattern, example):
+    """Validate 'quantity' or 'quantity,container=quantity,...'; returns the all-containers quantity or None."""
+    default = None
+    for index, part in enumerate(p.strip() for p in value.split(",")):
+        container, _, quantity = part.rpartition("=")
+        if container and not _CONTAINER_RE.match(container):
+            raise StormForgeError(f"{label}: '{container}' is not a container name.")
+        if not pattern.match(quantity):
+            raise StormForgeError(f"{label}: '{quantity}' is not a quantity such as {example}.")
+        if not container:
+            if index:
+                raise StormForgeError(
+                    f"{label}: give the value for all containers first, then container=value entries.")
+            default = quantity
+    return default
+
+
+def _check_schedule(label, value):
+    if value in _SCHEDULE_MACROS or _DURATION_RE.match(value):
+        return
+    fields = value.split()
+    if len(fields) == 5 and all(_CRON_FIELD_RE.match(field) for field in fields):
+        return
+    raise StormForgeError(
+        f"{label}: '{value}' is not {', '.join(_SCHEDULE_MACROS)}, an ISO 8601 duration such as P1D, "
+        "or a five-field cron expression.")
+
+
+def parse_setting_changes(values):
+    """{setting: value, or None to remove it} from the actions' inputs; inputs left alone are absent.
+
+    ``values`` maps input names to what the form sent. Raises StormForgeError
+    on a value StormForge would not accept.
+    """
+    changes, bounds = {}, {}
+    for name, setting, kind, choices in SETTING_INPUTS:
+        value = str(values.get(name) if values.get(name) is not None else "").strip()
+        if value in _KEEP_VALUES:
+            continue
+        if value in _REMOVE_VALUES:
+            changes[setting] = None
+            continue
+        if kind == "choice":
+            if value not in [choice for choice, _label in choices]:
+                raise StormForgeError(
+                    f"{setting}: '{value}' is not one of {', '.join(choice for choice, _label in choices)}.")
+        elif kind == "schedule":
+            _check_schedule(setting, value)
+        elif kind == "cpu":
+            bounds[setting] = _check_quantities(setting, value, _CPU_RE, "10m or 2")
+        else:
+            bounds[setting] = _check_quantities(setting, value, _MEMORY_RE, "32Mi or 4Gi")
+        changes[setting] = value
+    for resource in ("cpu", "memory"):
+        low = bounds.get(f"containers.{resource}.requests.min")
+        high = bounds.get(f"containers.{resource}.requests.max")
+        if low and high and _quantity_number(low) > _quantity_number(high):
+            raise StormForgeError(f"The {resource} requests minimum {low} is above the maximum {high}.")
+    return changes
+
+
+def _describe_changes(changes):
+    parts = [f"{setting}={value}" for setting, value in changes.items() if value is not None]
+    removed = [setting for setting, value in changes.items() if value is None]
+    if removed:
+        parts.append("removed " + ", ".join(removed))
+    return "; ".join(parts)
+
+
+def _effective_changes(changes, current):
+    """The changes that differ from ``current`` ({annotation key: value})."""
+    return {
+        setting: value for setting, value in changes.items()
+        if current.get(SETTING_PREFIX + setting) != value
+    }
+
+
+def _read_cluster_defaults(configmap):
+    """{annotation key: value} of the cluster-defaults ConfigMap, in the file's order."""
+    import yaml
+
+    text = ((configmap or {}).get("data") or {}).get(CLUSTER_DEFAULTS_KEY) or ""
+    try:
+        document = yaml.safe_load(text) if text.strip() else {}
+    except yaml.YAMLError as exc:
+        raise StormForgeError(
+            f"The {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap's {CLUSTER_DEFAULTS_KEY} is not readable YAML ({exc}); "
+            "fix it with kubectl first.")
+    if document is None:
+        document = {}
+    if not isinstance(document, dict):
+        raise StormForgeError(
+            f"The {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap's {CLUSTER_DEFAULTS_KEY} is not a list of settings; "
+            "fix it with kubectl first.")
+    return {str(key): str(value) for key, value in document.items()}
+
+
+def _restart_cluster_agent(kube, progress):
+    """Restart the cluster agent the way `kubectl rollout restart` does and wait for it; True when it is back.
+
+    The agent reads the cluster defaults only when it starts.
+    https://docs.stormforge.io/docs/configure/cluster-defaults/
+    https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_restart/
+    """
+    path = f"/apis/apps/v1/namespaces/{NAMESPACE}/deployments/{CLUSTER_AGENT_DEPLOYMENT}"
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    progress("Restarting the StormForge cluster agent so it loads the cluster defaults")
+    patched = kube.patch(path, {"spec": {"template": {"metadata": {"annotations": {
+        "kubectl.kubernetes.io/restartedAt": stamp}}}}}, params={"fieldManager": "cloudbolt"})
+    if patched is None:
+        return False
+    deadline = time.time() + AGENT_RESTART_SECONDS
+    while time.time() < deadline:
+        time.sleep(POLL_SECONDS)
+        deployment = kube.get(path) or {}
+        status = deployment.get("status") or {}
+        wanted = (deployment.get("spec") or {}).get("replicas") or 1
+        current = (status.get("observedGeneration") or 0) >= ((deployment.get("metadata") or {}).get("generation") or 0)
+        if (current and (status.get("updatedReplicas") or 0) >= wanted
+                and (status.get("availableReplicas") or 0) >= wanted
+                and (status.get("replicas") or 0) == wanted):
+            return True
+    return False
+
+
+def set_cluster_defaults(resource, values, progress=set_progress):
+    """Write the chosen settings to the cluster's cluster-defaults ConfigMap and restart the cluster agent.
+
+    Settings the inputs leave alone, and settings in the ConfigMap that this
+    action has no input for, stay as they are. Returns (status, output, error).
+    """
+    cf_values = resource.get_cf_values_as_dict()
+    if not cf_values.get(FIELD_VERSION):
+        raise StormForgeError(
+            f"'{resource.name}' does not run the StormForge agent. Run Install or Upgrade StormForge Agent first.")
+    changes = parse_setting_changes(values)
+    if not changes:
+        return "SUCCESS", "Nothing to change: every setting was left as it is.", ""
+    kube = Kube.for_resource(resource)
+    collection = f"/api/v1/namespaces/{NAMESPACE}/configmaps"
+    existing = kube.get(f"{collection}/{CLUSTER_DEFAULTS_CONFIGMAP}")
+    current = _read_cluster_defaults(existing)
+    changes = _effective_changes(changes, current)
+    if not changes:
+        return "SUCCESS", f"The cluster defaults of {resource.name} already hold these values.", ""
+    updated = dict(current)
+    for setting, value in changes.items():
+        if value is None:
+            updated.pop(SETTING_PREFIX + setting, None)
+        else:
+            updated[SETTING_PREFIX + setting] = value
+    # One 'key: "value"' line per setting, as StormForge's template writes it.
+    text = "".join(f"{key}: {json.dumps(value)}\n" for key, value in updated.items())
+    progress(f"Writing the cluster defaults of {resource.name}: {_describe_changes(changes)}")
+    if existing is None:
+        kube.request("POST", collection, body={
+            "apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": CLUSTER_DEFAULTS_CONFIGMAP, "namespace": NAMESPACE},
+            "data": {CLUSTER_DEFAULTS_KEY: text},
+        })
+    else:
+        kube.patch(f"{collection}/{CLUSTER_DEFAULTS_CONFIGMAP}", {"data": {CLUSTER_DEFAULTS_KEY: text}},
+                   params={"fieldManager": "cloudbolt"})
+    summary = (
+        f"Cluster defaults of {resource.name} updated: {_describe_changes(changes)}. "
+        f"{len(updated)} setting{'' if len(updated) == 1 else 's'} in the {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap."
+    )
+    if _restart_cluster_agent(kube, progress):
+        return "SUCCESS", summary + (
+            " The cluster agent restarted and uses them for every namespace and workload that does not set "
+            "its own value."), ""
+    return "WARNING", summary, (
+        f"The {CLUSTER_AGENT_DEPLOYMENT} deployment in {NAMESPACE} did not finish restarting within "
+        f"{AGENT_RESTART_SECONDS} seconds. The defaults take effect once it has restarted: "
+        f"kubectl rollout restart deployment {CLUSTER_AGENT_DEPLOYMENT} -n {NAMESPACE}")
+
+
+def settings_target_options(resource):
+    """[(value, label)] for the namespace action's Apply to dropdown: the namespace, then its workloads."""
+    scope = _require_scope(resource)
+    options = [(TARGET_NAMESPACE, f"Every workload in namespace {scope.namespace}")]
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    for workload in namespace_workloads(sf, scope):
+        if workload["type"] not in WORKLOAD_TYPES:
+            continue
+        kind = WORKLOAD_TYPES[workload["type"]][1]
+        options.append((f"{workload['type']}/{workload['name']}", f"Only {kind} {workload['name']}"))
+    return options
+
+
+def set_namespace_settings(resource, target, values, progress=set_progress):
+    """Set the chosen settings as annotations on the resource's namespace or on one workload in it.
+
+    ``target`` is 'namespace' or 'type/name' as settings_target_options
+    offers it. Returns (status, output, error).
+    """
+    scope = _require_scope(resource)
+    target = str(target or "").strip()
+    changes = parse_setting_changes(values)
+    if target == TARGET_NAMESPACE:
+        # https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/namespace-v1/
+        path, what = f"/api/v1/namespaces/{scope.namespace}", f"namespace {scope.namespace}"
+        reach = "every workload in the namespace that does not set its own value"
+    else:
+        kind, name = parse_workload(target)
+        if kind not in WORKLOAD_TYPES:
+            raise StormForgeError(
+                f"CloudBolt cannot annotate workloads of type {kind}. Set the live.stormforge.io annotations "
+                "on it with kubectl.")
+        sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+        if not any(w["type"] == kind and w["name"] == name for w in namespace_workloads(sf, scope)):
+            raise StormForgeError(f"StormForge has no workload {kind}/{name} in namespace {scope.namespace}.")
+        api_version, label = WORKLOAD_TYPES[kind]
+        path = _object_path(api_version, scope.namespace, kind, name)
+        what, reach = f"{label} {name} in namespace {scope.namespace}", "this workload only"
+    if not changes:
+        return "SUCCESS", "Nothing to change: every setting was left as it is.", ""
+    kube = _namespace_kube(scope)
+    existing = kube.get(path)
+    if existing is None:
+        raise StormForgeError(f"Kubernetes has no {what}.")
+    changes = _effective_changes(changes, (existing.get("metadata") or {}).get("annotations") or {})
+    if not changes:
+        return "SUCCESS", f"The {what} already holds these values.", ""
+    progress(f"Setting StormForge annotations on {what}: {_describe_changes(changes)}")
+    # A null value removes the annotation.
+    # https://kubernetes.io/docs/reference/using-api/api-concepts/#patch-and-apply
+    result = kube.patch(path, {"metadata": {"annotations": {
+        SETTING_PREFIX + setting: value for setting, value in changes.items()}}},
+        params={"fieldManager": "cloudbolt"})
+    if result is None:
+        raise StormForgeError(f"Kubernetes has no {what} any more.")
+    return "SUCCESS", (
+        f"StormForge settings on {what} updated: {_describe_changes(changes)}. They apply to {reach}, and "
+        "StormForge uses them from its next recommendation."), ""

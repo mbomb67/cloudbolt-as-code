@@ -21,6 +21,7 @@ Creates a GKE Standard cluster in a GCP environment the ordering group can use. 
 | Day-2 action | RSA-yrnl5j6j | Create GKE Namespace (hook OHK-cco2r73h, shared module SHM-kephq8iq) |
 | Day-2 action | RSA-gqwszlzf | Manage GKE Cluster Groups (hook OHK-m8iwylq8) |
 | Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
+| Day-2 action | RSA-d3y9kiq0 | Set StormForge Cluster Defaults (hook OHK-nq6rrjxm) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-8egdz3e9](../../extensions/XUI-8egdz3e9/) | Google GKE Cluster tabs (Cluster, Node pools, Workloads, Groups) |
 

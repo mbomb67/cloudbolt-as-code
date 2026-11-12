@@ -17,6 +17,7 @@ Creates a governed namespace for a team on an existing GKE cluster: a ResourceQu
 | Day-2 | RSA-0k2xcobm / OHK-l3j30r89 | Manage GKE Namespace Pipeline Identity |
 | Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
 | Day-2 | RSA-d2zufawc / OHK-5nmq32do | Apply StormForge Recommendation |
+| Day-2 | RSA-v35tl317 / OHK-fdl64nk7 | Set StormForge Optimization Settings |
 
 Order form: GKE Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Policy (required), Additional CloudBolt Group, Team Google Principals, Team Access Level, and an optional Expiration Date.
 
