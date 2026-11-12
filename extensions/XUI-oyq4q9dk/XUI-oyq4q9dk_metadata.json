@@ -1,0 +1,19 @@
+{
+    "description": "Adds a Budgets tab to the Group page that sets, shows and removes the group's CloudBolt Engine budget, with monthly amount, spend so far, month-end projection, budget against actual by month and charts.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-oyq4q9dk",
+    "label": "CloudBolt Engine Budgets",
+    "last_updated": "2026-11-12",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "cloudbolt_engine_budgets",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "templates/ebx_assets.html",
+        "templates/ebx_tab.html"
+    ],
+    "version": ""
+}

@@ -1,0 +1,12 @@
+{
+    "description": "CloudBolt Engine REST client, per-group budget registration store, snapshot refresh and month-end trend for giving a group a tag-filtered Engine budget.",
+    "id": "SHM-6v7fxtdd",
+    "label": "CloudBolt Engine",
+    "max_retries": 0,
+    "module_name": "cloudbolt_engine",
+    "name": "cloudbolt_engine",
+    "resource_technologies": [],
+    "script_filename": "SHM-6v7fxtdd_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

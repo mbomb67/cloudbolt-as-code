@@ -1,0 +1,12 @@
+{% include "cloudbolt_engine_budgets/templates/ebx_assets.html" %}
+<div id="{{ root_id }}" class="ebx" data-csrf="{{ csrf_token }}">
+  <div data-ebx-body>
+    <div class="ebx-loading"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Opens when you select this tab.</div>
+  </div>
+</div>
+{{ config|json_script:config_id }}
+<script>
+  $(function () {
+    window.ebxInit("{{ root_id|escapejs }}", JSON.parse(document.getElementById("{{ config_id|escapejs }}").textContent));
+  });
+</script>

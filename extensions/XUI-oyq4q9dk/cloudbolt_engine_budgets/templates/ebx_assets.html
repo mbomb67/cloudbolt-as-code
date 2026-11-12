@@ -1,0 +1,774 @@
+{% comment %}
+  Styles and script for the Budgets tab on the Group page. The script defines
+  window.ebxInit(rootId, config), which the tab template calls once the tab loads.
+  Styles derive from CloudBolt's theme tokens (--bs-*, --surface, --neutral-*)
+  so Branded Themes and dark mode re-theme the tab; the charts read the same
+  tokens from computed styles and redraw when data-bs-theme changes.
+  All DOM is built with text nodes, never by writing API strings into HTML.
+{% endcomment %}
+<style>
+  .ebx {
+    --ebx-muted: color-mix(in srgb, var(--bs-body-color, #212529) 62%, transparent);
+    --ebx-line: var(--neutral-250, #E2E8ED);
+    --ebx-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --ebx-primary: var(--bs-primary, #0d6efd);
+    --ebx-ok: var(--bs-success, #198754);
+    --ebx-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --ebx-bad: var(--bs-danger, #dc3545);
+  }
+  .ebx .ebx-loading { color: var(--ebx-muted); font-size: 13px; padding: 12px 0; }
+  .ebx .ebx-card { background: var(--surface, #fff); border: 1px solid var(--ebx-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .ebx .ebx-hero { display: flex; gap: 12px 16px; align-items: flex-start; padding: 16px 20px; flex-wrap: wrap; }
+  .ebx .ebx-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ebx-muted); }
+  .ebx .ebx-title { font-size: 17px; font-weight: 700; margin: 2px 0 0; outline: none; overflow-wrap: anywhere; }
+  .ebx .ebx-sub { font-size: 12.5px; font-weight: 600; color: var(--ebx-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .ebx .ebx-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ebx .ebx-body { padding: 16px 20px; }
+  .ebx .ebx-body p { margin: 0 0 10px; }
+  .ebx .ebx-body p:last-child { margin-bottom: 0; }
+  .ebx .ebx-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .ebx .ebx-cards .ebx-card { margin-bottom: 0; padding: 14px 18px; }
+  .ebx .ebx-card-t { font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ebx-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .ebx .ebx-big { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+  .ebx .ebx-note { font-size: 12.5px; color: var(--ebx-muted); margin-top: 4px; }
+  .ebx .ebx-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .ebx .ebx-badge-ok { color: var(--ebx-ok); }
+  .ebx .ebx-badge-warn { color: var(--ebx-warn-text); }
+  .ebx .ebx-badge-bad { color: var(--ebx-bad); }
+  .ebx .ebx-badge-none { color: var(--ebx-muted); }
+  .ebx .ebx-over { color: var(--ebx-bad); font-weight: 600; }
+  .ebx .ebx-under { color: var(--ebx-ok); font-weight: 600; }
+  .ebx .ebx-chart-card { padding: 12px 14px 8px; }
+  .ebx .ebx-chart { width: 100%; min-height: 260px; }
+  .ebx .ebx-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .ebx .ebx-charts .ebx-card { margin-bottom: 0; }
+  .ebx .ebx-table { margin: 0; font-size: 13px; }
+  .ebx .ebx-table th, .ebx .ebx-table td { white-space: nowrap; }
+  .ebx .ebx-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ebx .ebx-table caption { caption-side: top; padding: 12px 20px 4px; font-size: 14px; font-weight: 700; color: var(--bs-body-color, inherit); }
+  .ebx .ebx-meta { font-size: 12.5px; color: var(--ebx-muted); margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .ebx .ebx-meta code, .ebx .ebx-body code { font-size: 12.5px; overflow-wrap: anywhere; }
+  .ebx .ebx-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
+  .ebx .ebx-form .ebx-wide { grid-column: 1 / -1; }
+  .ebx .ebx-form label { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; display: block; }
+  .ebx .ebx-help { font-size: 12px; color: var(--ebx-muted); margin-top: 3px; }
+  .ebx .ebx-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ebx .alert { font-size: 13.5px; }
+  .ebx .alert .ebx-actions { margin-top: 8px; }
+</style>
+<script>
+window.ebxInit = function (rootId, cfg) {
+  "use strict";
+  var root = document.getElementById(rootId);
+  if (!root) { return; }
+  var body = root.querySelector("[data-ebx-body]");
+  var csrf = root.getAttribute("data-csrf");
+  var ui = { state: null, editing: false, confirmRemove: false, busy: false, notice: "", charts: [] };
+  var uid = 0;
+
+  // ---- DOM helpers -------------------------------------------------------
+  function h(tag, attrs, kids) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (key) {
+      var value = attrs[key];
+      if (value === undefined || value === null || value === false) { return; }
+      if (key === "text") { node.textContent = value; }
+      else if (key === "cls") { node.className = value; }
+      else if (key.slice(0, 2) === "on") { node[key] = value; }
+      else { node.setAttribute(key, value === true ? key : value); }
+    });
+    (kids || []).forEach(function (kid) {
+      if (kid === null || kid === undefined || kid === false) { return; }
+      node.appendChild(typeof kid === "string" ? document.createTextNode(kid) : kid);
+    });
+    return node;
+  }
+  function icon(name) { return h("i", { cls: "bi " + name, "aria-hidden": "true" }); }
+  function code(text) { return h("code", { text: text }); }
+  function button(label, cls, iconName, onclick, disabled, id) {
+    return h("button", { type: "button", cls: "btn btn-sm " + cls, onclick: onclick, disabled: disabled, "data-ebx-id": id }, [
+      iconName ? icon(iconName) : null, iconName ? " " : null, label
+    ]);
+  }
+  function alertBox(kind, kids, live) {
+    return h("div", { cls: "alert alert-" + kind + " mb-3", role: live ? "alert" : "status" }, kids);
+  }
+
+  // ---- Formatting --------------------------------------------------------
+  var moneyFormats = {};
+  function num(value) {
+    var n = parseFloat(value);
+    return isFinite(n) ? n : null;
+  }
+  function money(value, currency, signed) {
+    var n = num(value);
+    if (n === null) { return "n/a"; }
+    var text;
+    try {
+      if (!moneyFormats[currency]) {
+        moneyFormats[currency] = new Intl.NumberFormat(undefined, { style: "currency", currency: currency });
+      }
+      text = moneyFormats[currency].format(Math.abs(n));
+    } catch (e) {
+      text = Math.abs(n).toFixed(2) + " " + currency;
+    }
+    if (n < 0) { return "-" + text; }
+    return signed && n > 0 ? "+" + text : text;
+  }
+  function axisMoney(value, currency) {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency: currency, notation: "compact", maximumFractionDigits: 1 }).format(value);
+    } catch (e) {
+      return money(value, currency);
+    }
+  }
+  function pct(value) {
+    var n = num(value);
+    if (n === null) { return "n/a"; }
+    return (n > 0 ? "+" : "") + n.toFixed(1) + "%";
+  }
+  function monthLabel(month) {
+    var parts = String(month || "").split("-");
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+    return isNaN(d.getTime()) ? String(month) : d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  }
+  function dayLabel(day) {
+    var parts = String(day || "").split("-");
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return isNaN(d.getTime()) ? String(day) : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+  function timeLabel(iso) {
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? String(iso) : d.toLocaleString();
+  }
+
+  var STATUS = {
+    on_track: { text: "On track", cls: "ebx-badge-ok", icon: "bi-check-circle" },
+    at_risk: { text: "At risk", cls: "ebx-badge-warn", icon: "bi-exclamation-triangle" },
+    over: { text: "Over budget", cls: "ebx-badge-bad", icon: "bi-x-octagon" },
+    no_data: { text: "No cost data yet", cls: "ebx-badge-none", icon: "bi-hourglass-split" }
+  };
+  function badge(status) {
+    var s = STATUS[status] || STATUS.no_data;
+    return h("span", { cls: "ebx-badge " + s.cls }, [icon(s.icon), s.text]);
+  }
+
+  // ---- API ---------------------------------------------------------------
+  var SESSION_MESSAGE = "Your session may have expired. Reload the page.";
+  // Every reply is JSON; anything else (a login redirect, a proxy error page) is not usable.
+  function call(method, url, payload) {
+    var options = {
+      method: method,
+      credentials: "same-origin",
+      headers: { "Accept": "application/json", "X-CSRFToken": csrf }
+    };
+    if (payload !== undefined) {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(payload);
+    }
+    return fetch(url, options).then(function (response) {
+      return response.text().then(function (text) {
+        var parsed = null;
+        try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+        if (!parsed || typeof parsed !== "object") {
+          return { ok: false, status: response.status, body: { error: SESSION_MESSAGE } };
+        }
+        return { ok: response.ok, status: response.status, body: parsed };
+      });
+    }, function () {
+      return { ok: false, status: 0, body: { error: "CloudBolt could not be reached. Check your connection and try again." } };
+    });
+  }
+  // A reply counts as state only when it has a string status.
+  function isState(result) { return result.ok && typeof result.body.status === "string"; }
+  function failureText(result, fallback) {
+    return result.ok ? SESSION_MESSAGE : (result.body.error || fallback);
+  }
+
+  // A successful call clears the earlier load failure.
+  function accept(body) {
+    ui.state = body;
+    ui.warning = "";
+    ui.loadError = "";
+    ui.moduleMissing = false;
+  }
+  function fail(result, fallback) {
+    ui.loadError = failureText(result, fallback);
+    ui.moduleMissing = result.body.code === "module_missing";
+  }
+
+  function load() {
+    ui.busy = true;
+    render();
+    return call("GET", cfg.urls.state).then(function (result) {
+      ui.busy = false;
+      if (isState(result)) { accept(result.body); } else { fail(result, "The budget could not be loaded."); }
+      render();
+    });
+  }
+  function refresh() {
+    ui.busy = true;
+    ui.focus = "refresh";
+    render();
+    return call("POST", cfg.urls.refresh, {}).then(function (result) {
+      ui.busy = false;
+      if (isState(result)) {
+        accept(result.body);
+        ui.notice = result.body.refreshed ? "Data refreshed from CloudBolt Engine." : (result.body.refresh_note || "");
+      } else {
+        fail(result, "The data could not be refreshed.");
+      }
+      render();
+    });
+  }
+
+  // ---- Theme and charts --------------------------------------------------
+  var probe = h("span", { style: "display:none" });
+  root.appendChild(probe);
+  function token(expr, fallback) {
+    probe.style.color = "";
+    probe.style.color = expr;
+    return getComputedStyle(probe).color || fallback;
+  }
+  function withAlpha(color, alpha, fallback) {
+    var m = /rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/.exec(color || "");
+    return m ? "rgba(" + m[1] + "," + m[2] + "," + m[3] + "," + alpha + ")" : fallback;
+  }
+  function theme() {
+    var text = token("var(--bs-body-color, #212529)", "#212529");
+    return {
+      text: text,
+      muted: withAlpha(text, 0.68, "#6c757d"),
+      grid: withAlpha(text, 0.14, "rgba(128,128,128,0.25)"),
+      surface: token("var(--surface, #fff)", "#ffffff"),
+      actual: token("var(--bs-primary, #0d6efd)", "#0d6efd"),
+      budget: text,
+      projected: token("var(--bs-info, #0dcaf0)", "#0dcaf0")
+    };
+  }
+  function destroyCharts() {
+    ui.charts.forEach(function (chart) { try { chart.destroy(); } catch (e) { /* already gone */ } });
+    ui.charts = [];
+  }
+  function baseChart(el, t, title, currency) {
+    return {
+      chart: { renderTo: el, backgroundColor: "transparent", height: 260, spacing: [8, 8, 8, 8], style: { fontFamily: "inherit" } },
+      title: { text: title, align: "left", style: { color: t.text, fontSize: "13px", fontWeight: "600" } },
+      credits: { enabled: false },
+      legend: { itemStyle: { color: t.muted, fontWeight: "500" }, itemHoverStyle: { color: t.text } },
+      yAxis: {
+        title: { text: null }, min: 0, gridLineColor: t.grid,
+        labels: { style: { color: t.muted }, formatter: function () { return axisMoney(this.value, currency); } }
+      },
+      tooltip: { backgroundColor: t.surface, borderColor: t.grid, style: { color: t.text } },
+      plotOptions: { series: { animation: false }, column: { borderWidth: 0 } }
+    };
+  }
+  function drawCharts() {
+    destroyCharts();
+    if (!window.Highcharts) { return; }
+    var slots = root.querySelectorAll("[data-ebx-chart]");
+    if (!slots.length || !ui.state || !ui.state.snapshot) { return; }
+    var snap = ui.state.snapshot;
+    var currency = (snap.budget && snap.budget.currency) || "USD";
+    var t = theme();
+    Array.prototype.forEach.call(slots, function (el) {
+      var options;
+      try {
+        options = el.getAttribute("data-ebx-chart") === "months" ? monthsChart(el, snap, currency, t) : monthChart(el, snap, currency, t);
+        if (options) { ui.charts.push(new window.Highcharts.Chart(options)); }
+      } catch (e) {
+        if (window.console) { window.console.error("Budgets chart failed", e); }
+      }
+    });
+  }
+  function monthsChart(el, snap, currency, t) {
+    var months = snap.months || [];
+    if (!months.length) { return null; }
+    var options = baseChart(el, t, "Budget versus actual, trailing 12 months", currency);
+    options.xAxis = {
+      categories: months.map(function (m) { return monthLabel(m.month); }),
+      labels: { style: { color: t.muted } }, lineColor: t.grid, tickColor: t.grid
+    };
+    options.tooltip.shared = true;
+    options.tooltip.formatter = function () {
+      var lines = ["<b>" + this.x + "</b>"];
+      this.points.forEach(function (p) { lines.push(p.series.name + ": " + money(p.y, currency)); });
+      return lines.join("<br/>");
+    };
+    options.series = [
+      { type: "column", name: "Actual", color: t.actual, data: months.map(function (m) { return num(m.actual); }) },
+      {
+        type: "line", name: "Budgeted", color: t.budget, dashStyle: "ShortDash", lineWidth: 2,
+        marker: { enabled: true, symbol: "diamond", radius: 4 },
+        data: months.map(function (m) { return num(m.budgeted); })
+      }
+    ];
+    return options;
+  }
+  function monthChart(el, snap, currency, t) {
+    var trend = snap.trend || {};
+    var months = snap.months || [];
+    var daily = snap.daily || [];
+    // The current month: the last of the 12 months, else the month the data runs to.
+    var current = months.length ? String(months[months.length - 1].month)
+      : (String(trend.data_through || "").slice(0, 7) || (daily.length ? String(daily[0].day).slice(0, 7) : ""));
+    var parts = current.split("-");
+    var year = parseInt(parts[0], 10), mon = parseInt(parts[1], 10);
+    if (!year || !mon) { return null; }
+    var last = new Date(year, mon, 0).getDate();
+    var running = 0;
+    var cumulative = [];
+    daily.forEach(function (d) {
+      var day = parseInt(String(d.day).slice(8, 10), 10);
+      running += num(d.cost) || 0;
+      if (day >= 1 && day <= last) { cumulative.push([day, Math.round(running * 100) / 100]); }
+    });
+    var through = String(trend.data_through || "");
+    var throughDay = through.slice(0, 7) === current ? parseInt(through.slice(8, 10), 10) : 0;
+    var spend = num(trend.spend_to_date) || 0;
+    var projected = num(trend.projected);
+    var budget = num(trend.budget);
+    var series = [{
+      type: "line", name: "Spend to date", color: t.actual, lineWidth: 2, data: cumulative,
+      marker: { enabled: cumulative.length < 40, radius: 3 }
+    }];
+    if (projected !== null && throughDay < last) {
+      series.push({
+        type: "line", name: "Projected", color: t.projected, dashStyle: "Dot", lineWidth: 2,
+        marker: { enabled: true, symbol: "triangle", radius: 4 },
+        data: [[Math.max(throughDay, 1), throughDay >= 1 ? spend : 0], [last, projected]]
+      });
+    }
+    if (budget !== null) {
+      series.push({
+        type: "line", name: "Budget", color: t.budget, dashStyle: "ShortDash", lineWidth: 2,
+        marker: { enabled: false }, data: [[1, budget], [last, budget]]
+      });
+    }
+    // Day 1, every fifth day, and the last day.
+    var ticks = [1];
+    for (var d = 5; d <= last; d += 5) { ticks.push(d); }
+    if (ticks[ticks.length - 1] !== last && last - ticks[ticks.length - 1] > 2) { ticks.push(last); }
+    var options = baseChart(el, t, "Spend this month with projection to month end", currency);
+    options.xAxis = {
+      type: "linear", min: 1, max: last, allowDecimals: false, tickPositions: ticks,
+      title: { text: "Day of month", style: { color: t.muted } },
+      labels: { style: { color: t.muted } }, lineColor: t.grid, tickColor: t.grid
+    };
+    options.tooltip.formatter = function () {
+      return this.series.name + "<br/>Day " + this.x + ": <b>" + money(this.y, currency) + "</b>";
+    };
+    options.series = series;
+    return options;
+  }
+  // Redraw the charts when the theme changes; stop once the tab is gone.
+  if (window.MutationObserver) {
+    var observer = new MutationObserver(function () {
+      if (!document.body.contains(root)) { observer.disconnect(); return; }
+      drawCharts();
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme", "class"] });
+  }
+  // CloudBolt loads every tab while its pane is hidden, so charts measure width 0 until the pane is shown.
+  function reflowCharts() {
+    ui.charts.forEach(function (chart) { try { chart.reflow(); } catch (e) { /* chart is gone */ } });
+  }
+
+  // ---- Forms -------------------------------------------------------------
+  function field(id, label, control, help, wide) {
+    if (help) { control.setAttribute("aria-describedby", id + "-help"); }
+    return h("div", { cls: wide ? "ebx-wide" : "" }, [
+      h("label", { "for": id, text: label }), control, help ? h("div", { cls: "ebx-help", id: id + "-help", text: help }) : null
+    ]);
+  }
+  function guessField(text, inputs) {
+    var lower = String(text).toLowerCase();
+    var keys = ["amount", "currency", "name", "description", "connection"];
+    for (var i = 0; i < keys.length; i++) {
+      if (lower.indexOf(keys[i]) !== -1 && inputs[keys[i]]) { return inputs[keys[i]]; }
+    }
+    return null;
+  }
+  function budgetForm(mode) {
+    var st = ui.state;
+    var reg = st.registration || {};
+    var snapBudget = (st.snapshot && st.snapshot.budget) || {};
+    var pending = reg.pending || {};
+    var prefix = rootId + "-f" + (uid++);
+    var inputs = {};
+    var message = h("div", { "aria-live": "polite" });
+
+    // An active budget opens from the stored snapshot; a pending one only from its pending request.
+    var initial = { amount: "", name: "", description: "" };
+    if (mode === "edit" && reg.active) {
+      initial.amount = num(snapBudget.amount) !== null ? String(num(snapBudget.amount)) : "";
+      initial.name = reg.budget_name || snapBudget.name || "";
+      initial.description = reg.budget_description || "";
+    } else if (mode === "edit") {
+      initial.amount = num(pending.amount) !== null ? String(num(pending.amount)) : "";
+      initial.name = pending.name || "";
+      initial.description = pending.description || "";
+    } else {
+      initial.name = (st.defaults && st.defaults.budget_name) || "";
+    }
+    var kids = [];
+
+    if (mode === "create") {
+      inputs.connection = h("select", { id: prefix + "-con", cls: "form-select form-select-sm", required: true },
+        (st.connections || []).map(function (c) { return h("option", { value: c.global_id, text: c.name }); }));
+      kids.push(field(prefix + "-con", "CloudBolt Engine connection", inputs.connection, null));
+    }
+    inputs.amount = h("input", { id: prefix + "-amt", cls: "form-control form-control-sm", type: "number", min: "0.01", step: "0.01", required: true, inputmode: "decimal", value: initial.amount, "data-ebx-id": mode === "edit" ? "form" : null });
+    kids.push(field(prefix + "-amt", "Monthly amount", inputs.amount, mode === "edit" ? "Applies from the current month." : null));
+    if (mode === "create") {
+      inputs.currency = h("input", { id: prefix + "-cur", cls: "form-control form-control-sm", type: "text", maxlength: "3", required: true, value: (st.defaults && st.defaults.currency) || "USD", autocapitalize: "characters", pattern: "[A-Za-z]{3}" });
+      kids.push(field(prefix + "-cur", "Currency", inputs.currency, "Three-letter code, for example USD."));
+    }
+    inputs.name = h("input", { id: prefix + "-name", cls: "form-control form-control-sm", type: "text", maxlength: "255", required: true, value: initial.name });
+    kids.push(field(prefix + "-name", "Budget name", inputs.name, null, true));
+    inputs.description = h("textarea", { id: prefix + "-desc", cls: "form-control form-control-sm", rows: "2", maxlength: "500" });
+    inputs.description.value = initial.description;
+    kids.push(field(prefix + "-desc", mode === "create" ? "Description (optional)" : "Description", inputs.description, null, true));
+
+    var submit = h("button", { type: "submit", cls: "btn btn-sm btn-primary", disabled: ui.busy }, [icon(mode === "create" ? "bi-plus-lg" : "bi-check-lg"), " ", mode === "create" ? "Set budget" : "Save changes"]);
+    var cancel = mode === "edit" ? button("Cancel", "btn-outline-secondary", null, function () { ui.editing = false; ui.focus = "edit"; render(); }) : null;
+    kids.push(h("div", { cls: "ebx-wide ebx-actions" }, [submit, cancel]));
+    kids.push(h("div", { cls: "ebx-wide" }, [message]));
+
+    // Show an error tied to the input it is about (aria-invalid, aria-describedby) and move focus there.
+    function setError(text, input) {
+      Object.keys(inputs).forEach(function (key) {
+        inputs[key].removeAttribute("aria-invalid");
+        var help = inputs[key].id + "-help";
+        if (document.getElementById(help)) { inputs[key].setAttribute("aria-describedby", help); }
+        else { inputs[key].removeAttribute("aria-describedby"); }
+      });
+      message.textContent = "";
+      var errorId = prefix + "-error";
+      var box = alertBox("danger", [text], true);
+      box.id = errorId;
+      message.appendChild(box);
+      if (input) {
+        input.setAttribute("aria-invalid", "true");
+        var helpId = input.id + "-help";
+        input.setAttribute("aria-describedby", errorId + (document.getElementById(helpId) ? " " + helpId : ""));
+        input.focus();
+      } else {
+        box.setAttribute("tabindex", "-1");
+        box.focus();
+      }
+    }
+
+    var form = h("form", { cls: "ebx-form", novalidate: true }, kids);
+    form.onsubmit = function (event) {
+      event.preventDefault();
+      var amount = inputs.amount.value.trim();
+      var name = inputs.name.value.trim();
+      var description = inputs.description.value.trim();
+      var payload = {};
+      if (mode === "create") {
+        payload.connection = inputs.connection.value;
+        payload.amount = amount;
+        payload.name = name;
+        payload.description = description;
+        payload.currency = inputs.currency.value.trim().toUpperCase();
+      } else {
+        // Send only what changed: the module treats a missing amount or name as unchanged.
+        if (amount !== "" && num(amount) !== num(initial.amount)) { payload.amount = amount; }
+        if (name !== initial.name) { payload.name = name; }
+        if (description !== initial.description) { payload.description = description; }
+      }
+      if (!amount || !(parseFloat(amount) > 0)) { setError("Enter a monthly amount greater than zero.", inputs.amount); return; }
+      if (!name) { setError("Enter a budget name.", inputs.name); return; }
+      if (mode === "create" && !/^[A-Z]{3}$/.test(payload.currency)) { setError("Enter the currency as three letters, for example USD.", inputs.currency); return; }
+      if (mode === "edit" && !Object.keys(payload).length) { setError("Nothing has changed. Change the amount, name or description, or cancel.", null); return; }
+      message.textContent = "";
+      submit.disabled = true;
+      call("POST", mode === "create" ? cfg.urls.register : cfg.urls.update, payload).then(function (result) {
+        if (isState(result)) {
+          accept(result.body);
+          ui.editing = false;
+          ui.focus = "heading";
+          ui.notice = mode === "create" ? "Budget set." : "Budget updated.";
+          // A saved request that Engine did not accept yet: the page is now in the pending state.
+          ui.warning = result.body.warning || "";
+          render();
+        } else {
+          submit.disabled = false;
+          var text = failureText(result, "The budget could not be saved.");
+          setError(text, guessField(text, inputs));
+        }
+      });
+    };
+    return form;
+  }
+
+  function removeBudget(localOnly) {
+    ui.busy = true;
+    ui.removeError = "";
+    render();
+    call("POST", cfg.urls.remove, localOnly ? { local_only: true } : {}).then(function (result) {
+      ui.busy = false;
+      if (isState(result)) {
+        accept(result.body);
+        ui.confirmRemove = false;
+        ui.focus = "heading";
+        ui.notice = "Budget removed.";
+      } else {
+        ui.removeError = failureText(result, "The budget could not be removed.");
+        ui.focus = "remove-first";
+      }
+      render();
+    });
+  }
+
+  // ---- Sections ----------------------------------------------------------
+  function tagNote(st) {
+    var d = st.defaults || {};
+    var reg = st.registration;
+    return [
+      "The budget counts only cost data tagged ", code(reg ? reg.tag_key : d.tag_key), " = ", code(reg ? reg.tag_value : d.tag_value), "."
+    ];
+  }
+  function cardShell(titleText, subText, tools) {
+    return h("div", { cls: "ebx-hero" }, [
+      h("div", {}, [h("div", { cls: "ebx-eyebrow", text: "CloudBolt Engine" }),
+        h("h3", { cls: "ebx-title", text: titleText, tabindex: "-1", "data-ebx-id": "heading" }), subText ? h("div", { cls: "ebx-sub", text: subText }) : null]),
+      h("div", { cls: "ebx-tools" }, tools || [])
+    ]);
+  }
+  function simpleCard(title, kids) {
+    return h("div", { cls: "ebx-card" }, [cardShell(title), h("div", { cls: "ebx-body" }, kids)]);
+  }
+  function showConfirm() { ui.confirmRemove = true; ui.editing = false; ui.removeError = ""; ui.focus = "remove-first"; render(); }
+  function showEdit() { ui.editing = true; ui.confirmRemove = false; ui.focus = "form"; render(); }
+
+  function moduleMissingView(message) {
+    return simpleCard("Budget", [alertBox("warning", [
+      h("strong", { text: "The shared module is not synced. " }), message || cfg.module_missing_message
+    ])]);
+  }
+
+  function noConnectionView(st) {
+    if (!st.can_manage) {
+      return simpleCard("Budget", [h("p", { text: "No budget is set for this group." })]);
+    }
+    return simpleCard("Budget", [
+      h("p", { text: "No CloudBolt Engine connection is set up yet, so this group cannot have a budget." }),
+      h("p", {}, ["Add one under ", h("strong", { text: "Admin > Connection Info" }), ": label ", code(st.connection_label), ", protocol ", code("https"),
+        ", IP/Hostname the CloudBolt Engine API host (the host that serves the API, not the web app you sign in to), username the API key's client ID, password its client secret. Then reload this tab."])
+    ]);
+  }
+
+  function notRegisteredView(st) {
+    if (!st.can_manage) {
+      return simpleCard("Budget", [h("p", { text: "No budget is set for this group." })]);
+    }
+    return simpleCard("Set a budget", [
+      h("p", {}, tagNote(st).concat([" Tag this group's cloud resources with that key and value; the budget is created in CloudBolt Engine once cost data carrying the tag arrives."])),
+      budgetForm("create")
+    ]);
+  }
+
+  function pendingView(st) {
+    var reg = st.registration;
+    var p = reg.pending || {};
+    var kids = [
+      alertBox("info", [
+        h("strong", { text: "Waiting for cost data. " }),
+        "The budget will be created in CloudBolt Engine as soon as cost data carrying the tag ", code(reg.tag_key), " = ", code(reg.tag_value),
+        " arrives. Cost data lags about two days."
+      ]),
+      h("p", {}, [h("strong", { text: "Pending budget: " }), money(p.amount, p.currency || "USD"), " a month, named ", h("em", { text: p.name || "" }), "."])
+    ];
+    if (st.can_manage) {
+      if (ui.editing) { kids.push(budgetForm("edit")); }
+      if (ui.confirmRemove) { kids.push(removeConfirm(true)); }
+    }
+    var tools = st.can_manage ? [
+      button("Check now", "btn-outline-secondary", "bi-arrow-clockwise", refresh, ui.busy, "refresh"),
+      button("Edit", "btn-outline-secondary", "bi-pencil", showEdit, ui.busy, "edit"),
+      button("Cancel budget", "btn-outline-danger", "bi-x-lg", showConfirm, ui.busy, "remove")
+    ] : [];
+    return h("div", { cls: "ebx-card" }, [cardShell("Budget pending", null, tools), h("div", { cls: "ebx-body" }, kids)]);
+  }
+
+  function removeConfirm(pendingBudget) {
+    var kids = [
+      h("strong", { text: pendingBudget ? "Cancel this pending budget? " : "Remove this budget? " }),
+      pendingBudget ? "The group will have no budget." : "This deletes the budget in CloudBolt Engine, with its monthly amounts. Spend data is not affected."
+    ];
+    var buttons = [];
+    if (ui.removeError) {
+      kids.push(h("div", { cls: "mt-2" }, [h("strong", { text: "It could not be removed. " }), ui.removeError]));
+      if (!pendingBudget) {
+        kids.push(h("div", { cls: "mt-1", text: "Remove here only forgets the budget in CloudBolt. The budget may still exist in CloudBolt Engine, and you would need to delete it there." }));
+        buttons.push(button("Remove here only", "btn-danger", "bi-trash", function () { removeBudget(true); }, ui.busy, "remove-first"));
+        buttons.push(button("Try again", "btn-outline-danger", "bi-arrow-clockwise", function () { removeBudget(false); }, ui.busy));
+      } else {
+        buttons.push(button("Try again", "btn-danger", "bi-arrow-clockwise", function () { removeBudget(false); }, ui.busy, "remove-first"));
+      }
+    } else {
+      buttons.push(button(pendingBudget ? "Cancel budget" : "Remove budget", "btn-danger", "bi-trash", function () { removeBudget(false); }, ui.busy, "remove-first"));
+    }
+    buttons.push(button("Keep it", "btn-outline-secondary", null, function () { ui.confirmRemove = false; ui.removeError = ""; ui.focus = "remove"; render(); }, ui.busy));
+    kids.push(h("div", { cls: "ebx-actions" }, buttons));
+    return alertBox("danger", kids, true);
+  }
+
+  // The sentence under Headroom comes from the status, so it cannot contradict the badge.
+  function headline(trend, currency) {
+    var headroom = num(trend.headroom);
+    var over = headroom !== null && headroom < 0 ? money(-headroom, currency) : "";
+    if (trend.status === "no_data" || headroom === null) { return { text: "Needs cost data.", cls: "" }; }
+    if (trend.status === "over") {
+      return { text: "Spend so far already exceeds the budget." + (over ? " Projected overage at month end: " + over + "." : ""), cls: "ebx-over" };
+    }
+    if (trend.status === "at_risk") {
+      return { text: over ? "Projected to exceed budget by " + over + " at month end." : "Projected to exceed budget at month end.", cls: "ebx-over" };
+    }
+    return { text: headroom > 0 ? "Projected to finish " + money(headroom, currency) + " under budget." : "Projected to finish on budget.", cls: "ebx-under" };
+  }
+
+  function activeView(st) {
+    var reg = st.registration;
+    var snap = st.snapshot;
+    var out = [];
+    var budget = (snap && snap.budget) || {};
+    var currency = budget.currency || "USD";
+    var trend = (snap && snap.trend) || null;
+    var title = reg.budget_name || budget.name || "Budget";
+    var tools = [button("Refresh", "btn-outline-secondary", "bi-arrow-clockwise", refresh, ui.busy, "refresh")];
+    if (st.can_manage) {
+      tools.push(button("Edit budget", "btn-outline-secondary", "bi-pencil", showEdit, ui.busy, "edit"));
+      tools.push(button("Remove budget", "btn-outline-danger", "bi-trash", showConfirm, ui.busy, "remove"));
+    }
+    // The connection is manager-only data; viewers get no connection name.
+    var heroSub = st.can_manage && reg.connection_name ? "Connection " + reg.connection_name : "";
+    var hero = h("div", { cls: "ebx-card" }, [cardShell(title, heroSub, (trend ? [badge(trend.status)] : []).concat(tools))]);
+    if (st.can_manage && ui.editing) { hero.appendChild(h("div", { cls: "ebx-body" }, [budgetForm("edit")])); }
+    if (st.can_manage && ui.confirmRemove) { hero.appendChild(h("div", { cls: "ebx-body" }, [removeConfirm(false)])); }
+    out.push(hero);
+
+    out.push(h("p", { cls: "ebx-meta" }, [
+      h("span", {}, ["Tag ", code(reg.tag_key), " = ", code(reg.tag_value)]),
+      snap && snap.fetched_at ? h("span", { text: "Fetched " + timeLabel(snap.fetched_at) }) : null
+    ]));
+
+    if (!snap) {
+      out.push(alertBox("info", ["The budget exists in CloudBolt Engine, but its spend data has not been fetched yet. Select Refresh to fetch it."]));
+      return out;
+    }
+    if (snap.error) {
+      out.push(alertBox("warning", [st.can_manage ? h("strong", { text: "The last refresh failed. " }) : null, snap.error, st.can_manage ? " The figures below are from the last successful fetch." : null], true));
+    }
+
+    if (trend) {
+      var noData = trend.status === "no_data";
+      var headroom = num(trend.headroom);
+      var head = headline(trend, currency);
+      out.push(h("div", { cls: "ebx-cards" }, [
+        h("div", { cls: "ebx-card" }, [h("div", { cls: "ebx-card-t", text: "Monthly budget" }), h("div", { cls: "ebx-big", text: money(trend.budget || budget.amount, currency) }), h("div", { cls: "ebx-note", text: "For the current month." })]),
+        h("div", { cls: "ebx-card" }, [h("div", { cls: "ebx-card-t", text: "Spent so far" }), h("div", { cls: "ebx-big", text: noData ? "n/a" : money(trend.spend_to_date, currency) }),
+          h("div", { cls: "ebx-note", text: trend.data_through ? "Data through " + dayLabel(trend.data_through) + "." : "No cost data yet for this tag." })]),
+        h("div", { cls: "ebx-card" }, [h("div", { cls: "ebx-card-t", text: "Projected month end" }), h("div", { cls: "ebx-big", text: noData ? "n/a" : money(trend.projected, currency) }),
+          h("div", { cls: "ebx-note", text: noData ? "Needs cost data." : "Based on the last seven days of spend, " + money(trend.daily_rate, currency) + " a day." })]),
+        h("div", { cls: "ebx-card" }, [h("div", { cls: "ebx-card-t", text: "Headroom" }), h("div", { cls: "ebx-big", text: noData || headroom === null ? "n/a" : money(headroom, currency, true) }),
+          h("div", { cls: "ebx-note" }, [h("span", { cls: head.cls, text: head.text })]), h("div", { cls: "mt-2" }, [badge(trend.status)])])
+      ]));
+    }
+
+    if (window.Highcharts) {
+      var charts = [];
+      if ((snap.months || []).length) {
+        charts.push(h("div", { cls: "ebx-card ebx-chart-card" }, [h("div", { cls: "ebx-chart", "data-ebx-chart": "months", role: "img", "aria-label": "Chart of budgeted and actual spend for each of the last 12 months. The same figures are in the table below." })]));
+      }
+      if (trend && trend.status !== "no_data") {
+        charts.push(h("div", { cls: "ebx-card ebx-chart-card" }, [h("div", { cls: "ebx-chart", "data-ebx-chart": "month", role: "img", "aria-label": "Chart of cumulative spend this month, the projection to month end and the budget." })]));
+      }
+      if (charts.length) { out.push(h("div", { cls: "ebx-charts" }, charts)); }
+    }
+
+    var months = snap.months || [];
+    if (months.length) {
+      var rows = months.map(function (m) {
+        var variance = num(m.variance);
+        var noBudget = num(m.budgeted) === 0;
+        var cls = !noBudget && variance !== null && variance > 0 ? "num ebx-over" : "num";
+        var varianceText = noBudget ? "No budget"
+          : money(m.variance, currency, true) + (variance !== null && variance > 0 ? " over" : variance !== null && variance < 0 ? " under" : "");
+        return h("tr", {}, [
+          h("th", { scope: "row", text: monthLabel(m.month) + (m.in_progress ? " (so far)" : ""), cls: "fw-normal" }),
+          h("td", { cls: "num", text: money(m.budgeted, currency) }),
+          h("td", { cls: "num", text: money(m.actual, currency) }),
+          h("td", { cls: cls, text: varianceText }),
+          h("td", { cls: cls, text: noBudget ? "n/a" : pct(m.variance_pct) })
+        ]);
+      });
+      out.push(h("div", { cls: "ebx-card" }, [h("div", { cls: "table-responsive" }, [h("table", { cls: "table table-sm table-hover align-middle ebx-table" }, [
+        h("caption", { text: "Budget and actual by month. Variance is actual minus budgeted." }),
+        h("thead", {}, [h("tr", {}, [h("th", { scope: "col", text: "Month" }), h("th", { scope: "col", cls: "num", text: "Budgeted" }), h("th", { scope: "col", cls: "num", text: "Actual" }),
+          h("th", { scope: "col", cls: "num", text: "Variance" }), h("th", { scope: "col", cls: "num", text: "Variance %" })])]),
+        h("tbody", {}, rows)
+      ])])]));
+    }
+    out.push(h("p", { cls: "ebx-note", text: "Cost data lags about two days, so spend so far runs behind today." }));
+    return out;
+  }
+
+  // ---- Render ------------------------------------------------------------
+  function render() {
+    destroyCharts();
+    uid = 0;
+    var st = ui.state;
+    var kids = [];
+    if (ui.warning) { kids.push(alertBox("warning", [h("strong", { text: "The budget is saved, but CloudBolt Engine did not accept it yet. " }), ui.warning], true)); }
+    if (ui.notice) { kids.push(alertBox("success", [ui.notice])); }
+    if (cfg.fatal) {
+      kids.push(alertBox("danger", [cfg.fatal], true));
+    } else if (cfg.module_missing || ui.moduleMissing) {
+      kids.push(moduleMissingView(cfg.module_missing ? null : ui.loadError));
+    } else if (!st) {
+      kids.push(ui.loadError
+        ? alertBox("danger", [h("strong", { text: "The budget could not be loaded. " }), ui.loadError, h("div", { cls: "ebx-actions" }, [button("Try again", "btn-outline-secondary", "bi-arrow-clockwise", load, ui.busy)])], true)
+        : h("div", { cls: "ebx-loading" }, [icon("bi-hourglass-split"), " Loading the budget."]));
+    } else {
+      if (ui.loadError) { kids.push(alertBox("warning", [ui.loadError], true)); }
+      if (st.status === "no_connection") { kids.push(noConnectionView(st)); }
+      else if (st.status === "not_registered") { kids.push(notRegisteredView(st)); }
+      else if (st.status === "pending") { kids.push(pendingView(st)); }
+      else { activeView(st).forEach(function (node) { kids.push(node); }); }
+    }
+    ui.notice = ui.notice && ui.busy ? ui.notice : "";
+    body.textContent = "";
+    kids.forEach(function (kid) { body.appendChild(kid); });
+    drawCharts();
+    if (ui.focus && !ui.busy) {
+      var target = body.querySelector('[data-ebx-id="' + ui.focus + '"]');
+      if (target && !target.disabled) { target.focus(); }
+      ui.focus = null;
+    }
+  }
+
+  // The tab loads while its pane is hidden: call CloudBolt Engine's state endpoint only once the pane is shown.
+  function tabLinks(id) {
+    return Array.prototype.slice.call(document.querySelectorAll(
+      '.nav-link[data-bs-target="#' + id + '"], .nav-link[href="#' + id + '"], .dropdown-item[href="#' + id + '"]'));
+  }
+  function start() {
+    if (ui.started) { return; }
+    ui.started = true;
+    load();
+  }
+  if (cfg.module_missing || cfg.fatal) {
+    render();
+  } else {
+    var pane = document.getElementById(cfg.pane);
+    tabLinks(cfg.pane).forEach(function (link) {
+      link.addEventListener("shown.bs.tab", function () { start(); reflowCharts(); });
+    });
+    if (!pane || pane.classList.contains("active")) { start(); }
+  }
+};
+</script>

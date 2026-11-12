@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "allow_parallel_jobs": false,
+    "create_date": "2026-11-12 09:00:00.000000",
+    "dependencies": {
+        "hook": "plugins/OHK-vq5w4vq2"
+    },
+    "description": "Every 4 hours, creates pending CloudBolt Engine group budgets and refreshes each group's budget snapshot and month-end trend.",
+    "enabled": true,
+    "id": "RJB-wxwp58f2",
+    "last_run": null,
+    "last_updated": null,
+    "name": "Refresh CloudBolt Engine Budgets",
+    "schedule": "0 */4 * * *",
+    "type": "orchestration_hook"
+}

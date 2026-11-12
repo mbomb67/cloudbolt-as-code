@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-6v7fxtdd"
+        ]
+    },
+    "description": "Creates any pending CloudBolt Engine group budgets and refreshes every registered group's budget snapshot and month-end trend.",
+    "id": "OHK-vq5w4vq2",
+    "max_retries": 0,
+    "name": "Refresh CloudBolt Engine Budgets",
+    "resource_technologies": [],
+    "script_filename": "OHK-vq5w4vq2_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
