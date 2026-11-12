@@ -21,6 +21,7 @@ Creates an AKS cluster in an Azure environment the ordering group can use. The c
 | Day-2 action | RSA-jttbwkm5 | Create AKS Namespace (hook OHK-kb4pv2yq, shared module SHM-cozv547n) |
 | Day-2 action | RSA-my8fifei | Manage AKS Cluster Groups (hook OHK-yzmq0kzu) |
 | Day-2 action | RSA-76jmctg6 | Install or Upgrade StormForge Agent (hook OHK-kxxla7cn) |
+| Day-2 action | RSA-d3y9kiq0 | Set StormForge Cluster Defaults (hook OHK-nq6rrjxm) |
 | Options hook | HPA-qb0w86mi | Generate options for 'Expiration Date' (hook OHK-cfciy0fo) |
 | UI extension | [XUI-nr5iiu60](../../extensions/XUI-nr5iiu60/) | Azure AKS Cluster tabs (Cluster, Node pools, Workloads, Groups) |
 

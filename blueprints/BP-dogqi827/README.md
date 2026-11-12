@@ -17,6 +17,7 @@ Creates a governed namespace for a team on an existing AKS cluster as an AKS [ma
 | Day-2 | RSA-rwaszep5 / OHK-4rucefwc | Manage AKS Namespace Pipeline Identity |
 | Day-2 | RSA-ah76u4qg / OHK-ljgoxser | Deploy Test Workload |
 | Day-2 | RSA-d2zufawc / OHK-5nmq32do | Apply StormForge Recommendation |
+| Day-2 | RSA-v35tl317 / OHK-fdl64nk7 | Set StormForge Optimization Settings |
 
 Order form: AKS Cluster, Namespace Name, Size Tier, Ingress Policy, Egress Policy (required), Additional CloudBolt Group, Team Entra Principals, Team Access Level, and an optional Expiration Date.
 

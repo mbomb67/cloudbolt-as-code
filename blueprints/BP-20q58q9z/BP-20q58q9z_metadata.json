@@ -139,6 +139,13 @@
             },
             "enabled": true,
             "label": "Install or Upgrade StormForge Agent"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-d3y9kiq0"
+            },
+            "enabled": true,
+            "label": "Set StormForge Cluster Defaults"
         }
     ],
     "metadata_version": "2026.1.0",

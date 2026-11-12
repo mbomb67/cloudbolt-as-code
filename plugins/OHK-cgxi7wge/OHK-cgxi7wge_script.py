@@ -1,9 +1,10 @@
 """
-Display condition for Apply StormForge Recommendation (RSA-d2zufawc).
+Display condition for Apply StormForge Recommendation (RSA-d2zufawc) and Set
+StormForge Optimization Settings (RSA-v35tl317).
 
-Shows the action only on a namespace whose cluster runs the StormForge agent,
+Shows the actions only on a namespace whose cluster runs the StormForge agent,
 on a CloudBolt that has the StormForge connection info. Any problem hides the
-action rather than breaking the resource page.
+actions rather than breaking the resource page.
 """
 
 from utilities.models import ConnectionInfo

@@ -39,6 +39,11 @@ CloudBolt talks to StormForge only through the StormForge API. It installs the a
 
   Without the `StormForge` connection info, StormForge is not enabled: the item skips the install, with no warning, and links to the blueprint's README.
 - **Install or Upgrade StormForge Agent:** a dropdown shows the installed version and what each choice changes it to (newer versions only: StormForge charts cannot be downgraded), for example `Upgrade 3.4.0 → 3.5.0 (latest)`. It rewrites the Secret from the connection info and restarts agent pods that started before the Secret changed (the agent reads its credential only at startup), so after you change the credential, run the action on each cluster to rotate it.
+- **Optimization settings:** two actions write StormForge's settings, each as a CloudBolt job.
+  - **Set StormForge Cluster Defaults** ([RSA-d3y9kiq0](../resource_actions/RSA-d3y9kiq0/)), on a cluster, writes the `cluster-defaults` ConfigMap in `stormforge-system` and restarts the StormForge cluster agent, which reads it only at start.
+  - **Set StormForge Optimization Settings** ([RSA-v35tl317](../resource_actions/RSA-v35tl317/)), on a namespace, sets `live.stormforge.io` annotations on the namespace or on one workload in it.
+
+  Both offer the CPU and memory goal, the recommendation schedule, automatic deployment, the CPU and memory optimization policy, and the CPU and memory request minimum and maximum. A setting left alone keeps its value, and **Remove** takes it away. A workload's value overrides its namespace's, which overrides the cluster's. Other settings in the ConfigMap stay; comments in it are not kept.
 - **Teardown:** the Remove from StormForge item runs after the cluster is deleted. It deletes the cluster in StormForge. A cluster that fails to delete stays registered.
 
 ## Notes
