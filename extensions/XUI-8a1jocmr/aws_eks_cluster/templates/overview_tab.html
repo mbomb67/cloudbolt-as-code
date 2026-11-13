@@ -2,12 +2,12 @@
 {% include "aws_eks_cluster/templates/_assets.html" %}
 
 <div id="eksx-overview" class="eksx">
-  {# ── Cluster hero: identity from the resource's custom fields, live state loaded below ── #}
-  <div class="eks-card">
+  {# ── Page header: identity from the resource's custom fields ── #}
+  <div class="eks-flat">
     <div class="eks-hero-top">
       <div>
-        <div class="eks-eyebrow">{% trans "Amazon EKS cluster" %}</div>
-        <div class="eks-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="eks-eyebrow"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {% trans "Amazon EKS cluster" %}</div>
+        <div class="eks-title">{{ cluster_name }}</div>
         <div class="eks-sub">{{ region|default:"" }}{% if handler_name %} &middot; {{ handler_name }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
       </div>
       <div class="eks-tools">
@@ -21,12 +21,13 @@
         </button>
       </div>
     </div>
-
-    <div data-eks-panel="cluster" data-eks-src="{{ cluster_url }}"></div>
   </div>
 
-  {# ── Add-ons: the panel renders its own card header ── #}
-  <div class="eks-card" data-eks-panel="addons" data-eks-src="{{ addons_url }}"></div>
+  {# ── Live state: banners, then the details card ── #}
+  <div data-eks-panel="cluster" data-eks-src="{{ cluster_url }}"></div>
+
+  {# ── Add-ons: the panel renders its own heading and table ── #}
+  <div class="eks-flat" data-eks-panel="addons" data-eks-src="{{ addons_url }}"></div>
 </div>
 
 <script>
