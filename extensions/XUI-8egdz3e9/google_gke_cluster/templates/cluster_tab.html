@@ -2,12 +2,12 @@
 {% include "google_gke_cluster/templates/_assets.html" %}
 
 <div id="gkex-cluster" class="gkex">
-  {# ── Cluster identity from the resource's custom fields; live state loads below ── #}
-  <div class="gke-card">
+  {# ── Page header: identity from the resource's custom fields; live state loads below ── #}
+  <div class="gke-flat">
     <div class="gke-hero-top">
       <div>
-        <div class="gke-eyebrow">{% trans "Google Kubernetes Engine" %}</div>
-        <div class="gke-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-eyebrow"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {% trans "Google Kubernetes Engine" %}</div>
+        <div class="gke-title">{{ cluster_name }}</div>
         <div class="gke-sub">{{ project|default:"" }}{% if location %} &middot; {{ location }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
       </div>
       <div class="gke-tools">
@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  {# ── Basics, Upgrades, properties, and features: the panel renders its own cards ── #}
+  {# ── Banners, basics, Upgrades and properties as cards, features as a flat table: the panel renders them ── #}
   <div data-gke-panel="cluster" data-gke-src="{{ cluster_url }}" data-gke-loading="Google Cloud"></div>
 </div>
 

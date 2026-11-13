@@ -5,6 +5,40 @@
 </div>
 {% else %}
 
+{# ── Banners: running jobs, then what GKE reports ── #}
+{% if jobs %}
+<div class="gke-banner gke-banner-info">
+  <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+  <div class="gke-banner-body">
+    <div class="gke-banner-t">
+      {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
+    </div>
+    <ul class="gke-issues">
+      {% for job in jobs %}
+      <li>
+        <span class="gke-pill gke-pill-live"><i class="bi bi-arrow-repeat gke-spin" aria-hidden="true"></i> {{ job.status }}</span>
+        <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
+        {% if job.label %}<span class="gke-muted">&middot; {{ job.label }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if cluster.conditions or cluster.status_message %}
+<div class="gke-banner{% if cluster.status.style == 'bad' %} gke-banner-bad{% endif %}">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div class="gke-banner-body">
+    <div class="gke-banner-t">{% trans "GKE reports" %}</div>
+    <ul class="gke-issues">
+      {% if cluster.status_message %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ cluster.status_message }}</li>{% endif %}
+      {% for message in cluster.conditions %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ message }}</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 {# ── Cluster basics, in the Google Cloud console's order ── #}
 <div class="gke-card">
   <div class="gke-card-h">
@@ -19,39 +53,6 @@
       {% endif %}
     </div>
   </div>
-
-  {% if jobs %}
-  <div class="gke-banner gke-banner-info">
-    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-    <div class="gke-banner-body">
-      <div class="gke-banner-t">
-        {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
-      </div>
-      <ul class="gke-issues">
-        {% for job in jobs %}
-        <li>
-          <span class="gke-pill gke-pill-live"><i class="bi bi-arrow-repeat gke-spin" aria-hidden="true"></i> {{ job.status }}</span>
-          <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
-          {% if job.label %}<span class="gke-muted">&middot; {{ job.label }}</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if cluster.conditions or cluster.status_message %}
-  <div class="gke-banner{% if cluster.status.style == 'bad' %} gke-banner-bad{% endif %}">
-    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-    <div class="gke-banner-body">
-      <div class="gke-banner-t">{% trans "GKE reports" %}</div>
-      <ul class="gke-issues">
-        {% if cluster.status_message %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ cluster.status_message }}</li>{% endif %}
-        {% for message in cluster.conditions %}<li><i class="bi bi-dot" aria-hidden="true"></i> {{ message }}</li>{% endfor %}
-      </ul>
-    </div>
-  </div>
-  {% endif %}
 
   <div class="gke-ess">
     <dl>
@@ -285,7 +286,7 @@
 </div>
 
 {# ── Features ── #}
-<div class="gke-card">
+<div class="gke-flat">
   <div class="gke-card-h">
     <span class="gke-card-t">{% trans "Features" %}</span>
   </div>
@@ -318,9 +319,9 @@
 </div>
 
 {% if warnings %}
-<div class="gke-note">
+<div class="gke-flat"><div class="gke-note">
   {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
-</div>
+</div></div>
 {% endif %}
 
 {% endif %}

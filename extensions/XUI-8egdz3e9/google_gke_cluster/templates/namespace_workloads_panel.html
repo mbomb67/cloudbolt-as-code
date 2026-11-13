@@ -12,13 +12,11 @@
 {% endfor %}
 
 {# ── Summary ── #}
-<div class="gke-card">
-  <div class="gke-stats">
-    <div class="gke-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="gke-muted">/ {{ workloads|length }}</span></div></div>
-    <div class="gke-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="gke-muted">/ {{ pods|length }}</span></div></div>
-    <div class="gke-stat"><div class="k">{% trans "Services and ingresses" %}</div><div class="v">{{ endpoints|length }}</div></div>
-    <div class="gke-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
-  </div>
+<div class="gke-stats">
+  <div class="gke-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="gke-muted">/ {{ workloads|length }}</span></div></div>
+  <div class="gke-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="gke-muted">/ {{ pods|length }}</span></div></div>
+  <div class="gke-stat"><div class="k">{% trans "Services and ingresses" %}</div><div class="v">{{ endpoints|length }}</div></div>
+  <div class="gke-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
 </div>
 
 {# ── Quota usage ── #}
@@ -70,7 +68,7 @@
 </details>
 
 {# ── Workloads ── #}
-<details class="gke-card gke-fold" open>
+<details class="gke-flat gke-fold" open>
   <summary class="gke-card-h">
     <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
     <span class="gke-card-t">{% trans "Deployments, StatefulSets and DaemonSets" %} &middot; {{ workloads|length }}</span>
@@ -99,7 +97,7 @@
 </details>
 
 {# ── Pods ── #}
-<details class="gke-card gke-fold" open>
+<details class="gke-flat gke-fold" open>
   <summary class="gke-card-h">
     <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
     <span class="gke-card-t">{% trans "Pods" %} &middot; {{ pods|length }}</span>
@@ -135,7 +133,7 @@
 </details>
 
 {# ── Services and ingresses ── #}
-<details class="gke-card gke-fold" open>
+<details class="gke-flat gke-fold" open>
   <summary class="gke-card-h">
     <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
     <span class="gke-card-t">{% trans "Services and ingresses" %} &middot; {{ endpoints|length }}</span>
@@ -165,7 +163,7 @@
 </details>
 
 {# ── Storage ── #}
-<details class="gke-card gke-fold"{% if claims %} open{% endif %}>
+<details class="gke-flat gke-fold"{% if claims %} open{% endif %}>
   <summary class="gke-card-h">
     <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
     <span class="gke-card-t">{% trans "Persistent volume claims" %} &middot; {{ claims|length }}</span>
@@ -193,7 +191,7 @@
 </details>
 
 {# ── Warning events ── #}
-<details class="gke-card gke-fold"{% if events %} open{% endif %}>
+<details class="gke-flat gke-fold"{% if events %} open{% endif %}>
   <summary class="gke-card-h">
     <i class="bi bi-chevron-right gke-chevron" aria-hidden="true"></i>
     <span class="gke-card-t">{% trans "Recent warning events" %} &middot; {{ warning_count }}</span>
