@@ -42,7 +42,7 @@
 {% if kube_error %}
 <div class="sfx-card"><div class="sfx-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ kube_error }}</div></div></div>
 {% else %}
-<div class="sfx-card">
+<div class="sfx-card sfx-flat">
   <div class="sfx-toolbar"><span class="sfx-set-t">Agent pods</span>
     <span class="sfx-muted" style="font-size:12.5px">namespace stormforge-system &middot; credential Secret stormforge-auth {% if secret_present %}written <span title="{{ secret_written_stamp }}">{{ secret_written }}</span>{% if secret_owner %} by {{ secret_owner }}{% endif %}{% else %}missing{% endif %}</span>
   </div>

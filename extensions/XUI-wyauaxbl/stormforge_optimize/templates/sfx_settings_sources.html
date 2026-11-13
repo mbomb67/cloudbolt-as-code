@@ -37,7 +37,7 @@
 {% endif %}
 
 {% if groups %}
-<div class="sfx-card">
+<div class="sfx-card sfx-flat">
   <div class="sfx-table-wrap">
     <table class="sfx-table sfx-src-table">
       <thead><tr><th>Setting</th><th>Value</th><th>Set at</th><th>Other values</th></tr></thead>
@@ -93,7 +93,7 @@
 <details class="sfx-fold" open>
   <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Agent behavior</span></summary>
   <div class="sfx-intro">Values of the agent's Helm chart that decide which namespaces StormForge watches and how it applies recommendations. They change with the Install or Upgrade StormForge Agent action or a Helm upgrade.</div>
-  <div class="sfx-card">
+  <div class="sfx-card sfx-flat">
     <div class="sfx-table-wrap">
       <table class="sfx-table">
         <tbody>
@@ -108,7 +108,7 @@
 <details class="sfx-fold">
   <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-h">Order of precedence</span></summary>
   <div class="sfx-intro">The StormForge cluster agent applies these sources in order; each one overrides the ones above it.</div>
-  <div class="sfx-card">
+  <div class="sfx-card sfx-flat">
     <div class="sfx-table-wrap">
       <table class="sfx-table">
         <thead><tr><th></th><th>Source</th><th>Level</th><th>Applies to</th></tr></thead>

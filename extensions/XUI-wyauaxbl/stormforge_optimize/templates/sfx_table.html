@@ -5,7 +5,7 @@
   [data-sfx-table-body], so the search box keeps focus while typing.
 {% endcomment %}
 {% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}{% with t=table_ctx %}
-<div class="sfx-card" data-sfx-table="{{ t.table }}" data-sfx-q="{{ t.params.q }}" data-sfx-sort="{{ t.params.sort }}" data-sfx-dir="{{ t.params.dir }}" data-sfx-offset="{{ t.params.offset }}" data-sfx-limit="{{ t.params.limit }}" data-sfx-ns="{{ t.ns|default:'' }}" data-sfx-filterable="{% if t.filterable %}1{% endif %}">
+<div class="sfx-card sfx-flat" data-sfx-table="{{ t.table }}" data-sfx-q="{{ t.params.q }}" data-sfx-sort="{{ t.params.sort }}" data-sfx-dir="{{ t.params.dir }}" data-sfx-offset="{{ t.params.offset }}" data-sfx-limit="{{ t.params.limit }}" data-sfx-ns="{{ t.ns|default:'' }}" data-sfx-filterable="{% if t.filterable %}1{% endif %}">
   <div class="sfx-toolbar">
     <label class="visually-hidden" for="sfx-search-{{ resource.id }}-{{ t.table }}">Search</label>
     <input id="sfx-search-{{ resource.id }}-{{ t.table }}" type="search" class="form-control form-control-sm" data-sfx-search

@@ -1,5 +1,5 @@
 {% comment %}Workloads tab: one workload (Summary, Recommendation, Patches, Settings), or the cluster's workload table.{% endcomment %}
-<div class="sfx-card">
+<div class="sfx-card sfx-flat">
   <div class="sfx-hero">
     <div>
       <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
@@ -90,13 +90,13 @@
         {% if group %}<div class="sfx-hint">Recommendation computed from: {{ group|join:", " }}</div>{% endif %}
       </div>
       <div class="sfx-card" style="padding:0">
-        <div class="sfx-card-t" style="padding:14px 18px 0">Status Messages</div>
+        <div class="sfx-card-t" style="padding:24px 24px 0">Status Messages</div>
         <ul class="sfx-msgs">
           {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% empty %}<li class="sfx-muted">None</li>{% endfor %}
         </ul>
       </div>
     </div>
-    <div class="sfx-card">
+    <div class="sfx-card sfx-flat">
       <div class="sfx-table-wrap">
         <table class="sfx-table">
           <thead><tr><th>Resource</th><th>Per-Pod Requests<div class="sfx-hint">Current → Recommended</div></th><th>Total Requests ({{ replicas }} replica{{ replicas_plural|yesno:"s," }})<div class="sfx-hint">Current → Recommended</div></th><th class="sfx-impact-col">Total Impact ({{ replicas }} replica{{ replicas_plural|yesno:"s," }})</th></tr></thead>
@@ -130,7 +130,7 @@
   <div data-sfx-pane="recommendation" hidden>
     <div class="sfx-h">Container Values</div>
     <div class="sfx-intro">Values based on the recommendation generated {{ generated|default:"--" }}.</div>
-    <div class="sfx-card">
+    <div class="sfx-card sfx-flat">
       <div class="sfx-table-wrap">
         <table class="sfx-table">
           <thead><tr><th>Container Name</th><th>CPU Requests<div class="sfx-hint">Current → Recommended</div></th><th>Memory Requests<div class="sfx-hint">Current → Recommended</div></th></tr></thead>
@@ -141,7 +141,7 @@
               <td>Req: {{ c.cpu_req }} <span class="sfx-dir-{{ c.cpu_req_change.dir|default:'none' }}">{{ c.cpu_req_change.pct }}{% if c.cpu_req_change.dir == "down" %} <i class="bi bi-caret-down-fill"></i>{% elif c.cpu_req_change.dir == "up" %} <i class="bi bi-caret-up-fill"></i>{% endif %}</span><div class="sfx-hint">Lim: {{ c.cpu_lim }}</div></td>
               <td>Req: {{ c.mem_req }} <span class="sfx-dir-{{ c.mem_req_change.dir|default:'none' }}">{{ c.mem_req_change.pct }}{% if c.mem_req_change.dir == "down" %} <i class="bi bi-caret-down-fill"></i>{% elif c.mem_req_change.dir == "up" %} <i class="bi bi-caret-up-fill"></i>{% endif %}</span><div class="sfx-hint">Lim: {{ c.mem_lim }}</div></td>
             </tr>
-            <tr><td colspan="3" style="background:none">
+            <tr><td colspan="3" style="box-shadow:none">
               <div class="sfx-settings-grid">{% for b in c.charts %}<div>{% include "stormforge_optimize/templates/sfx_bars.html" %}</div>{% endfor %}</div>
             </td></tr>
           {% empty %}<tr><td colspan="3" class="sfx-empty">StormForge has no container values for this workload yet.</td></tr>{% endfor %}
