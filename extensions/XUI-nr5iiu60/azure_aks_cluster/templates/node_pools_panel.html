@@ -6,7 +6,7 @@
 {% else %}
 
 {# ── Node pools, with the Azure portal's columns ── #}
-<div class="aks-card">
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Node pools" %} &middot; {{ rows|length }}</span>
     <div class="aks-card-tools">
@@ -54,7 +54,7 @@
           </td>
           <td class="aks-nowrap">{% if r.min is not None %}{{ r.min }}&ndash;{{ r.max }}{% else %}<span class="aks-muted">&mdash;</span>{% endif %}</td>
           <td>
-            {% if r.mode == "System" %}<span class="badge bg-dark">{% trans "System" %}</span>{% elif r.mode %}<span class="badge bg-secondary">{{ r.mode }}</span>{% endif %}
+            {% if r.mode == "System" %}<span class="aks-tag aks-tag-info">{% trans "System" %}</span>{% elif r.mode %}<span class="aks-tag">{{ r.mode }}</span>{% endif %}
           </td>
           <td class="aks-nowrap">{{ r.os_type }}{% if r.os_sku %}<div class="aks-hint">{{ r.os_sku }}</div>{% endif %}</td>
           <td class="aks-nowrap">
@@ -95,7 +95,7 @@
 </div>
 
 {# ── Nodes, read through the cluster's container orchestrator ── #}
-<div class="aks-card">
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Nodes" %}{% if not nodes_error %} &middot; {{ nodes|length }}{% endif %}</span>
     {% if nodes %}
