@@ -23,7 +23,7 @@
   <div class="sfx-card">
     <div class="sfx-card-t"><i class="bi bi-graph-down-arrow" aria-hidden="true" style="font-size:15px"></i> Recommendation Impact</div>
     <div class="sfx-impact">
-      <span class="h sfx-muted" style="font-size:11px;text-transform:uppercase">{{ s.impact_label }}</span><span></span>
+      <span class="h">{{ s.impact_label }}</span><span></span>
       <span class="big {% if s.impact_cost_dir == 'up' %}bad{% else %}good{% endif %}">{{ s.impact_cost }} <span class="sfx-unit">/mo.</span></span>
       <span class="sfx-dir-{{ s.impact_cost_dir|default:'none' }}">{{ s.impact_cost_pct }} {% if s.impact_cost_dir == "down" %}<i class="bi bi-caret-down-fill"></i>{% elif s.impact_cost_dir == "up" %}<i class="bi bi-caret-up-fill"></i>{% endif %}</span>
       <span>{{ s.impact_cpu }} <span class="sfx-unit">Cores</span></span>

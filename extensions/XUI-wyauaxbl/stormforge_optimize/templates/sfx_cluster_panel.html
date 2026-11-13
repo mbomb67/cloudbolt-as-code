@@ -1,5 +1,5 @@
 {% comment %}Clusters tab: header, the three cards, More Information, then Namespaces / Nodes / Config / Agent / Settings.{% endcomment %}
-<div class="sfx-card">
+<div class="sfx-card sfx-flat">
   <div class="sfx-hero">
     <div>
       <div class="sfx-eyebrow"><img src="{{ icon }}" alt=""> StormForge</div>
@@ -77,7 +77,7 @@
           </tbody>
         </table>
       </div>
-      <div class="sfx-section sfx-grid" style="padding:14px 20px">
+      <div class="sfx-section sfx-grid" style="padding:20px 24px">
         <div><div class="k">Provider</div><div class="v">{{ config.provider|default:"--" }}</div></div>
         <div><div class="k">CPU cost estimate</div><div class="v">{% if config.cpu_cost %}${{ config.cpu_cost }} per core-hour{% else %}--{% endif %}</div></div>
         <div><div class="k">Memory cost estimate</div><div class="v">{% if config.memory_cost %}${{ config.memory_cost }} per GiB-hour{% else %}--{% endif %}</div></div>
