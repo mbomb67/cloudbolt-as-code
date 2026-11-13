@@ -4,7 +4,7 @@
     "icon_url": "",
     "id": "XUI-nr5iiu60",
     "label": "Azure AKS Cluster",
-    "last_updated": "2026-10-21",
+    "last_updated": "2026-11-13",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "azure_aks_cluster",

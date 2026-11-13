@@ -2,11 +2,11 @@
 {% include "aws_eks_cluster/templates/_assets.html" %}
 
 <div id="eksx-ns-workloads" class="eksx">
-  <div class="eks-card">
+  <div class="eks-flat">
     <div class="eks-hero-top">
       <div>
-        <div class="eks-eyebrow">{% trans "Workloads" %}</div>
-        <div class="eks-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="eks-eyebrow"><i class="bi bi-boxes" aria-hidden="true"></i> {% trans "Workloads" %}</div>
+        <div class="eks-title">{{ namespace }}</div>
         <div class="eks-sub">{% if cluster_name %}{% trans "On cluster" %} {{ cluster_name }} &middot; {% endif %}{% trans "Read-only inventory, read live from the cluster" %}</div>
       </div>
       <div class="eks-tools">
