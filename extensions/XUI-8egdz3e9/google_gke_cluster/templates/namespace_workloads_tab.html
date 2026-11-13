@@ -2,11 +2,11 @@
 {% include "google_gke_cluster/templates/_assets.html" %}
 
 <div id="gkex-ns-workloads" class="gkex">
-  <div class="gke-card">
+  <div class="gke-flat">
     <div class="gke-hero-top">
       <div>
-        <div class="gke-eyebrow">{% trans "Workloads" %}</div>
-        <div class="gke-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="gke-eyebrow"><i class="bi bi-boxes" aria-hidden="true"></i> {% trans "Workloads" %}</div>
+        <div class="gke-title">{{ namespace }}</div>
         <div class="gke-sub">{% if cluster_name %}{% trans "On cluster" %} {{ cluster_name }} &middot; {% endif %}{% trans "Read-only inventory, read live from the cluster" %}</div>
       </div>
       <div class="gke-tools">
