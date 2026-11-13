@@ -1,42 +1,56 @@
 {% comment %}
-  Shared styles and panel loader for the AWS EKS Cluster tabs.
+  Shared styles and panel loader for the AWS EKS tabs.
   Styles are inline and theme-safe: tokens derive from --bs-primary /
-  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
-  resource pages, so Branded Themes re-theme the tabs without an asset build.
+  --bs-body-color / --surface like CloudBolt's own order and resource pages,
+  so Branded Themes and dark mode re-theme the tabs without an asset build.
+  Cards are set off from the tab by a transparent overlay of the theme's text
+  color (a background and a border, never opacity, so text keeps its color).
+  Blocks marked eks-flat, the page headers and the tables, have no fill or
+  frame and sit on the tab's own surface.
 {% endcomment %}
 <style>
   .eksx {
-    --eks-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --eks-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
     --eks-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
-    --eks-line: var(--neutral-250, #E2E8ED);
-    --eks-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --eks-card: color-mix(in srgb, var(--bs-body-color, #212529) 10%, transparent);
+    --eks-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --eks-rule: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent);
+    --eks-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
     --eks-primary: var(--bs-primary, #0d6efd);
     --eks-ok: var(--bs-success, #198754);
     --eks-warn: var(--bs-warning, #ffc107);
     --eks-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
     --eks-bad: var(--bs-danger, #dc3545);
   }
-  .eksx .eks-card { background: var(--surface, #fff); border: 1px solid var(--eks-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-  .eksx .eks-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
-  .eksx .eks-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--eks-muted); }
-  .eksx .eks-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
-  .eksx .eks-title .bi { color: var(--eks-primary); }
-  .eksx .eks-sub { font-size: 12.5px; font-weight: 600; color: var(--eks-muted); margin-top: 2px; }
+  .eksx .eks-card { background: var(--eks-card); border: 1px solid var(--eks-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .eksx .eks-flat { margin-bottom: 26px; }
+  .eksx .eks-flat > .eks-hero-top { padding: 0; }
+  .eksx .eks-flat > .eks-card-h { padding: 0 0 12px; border-bottom: 0; }
+  .eksx .eks-flat > .eks-note { padding: 12px 0 0; }
+  .eksx .eks-flat > .eks-empty { text-align: left; padding: 0 0 4px; }
+  .eksx .eks-flat > .eks-alert { background: var(--eks-card); border: 1px solid var(--eks-line); border-radius: 12px; }
+  .eksx .eks-hero-top { display: flex; gap: 16px; align-items: flex-start; padding: 20px 24px; flex-wrap: wrap; }
+  .eksx .eks-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--eks-muted); }
+  .eksx .eks-eyebrow .bi { font-size: 14px; color: var(--eks-primary); }
+  .eksx .eks-title { font-size: 27px; font-weight: 800; line-height: 1.2; margin-top: 4px; overflow-wrap: anywhere; }
+  .eksx .eks-sub { font-size: 13.5px; font-weight: 600; color: var(--eks-muted); margin-top: 6px; }
   .eksx .eks-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .eksx .eks-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--eks-line); border-top: 1px solid var(--eks-line); }
-  .eksx .eks-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .eksx .eks-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px 24px; padding: 20px 24px; }
+  .eksx .eks-meta .cell { min-width: 0; }
   .eksx .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--eks-muted); margin-bottom: 3px; }
   .eksx .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
-  .eksx .eks-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--eks-line); flex-wrap: wrap; }
-  .eksx .eks-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--eks-muted); }
+  .eksx .eks-card-h { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--eks-line); flex-wrap: wrap; }
+  .eksx .eks-card-t { font-size: 16px; font-weight: 700; }
   .eksx .eks-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .eksx .eks-card-tools .form-control { width: 220px; max-width: 100%; }
-  .eksx .eks-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
-  .eksx .eks-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--eks-muted); padding: 10px 18px; border-bottom: 1px solid var(--eks-line); text-align: left; white-space: nowrap; }
-  .eksx .eks-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
-  .eksx .eks-table tbody tr:last-child td { border-bottom: 0; }
-  .eksx .eks-table tbody tr:hover td { background: var(--eks-surface-2); }
-  .eksx .eks-table tfoot td { padding: 10px 18px; border-top: 1px solid var(--eks-line); font-weight: 700; color: var(--eks-soft); }
+  .eksx .eks-table { width: 100%; font-size: 13.5px; border-collapse: collapse; margin: 0; }
+  .eksx .eks-table th { font-size: 12.5px; font-weight: 700; color: var(--bs-body-color, #212529); padding: 16px 10px; border-bottom: 1px solid var(--eks-rule); text-align: left; white-space: nowrap; vertical-align: bottom; }
+  .eksx .eks-table td { padding: 16px 10px; border-bottom: 1px solid var(--eks-rule); vertical-align: middle; font-weight: 600; }
+  .eksx .eks-table tbody tr:hover td { box-shadow: inset 0 0 0 999px var(--eks-surface-2); }
+  .eksx .eks-table tfoot td { font-weight: 700; color: var(--eks-soft); }
+  .eksx .eks-card .eks-table tr > :first-child { padding-left: 24px; }
+  .eksx .eks-card .eks-table tr > :last-child { padding-right: 24px; }
+  .eksx .eks-card .eks-table tbody tr:last-child td { border-bottom: 0; }
   .eksx .eks-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--eks-soft); }
   .eksx .eks-pill-ok { background: color-mix(in srgb, var(--eks-ok) 14%, transparent); color: var(--eks-ok); }
   .eksx .eks-pill-warn { background: color-mix(in srgb, var(--eks-warn) 22%, transparent); color: var(--eks-warn-text); }
@@ -50,12 +64,12 @@
   .eksx .eks-hint { font-size: 11.5px; color: var(--eks-muted); font-weight: 600; margin-top: 3px; }
   .eksx .eks-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
   .eksx .eks-nowrap { white-space: nowrap; }
-  .eksx .eks-empty { color: var(--eks-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
-  .eksx .eks-banner { display: flex; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--eks-line); background: color-mix(in srgb, var(--eks-warn) 12%, var(--surface, #fff)); }
+  .eksx .eks-empty { color: var(--eks-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px 24px; }
+  .eksx .eks-banner { --eks-tint: var(--eks-warn); display: flex; gap: 12px; padding: 16px 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--eks-tint) 35%, transparent); background: color-mix(in srgb, var(--eks-tint) 12%, transparent); }
   .eksx .eks-banner > .bi { font-size: 18px; color: var(--eks-warn-text); flex: 0 0 auto; margin-top: 2px; }
-  .eksx .eks-banner-info { background: color-mix(in srgb, var(--eks-primary) 9%, var(--surface, #fff)); }
+  .eksx .eks-banner-info { --eks-tint: var(--eks-primary); }
   .eksx .eks-banner-info > .bi { color: var(--eks-primary); }
-  .eksx .eks-banner-bad { background: color-mix(in srgb, var(--eks-bad) 9%, var(--surface, #fff)); }
+  .eksx .eks-banner-bad { --eks-tint: var(--eks-bad); }
   .eksx .eks-banner-bad > .bi { color: var(--eks-bad); }
   .eksx .eks-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
   .eksx .eks-banner-body { flex: 1; min-width: 0; }
@@ -65,10 +79,10 @@
   .eksx .eks-issues li { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; }
   .eksx .eks-issues li .bi { color: var(--eks-warn-text); flex: 0 0 auto; margin-top: 2px; }
   .eksx .eks-issues li .eks-mono { font-size: 11.5px; color: var(--eks-muted); }
-  .eksx .eks-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--eks-bad); overflow-wrap: anywhere; }
+  .eksx .eks-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--eks-bad); overflow-wrap: anywhere; }
   .eksx .eks-alert .bi { flex: 0 0 auto; margin-top: 2px; }
-  .eksx .eks-note { padding: 8px 22px 12px; font-size: 12px; color: var(--eks-muted); font-weight: 600; }
-  .eksx .eks-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--eks-muted); display: flex; align-items: center; gap: 8px; }
+  .eksx .eks-note { padding: 12px 24px; font-size: 12px; color: var(--eks-muted); font-weight: 600; }
+  .eksx .eks-loading { padding: 20px 0; font-size: 12.5px; font-weight: 600; color: var(--eks-muted); display: flex; align-items: center; gap: 8px; }
   .eksx .eks-spin { display: inline-block; animation: eks-spin 1s linear infinite; }
   .eksx .eks-meter { height: 6px; max-width: 150px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 9%, transparent); overflow: hidden; margin-top: 5px; }
   .eksx .eks-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--eks-ok); }
@@ -76,20 +90,22 @@
   .eksx .eks-meter-bad > span { background: var(--eks-bad); }
   .eksx .eks-cond { display: inline-flex; align-items: center; gap: 4px; color: var(--eks-warn-text); font-size: 12px; font-weight: 700; margin-right: 8px; white-space: nowrap; }
   .eksx .eks-row-tools { display: flex; gap: 6px; white-space: nowrap; justify-content: flex-end; }
-  .eksx .eks-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 12px 22px; border-bottom: 1px solid var(--eks-line); }
-  .eksx .eks-stat .k { margin-bottom: 1px; }
-  .eksx .eks-stat .v { font-size: 16px; }
-  .eksx .eks-steps { margin: 0; padding: 12px 22px 4px 40px; }
+  .eksx .eks-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 26px; }
+  .eksx .eks-stat { background: var(--eks-card); border: 1px solid var(--eks-line); border-radius: 12px; padding: 20px 24px; }
+  .eksx .eks-stat .k { margin-bottom: 6px; }
+  .eksx .eks-stat .v { font-size: 24px; font-weight: 700; }
+  .eksx .eks-stat .v .eks-muted { font-size: 13.5px; }
+  .eksx .eks-steps { margin: 0; padding: 16px 24px 4px 44px; }
   .eksx .eks-steps li { margin-bottom: 8px; }
   .eksx .eks-steps code { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--eks-surface-2); color: var(--bs-body-color, #212529); overflow-wrap: anywhere; margin-right: 6px; }
-  .eksx .eks-pre { margin: 0; padding: 14px 22px; max-height: 420px; overflow: auto; background: var(--eks-surface-2); white-space: pre; }
+  .eksx .eks-pre { margin: 0; padding: 16px 24px; max-height: 420px; overflow: auto; background: var(--eks-surface-2); white-space: pre; }
   .eksx details.eks-fold > summary { list-style: none; cursor: pointer; user-select: none; }
   .eksx details.eks-fold > summary::-webkit-details-marker { display: none; }
   .eksx details.eks-fold > summary .eks-chevron { color: var(--eks-muted); transition: transform .15s ease; }
   .eksx details.eks-fold[open] > summary .eks-chevron { transform: rotate(90deg); }
   .eksx details.eks-fold:not([open]) > summary { border-bottom: 0; }
   .eksx details.eks-fold > summary:focus-visible { outline: 2px solid var(--eks-primary); outline-offset: -2px; }
-  .eksx .eks-quota { display: flex; flex-wrap: wrap; gap: 14px 24px; padding: 14px 22px 16px; }
+  .eksx .eks-quota { display: flex; flex-wrap: wrap; gap: 16px 24px; padding: 20px 24px; }
   .eksx .eks-quota-item { flex: 1 1 130px; min-width: 130px; cursor: default; }
   .eksx .eks-quota-item:focus-visible { outline: 2px solid var(--eks-primary); outline-offset: 4px; border-radius: 4px; }
   .eksx .eks-quota-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -117,7 +133,7 @@
       $panel.html('<div class="eks-loading"><i class="bi bi-arrow-repeat eks-spin" aria-hidden="true"></i> Loading from ' + source + '…</div>');
       $panel.load(url, function (response, status, xhr) {
         if (status === "error") {
-          $panel.html('<div class="eks-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div>');
+          $panel.html('<div class="eks-card"><div class="eks-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div></div>');
         } else if (window.c2 && c2.tooltips) {
           c2.tooltips.init($panel);
         }

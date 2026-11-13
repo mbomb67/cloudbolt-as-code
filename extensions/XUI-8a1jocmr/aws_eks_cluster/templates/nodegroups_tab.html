@@ -2,11 +2,11 @@
 {% include "aws_eks_cluster/templates/_assets.html" %}
 
 <div id="eksx-nodegroups" class="eksx">
-  <div class="eks-card">
+  <div class="eks-flat">
     <div class="eks-hero-top">
       <div>
-        <div class="eks-eyebrow">{% trans "Managed node groups" %}</div>
-        <div class="eks-title"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="eks-eyebrow"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {% trans "Managed node groups" %}</div>
+        <div class="eks-title">{{ cluster_name }}</div>
         <div class="eks-sub">{{ region|default:"" }}{% if handler_name %} &middot; {{ handler_name }}{% endif %}</div>
       </div>
       <div class="eks-tools">
@@ -27,7 +27,7 @@
     </div>
   </div>
 
-  <div class="eks-card" data-eks-panel="nodegroups" data-eks-src="{{ nodegroups_url }}"></div>
+  <div class="eks-flat" data-eks-panel="nodegroups" data-eks-src="{{ nodegroups_url }}"></div>
 </div>
 
 <script>

@@ -1,4 +1,31 @@
 {% load i18n helper_tags %}
+{% if error %}
+<div class="eks-card">
+  {% include "aws_eks_cluster/templates/_alert.html" %}
+</div>
+{% else %}
+<div class="eks-card">
+<div class="eks-meta">
+  <div class="cell">
+    <div class="k">{% trans "Environment" %}</div>
+    <div class="v">{{ environment|link_or_label:profile }}</div>
+  </div>
+  <div class="cell">
+    <div class="k">{% trans "Access" %}</div>
+    <div class="v">
+      {% if state == "unconstrained" %}
+        <span class="eks-pill eks-pill-warn"><i class="bi bi-globe" aria-hidden="true"></i> {% trans "Unconstrained" %}</span>
+      {% elif state == "restricted" %}
+        <span class="eks-pill eks-pill-bad"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Restricted" %}</span>
+      {% else %}
+        <span class="eks-pill eks-pill-ok"><i class="bi bi-people-fill" aria-hidden="true"></i> {% blocktrans count n=rows|length %}{{ n }} group{% plural %}{{ n }} groups{% endblocktrans %}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="eks-flat">
 <div class="eks-card-h">
   <span class="eks-card-t">{% trans "Entitled groups" %}{% if not error and state == "entitled" %} &middot; {{ rows|length }}{% endif %}</span>
   <div class="eks-card-tools">
@@ -17,28 +44,6 @@
     {% endif %}
   </div>
 </div>
-{% if error %}
-  {% include "aws_eks_cluster/templates/_alert.html" %}
-{% else %}
-<div class="eks-meta" style="border-top: 0;">
-  <div class="cell">
-    <div class="k">{% trans "Environment" %}</div>
-    <div class="v">{{ environment|link_or_label:profile }}</div>
-  </div>
-  <div class="cell">
-    <div class="k">{% trans "Access" %}</div>
-    <div class="v">
-      {% if state == "unconstrained" %}
-        <span class="eks-pill eks-pill-warn"><i class="bi bi-globe" aria-hidden="true"></i> {% trans "Unconstrained" %}</span>
-      {% elif state == "restricted" %}
-        <span class="eks-pill eks-pill-bad"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Restricted" %}</span>
-      {% else %}
-        <span class="eks-pill eks-pill-ok"><i class="bi bi-people-fill" aria-hidden="true"></i> {% blocktrans count n=rows|length %}{{ n }} group{% plural %}{{ n }} groups{% endblocktrans %}</span>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
 {% if state == "unconstrained" %}
 <div class="eks-banner">
   <i class="bi bi-globe" aria-hidden="true"></i>
@@ -94,5 +99,6 @@
   {% else %}
   <div><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with action=manage_action %}Changing these groups needs permission to run {{ action }} on this cluster.{% endblocktrans %}</div>
   {% endif %}
+</div>
 </div>
 {% endif %}

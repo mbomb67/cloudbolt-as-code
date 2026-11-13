@@ -1,6 +1,8 @@
 {% load i18n %}
 {% if error %}
+<div class="eks-card">
   {% include "aws_eks_cluster/templates/_alert.html" %}
+</div>
 {% else %}
 
 {% if jobs %}
@@ -55,6 +57,7 @@
 </div>
 {% endif %}
 
+<div class="eks-card">
 <div class="eks-meta">
   <div class="cell">
     <div class="k">{% trans "Status" %}</div>
@@ -136,11 +139,11 @@
     <div class="v eks-mono">{{ cluster.arn|default:"&mdash;" }}</div>
   </div>
 </div>
-
 {% if warnings %}
 <div class="eks-note">
   {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
 </div>
 {% endif %}
+</div>
 
 {% endif %}
