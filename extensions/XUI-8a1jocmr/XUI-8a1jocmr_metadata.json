@@ -4,7 +4,7 @@
     "icon_url": "",
     "id": "XUI-8a1jocmr",
     "label": "AWS EKS Cluster",
-    "last_updated": "2026-10-15",
+    "last_updated": "2026-11-13",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "aws_eks_cluster",
