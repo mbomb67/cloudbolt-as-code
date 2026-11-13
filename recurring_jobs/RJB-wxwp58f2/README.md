@@ -1,6 +1,6 @@
 # Refresh CloudBolt Engine Budgets
 
-Recurring job that keeps the CloudBolt Engine budgets of groups current: it creates any budget still waiting for its tag to appear in billing data, then refreshes each group's budget snapshot and month-end trend that the group's Budgets tab shows. Calls CloudBolt Engine read and write APIs through the `cloudbolt_engine` shared module.
+Recurring job that keeps the CloudBolt Engine budgets of groups current: it creates any budget still waiting for its tags to appear in billing data, then refreshes each group's budget snapshot and month-end trend that the group's Budgets tab shows. Calls CloudBolt Engine read and write APIs through the `cloudbolt_engine` shared module.
 
 ## Contents
 | Role | ID | Name |

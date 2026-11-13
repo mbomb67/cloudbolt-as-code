@@ -51,6 +51,11 @@
   .ebx .ebx-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
   .ebx .ebx-form .ebx-wide { grid-column: 1 / -1; }
   .ebx .ebx-form label { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; display: block; }
+  .ebx .ebx-tags { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .ebx .ebx-tags legend { font-size: 12.5px; font-weight: 700; margin: 0 0 2px; float: none; width: auto; padding: 0; }
+  .ebx .ebx-tag-rows { display: grid; gap: 8px; margin: 8px 0; }
+  .ebx .ebx-tag-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .ebx .ebx-tag-list code { margin-right: 2px; }
   .ebx .ebx-help { font-size: 12px; color: var(--ebx-muted); margin-top: 3px; }
   .ebx .ebx-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .ebx .alert { font-size: 13.5px; }
@@ -390,6 +395,81 @@ window.ebxInit = function (rootId, cfg) {
     }
     return null;
   }
+  function sameTags(a, b) {
+    if (a.length !== b.length) { return false; }
+    return a.every(function (tag, i) { return tag.key === b[i].key && tag.value === b[i].value; });
+  }
+  // One row per tag (key and value), 1 to MAX_TAGS rows.
+  var MAX_TAGS = 5;
+  function tagsEditor(prefix, initialTags) {
+    var helpId = prefix + "-tags-help";
+    var rowsEl = h("div", { cls: "ebx-tag-rows" });
+    var rows = [];
+    var counter = 0;
+    var addButton = h("button", { type: "button", cls: "btn btn-sm btn-outline-secondary" }, [icon("bi-plus-lg"), " Add tag"]);
+    function relabel() {
+      rows.forEach(function (row, i) {
+        row.key.setAttribute("aria-label", "Tag " + (i + 1) + " key");
+        row.value.setAttribute("aria-label", "Tag " + (i + 1) + " value");
+        row.remove.setAttribute("aria-label", "Remove tag " + (i + 1));
+        row.remove.disabled = rows.length < 2;
+      });
+      addButton.disabled = rows.length >= MAX_TAGS;
+    }
+    function addRow(tag, focus) {
+      var n = counter++;
+      var row = {};
+      row.key = h("input", { id: prefix + "-tag" + n + "-key", cls: "form-control form-control-sm", type: "text", placeholder: "Key", autocomplete: "off", "data-help": helpId });
+      row.value = h("input", { id: prefix + "-tag" + n + "-value", cls: "form-control form-control-sm", type: "text", placeholder: "Value", autocomplete: "off", "data-help": helpId });
+      row.key.value = tag.key || "";
+      row.value.value = tag.value || "";
+      row.remove = h("button", { type: "button", cls: "btn btn-sm btn-outline-secondary" }, [icon("bi-x-lg")]);
+      row.remove.onclick = function () {
+        var at = rows.indexOf(row);
+        rowsEl.removeChild(row.el);
+        rows.splice(at, 1);
+        relabel();
+        rows[Math.min(at, rows.length - 1)].key.focus();
+      };
+      row.el = h("div", { cls: "ebx-tag-row" }, [row.key, row.value, row.remove]);
+      rows.push(row);
+      rowsEl.appendChild(row.el);
+      relabel();
+      if (focus) { row.key.focus(); }
+    }
+    (initialTags && initialTags.length ? initialTags : [{ key: "", value: "" }]).forEach(function (tag) { addRow(tag, false); });
+    addButton.onclick = function () { if (rows.length < MAX_TAGS) { addRow({ key: "", value: "" }, true); } };
+    var node = h("fieldset", { cls: "ebx-wide ebx-tags", "aria-describedby": helpId }, [
+      h("legend", { text: "Tags" }),
+      h("p", { cls: "ebx-help", id: helpId, text: "The budget counts only cost data that carries every tag listed. Keys and values must match exactly, including upper and lower case. A tag key must already appear in CloudBolt Engine's cost data before the budget is created." }),
+      rowsEl,
+      h("div", { cls: "ebx-actions" }, [addButton])
+    ]);
+    return {
+      node: node,
+      get: function () {
+        return rows.map(function (row) { return { key: row.key.value.trim(), value: row.value.value.trim() }; });
+      },
+      // The whole group is invalid: every input, with the error text tied to each, and focus on the first key.
+      markInvalid: function (errorId) {
+        rows.forEach(function (row) {
+          [row.key, row.value].forEach(function (el) {
+            el.setAttribute("aria-invalid", "true");
+            el.setAttribute("aria-describedby", errorId + " " + helpId);
+          });
+        });
+        node.setAttribute("aria-describedby", errorId + " " + helpId);
+        rows[0].key.focus();
+      },
+      firstEmpty: function () {
+        for (var i = 0; i < rows.length; i++) {
+          if (!rows[i].key.value.trim()) { return rows[i].key; }
+          if (!rows[i].value.value.trim()) { return rows[i].value; }
+        }
+        return rows[0].key;
+      }
+    };
+  }
   function budgetForm(mode) {
     var st = ui.state;
     var reg = st.registration || {};
@@ -431,27 +511,45 @@ window.ebxInit = function (rootId, cfg) {
     inputs.description.value = initial.description;
     kids.push(field(prefix + "-desc", mode === "create" ? "Description (optional)" : "Description", inputs.description, null, true));
 
+    // Tags: chosen when the budget is set, editable while it is pending, fixed once Engine has the budget.
+    var tagsEd = null;
+    var initialTags = (reg.tags || []).map(function (tag) { return { key: tag.key, value: tag.value }; });
+    if (mode === "create") {
+      tagsEd = tagsEditor(prefix, ((st.defaults && st.defaults.tags) || []).map(function (tag) { return { key: tag.key, value: tag.value }; }));
+    } else if (!reg.active) {
+      tagsEd = tagsEditor(prefix, initialTags);
+    }
+    if (tagsEd) {
+      kids.push(tagsEd.node);
+    } else {
+      kids.push(h("p", { cls: "ebx-wide ebx-help", text: "Tags cannot be changed on a budget that exists in CloudBolt Engine. To change them, remove the budget and set it again." }));
+    }
+
+    var sending = false;
     var submit = h("button", { type: "submit", cls: "btn btn-sm btn-primary", disabled: ui.busy }, [icon(mode === "create" ? "bi-plus-lg" : "bi-check-lg"), " ", mode === "create" ? "Set budget" : "Save changes"]);
     var cancel = mode === "edit" ? button("Cancel", "btn-outline-secondary", null, function () { ui.editing = false; ui.focus = "edit"; render(); }) : null;
     kids.push(h("div", { cls: "ebx-wide ebx-actions" }, [submit, cancel]));
     kids.push(h("div", { cls: "ebx-wide" }, [message]));
 
     // Show an error tied to the input it is about (aria-invalid, aria-describedby) and move focus there.
-    function setError(text, input) {
-      Object.keys(inputs).forEach(function (key) {
-        inputs[key].removeAttribute("aria-invalid");
-        var help = inputs[key].id + "-help";
-        if (document.getElementById(help)) { inputs[key].setAttribute("aria-describedby", help); }
-        else { inputs[key].removeAttribute("aria-describedby"); }
+    function setError(text, input, tagGroup) {
+      if (tagsEd) { tagsEd.node.setAttribute("aria-describedby", prefix + "-tags-help"); }
+      Array.prototype.forEach.call(form.querySelectorAll("[aria-invalid]"), function (el) {
+        el.removeAttribute("aria-invalid");
+        var help = el.getAttribute("data-help") || el.id + "-help";
+        if (document.getElementById(help)) { el.setAttribute("aria-describedby", help); }
+        else { el.removeAttribute("aria-describedby"); }
       });
       message.textContent = "";
       var errorId = prefix + "-error";
       var box = alertBox("danger", [text], true);
       box.id = errorId;
       message.appendChild(box);
-      if (input) {
+      if (tagGroup && tagsEd) {
+        tagsEd.markInvalid(errorId);
+      } else if (input) {
         input.setAttribute("aria-invalid", "true");
-        var helpId = input.id + "-help";
+        var helpId = input.getAttribute("data-help") || input.id + "-help";
         input.setAttribute("aria-describedby", errorId + (document.getElementById(helpId) ? " " + helpId : ""));
         input.focus();
       } else {
@@ -463,6 +561,7 @@ window.ebxInit = function (rootId, cfg) {
     var form = h("form", { cls: "ebx-form", novalidate: true }, kids);
     form.onsubmit = function (event) {
       event.preventDefault();
+      if (sending) { return; }
       var amount = inputs.amount.value.trim();
       var name = inputs.name.value.trim();
       var description = inputs.description.value.trim();
@@ -479,11 +578,21 @@ window.ebxInit = function (rootId, cfg) {
         if (name !== initial.name) { payload.name = name; }
         if (description !== initial.description) { payload.description = description; }
       }
+      var tags = tagsEd ? tagsEd.get() : null;
+      if (tags) {
+        if (mode === "create") { payload.tags = tags; }
+        else if (!sameTags(tags, initialTags)) { payload.tags = tags; }
+      }
       if (!amount || !(parseFloat(amount) > 0)) { setError("Enter a monthly amount greater than zero.", inputs.amount); return; }
       if (!name) { setError("Enter a budget name.", inputs.name); return; }
       if (mode === "create" && !/^[A-Z]{3}$/.test(payload.currency)) { setError("Enter the currency as three letters, for example USD.", inputs.currency); return; }
-      if (mode === "edit" && !Object.keys(payload).length) { setError("Nothing has changed. Change the amount, name or description, or cancel.", null); return; }
+      if (tags && tags.some(function (tag) { return !tag.key || !tag.value; })) {
+        setError("Fill in a key and a value for every tag, or remove the row.", tagsEd.firstEmpty());
+        return;
+      }
+      if (mode === "edit" && !Object.keys(payload).length) { setError("Nothing has changed. Change the amount, name, description or tags, or cancel.", null); return; }
       message.textContent = "";
+      sending = true;
       submit.disabled = true;
       call("POST", mode === "create" ? cfg.urls.register : cfg.urls.update, payload).then(function (result) {
         if (isState(result)) {
@@ -495,9 +604,11 @@ window.ebxInit = function (rootId, cfg) {
           ui.warning = result.body.warning || "";
           render();
         } else {
+          sending = false;
           submit.disabled = false;
           var text = failureText(result, "The budget could not be saved.");
-          setError(text, guessField(text, inputs));
+          var tagError = !result.ok && result.body.field === "tags" && tagsEd;
+          setError(text, tagError ? null : guessField(text, inputs), !!tagError);
         }
       });
     };
@@ -524,12 +635,14 @@ window.ebxInit = function (rootId, cfg) {
   }
 
   // ---- Sections ----------------------------------------------------------
-  function tagNote(st) {
-    var d = st.defaults || {};
-    var reg = st.registration;
-    return [
-      "The budget counts only cost data tagged ", code(reg ? reg.tag_key : d.tag_key), " = ", code(reg ? reg.tag_value : d.tag_value), "."
-    ];
+  // Tags as key = value pairs, built from text nodes.
+  function tagList(tags) {
+    var kids = [];
+    (tags || []).forEach(function (tag, i) {
+      if (i) { kids.push(", "); }
+      kids.push(code(tag.key), " = ", code(tag.value));
+    });
+    return h("span", { cls: "ebx-tag-list" }, kids);
   }
   function cardShell(titleText, subText, tools) {
     return h("div", { cls: "ebx-hero" }, [
@@ -566,7 +679,7 @@ window.ebxInit = function (rootId, cfg) {
       return simpleCard("Budget", [h("p", { text: "No budget is set for this group." })]);
     }
     return simpleCard("Set a budget", [
-      h("p", {}, tagNote(st).concat([" Tag this group's cloud resources with that key and value; the budget is created in CloudBolt Engine once cost data carrying the tag arrives."])),
+      h("p", { text: "The budget is created in CloudBolt Engine once cost data that carries the tags below arrives." }),
       budgetForm("create")
     ]);
   }
@@ -577,9 +690,13 @@ window.ebxInit = function (rootId, cfg) {
     var kids = [
       alertBox("info", [
         h("strong", { text: "Waiting for cost data. " }),
-        "The budget will be created in CloudBolt Engine as soon as cost data carrying the tag ", code(reg.tag_key), " = ", code(reg.tag_value),
-        " arrives. Cost data lags about two days."
+        "The budget will be created in CloudBolt Engine as soon as cost data that carries every tag below arrives. Cost data lags about two days."
       ]),
+      h("p", {}, [h("strong", { text: reg.tags && reg.tags.length > 1 ? "Tags: " : "Tag: " }), tagList(reg.tags)]),
+      (reg.missing_tags && reg.missing_tags.length) ? alertBox("warning", [
+        h("strong", { text: "No cost data has these tag keys yet: " }), reg.missing_tags.join(", "),
+        ". A key typed differently from the cloud tag, including upper and lower case, never arrives, so check the spelling."
+      ]) : null,
       h("p", {}, [h("strong", { text: "Pending budget: " }), money(p.amount, p.currency || "USD"), " a month, named ", h("em", { text: p.name || "" }), "."])
     ];
     if (st.can_manage) {
@@ -652,7 +769,7 @@ window.ebxInit = function (rootId, cfg) {
     out.push(hero);
 
     out.push(h("p", { cls: "ebx-meta" }, [
-      h("span", {}, ["Tag ", code(reg.tag_key), " = ", code(reg.tag_value)]),
+      h("span", {}, [reg.tags && reg.tags.length > 1 ? "Tags " : "Tag ", tagList(reg.tags)]),
       snap && snap.fetched_at ? h("span", { text: "Fetched " + timeLabel(snap.fetched_at) }) : null
     ]));
 

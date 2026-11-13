@@ -2,8 +2,9 @@
 CloudBolt shared module: CloudBolt Engine budgets.
 
 CloudBolt Engine is CloudBolt's FinOps service. This module gives a CMP Group a
-budget in Engine that counts only the cost rows whose cloud tag
-(cloudbolt_group by default) equals a per-group value, and keeps a snapshot of
+budget in Engine that counts only the cost rows carrying every one of the
+group's tags (1 to 5 key/value pairs; by default cloudbolt_group equal to a
+per-group value), and keeps a snapshot of
 that budget's performance and month-end trend next to the group so the CMP UI
 does not call Engine on every page view.
 
@@ -43,6 +44,8 @@ checked against the Engine source:
 - Budget errors are {"error": "<code>", "detail": "<text>"}; cost-explorer
   errors are {"error": "<text>"} (validation adds "details"); token errors are
   the OAuth form {"error": ..., "error_description": ...}.
+- Budget filters are ANDed, one value per filter, so a tag-scoped budget
+  carries one EQUALS filter per tag.
 - Budget periods are breakpoints ({"month": "YYYY-MM", "amount": ...}); PATCH
   replaces the whole periods list and the whole filters list.
 - Cost-explorer rows at day granularity carry the day under
@@ -582,6 +585,24 @@ def _serialize(document):
     return json.dumps(document, indent=2)
 
 
+def _upgrade_document(document):
+    """Registration documents once held one tag as tag_key, tag_value and
+    tag_field; convert such a document to the tags list on read."""
+    if "tags" not in document and "tag_key" in document:
+        document["tags"] = [
+            {
+                "key": document.get("tag_key"),
+                "value": document.get("tag_value"),
+                "field": document.get("tag_field"),
+            }
+        ]
+    for old in ("tag_key", "tag_value", "tag_field"):
+        document.pop(old, None)
+    document.setdefault("tags", [])
+    document.setdefault("missing_tags", [])
+    return document
+
+
 def _group_fragment(gid):
     """The text _serialize produces for the group key; lets a lookup narrow
     the rows in the database before parsing any JSON."""
@@ -614,7 +635,7 @@ def _rows(field, gid=None):
             logger.warning("Ignoring duplicate CloudBolt Engine registration for %s", document["group"])
             continue
         seen.add(document["group"])
-        rows.append((cfv, document))
+        rows.append((cfv, _upgrade_document(document)))
     return rows
 
 
@@ -628,7 +649,9 @@ def _write(cfv, document):
 def get_registration(group):
     """The registration document for this group (a Group or its global ID), or
     None. For a pending registration `snapshot` is None until the first
-    refresh, then a snapshot built from the pending request (no Engine data)."""
+    refresh, then a snapshot built from the pending request (no Engine data).
+    `tags` is [{"key", "value", "field"}] (field null until its dimension was
+    found in Engine) and `missing_tags` the keys not found at the last check."""
     gid = _gid(group)
     rows = _rows(_existing_field(), gid)
     return rows[0][1] if rows else None
@@ -690,23 +713,93 @@ def _slug(text):
 
 
 def default_tag_value(group):
-    """The tag value for this group: its stored one when it is registered
-    (never changes, even if the group is renamed), else a lowercase slug of
-    its name using a-z 0-9 _ -, at most 63 characters, made unique across
-    registrations by appending the group's global ID suffix. One scan of the
-    store."""
+    """The value of the default tag (DEFAULT_TAG_KEY) for this group: its
+    stored one when it is registered with that tag (never changes, even if the
+    group is renamed), else a lowercase slug of its name using a-z 0-9 _ -, at
+    most 63 characters, made unique across registrations by appending the
+    group's global ID suffix. One scan of the store."""
     gid = _gid(group)
     registrations = list_registrations()
     for document in registrations:
         if document["group"] == gid:
-            return document["tag_value"]
+            for tag in document["tags"]:
+                if tag["key"] == DEFAULT_TAG_KEY:
+                    return tag["value"]
     base = _slug(getattr(group, "name", "")) or "group"
-    taken = {d["tag_value"] for d in registrations}
+    taken = {
+        tag["value"] for d in registrations for tag in d["tags"] if tag["key"] == DEFAULT_TAG_KEY
+    }
     if base not in taken:
         return base
     suffix = re.sub(r"[^a-z0-9]", "", gid.split("-", 1)[-1].lower()) or "x"
     tail = "-" + suffix
     return base[: TAG_VALUE_MAX - len(tail)].rstrip("-_") + tail
+
+
+def default_tags(group):
+    """The tags a budget gets when none are chosen: DEFAULT_TAG_KEY equal to
+    the group's default tag value."""
+    return [{"key": DEFAULT_TAG_KEY, "value": default_tag_value(group)}]
+
+
+MAX_TAGS = 5
+TAG_VALUE_LIMIT = 255
+
+
+def validate_tags(tags):
+    """The tags as a normalized list of {"key", "value"}, or EngineError with
+    one plain sentence. 1 to 5 entries; key and value are non-empty strings,
+    trimmed of surrounding whitespace and otherwise kept exactly as typed
+    (Engine matches both exactly and case-sensitively); a key must be one
+    Engine can report on and is at most 256 characters; a value is at most 255
+    characters; no key twice, and no two keys that Engine reports under the
+    same cost field (two filters on one field with different values would
+    match nothing)."""
+    if not isinstance(tags, (list, tuple)) or not 1 <= len(tags) <= MAX_TAGS:
+        raise EngineError("A budget needs between 1 and {} tags.".format(MAX_TAGS))
+    cleaned, seen, fields = [], set(), {}
+    for tag in tags:
+        if not isinstance(tag, dict) or not isinstance(tag.get("key"), str) or not isinstance(tag.get("value"), str):
+            raise EngineError("Each tag needs a key and a value, both text.")
+        key, value = tag["key"].strip(), tag["value"].strip()
+        if not key or not value:
+            raise EngineError("Each tag needs a key and a value; neither can be empty.")
+        if len(key) > TAG_KEY_MAX:
+            raise EngineError("A tag key can be at most {} characters.".format(TAG_KEY_MAX))
+        if not tag_dimension_name(key):
+            raise EngineError("The tag key '{}' cannot be used as a budget tag.".format(key[:60]))
+        if len(value) > TAG_VALUE_LIMIT:
+            raise EngineError("A tag value can be at most {} characters.".format(TAG_VALUE_LIMIT))
+        if key in seen:
+            raise EngineError("The tag key '{}' is listed more than once.".format(key[:60]))
+        seen.add(key)
+        field = tag_dimension_name(key)
+        if field in fields:
+            raise EngineError(
+                "The tag keys '{}' and '{}' are the same cost field in CloudBolt Engine, so a budget "
+                "cannot use both.".format(fields[field][:60], key[:60])
+            )
+        fields[field] = key
+        cleaned.append({"key": key, "value": value})
+    return cleaned
+
+
+def _identity(tags):
+    return [(t["key"], t["value"]) for t in tags or []]
+
+
+def _resolve_tags(client, tags):
+    """([{"key", "value", "field"}], [keys with no dimension in Engine]) from
+    one available-fields call for all of the tags."""
+    group_by = set(client.available_fields().get("groupBy") or [])
+    resolved, missing = [], []
+    for tag in tags:
+        name = tag_dimension_name(tag["key"])
+        field = name if name in group_by else None
+        resolved.append({"key": tag["key"], "value": tag["value"], "field": field})
+        if field is None:
+            missing.append(tag["key"])
+    return resolved, missing
 
 
 def default_budget_name(group):
@@ -765,12 +858,9 @@ def _clean_amount(amount):
     return value.quantize(CENT)
 
 
-def _filter_for(registration):
-    return {
-        "field": registration["tag_field"],
-        "operator": "EQUALS",
-        "value": registration["tag_value"],
-    }
+def _filters_for(tags):
+    """One EQUALS budget filter per tag, in order (Engine ANDs them)."""
+    return [{"field": t["field"], "operator": "EQUALS", "value": t["value"]} for t in tags]
 
 
 def _sync_budget(client, budget_id, current, name=None, description=None, amount=None):
@@ -798,16 +888,20 @@ def _create_remote(client, registration):
     """Create the Engine budget for a registration that has `pending` and a
     tag field. When Engine says the name is taken (budget_name_conflict), a
     budget of that name from an earlier attempt that stopped before saving is
-    adopted if its filter matches, and its amount is corrected to the pending
+    adopted if its complete filter set matches, and its amount is corrected to the pending
     one."""
     pending = registration["pending"]
-    wanted = _filter_for(registration)
+    tags = registration.get("tags") or []
+    if not tags or any(not t.get("field") for t in tags):
+        # A budget with no filters would count the whole organization's spend.
+        raise EngineError("This budget has no tags, so it cannot be created. Remove it and set it again.")
+    wanted = _filters_for(tags)
     amount = _clean_amount(pending["amount"])
     payload = {
         "name": pending["name"],
         "currency": pending.get("currency") or "USD",
         "periods": [{"month": _month_key(_utc_today()), "amount": _money(amount)}],
-        "filters": [wanted],
+        "filters": wanted,
     }
     if pending.get("description"):
         payload["description"] = pending["description"]
@@ -820,15 +914,11 @@ def _create_remote(client, registration):
             if summary.get("name") != pending["name"]:
                 continue
             budget = client.get_budget(summary["id"])
-            if not any(
-                f.get("field") == wanted["field"]
-                and f.get("operator") == "EQUALS"
-                and f.get("value") == wanted["value"]
-                for f in budget.get("filters") or []
-            ):
+            have = sorted((f.get("field"), f.get("operator"), f.get("value")) for f in budget.get("filters") or [])
+            if not wanted or have != sorted((f["field"], f["operator"], f["value"]) for f in wanted):
                 raise EngineError(
                     "A budget named '{}' already exists in CloudBolt Engine and does not filter "
-                    "on this group's tag. Rename or delete it there, then try again.".format(pending["name"])
+                    "on this group's tags. Rename or delete it there, then try again.".format(pending["name"])
                 )
             _sync_budget(client, budget["id"], budget, amount=amount)
             return budget
@@ -839,15 +929,16 @@ def _create_remote(client, registration):
 # Group operations
 # =============================================================================
 def register_group(
-    group, connection_ref, amount, currency="USD", name=None, description=None, tag_key=DEFAULT_TAG_KEY
+    group, connection_ref, amount, currency="USD", name=None, description=None, tags=None
 ):
     """
     Give a group an Engine budget of `amount` for the current month that
-    counts only cost rows tagged tag_key = the group's tag value. The Engine
-    budget is created now when the tag key already has a dimension in Engine's
-    billing data; otherwise the request is stored as `pending` and
-    ensure_budget creates it once the dimension appears. Returns the
-    registration document.
+    counts only cost rows carrying every one of `tags` (see validate_tags;
+    None means default_tags(group)). The registration is stored first as
+    `pending`, then ensure_budget creates the Engine budget as soon as every
+    tag has a dimension in Engine's billing data, which may be right away.
+    Returns the registration document (pending, with `missing_tags`, when
+    some tag is not in Engine yet).
 
     The registration is saved before anything is created in Engine. If
     creating the budget then fails, the registration stays (pending) so the
@@ -859,14 +950,11 @@ def register_group(
     currency = str(currency or "USD").strip().upper()
     if not re.match(r"^[A-Z]{3}$", currency):
         raise EngineError("The currency must be a three-letter code such as USD.")
-    tag_key = str(tag_key or DEFAULT_TAG_KEY).strip()
-    if not tag_dimension_name(tag_key):
-        raise EngineError("'{}' is not a tag key CloudBolt Engine can report on.".format(tag_key[:60]))
+    chosen = validate_tags(tags) if tags is not None else None
     budget_name = (name or "").strip() or default_budget_name(group)
     if len(budget_name) > 255:
         raise EngineError("The budget name can be at most 255 characters.")
-    client = EngineClient(connection)
-    tag_field = client.find_tag_field(tag_key)
+    EngineClient(connection)  # fail early on an incomplete connection
     now = _now_iso()
     with _locked() as field:
         if _rows(field, gid):
@@ -875,9 +963,8 @@ def register_group(
             "group": gid,
             "connection": connection.global_id,
             "budget_id": None,
-            "tag_key": tag_key,
-            "tag_value": default_tag_value(group),
-            "tag_field": tag_field,
+            "tags": [dict(t, field=None) for t in (chosen or default_tags(group))],
+            "missing_tags": [],
             "pending": {
                 "name": budget_name,
                 "amount": _money(value),
@@ -889,21 +976,19 @@ def register_group(
             "updated_at": now,
         }
         _write(CustomFieldValue(field=field), document)
-    if tag_field:
-        try:
-            return ensure_budget(gid)
-        except EngineError as exc:
-            raise EngineError(
-                "{} The budget request is saved for this group and the scheduled refresh will retry it.".format(
-                    str(exc).rstrip()
-                ),
-                status=exc.status,
-                code=exc.code,
-            )
-    return document
+    try:
+        return ensure_budget(gid)
+    except EngineError as exc:
+        raise EngineError(
+            "{} The budget request is saved for this group and the scheduled refresh will retry it.".format(
+                str(exc).rstrip()
+            ),
+            status=exc.status,
+            code=exc.code,
+        )
 
 
-def update_group_budget(group, amount=None, name=None, description=None):
+def update_group_budget(group, amount=None, name=None, description=None, tags=None):
     """
     Change the group's budget. None means unchanged for all three arguments;
     name "" is also unchanged; description "" clears the description. A new
@@ -911,11 +996,15 @@ def update_group_budget(group, amount=None, name=None, description=None):
     replaced or added and the full period list is sent, but only when it
     differs from the amount Engine already has for the month; nothing is sent
     to Engine when nothing changes. While the budget is still pending, only the
-    stored request changes (no call to Engine). The snapshot is refreshed
-    afterwards. Returns the registration document.
+    stored request changes (no call to Engine). `tags` (see validate_tags) can
+    be changed only while the budget is pending; for a budget that exists
+    EngineError says to remove it and set it again (the same tags are
+    accepted). The snapshot is refreshed afterwards. Returns the registration
+    document.
     """
     gid = _gid(group)
     _require_registration(gid)
+    new_tags = validate_tags(tags) if tags is not None else None
     new_amount = _clean_amount(amount) if amount is not None else None
     new_name = (name or "").strip() if name is not None else ""
     if len(new_name) > 255:
@@ -939,6 +1028,9 @@ def update_group_budget(group, amount=None, name=None, description=None):
         if new_description is not None:
             pending["description"] = new_description or None
         doc["pending"] = pending
+        if new_tags is not None and _identity(doc.get("tags")) != _identity(new_tags):
+            doc["tags"] = [dict(t, field=None) for t in new_tags]
+            doc["missing_tags"] = []
         snapshot = doc.get("snapshot")
         if snapshot and isinstance(snapshot.get("budget"), dict) and not snapshot["budget"].get("id"):
             snapshot["budget"]["name"] = pending.get("name")
@@ -949,6 +1041,10 @@ def update_group_budget(group, amount=None, name=None, description=None):
     document = _save_registration(gid, apply)
     if not outcome.get("remote"):
         return document
+    if new_tags is not None and _identity(document.get("tags")) != _identity(new_tags):
+        raise EngineError(
+            "To change the tags of a budget that already exists, remove the budget and set it again."
+        )
 
     client = _client_for(document)
     current = _budget_call(client.get_budget, document["budget_id"])
@@ -986,27 +1082,46 @@ def remove_group_budget(group, delete_remote=True):
 
 
 def ensure_budget(group):
-    """Create the Engine budget of a pending registration once the tag field
-    exists in Engine. Returns the registration (still pending, without
-    raising, when the field has not appeared yet). Pending values edited while
-    the budget was being created are applied to the new budget."""
+    """Create the Engine budget of a pending registration once every tag has
+    a dimension in Engine (one available-fields call for all tags). Returns
+    the registration; while some tag is not in Engine yet it stays pending
+    with `missing_tags` naming those keys, without raising. The budget gets
+    one EQUALS filter per tag. Pending values edited while the budget was
+    being created are applied to the new budget."""
     gid = _gid(group)
     document = _require_registration(gid)
     if document.get("budget_id"):
         return document
     if not document.get("pending"):
         raise EngineError("Group {} has no budget to create.".format(gid))
+    if not document.get("tags"):
+        raise EngineError("This budget has no tags, so it cannot be created. Remove it and set it again.")
     client = _client_for(document)
-    tag_field = client.find_tag_field(document["tag_key"])
-    if not tag_field:
-        return document
+    sent_tags = [dict(t) for t in document["tags"]]
+    resolved, missing = _resolve_tags(client, sent_tags)
+    if missing:
+        def note(doc):
+            if doc.get("budget_id") or _identity(doc["tags"]) != _identity(sent_tags):
+                return False
+            if doc["tags"] == resolved and doc.get("missing_tags") == missing:
+                return False
+            doc["tags"] = resolved
+            doc["missing_tags"] = missing
+
+        return _save_registration(gid, note)
     sent = dict(document["pending"])
-    budget = _create_remote(client, dict(document, tag_field=tag_field))
+    budget = _create_remote(client, dict(document, tags=resolved))
     later = {}
+    conflict = []
 
     def apply(doc):
-        doc["tag_field"] = tag_field
+        # Whatever was edited meanwhile, the registration must carry the tags
+        # the Engine budget was created with.
+        if _identity(doc["tags"]) != _identity(sent_tags):
+            conflict.append(True)
+        doc["tags"] = resolved
         doc["budget_id"] = budget["id"]
+        doc["missing_tags"] = []
         if doc.get("pending") != sent:
             later.update(doc.get("pending") or {})
         doc["pending"] = None
@@ -1021,6 +1136,11 @@ def ensure_budget(group):
             later.get("name"),
             later.get("description") or "",
             _clean_amount(later["amount"]) if later.get("amount") else None,
+        )
+    if conflict:
+        raise EngineError(
+            "The tags were not changed because the budget was created in CloudBolt Engine at the "
+            "same moment. To use different tags, remove the budget and set it again."
         )
     return saved
 
@@ -1041,7 +1161,7 @@ def refresh_snapshot(group):
     It does not raise for Engine or upstream failures: the message goes to
     the snapshot's `error`, the previous data is kept, and that snapshot is
     returned. It raises EngineError only when the group has no registration.
-    A registration still waiting for the tag field gets a snapshot built from
+    A registration still waiting for its tags gets a snapshot built from
     its pending request (error null, trend status no_data).
     """
     gid = _gid(group)
@@ -1145,14 +1265,16 @@ def _build_snapshot(document):
         amount = _money(_amount_for_month(budget.get("periods"), this_month))
 
     window_start = first - timedelta(days=TREND_RATE_DAYS)
-    tag_field = document["tag_field"]
+    tags = document["tags"]
+    if not tags or any(not t.get("field") for t in tags):
+        raise EngineError("The budget's tags are incomplete. Remove the budget and set it again.")
     body = {
         "dataSource": "FOCUS",
-        "groupBy": [tag_field],
+        "groupBy": [tags[0]["field"]],
         "metrics": ["billed_cost"],
         "dateRange": {"from": window_start.isoformat(), "to": today.isoformat()},
         "granularity": "day",
-        "filters": [{"member": tag_field, "operator": "equals", "values": [document["tag_value"]]}],
+        "filters": [{"member": t["field"], "operator": "equals", "values": [t["value"]]} for t in tags],
         "limit": COST_QUERY_LIMIT,
     }
     daily = _daily_from_rows((client.query_costs(body) or {}).get("data") or [])
@@ -1233,8 +1355,8 @@ def refresh_all():
                     {
                         "group": gid,
                         "ok": True,
-                        "message": "Waiting for the {} tag to appear in billing data; budget not created yet.".format(
-                            ensured["tag_key"]
+                        "message": "Waiting for cost data carrying the tag(s) {}; budget not created yet.".format(
+                            ", ".join(ensured.get("missing_tags") or [t["key"] for t in ensured["tags"]])
                         ),
                     }
                 )

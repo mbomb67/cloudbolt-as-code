@@ -2,7 +2,7 @@
 Refresh CloudBolt Engine Budgets
 
 Recurring job body. For every group that has a CloudBolt Engine budget it
-creates the budget if it is still waiting for its tag to appear in billing
+creates the budget if it is still waiting for its tags to appear in billing
 data, then reads the budget's performance and the group's daily cost from
 CloudBolt Engine and stores the snapshot (including the month-end trend) that
 the group's Budgets tab shows. All Engine access is in the cloudbolt_engine

@@ -52,6 +52,7 @@ VIEWER_REFRESH_AFTER = timedelta(minutes=5)
 
 MAX_NAME = 255  # the shared module's limit
 MAX_DESCRIPTION = 500
+MAX_TAGS = 5
 MAX_AMOUNT = Decimal("1000000000000")
 
 MODULE_MISSING = (
@@ -77,7 +78,13 @@ class ApiFailure(Exception):
 
 
 class InputError(Exception):
-    """A request value failed validation; the message is shown to the person."""
+    """A request value failed validation; the message is shown to the person.
+
+    field names the form section the message is about (for example "tags")."""
+
+    def __init__(self, message, field=None):
+        super().__init__(message)
+        self.field = field
 
 
 def _engine():
@@ -204,7 +211,7 @@ def _api(method):
             except ApiFailure as exc:
                 return _json_error(exc.status, str(exc))
             except InputError as exc:
-                return _json_error(400, str(exc))
+                return _json_error(400, str(exc), field=exc.field) if exc.field else _json_error(400, str(exc))
             except Exception as exc:
                 engine = None
                 try:
@@ -286,6 +293,23 @@ def _text(value, label, limit):
     return text
 
 
+def _tags(engine, value):
+    """Validated scoping tags: a list of at most MAX_TAGS objects with string key and value."""
+    if not isinstance(value, list) or not value:
+        raise InputError("Enter at least one tag.", field="tags")
+    if len(value) > MAX_TAGS:
+        raise InputError("Use at most {} tags.".format(MAX_TAGS), field="tags")
+    cleaned = []
+    for item in value:
+        if not isinstance(item, dict) or not isinstance(item.get("key"), str) or not isinstance(item.get("value"), str):
+            raise InputError("Each tag needs a key and a value.", field="tags")
+        cleaned.append({"key": item["key"], "value": item["value"]})
+    try:
+        return engine.validate_tags(cleaned)
+    except engine.EngineError as exc:
+        raise InputError(str(exc), field="tags")
+
+
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
@@ -318,8 +342,9 @@ def _registration_out(registration, connections, manage):
     snapshot = registration.get("snapshot") or {}
     budget = snapshot.get("budget") or {}
     out = {
-        "tag_key": registration.get("tag_key"),
-        "tag_value": registration.get("tag_value"),
+        # key and value only; the Engine field name is internal.
+        "tags": [{"key": t.get("key"), "value": t.get("value")} for t in registration.get("tags") or []],
+        "missing_tags": list(registration.get("missing_tags") or []),
         "pending": (
             {
                 "name": pending.get("name"),
@@ -382,8 +407,7 @@ def _build_state(profile, group, engine, extra=None):
         state["connections"] = connections
         state["defaults"] = {
             "budget_name": engine.default_budget_name(group),
-            "tag_key": engine.DEFAULT_TAG_KEY,
-            "tag_value": engine.default_tag_value(group),
+            "tags": [{"key": t["key"], "value": t["value"]} for t in engine.default_tags(group)],
             "currency": "USD",
         }
     state.update(extra or {})
@@ -438,11 +462,14 @@ def api_register(request, group_id):
         raise InputError("Choose one of the CloudBolt Engine connections in the list.")
     amount = _amount(data.get("amount"))
     currency = _currency(data.get("currency") or "USD")
+    tags = _tags(engine, data["tags"]) if "tags" in data else None
     name = _text(data.get("name"), "budget name", MAX_NAME) or None
     description = _text(data.get("description"), "description", MAX_DESCRIPTION) or None
     warning = ""
     try:
-        engine.register_group(group, connection, amount, currency=currency, name=name, description=description)
+        engine.register_group(
+            group, connection, amount, currency=currency, name=name, description=description, tags=tags
+        )
     except engine.EngineError as exc:
         # The module saves the registration before it creates the Engine budget. If the
         # request is saved (as pending), show the pending state with the message; otherwise
@@ -458,19 +485,40 @@ def api_register(request, group_id):
 
 @_api("POST")
 def api_update(request, group_id):
-    """Only the fields present change. The module refreshes the snapshot itself."""
+    """Only the fields present change. The module refreshes an active budget itself."""
     profile, group = _require_manage(request, group_id)
     engine = _engine()
     data = _body(request)
-    if not engine.get_registration(group):
+    registration = engine.get_registration(group)
+    if not registration:
         raise ApiFailure(409, "This group has no budget to edit.")
     amount = _amount(data["amount"]) if data.get("amount") not in (None, "") else None
     name = (_text(data.get("name"), "budget name", MAX_NAME) or None) if "name" in data else None
     description = _text(data.get("description"), "description", MAX_DESCRIPTION) if "description" in data else None
-    if amount is None and name is None and description is None:
-        raise InputError("Change the amount, name or description.")
-    engine.update_group_budget(group, amount=amount, name=name, description=description)
-    return _state_response(profile, group, engine)
+    tags = None
+    if "tags" in data:
+        if registration.get("budget_id"):
+            raise ApiFailure(
+                409, "Tags cannot be changed once the budget is created. Remove the budget and set it again."
+            )
+        tags = _tags(engine, data["tags"])
+    if amount is None and name is None and description is None and tags is None:
+        raise InputError("Change the amount, name, description or tags.")
+    engine.update_group_budget(group, amount=amount, name=name, description=description, tags=tags)
+    warning = ""
+    if tags is not None:
+        # Re-check a pending budget against Engine now, so a corrected key moves on (or names what is missing)
+        # without waiting for the scheduled refresh.
+        try:
+            registration = engine.ensure_budget(group)
+        except engine.EngineError as exc:
+            # For example "the tags were not changed because the budget was created at the same moment":
+            # the state returned below is the real one.
+            warning = str(exc)
+            registration = engine.get_registration(group)
+        if registration and registration.get("budget_id"):
+            engine.refresh_snapshot(group)
+    return _state_response(profile, group, engine, {"warning": warning} if warning else None)
 
 
 @_api("POST")

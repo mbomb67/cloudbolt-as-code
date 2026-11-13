@@ -10,7 +10,7 @@ Adds a **Budgets** tab to the Group page. It sets a monthly budget for the group
 5. Open a group, select **Budgets**, fill in the **Set a budget** form, and choose **Set budget**.
 
 ## How the budget is scoped
-A budget counts only cost data whose cloud tag `cloudbolt_group` has the value the tab shows. Tag the group's cloud resources with that key and value. CloudBolt Engine creates the budget once the tag appears in billing data; until then the tab shows it as pending. The recurring job refreshes every budget every four hours and creates pending budgets as soon as their tag arrives.
+By default a budget is scoped to the tag `cloudbolt_group` with the value the form shows. You can instead enter one or more tags your resources already carry (up to five). A budget counts only cost data that carries every tag listed, and keys and values must match exactly, including upper and lower case. CloudBolt Engine creates the budget once every tag key appears in billing data; until then the tab shows it as pending and names the keys still missing. The recurring job refreshes every budget every four hours and creates pending budgets as soon as their tags arrive. Tags can be changed while the budget is pending; to change them afterwards, remove the budget and set it again.
 
 ## Who can do what
 - **View:** CB Admins and people with the `group.view` permission on the group.
