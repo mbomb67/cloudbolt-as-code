@@ -5,6 +5,27 @@
 </div>
 {% else %}
 
+{# ── Running jobs ── #}
+{% if jobs %}
+<div class="aks-banner aks-banner-info">
+  <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+  <div class="aks-banner-body">
+    <div class="aks-banner-t">
+      {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
+    </div>
+    <ul class="aks-issues">
+      {% for job in jobs %}
+      <li>
+        <span class="aks-pill aks-pill-live"><i class="bi bi-arrow-repeat aks-spin" aria-hidden="true"></i> {{ job.status }}</span>
+        <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
+        {% if job.label %}<span class="aks-muted">&middot; {{ job.label }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 {# ── Essentials, in the Azure portal's order ── #}
 <div class="aks-card">
   <div class="aks-card-h">
@@ -17,26 +38,6 @@
       {% endif %}
     </div>
   </div>
-
-  {% if jobs %}
-  <div class="aks-banner aks-banner-info">
-    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-    <div class="aks-banner-body">
-      <div class="aks-banner-t">
-        {% blocktrans count n=jobs|length %}A job is running on this cluster{% plural %}{{ n }} jobs are running on this cluster{% endblocktrans %}
-      </div>
-      <ul class="aks-issues">
-        {% for job in jobs %}
-        <li>
-          <span class="aks-pill aks-pill-live"><i class="bi bi-arrow-repeat aks-spin" aria-hidden="true"></i> {{ job.status }}</span>
-          <a href="{{ job.url }}">{% trans "Job" %} {{ job.id }}</a>
-          {% if job.label %}<span class="aks-muted">&middot; {{ job.label }}</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
-  {% endif %}
 
   <div class="aks-ess">
     <dl>
@@ -274,8 +275,8 @@
   </div>
 </div>
 
-{# ── Integrations: managed add-ons, then cluster extensions ── #}
-<div class="aks-card">
+{# ── Integrations: the managed add-ons ── #}
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Integrations" %}</span>
   </div>
@@ -305,7 +306,13 @@
       </tbody>
     </table>
   </div>
-  <div class="aks-sub-h">{% trans "Cluster extensions" %} &middot; {{ extensions|length }}</div>
+</div>
+
+{# ── Cluster extensions ── #}
+<div class="aks-flat">
+  <div class="aks-card-h">
+    <span class="aks-card-t">{% trans "Cluster extensions" %} &middot; {{ extensions|length }}</span>
+  </div>
   {% if extensions %}
   <div class="table-responsive">
     <table class="aks-table">
@@ -337,9 +344,9 @@
 </div>
 
 {% if warnings %}
-<div class="aks-note">
+<div class="aks-flat"><div class="aks-note">
   {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
-</div>
+</div></div>
 {% endif %}
 
 {% endif %}

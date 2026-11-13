@@ -2,12 +2,12 @@
 {% include "azure_aks_cluster/templates/_assets.html" %}
 
 <div id="aksx-cluster" class="aksx">
-  {# ── Cluster identity from the resource's custom fields; live state loads below ── #}
-  <div class="aks-card">
+  {# ── Page header: identity from the resource's custom fields ── #}
+  <div class="aks-flat">
     <div class="aks-hero-top">
       <div>
-        <div class="aks-eyebrow">{% trans "Azure Kubernetes Service" %}</div>
-        <div class="aks-title"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-eyebrow"><i class="bi bi-hexagon-fill" aria-hidden="true"></i> {% trans "Azure Kubernetes Service" %}</div>
+        <div class="aks-title">{{ cluster_name }}</div>
         <div class="aks-sub">{{ resource_group|default:"" }}{% if location %} &middot; {{ location }}{% endif %}{% if environment_name %} &middot; {{ environment_name }}{% endif %}</div>
       </div>
       <div class="aks-tools">
@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  {# ── Essentials, Upgrades, properties, and integrations: the panel renders its own cards ── #}
+  {# ── Live state: banners, the detail cards, then the integration tables ── #}
   <div data-aks-panel="cluster" data-aks-src="{{ cluster_url }}"></div>
 </div>
 

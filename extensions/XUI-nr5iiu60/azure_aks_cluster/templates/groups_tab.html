@@ -2,11 +2,11 @@
 {% include "azure_aks_cluster/templates/_assets.html" %}
 
 <div id="aksx-groups" class="aksx">
-  <div class="aks-card">
+  <div class="aks-flat">
     <div class="aks-hero-top">
       <div>
-        <div class="aks-eyebrow">{% trans "Groups" %}</div>
-        <div class="aks-title"><i class="bi bi-people-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-eyebrow"><i class="bi bi-people-fill" aria-hidden="true"></i> {% trans "Groups" %}</div>
+        <div class="aks-title">{{ cluster_name }}</div>
         <div class="aks-sub">{% trans "CloudBolt groups that may order namespaces on this cluster" %}</div>
       </div>
       <div class="aks-tools">
@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  {# ── Entitled groups: the panel renders its own card ── #}
+  {# ── Entitled groups: the panel renders its own card, heading and table ── #}
   <div data-aks-panel="groups" data-aks-src="{{ groups_url }}" data-aks-loading="CloudBolt"></div>
 </div>
 
