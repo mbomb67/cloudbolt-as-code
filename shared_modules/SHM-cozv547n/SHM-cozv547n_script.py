@@ -55,6 +55,8 @@ import re
 import time
 from collections import OrderedDict
 
+import requests
+
 from accounts.models import Group
 from common.methods import set_progress
 from infrastructure.models import CustomField, Environment
@@ -342,6 +344,11 @@ class NamespaceClient:
             response = send(url, **kwargs)
         except CloudBoltException as exc:
             raise NamespaceError(str(exc))
+        except requests.exceptions.RequestException as exc:
+            # The API server cannot be reached at all (its DNS name is gone
+            # once the cluster is deleted, a timeout, a TLS failure).
+            # https://requests.readthedocs.io/en/latest/api/#requests.RequestException
+            raise NamespaceError(f"Could not reach the Kubernetes API at {self._root}: {exc}")
         if response.status_code == 404:
             return None
         if response.text and response.headers.get("Content-Type", "").startswith("application/json"):
