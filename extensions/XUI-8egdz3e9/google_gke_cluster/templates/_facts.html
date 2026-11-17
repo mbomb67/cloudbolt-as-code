@@ -1,0 +1,14 @@
+{% load i18n helper_tags %}
+{% comment %}
+  What CloudBolt holds about the resource, under the title of the tab that
+  takes the built-in Overview tab's place. Needs resource and profile.
+{% endcomment %}
+<div class="gke-facts">
+  <div><div class="k">{% trans "Owner" %}</div><div class="v">{{ resource.owner|link_or_label:profile }}</div></div>
+  <div><div class="k">{% trans "Group" %}</div><div class="v">{{ resource.group|link_or_label:profile }}</div></div>
+  <div><div class="k">{% trans "Installed" %}</div><div class="v">{{ resource.created|how_long_ago }}</div></div>
+  <div><div class="k">{% trans "Status" %}</div><div class="v">{{ resource.get_lifecycle_display }}</div></div>
+  {% if resource.parent_resource %}
+  <div><div class="k">{{ resource.parent_resource.resource_type.label }}</div><div class="v">{{ resource.parent_resource|link_or_label:profile }}</div></div>
+  {% endif %}
+</div>

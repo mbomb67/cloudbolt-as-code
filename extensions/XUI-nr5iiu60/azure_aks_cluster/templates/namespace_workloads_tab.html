@@ -7,7 +7,7 @@
       <div>
         <div class="aks-eyebrow"><i class="bi bi-boxes" aria-hidden="true"></i> {% trans "Workloads" %}</div>
         <div class="aks-title">{{ namespace }}</div>
-        <div class="aks-sub">{% if cluster_name %}{% trans "On cluster" %} {{ cluster_name }} &middot; {% endif %}{% trans "Read-only inventory, read live from the cluster" %}</div>
+        <div class="aks-sub">{% if cluster_name and not resource.parent_resource %}{% trans "On cluster" %} {{ cluster_name }} &middot; {% endif %}{% trans "Read-only inventory, read live from the cluster" %}</div>
       </div>
       <div class="aks-tools">
         {% if quota_change_url %}
@@ -20,6 +20,7 @@
         </button>
       </div>
     </div>
+    {% include "azure_aks_cluster/templates/_facts.html" %}
   </div>
 
   <div data-aks-panel="namespace-workloads" data-aks-src="{{ workloads_url }}" data-aks-loading="the cluster"></div>

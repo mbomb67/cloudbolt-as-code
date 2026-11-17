@@ -15,6 +15,7 @@
         "forms.py",
         "templates/_assets.html",
         "templates/_alert.html",
+        "templates/_facts.html",
         "templates/overview_tab.html",
         "templates/cluster_panel.html",
         "templates/addons_panel.html",

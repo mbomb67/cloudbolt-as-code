@@ -5,7 +5,7 @@ Adds Connect and Workloads tabs to OpenShift Project resources of the OpenShift 
 - **Connect**: the project's status, display name, cluster, API server, CloudBolt environment, requester, size tier, network isolation (its NetworkPolicies), expiration, and **Open in OpenShift console**; the OpenShift users, groups, and service accounts a RoleBinding in the project names, and the cluster admins; the CloudBolt groups that may order into the project; and the `oc login --web`, `oc project`, and `oc get` commands with copy buttons. **Manage access** in the toolbar.
 - **Workloads**: a read-only inventory: CloudBolt's quota as a row of meters (any other quota object in the project is listed below it), virtual machines with status, IP address, node, and a link to their CloudBolt server, Deployments, StatefulSets and DaemonSets, pods, services, Routes and ingresses, persistent volume claims, and recent warning events. **Request quota change** in the toolbar. It never shows pod logs, Secrets, or ConfigMaps, and has no buttons that change the cluster.
 
-Each button opens CloudBolt's own dialog for the blueprint's Manage Team Access or Request Quota Change action, so approvals, permissions, and job history apply.
+Each button opens CloudBolt's own dialog for the blueprint's Manage Team Access or Request Quota Change action, so approvals, permissions, and job history apply. On CloudBolt 2026.1.73 or later, Workloads takes the place of the built-in Overview tab on a project and shows the resource's owner, group, install date and status under the title; on older versions both tabs follow the built-in ones.
 
 ## Prerequisites
 - CloudBolt 8.6 or later.
