@@ -14,6 +14,7 @@
         "urls.py",
         "templates/_assets.html",
         "templates/_alert.html",
+        "templates/_facts.html",
         "templates/connect_tab.html",
         "templates/connect_panel.html",
         "templates/workloads_tab.html",

@@ -770,6 +770,15 @@ def perform_action(request, server_id):
     }
 ```
 
+### Replacing a built-in tab, and tab order
+
+Verified against `ExtensionManager.merge_tabs` in the CloudBolt source (CMP-3592, 2026.1.73 and later). Working example: `extensions/XUI-8a1jocmr`.
+
+- `tab_extension(replaces="<slug>")` puts the tab in a built-in tab's slot when the delegate's `should_display()` is true; when it is false the built-in tab stays, unless `hide_ootb_tab=True`. Resource detail slugs, in order: `overview`, `servers`, `sub-resources`, `parameters`, `jobs`, `history`, `output`, `power-schedule`, `kubernetes`. A slug the page does not have (Servers on a resource without servers) appends the tab instead. Older appliances reject the argument, so pass it only when `"replaces" in inspect.signature(tab_extension).parameters`.
+- **One slug, one visible tab.** The last extension tab processed that names a slug decides that slot even when it is hidden, which drops another tab's visible replacement and keeps the built-in tab. Tabs that share a slug across resource types (the cluster and namespace tabs of the EKS, AKS, GKE and OpenShift extensions all name `overview`) pass a `str` subclass that is false while their own tab is hidden (`_BuiltInTab` in the example).
+- **There is no order setting.** A tab is placed only by `replaces`; every other extension tab follows the built-in ones, by extension folder (`os.listdir`) and then by view function name (`dir(module)`, alphabetical).
+- **Carry over what the built-in tab showed.** A tab that replaces Overview shows the resource's owner, group, install date, status and parent resource itself (`_facts.html` in the example), with CloudBolt's `link_or_label` and `how_long_ago` filters.
+
 ## 6. Inbound Webhook Plugins
 
 **Purpose:** Synchronous HTTP endpoints (`webhooks/IWH-*` → `dependencies.hook` → `plugins/OHK-*`). Typical use in this repo: serving dropdown options to SurveyJS custom forms via `choicesByUrl`, for fields inside a Dynamic Panel that are not plugin inputs (so `generate_options_for_*` cannot serve them). Runtime contract and auth: [metadata-schemas.md §9](metadata-schemas.md#runtime-contract-verified-against-cloudbolt-source). Working example: `plugins/OHK-fx500o2r` (Form Options) with `shared_modules/SHM-r0oq14r7` (`env_options`).
