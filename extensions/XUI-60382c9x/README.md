@@ -7,7 +7,6 @@ Adds a **Monitoring** server tab that graphs CPU, memory, disk usage, disk I/O, 
 
 ## Prerequisites
 - CloudBolt 8.6 or later.
-- End-user browsers need Internet access to `unpkg.com` for the `lit-html` library unless the airgapped steps in the package readme are followed.
 
 OpenShift Virtualization VMs:
 - CloudBolt can reach the cluster's Thanos Querier route (`thanos-querier` in `openshift-monitoring`) on port 443. It is served by the same ingress as the OpenShift console.
@@ -29,7 +28,7 @@ Then run `collectstatic` (or "Collect Static Assets" on Admin > Extensions) and 
 
 ## Notes
 - The tab appears on OpenShift Virtualization VMs and on servers with the `monitor` tag.
-- For an OpenShift Virtualization VM, the CPU chart shows utilisation instead of load average, memory needs the virtio balloon driver in the guest, and the disk usage chart stays empty unless the QEMU guest agent runs in the guest.
+- For an OpenShift Virtualization VM, the CPU chart shows utilization instead of load average, memory needs the virtio balloon driver in the guest, and the disk usage chart stays empty unless the QEMU guest agent runs in the guest.
 - OpenShift Virtualization VMs are left out of the targets endpoint, because their address is a pod IP that an outside Prometheus cannot reach.
 - A user sees metrics only for servers they are allowed to view.
 - The targets endpoint is unauthenticated (`@login_not_required`) and returns hostnames and private IPs; restrict it at the network level.

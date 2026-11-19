@@ -22,8 +22,13 @@ class ServerTabDelegate(TabExtensionDelegate):
 
 @tab_extension(model=Server, title="Monitoring", delegate=ServerTabDelegate)
 def server_view(request, server_id, **kwargs):
+    server = Server.objects.get(id=server_id)
     return render(request, SERVER_TAB_TEMPLATE, context={
-        "server_id": server_id
+        "server_id": server_id,
+        "hostname": server.hostname,
+        "source_label": (
+            "the OpenShift cluster's monitoring" if is_kubevirt_server(server) else "Prometheus"
+        ),
     })
 
 

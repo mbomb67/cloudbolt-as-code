@@ -31,7 +31,6 @@
         "static/server_tab.js",
         "static/node_health_element.js",
         "static/chart_theme.js",
-        "static/package.json",
         "static/monitoring_dashboard.css",
         "README.md",
         "templates/admin.html",

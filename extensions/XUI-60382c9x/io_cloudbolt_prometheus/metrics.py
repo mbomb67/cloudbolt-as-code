@@ -150,6 +150,8 @@ def _fetch_cpu_load_windows(request, server, ci):
     Frontend multiplies by 100 (same as Linux path) for the chart scale.
     """
     cpu_load_data = {
+        # Naming the series tells the chart these are utilization, not load average.
+        "names": {"load1": "CPU 1 min avg", "load5": "CPU 5 min avg", "load15": "CPU 15 min avg"},
         "load1": [],
         "load5": [],
         "load15": []

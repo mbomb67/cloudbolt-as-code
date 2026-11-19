@@ -1,150 +1,37 @@
-/* Prometheus monitoring tab — scoped to avoid clashing with CloudBolt global styles */
+/* Monitoring tab. Every color derives from CloudBolt's theme tokens, so Branded
+   Themes and dark mode re-theme it. Cards are set off from the tab by a
+   transparent overlay of the theme's text color (a background and a border,
+   never opacity, so text keeps its color); the header sits on the tab's own
+   surface. Same look as the Kubernetes and StormForge tabs. */
 .io-prom-dash {
-    --prom-surface: #ffffff;
-    --prom-surface-muted: #f8fafc;
-    --prom-border: #e2e8f0;
-    --prom-text: #0f172a;
-    --prom-text-muted: #64748b;
-    --prom-accent: #0ea5e9;
-    --prom-gap: 4px;
-    margin: -4px -2px 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --prom-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
+    --prom-card: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
+    --prom-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --prom-primary: var(--bs-primary, #0d6efd);
+    --prom-bad: var(--bs-danger, #dc3545);
 }
 
-/* Dark Branded Theme (data-bs-theme="dark" on <html>): take card, border and
-   text colors from the theme's /portal.css tokens instead of the light palette */
-html[data-bs-theme="dark"] .io-prom-dash {
-    --prom-surface: var(--surface);
-    --prom-surface-muted: var(--neutral-100);
-    --prom-border: var(--neutral-250);
-    --prom-text: var(--bs-body-color);
-    --prom-text-muted: var(--fg-2);
-}
+.io-prom-dash .prom-hero { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 26px; }
+.io-prom-dash .prom-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--prom-muted); }
+.io-prom-dash .prom-eyebrow .bi { font-size: 14px; color: var(--prom-primary); }
+.io-prom-dash .prom-title { font-size: 27px; font-weight: 800; line-height: 1.2; margin-top: 4px; overflow-wrap: anywhere; }
+.io-prom-dash .prom-sub { font-size: 13.5px; font-weight: 600; color: var(--prom-muted); margin-top: 6px; }
+.io-prom-dash .prom-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-html[data-bs-theme="dark"] .io-prom-dash .prom-chart-card:hover {
-    border-color: var(--neutral-400);
-}
+.io-prom-dash .prom-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.io-prom-dash .prom-stat { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; padding: 20px 24px; }
+.io-prom-dash .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--prom-muted); margin-bottom: 6px; }
+.io-prom-dash .v { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 
-html[data-bs-theme="dark"] .io-prom-dash .prom-refresh-btn {
-    background: var(--prom-surface);
-}
+.io-prom-dash .prom-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+.io-prom-dash .prom-card { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; overflow: hidden; min-width: 0; }
+.io-prom-dash .prom-card-h { padding: 16px 24px 4px; }
+.io-prom-dash .prom-card-t { font-size: 16px; font-weight: 700; }
+.io-prom-dash .prom-card-s { font-size: 12.5px; font-weight: 600; color: var(--prom-muted); margin-top: 2px; }
 
-html[data-bs-theme="dark"] .io-prom-dash .prom-refresh-btn:hover {
-    border-color: var(--prom-accent);
-    background: color-mix(in srgb, var(--prom-accent) 12%, var(--prom-surface));
-}
-
-.io-prom-dash .prom-chart-row {
-    margin-left: calc(var(--prom-gap) * -1);
-    margin-right: calc(var(--prom-gap) * -1);
-}
-
-.io-prom-dash .prom-chart-cell {
-    padding: var(--prom-gap);
-}
-
-.io-prom-dash .prom-health-card {
-    /* --prom-health-bg set at runtime from button.cb-btn-link (50% opacity) */
-    background: var(--prom-health-bg, var(--prom-surface-muted));
-    border: 1px solid var(--prom-border);
-    border-radius: 10px;
-    padding: 10px 12px 12px;
-    margin-bottom: var(--prom-gap);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.io-prom-dash .prom-health-heading {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--prom-text-muted);
-    margin: 0 0 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--prom-border);
-}
-
-.io-prom-dash .prom-health-metrics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 16px;
-    align-items: stretch;
-    justify-content: space-between;
-}
-
-.io-prom-dash .prom-health-metric {
-    flex: 1 1 90px;
-    min-width: 0;
-    text-align: center;
-    padding: 4px 2px;
-}
-
-.io-prom-dash .prom-health-label {
-    display: block;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--prom-text-muted);
-    margin-bottom: 2px;
-    line-height: 1.2;
-}
-
-.io-prom-dash .prom-health-value {
-    display: block;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--prom-text);
-    line-height: 1.25;
-    font-variant-numeric: tabular-nums;
-}
-
-.io-prom-dash .prom-chart-card {
-    background: var(--prom-surface);
-    border: 1px solid var(--prom-border);
-    border-radius: 10px;
-    padding: 6px 8px 4px;
-    height: 100%;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-    transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.io-prom-dash .prom-chart-card:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-}
-
-.io-prom-dash .prom-refresh-toolbar {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-bottom: 2px;
-    min-height: 26px;
-}
-
-.io-prom-dash .prom-refresh-btn {
-    appearance: none;
-    border: 1px solid var(--prom-border);
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    color: var(--prom-text-muted);
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 999px;
-    cursor: pointer;
-    line-height: 1.3;
-    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.io-prom-dash .prom-refresh-btn:hover {
-    color: var(--prom-accent);
-    border-color: #7dd3fc;
-    background: #f0f9ff;
-}
-
-.io-prom-dash .prom-refresh-btn:active {
-    transform: translateY(1px);
-}
+.io-prom-dash .prom-empty { color: var(--prom-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 48px 24px; }
+.io-prom-dash .prom-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--prom-bad); overflow-wrap: anywhere; }
+.io-prom-dash .prom-alert .bi { flex: 0 0 auto; margin-top: 2px; }
 
 .io-prom-dash node-health,
 .io-prom-dash cpu-load-graph,
@@ -154,4 +41,17 @@ html[data-bs-theme="dark"] .io-prom-dash .prom-refresh-btn:hover {
 .io-prom-dash mem-usage-graph,
 .io-prom-dash net-io-graph {
     display: block;
+}
+
+.io-prom-dash .prom-card > cpu-load-graph,
+.io-prom-dash .prom-card > disk-io-graph,
+.io-prom-dash .prom-card > iops-graph,
+.io-prom-dash .prom-card > disk-usage-graph,
+.io-prom-dash .prom-card > mem-usage-graph,
+.io-prom-dash .prom-card > net-io-graph {
+    padding: 0 12px 12px;
+}
+
+@media (max-width: 520px) {
+    .io-prom-dash .prom-cards { grid-template-columns: 1fr; }
 }
