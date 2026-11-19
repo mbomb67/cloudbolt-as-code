@@ -42,7 +42,7 @@
             <td>{% if r.hpa %}<span class="sfx-tag">HPA</span>{% endif %}{% if r.gpu %}<span class="sfx-tag">GPU</span>{% endif %}{% if not r.hpa and not r.gpu %}<span class="sfx-muted">--</span>{% endif %}</td>
             <td>{{ r.score }}</td>
             <td><span class="sfx-pill sfx-pill-{{ r.status_class }}">{% if r.status_class == "ok" %}<i class="bi bi-check-circle"></i>{% elif r.status_class == "info" %}<i class="bi bi-hourglass-split"></i>{% elif r.status_class == "warn" %}<i class="bi bi-exclamation-triangle"></i>{% elif r.status_class == "bad" %}<i class="bi bi-x-octagon"></i>{% endif %} {{ r.status }}</span>{% if r.status_reason %}<div class="sfx-hint">{{ r.status_reason }}</div>{% endif %}</td>
-            <td>{% if r.auto_deploy %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-lightning-charge"></i> Enabled</span>{% else %}<span class="sfx-muted"><i class="bi bi-slash-circle"></i> Disabled</span>{% endif %}</td>
+            <td>{% if r.auto_deploy %}<span class="sfx-pill sfx-pill-ok"><i class="bi bi-lightning-charge"></i> Enabled</span>{% else %}<span class="sfx-muted"><i class="bi bi-cloud-slash"></i> Disabled</span>{% endif %}</td>
             <td>{{ r.throttling }}</td>
             <td>{{ r.oom }}</td>
             {% endif %}
