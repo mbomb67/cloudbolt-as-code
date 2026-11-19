@@ -8,13 +8,13 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Packages](#packages) | 12 |
 | [Blueprints](#blueprints) | 35 |
 | [Resource actions](#resource-actions) | 69 |
-| [Server actions](#server-actions) | 3 |
+| [Server actions](#server-actions) | 4 |
 | [Orchestration actions](#orchestration-actions) | 22 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 6 |
 | [MCP tool actions](#mcp-tool-actions) | 10 |
-| [Plugins](#plugins) | 211 |
-| [Shared modules](#shared-modules) | 28 |
+| [Plugins](#plugins) | 212 |
+| [Shared modules](#shared-modules) | 29 |
 | [UI extensions](#ui-extensions) | 18 |
 | [Parameters](#parameters) | 3 |
 | [Runbook workflows](#runbook-workflows) | 2 |
@@ -165,6 +165,7 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](server_actions/SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](plugins/OHK-5wpzgw68/) |
+| Run Script (OpenShift API tunnel) | [SVA-5vsp0tv6](server_actions/SVA-5vsp0tv6/) | Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API | [Run Script (OpenShift API tunnel)](plugins/OHK-yqrralqk/) |
 | Run Task | [SVA-4sin3s0q](server_actions/SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid. | [Run Task](plugins/OHK-o4tgygjs/) |
 | Run Workflow | [SVA-j7rbsh39](server_actions/SVA-j7rbsh39/README.md) | Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM. | [Run Workflow](plugins/OHK-69gk5ne9/) |
 
@@ -410,6 +411,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Run Installer from File Archive (Linux) | [OHK-hgv6wp65](plugins/OHK-hgv6wp65/) | Downloads a file from File Archives to a Linux VM, unpacks it if it is a zip or tar file, and runs the installer in it (.sh, .rpm, .deb or an executable). | Remote Script | standalone |
 | Run Installer from File Archive (Windows) | [OHK-ow68kerl](plugins/OHK-ow68kerl/) | Downloads a file from File Archives to a Windows VM, unpacks it if it is a zip or tar file, and runs the installer in it (.msi, .ps1 or .exe). | Remote Script | standalone |
 | Run Recurring Job | [OHK-qduf79xu](plugins/OHK-qduf79xu/) | Runs a recurring job immediately, like Run Now on the Recurring Jobs page. | CloudBolt Plug-in | [Run Recurring Job](mcp_tool_actions/MTA-thkvyt0v/README.md) |
+| Run Script (OpenShift API tunnel) | [OHK-yqrralqk](plugins/OHK-yqrralqk/) | Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API | CloudBolt Plug-in | [Run Script (OpenShift API tunnel)](server_actions/SVA-5vsp0tv6/) |
 | Run SQL Command | [OHK-4w05hdd3](plugins/OHK-4w05hdd3/) | Runs a SQL command against the PostgreSQL server. | Remote Script | [Run SQL Command](resource_actions/RSA-jaitfhwp/) |
 | Run Task | [OHK-o4tgygjs](plugins/OHK-o4tgygjs/) | Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid. | CloudBolt Plug-in | [Run Task](server_actions/SVA-4sin3s0q/README.md) |
 | Run Workflow | [OHK-69gk5ne9](plugins/OHK-69gk5ne9/) | Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM. | CloudBolt Plug-in | [Linux VM with Workflow](blueprints/BP-vy9ytey6/README.md), [Run Workflow](server_actions/SVA-j7rbsh39/README.md), [Windows VM with Workflow](blueprints/BP-6ddlyguv/README.md) |
@@ -482,6 +484,7 @@ Reusable Python libraries imported by plugins as `shared_modules.<name>`. A modu
 | `github` | [SHM-eybr4hgz](shared_modules/SHM-eybr4hgz/) | GitHub API client that authenticates with the GitHub ConnectionInfo when one is usable and otherwise fetches public repositories anonymously, with directory listing, raw file download, and archive fetch. | [Bicep Engine Connectivity Check](plugins/OHK-b21biimg/), [Deploy Bicep Template](plugins/OHK-gqvi9kv4/), [Drift Check](plugins/OHK-9n4wfasa/), [Update Bicep Deployment](plugins/OHK-9f45ede7/) |
 | `gke_namespace` | [SHM-kephq8iq](shared_modules/SHM-kephq8iq/) | Namespace landing zones on GKE clusters: quota, limits, network policies, the pinned CloudBolt environment, Kubernetes RBAC access for Google identities, GitHub Actions pipeline identities, and connection details. | [Create GKE Namespace](plugins/OHK-cco2r73h/), [Deploy Test Workload](plugins/OHK-ljgoxser/), [Discover GKE Namespaces](plugins/OHK-ml7ee42y/), [Extend GKE Namespace Expiration](plugins/OHK-vtuzh4nh/), [GKE Namespace](plugins/OHK-32pzj98f/), [GKE Namespace Connection Details](plugins/OHK-egyf9q28/), [Manage GKE Namespace Access](plugins/OHK-vdhjpyg2/), [Manage GKE Namespace Pipeline Identity](plugins/OHK-l3j30r89/), [Request GKE Namespace Quota Change](plugins/OHK-xg47m1x2/), [Teardown GKE Namespace](plugins/OHK-jm8j1513/) |
 | `ip_reservations` | [SHM-s3k9ov0z](shared_modules/SHM-s3k9ov0z/) | Reserves and releases IP addresses from CloudBolt IP pools as IP Address Reservation resources, for the blueprint's build plugin and the IP Reservations webhook. | [IP Address Reservation Build](plugins/OHK-yeykzvdv/), [IP Reservations](plugins/OHK-axepfitm/) |
+| `kubevirt_api_tunnel` | [SHM-wkubiao7](shared_modules/SHM-wkubiao7/) | Opens SSH and raw TCP connections to an OpenShift Virtualization VM through the cluster API's KubeVirt port-forward, so CloudBolt needs no route to the guest. | [Run Script (OpenShift API tunnel)](plugins/OHK-yqrralqk/) |
 | `ldap_dns` | [SHM-dnsldap1](shared_modules/SHM-dnsldap1/) | AD-integrated DNS A-record management over LDAPS, including MS-DNSP record encoding and ownership-verified deletes. | [AD DNS - Create A Record](plugins/OHK-dnsadd01/), [AD DNS - Delete A Record](plugins/OHK-dnsdel01/), [DNS Record - Build](plugins/OHK-dnsbld01/), [DNS Record - Discover](plugins/OHK-dnsdsc01/), [DNS Record - Teardown](plugins/OHK-dnstrd01/) |
 | `openshift_landing_zone` | [SHM-qmiweowv](shared_modules/SHM-qmiweowv/) | OpenShift REST client, size-tier catalog, and environment helpers for the landing-zone blueprint. | [Deploy Test Workload](plugins/OHK-ljgoxser/), [Discover OpenShift Project Landing Zones](plugins/OHK-e7albpni/), [Extend Expiration](plugins/OHK-3w9nejn3/), [Manage Team Access](plugins/OHK-9zzqqz7t/), [OpenShift Project Landing Zone](plugins/OHK-prew0osh/), [Request Quota Change](plugins/OHK-ug53cdbx/), [Teardown OpenShift Project Landing Zone](plugins/OHK-mpe8fl3d/) |
 | `runbook_tasks` | [SHM-571l7249](shared_modules/SHM-571l7249/) | Finds the Remote Scripts that can run on a VM, checks credentials and task inputs, and runs a chosen script for the Run Task action and its form webhook. | [Run Task](plugins/OHK-o4tgygjs/), [Runbook Tasks](plugins/OHK-bf3iyg9j/), [runbook_workflows](shared_modules/SHM-nznzhpp0/) |
