@@ -654,6 +654,28 @@ def default_count(rows):
     return sum(1 for row in CATALOG if row[0] not in given)
 
 
+def complete(rows, config=None):
+    """``rows`` plus a row for every catalog setting nothing sets, so the list names all of them.
+
+    A row nothing sets has no value and carries StormForge's default.
+    ``config`` is StormForge's configuration for a workload, when the list is
+    a workload's: where it reports a value for an unset setting that differs
+    from the catalog's default, the reported value is the default shown.
+    """
+    present = {row["name"] for row in rows}
+    out = list(rows)
+    for name, _group, _label, default, path in CATALOG:
+        if name in present:
+            continue
+        row = _blank_row(name)
+        reported = _lookup(config, path) if isinstance(config, dict) else None
+        if isinstance(reported, (str, int, float)) and not _unset(reported) and not _same(reported, default):
+            row["default"] = _text(reported)
+        out.append(row)
+    out.sort(key=lambda r: (_POSITION.get(r["name"], len(CATALOG)), r["name"]))
+    return out
+
+
 def rule_objects(configs):
     """Rows describing rule objects: name, order, who they match, and each rule's settings."""
     out = []

@@ -2175,6 +2175,7 @@ def _settings_sources_context(request, resource, reader, cluster):
     layers = _setting_layers(reader, resource, ns, kind, name)
     rows = sources.resolve(layers, namespace=ns, workload=bool(name and layers["workload"] is not None))
     checked = False
+    config = None
     if name:
         wid = _q("_".join((cluster, ns, kind, name)))
         reader.token()
@@ -2185,12 +2186,16 @@ def _settings_sources_context(request, resource, reader, cluster):
                                         allow_404=True, what=f"the settings of workload {name}"),
         )
         if results["config"] is not None:
-            sources.verify(rows, results["config"], results["explicit"])
+            config = results["config"]
+            sources.verify(rows, config, results["explicit"])
             checked = True
+    every = sources.complete(rows, config)
     context = {
         "level": level,
         "ns": ns, "kind": kind, "name": name,
         "groups": sources.grouped(rows),
+        "all_groups": sources.grouped(every),
+        "all_count": len(every),
         "counts": sources.counts(rows),
         "default_count": sources.default_count(rows),
         "checked": checked,

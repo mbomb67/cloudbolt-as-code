@@ -3,8 +3,10 @@
   (workload, namespace, cluster, StormForge) and the values it overrides.
   One template for the cluster, a namespace and a workload; `level` says
   which. On the cluster and a namespace each section folds away; on a
-  workload this is the Setting Sources page of its Settings view. Context
-  from views._settings_sources_context.
+  workload this is the Setting Sources page of its Settings view. All
+  settings, folded away under the table, lists every setting StormForge has
+  with its default where nothing sets it. Context from
+  views._settings_sources_context.
 {% endcomment %}
 {% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
 {% if level == "workload" %}
@@ -24,7 +26,7 @@
 
 <div class="sfx-src-summary">
   {% for c in counts %}<span class="sfx-src sfx-src-{{ c.level }}">{{ c.count }} from {% if c.level == "platform" %}StormForge{% else %}the {{ c.label|lower }}{% endif %}</span>{% endfor %}
-  <span class="sfx-muted">{% if counts %}{{ default_count }} other{{ default_count|pluralize }} use{{ default_count|pluralize:"s," }}{% else %}Nothing is set here; every setting uses{% endif %} StormForge's default</span>
+  <span class="sfx-muted">{% if counts %}{{ default_count }} other{{ default_count|pluralize }} use{{ default_count|pluralize:"s," }}{% else %}Nothing is set here; every setting uses{% endif %} StormForge's default. All settings, below, lists them.</span>
 </div>
 
 {% if problems or defaults_stale or unreported or not cascade_read %}
@@ -70,6 +72,34 @@
   <div class="sfx-note">{% if level == "workload" %}{% if checked %}Checked against the configuration StormForge reports for this workload.{% else %}StormForge has not reported this workload's configuration yet, so the values are as Kubernetes holds them.{% endif %}{% else %}Read from the cluster's Kubernetes API. Settings kept in StormForge itself, such as organization settings, show on a workload's Setting Sources page.{% endif %}</div>
 </div>
 {% endif %}
+
+{# Every setting StormForge has, set or not: read-only, searchable, a section per group. #}
+<details class="sfx-fold sfx-all" data-sfx-filter-host>
+  <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-set-t">All settings</span><span class="sfx-muted">{{ all_count }}, with StormForge's default for each one nothing sets</span></summary>
+  <div class="sfx-toolbar" style="padding:6px 0 12px;border-bottom:0">
+    <input type="search" class="form-control form-control-sm" placeholder="Search settings" aria-label="Search settings" data-sfx-filter>
+  </div>
+  {% for g in all_groups %}
+  <details class="sfx-fold sfx-all-group" data-sfx-filter-group>
+    <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="sfx-set-t">{{ g.title }}</span><span class="sfx-muted">{{ g.rows|length }}</span></summary>
+    <div class="sfx-table-wrap">
+      <table class="sfx-table sfx-src-table">
+        <thead><tr><th>Setting</th><th>Value</th><th>Set at</th></tr></thead>
+        <tbody>
+        {% for r in g.rows %}
+        <tr data-sfx-filter-row="{{ g.title|lower }} {{ r.label|lower }} {{ r.key|lower }} {% if r.value is None %}{{ r.default|lower }}{% else %}{{ r.value|lower }} {{ r.level_label|lower }}{% endif %}">
+          <td>{{ r.label }}<div class="sfx-hint sfx-mono">{{ r.key }}</div></td>
+          <td>{% if r.value is None %}{% if r.default %}<span class="sfx-mono">{{ r.default }}</span>{% else %}<span class="sfx-muted">Not set</span>{% endif %}{% else %}<span class="sfx-mono">{{ r.value }}</span>{% endif %}</td>
+          <td>{% if r.value is None %}{% if r.default %}<span class="sfx-src">StormForge default</span>{% else %}<span class="sfx-muted">&ndash;</span>{% endif %}{% else %}<span class="sfx-src sfx-src-{{ r.level }}">{{ r.level_label }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endfor %}
+  <div class="sfx-empty" data-sfx-filter-empty hidden>No setting matches.</div>
+</details>
 {% if level != "workload" %}</details>{% endif %}
 
 {% if level == "namespace" and namespace_rules %}

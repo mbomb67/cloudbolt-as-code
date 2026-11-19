@@ -7,7 +7,7 @@ Shows StormForge in CloudBolt on Kubernetes clusters that run the StormForge age
 
 ## Cluster tabs
 
-- **Clusters**: the optimization score, recommendation summary and recommendation impact cards, **More Information** (waste and risk, agent versions, status messages), and five views:
+- **Clusters**: the optimization score, recommendation summary and recommendation impact cards (compact and as wide as their content at every level), **More Information** (waste and risk, agent versions, status messages), and five views:
   - **Namespaces**: StormForge's namespace table, with search, sorting and pages.
   - **Nodes**: the cluster as it is now. CPU, memory and pods (used, allocated and capacity), node count by type, and every node.
   - **Config**: cluster labels, node instance categories and cost estimates.
@@ -36,6 +36,7 @@ A StormForge setting can be given at several levels, and the most specific one w
 
 - **Order:** the levels are ranked in the order the cluster agent's own configuration lists them (`cascadingConfigs` in the `stormforge-cluster-agent` ConfigMap), so the views follow the installed agent version.
 - **Counts:** the top of each view counts the settings per level, for example "5 from the workload, 2 from the namespace, 3 from the cluster". Every other setting uses StormForge's default.
+- **All settings:** folded under the table, a read-only list of every setting StormForge has, in a section per group, with a search box. A setting nothing sets shows StormForge's default; on a workload that is the value StormForge reports for it.
 - **Rules that depend on the workload:** an optimization configuration can match workloads by label or by an expression. On the cluster and namespace views such a value is listed with its condition. On a workload, label matches are evaluated; expressions are not, so the value StormForge reports decides.
 - **Checked against StormForge:** on a workload the result is compared with the configuration StormForge reports. A value StormForge does not report is marked. The usual cause is an edit to `cluster-defaults` after the agent started: the agent reads it only at start, and the view says so.
 - **Namespace resources** see the cluster values their namespace inherits, not the cluster's rules for other namespaces, the order of precedence or the agent chart values.

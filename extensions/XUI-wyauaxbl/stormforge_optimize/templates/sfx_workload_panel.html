@@ -34,20 +34,22 @@
 
 <div class="sfx-cards">
   <div class="sfx-card">
-    <div class="sfx-card-t">Optimization Score</div>
-    <div class="sfx-score">
-      <svg class="sfx-donut sm sfx-score-{{ summary.score_class }}" viewBox="0 0 100 100" role="img" aria-label="Optimization score {{ summary.score }}">
-        <circle class="sfx-donut-track" cx="50" cy="50" r="40"></circle>
-        <circle class="sfx-donut-arc" cx="50" cy="50" r="40" stroke-dasharray="{{ summary.dash }} {{ summary.circumference }}" transform="rotate(-90 50 50)"></circle>
-        <text x="50" y="57" text-anchor="middle">{{ summary.score }}</text>
-      </svg>
-      <div class="sfx-kv2"><span>CPU</span><span>{{ summary.score_cpu }}</span><span>MEM</span><span>{{ summary.score_memory }}</span></div>
+    <svg class="sfx-donut sfx-score-{{ summary.score_class }}" viewBox="0 0 100 100" role="img" aria-label="Optimization score {{ summary.score }}">
+      <circle class="sfx-donut-track" cx="50" cy="50" r="40"></circle>
+      <circle class="sfx-donut-arc" cx="50" cy="50" r="40" stroke-dasharray="{{ summary.dash }} {{ summary.circumference }}" transform="rotate(-90 50 50)"></circle>
+      <text x="50" y="57" text-anchor="middle">{{ summary.score }}</text>
+    </svg>
+    <div>
+      <div class="sfx-card-k">Optimization Score <i class="bi bi-info-circle" title="How well current requests align with StormForge's recommendations; 100 is perfect alignment." data-bs-toggle="tooltip"></i></div>
+      <div class="sfx-kv"><span class="l">CPU</span><span>{{ summary.score_cpu }}</span><span class="l">MEM</span><span>{{ summary.score_memory }}</span></div>
     </div>
   </div>
   <div class="sfx-card">
-    <div class="sfx-card-t">{{ potential_label }}</div>
-    <div class="sfx-impact">
-      <span class="big {% if summary.impact_cost_dir == 'up' %}bad{% else %}good{% endif %}">{{ summary.impact_cost }} <span class="sfx-unit">/mo</span></span><span></span>
+    <div>
+      <div class="sfx-card-k">{{ potential_label }}</div>
+      <div class="sfx-big"><span class="{% if summary.impact_cost_dir == 'up' %}bad{% else %}good{% endif %}">{{ summary.impact_cost }}</span> <span class="sfx-unit">/mo</span></div>
+    </div>
+    <div class="sfx-kv">
       <span>{{ summary.impact_cpu }} <span class="sfx-unit">Cores</span></span>
       <span class="sfx-dir-{{ summary.impact_cpu_dir|default:'none' }}">{{ summary.impact_cpu_pct }} {% if summary.impact_cpu_dir == "down" %}<i class="bi bi-caret-down-fill"></i>{% elif summary.impact_cpu_dir == "up" %}<i class="bi bi-caret-up-fill"></i>{% endif %}</span>
       <span>{{ summary.impact_memory }}</span>
@@ -55,14 +57,17 @@
     </div>
   </div>
   <div class="sfx-card">
-    <div class="sfx-card-t">Recommendation</div>
-    <div class="sfx-set-v" style="margin-bottom:6px"><span class="sfx-pill sfx-pill-{{ status_class }}">{% if status_class == "ok" %}<i class="bi bi-hand-thumbs-up"></i>{% elif status_class == "info" %}<i class="bi bi-hourglass-split"></i>{% elif status_class == "warn" %}<i class="bi bi-exclamation-triangle"></i>{% elif status_class == "bad" %}<i class="bi bi-x-octagon"></i>{% endif %} {{ status }}</span>{% if status_reason %}<span class="sfx-muted">{{ status_reason }}</span>{% endif %}</div>
-    <div class="sfx-kv2">
-      <span>Generated</span><span title="{{ generated_stamp }}">{{ generated|default:"--" }}</span>
-      <span>Next scheduled</span><span>{{ next|default:"--" }}</span>
-      {% if applied %}<span>Applied</span><span>{{ applied }}</span>{% endif %}
-      {% if learning and status_class == "info" %}<span>Learning completes</span><span>{{ learning }}</span>{% endif %}
-      <span>Automatic Deployment</span><span>{% if auto_deploy %}<span class="good">On</span>{% else %}Off{% endif %}</span>
+    <div>
+      <div class="sfx-card-k">Recommendation</div>
+      <div class="sfx-big" style="font-size:19px"><i class="bi bi-{% if status_class == 'ok' %}hand-thumbs-up good{% elif status_class == 'info' %}hourglass-split{% elif status_class == 'warn' %}exclamation-triangle{% elif status_class == 'bad' %}x-octagon bad{% else %}mortarboard{% endif %}" aria-hidden="true"{% if status_class == 'warn' %} style="color:var(--sfx-warn-text)"{% elif status_class == 'info' %} style="color:var(--sfx-primary)"{% endif %}></i> {{ status }}</div>
+      {% if status_reason %}<div class="sfx-hint">{{ status_reason }}</div>{% endif %}
+    </div>
+    <div class="sfx-kv">
+      <span class="l">Generated</span><span title="{{ generated_stamp }}">{{ generated|default:"--" }}</span>
+      <span class="l">Next scheduled</span><span>{{ next|default:"--" }}</span>
+      {% if applied %}<span class="l">Applied</span><span>{{ applied }}</span>{% endif %}
+      {% if learning and status_class == "info" %}<span class="l">Learning completes</span><span>{{ learning }}</span>{% endif %}
+      <span class="l">Automatic Deployment</span><span>{% if auto_deploy %}<span class="good"><i class="bi bi-lightning-charge" aria-hidden="true"></i> On</span>{% else %}<i class="bi bi-slash-circle" aria-hidden="true"></i> Off{% endif %}</span>
     </div>
   </div>
 </div>
@@ -78,22 +83,28 @@
   {# ── Summary ── #}
   <div data-sfx-pane="summary">
     <div class="sfx-cards">
-      <div class="sfx-card">
-        <div class="sfx-card-t">Attributes</div>
-        <div class="sfx-set-v" style="font-weight:600">
-          <span><i class="bi bi-boxes"></i> {{ replicas }} Replica{{ replicas_plural|yesno:"s," }} <span class="sfx-muted">(average)</span></span>
-          {% if has_hpa %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-arrows"></i> HPA</span>{% endif %}
-          {% if gpu %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-gpu-card"></i> GPU</span>{% endif %}
-          <span class="sfx-muted">&middot;</span><span title="{% for k, v in labels %}{{ k }}={{ v }}&#10;{% endfor %}"><i class="bi bi-tag"></i> {{ label_count }} Label{{ label_count|pluralize }}</span>
+      <div class="sfx-card sfx-top">
+        <div>
+          <div class="sfx-line">
+            <span class="sfx-line-t">Attributes</span>
+            <span><i class="bi bi-boxes"></i> {{ replicas }} Replica{{ replicas_plural|yesno:"s," }} <span class="sfx-muted">(average)</span></span>
+            {% if has_hpa %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-arrows"></i> HPA</span>{% endif %}
+            {% if gpu %}<span class="sfx-muted">&middot;</span><span><i class="bi bi-gpu-card"></i> GPU</span>{% endif %}
+            <span class="sfx-muted">&middot;</span><span title="{% for k, v in labels %}{{ k }}={{ v }}&#10;{% endfor %}"><i class="bi bi-tag"></i> {{ label_count }} Label{{ label_count|pluralize }}</span>
+          </div>
+          <div class="sfx-hint" style="margin-top:6px">Throttling rate {{ throttling }} &middot; OOM rate {{ oom }}{% if created %} &middot; In StormForge since {{ created }}{% endif %}</div>
+          {% if group %}<div class="sfx-hint">Recommendation computed from: {{ group|join:", " }}</div>{% endif %}
         </div>
-        <div class="sfx-hint" style="margin-top:8px">Throttling rate {{ throttling }} &middot; OOM rate {{ oom }}{% if created %} &middot; In StormForge since {{ created }}{% endif %}</div>
-        {% if group %}<div class="sfx-hint">Recommendation computed from: {{ group|join:", " }}</div>{% endif %}
       </div>
-      <div class="sfx-card" style="padding:0">
-        <div class="sfx-card-t" style="padding:24px 24px 0">Status Messages</div>
-        <ul class="sfx-msgs">
-          {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% empty %}<li class="sfx-muted">None</li>{% endfor %}
-        </ul>
+      <div class="sfx-card sfx-grow sfx-top">
+        <div>
+          <div class="sfx-line"><span class="sfx-line-t">Status Messages</span>{% if not messages %}<span class="sfx-muted">None</span>{% endif %}</div>
+          {% if messages %}
+          <ul class="sfx-msgs">
+            {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% endfor %}
+          </ul>
+          {% endif %}
+        </div>
       </div>
     </div>
     <div class="sfx-card sfx-flat">
