@@ -758,6 +758,7 @@ def fetch_health(request, server, ci):
         'up': False,
         'uptime': -1,
         'disk_total': -1,
+        'disk_used': -1,
         'core_count': -1,
         'mem_total': -1,
         'load': 0,
@@ -776,6 +777,8 @@ def fetch_health(request, server, ci):
         disk_total = __query_disk_total(server, conn, is_win)
         if disk_total:
             health_data['disk_total'] = disk_total
+
+        health_data['disk_used'] = __query_disk_used(server, conn, is_win)
 
         mem_total = __query_mem_total(server, conn, is_win)
         if mem_total:
@@ -878,6 +881,27 @@ def __query_disk_total(server, conn, is_windows=False):
         return results[0]['value'][1]
     else:
         return -1
+
+
+def __query_disk_used(server, conn, is_windows=False):
+    """Bytes in use across the same filesystems __query_disk_total adds up, or -1."""
+    if is_windows:
+        lb = _prom_server_labels(server)
+        vol = f'{lb}, volume=~"[A-Z]:"'
+        q = (
+            f'sum(windows_logical_disk_size_bytes{{{vol}}} - '
+            f'windows_logical_disk_free_bytes{{{vol}}})'
+        )
+    else:
+        fs = f'server="{server.id}", device=~"/dev/.*"'
+        q = (
+            f'sum(node_filesystem_size_bytes{{{fs}}} - '
+            f'node_filesystem_free_bytes{{{fs}}})'
+        )
+    response = conn.get("/query", params={"query": q}, timeout=REQUEST_TIMEOUT)
+    data = validate_prometheus_response(response)
+    results = data.get('result') if data else None
+    return results[0]['value'][1] if results else -1
 
 
 def __query_mem_total(server, conn, is_windows=False):

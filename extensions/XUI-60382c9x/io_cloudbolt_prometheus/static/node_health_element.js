@@ -26,6 +26,16 @@ function duration(seconds) {
     return hours ? `${hours} h ${minutes} m` : `${minutes} m`;
 }
 
+/** Space in use out of the disk given to the server; the total alone when usage is unknown. */
+function diskTile(payload) {
+    const used = parseFloat(payload.disk_used);
+    const total = parseFloat(payload.disk_total);
+    if (!Number.isFinite(used) || used < 0 || !Number.isFinite(total) || total <= 0) {
+        return ["Disk", gib(payload.disk_total)];
+    }
+    return ["Disk used", gib(used), `of ${gib(total)}`];
+}
+
 /** The stat tiles at the top of the monitoring tab. */
 export class NodeHealthElement extends GraphElement {
     get metric() {
@@ -46,7 +56,7 @@ export class NodeHealthElement extends GraphElement {
         const tiles = [
             ["Cores", Number.isFinite(cores) && cores >= 0 ? String(cores) : DASH],
             ["Memory", gib(payload.mem_total)],
-            ["Disk", gib(payload.disk_total)],
+            diskTile(payload),
             [fromCluster ? "CPU" : "Load", percent(payload.load)],
             ["Uptime", duration(payload.uptime)],
         ];
@@ -57,7 +67,7 @@ export class NodeHealthElement extends GraphElement {
         this.textContent = "";
         const grid = document.createElement("div");
         grid.className = "prom-stats";
-        tiles.forEach(([label, value]) => {
+        tiles.forEach(([label, value, detail]) => {
             const tile = document.createElement("div");
             tile.className = "prom-stat";
             const k = document.createElement("div");
@@ -66,6 +76,12 @@ export class NodeHealthElement extends GraphElement {
             const v = document.createElement("div");
             v.className = "v";
             v.textContent = value;
+            if (detail) {
+                const of = document.createElement("span");
+                of.className = "prom-of";
+                of.textContent = detail;
+                v.appendChild(of);
+            }
             tile.append(k, v);
             grid.appendChild(tile);
         });

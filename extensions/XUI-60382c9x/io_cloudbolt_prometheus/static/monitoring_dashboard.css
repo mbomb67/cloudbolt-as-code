@@ -18,10 +18,11 @@
 .io-prom-dash .prom-sub { font-size: 13.5px; font-weight: 600; color: var(--prom-muted); margin-top: 6px; }
 .io-prom-dash .prom-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-.io-prom-dash .prom-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.io-prom-dash .prom-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 16px; }
 .io-prom-dash .prom-stat { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; padding: 20px 24px; }
 .io-prom-dash .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--prom-muted); margin-bottom: 6px; }
 .io-prom-dash .v { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.io-prom-dash .v .prom-of { display: block; font-size: 13.5px; font-weight: 600; color: var(--prom-muted); margin-top: 2px; }
 
 .io-prom-dash .prom-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
 .io-prom-dash .prom-card { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; overflow: hidden; min-width: 0; }

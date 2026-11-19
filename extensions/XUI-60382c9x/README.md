@@ -28,7 +28,7 @@ Then run `collectstatic` (or "Collect Static Assets" on Admin > Extensions) and 
 
 ## Notes
 - The tab appears on OpenShift Virtualization VMs and on servers with the `monitor` tag.
-- For an OpenShift Virtualization VM, the CPU chart shows utilization instead of load average, memory needs the virtio balloon driver in the guest, and the disk usage chart stays empty unless the QEMU guest agent runs in the guest.
+- For an OpenShift Virtualization VM, the CPU chart shows utilization instead of load average, memory needs the virtio balloon driver in the guest, and disk usage (the Disk used tile and the filesystem chart) needs the QEMU guest agent in the guest; without it the tile shows the disk size alone.
 - OpenShift Virtualization VMs are left out of the targets endpoint, because their address is a pod IP that an outside Prometheus cannot reach.
 - A user sees metrics only for servers they are allowed to view.
 - The targets endpoint is unauthenticated (`@login_not_required`) and returns hostnames and private IPs; restrict it at the network level.

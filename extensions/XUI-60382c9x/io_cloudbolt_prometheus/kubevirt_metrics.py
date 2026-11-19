@@ -208,12 +208,18 @@ def fetch_health(server):
     load = querier.instant_value(_cpu_fraction(querier, server, "5m"))
     if memory is None and server.mem_size:
         memory = float(server.mem_size) * GIB
+    # Space in use across the guest's filesystems, which only the QEMU guest agent reports.
+    disk_used = querier.instant_value(f"sum(kubevirt_vmi_filesystem_used_bytes{{{querier.selector}}})")
+    disk_total = server.disk_size * GIB if server.disk_size else querier.instant_value(
+        f"sum(kubevirt_vmi_filesystem_capacity_bytes{{{querier.selector}}})"
+    )
     return {
         "source": "kubevirt",
         "up": uptime is not None,
         "uptime": uptime if uptime is not None else -1,
         "core_count": server.cpu_cnt if server.cpu_cnt else -1,
-        "disk_total": server.disk_size * GIB if server.disk_size else -1,
+        "disk_total": disk_total if disk_total is not None else -1,
+        "disk_used": disk_used if disk_used is not None else -1,
         "mem_total": memory if memory is not None else -1,
         "load": load,
         "scraper_cpu_use": None,
