@@ -20,6 +20,11 @@
             "value_pattern_string": null
         }
     ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-wkubiao7"
+        ]
+    },
     "description": "Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API",
     "id": "OHK-yqrralqk",
     "max_retries": 0,

@@ -4910,6 +4910,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-yqrralqk",
+    "type": "plugins",
+    "name": "Run Script (OpenShift API tunnel)",
+    "description": "Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API",
+    "path": "plugins/OHK-yqrralqk",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "server_actions/SVA-5vsp0tv6"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ys68wsmf",
     "type": "plugins",
     "name": "Check Windows App Host",
@@ -6159,6 +6174,19 @@
     ]
   },
   {
+    "id": "SVA-5vsp0tv6",
+    "type": "server_actions",
+    "name": "Run Script (OpenShift API tunnel)",
+    "description": "Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API",
+    "path": "server_actions/SVA-5vsp0tv6",
+    "readme": null,
+    "uses": [
+      "plugins/OHK-yqrralqk"
+    ],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "SVA-j7rbsh39",
     "type": "server_actions",
     "name": "Run Workflow",
@@ -6652,6 +6680,18 @@
     "used_by": [
       "plugins/OHK-vklpnqhq",
       "plugins/OHK-2vpg4pff"
+    ]
+  },
+  {
+    "id": "SHM-wkubiao7",
+    "type": "shared_modules",
+    "name": "kubevirt_api_tunnel",
+    "description": "Opens SSH and raw TCP connections to an OpenShift Virtualization VM through the cluster API's KubeVirt port-forward, so CloudBolt needs no route to the guest.",
+    "path": "shared_modules/SHM-wkubiao7",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-yqrralqk"
     ]
   },
   {
