@@ -49,6 +49,9 @@ export class CpuLoadGraphElement extends GraphElement {
             parseFloat(a[1]) * 100,
         ]);
 
+        // A source that reports CPU utilisation instead of load average names its own series.
+        const names = payload["names"] || {};
+
         this.options = {
             title: { text: undefined },
             credits: promCredits("CPU load"),
@@ -82,19 +85,19 @@ export class CpuLoadGraphElement extends GraphElement {
             },
             series: [
                 {
-                    name: "1 min load",
+                    name: names["load1"] || "1 min load",
                     data: payload["load1"],
                     animation: false,
                     lineWidth: 1,
                 },
                 {
-                    name: "5 min load",
+                    name: names["load5"] || "5 min load",
                     data: payload["load5"],
                     animation: false,
                     lineWidth: 1,
                 },
                 {
-                    name: "15 min load",
+                    name: names["load15"] || "15 min load",
                     data: payload["load15"],
                     animation: false,
                     lineWidth: 1,

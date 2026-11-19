@@ -12,6 +12,7 @@ from utilities.decorators import json_view
 from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.models import ConnectionInfo
+from xui.io_cloudbolt_prometheus import kubevirt_metrics
 from xui.io_cloudbolt_prometheus.prom_api_wrapper import PromConnection
 
 logger = ThreadLogger(__name__)
@@ -61,9 +62,21 @@ def server_metrics_dispatch(request, server_id, metric_type):
     :param metric_type:
     :return:
     """
+    # Only servers the requester may view; the queries run with CloudBolt's own credentials.
+    server = Server.objects_for_profile(request.get_user_profile()).filter(id=server_id).first()
+    if server is None:
+        return {}
+
+    if kubevirt_metrics.is_kubevirt_server(server):
+        # OpenShift Virtualization VMs are read from their cluster's monitoring, not from MONITORING.
+        fetch_function = kubevirt_metrics.FETCHERS.get(metric_type)
+        if fetch_function:
+            return fetch_function(server)
+        logger.error(f"Invalid metric type requested: '{metric_type}'")
+        return {}
+
     fetch_function = globals().get(f'fetch_{metric_type}', None)
     if fetch_function:
-        server = Server.objects.get(id=server_id)
         if MONITORING_LABEL not in server.labels:
             return {}
 

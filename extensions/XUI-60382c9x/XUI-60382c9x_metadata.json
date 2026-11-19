@@ -1,5 +1,5 @@
 {
-    "description": "Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor.",
+    "description": "Adds a Monitoring server tab fed by a Prometheus server for servers tagged monitor and by the cluster's own monitoring for OpenShift Virtualization VMs, plus a service-discovery endpoint for Prometheus.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-60382c9x",
@@ -12,6 +12,7 @@
         "prom_api_wrapper.py",
         "api.py",
         "metrics.py",
+        "kubevirt_metrics.py",
         "views.py",
         "urls.py",
         "__init__.py",

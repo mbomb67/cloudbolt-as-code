@@ -73,7 +73,13 @@ export class NodeHealthElement extends GraphElement {
     }
 
     render_component(payload) {
-        let uptime = (payload["uptime"] / (60 * 60 * 24)).toFixed(2);
+        // OpenShift Virtualization VMs report CPU utilisation and have no exporter to measure.
+        const fromCluster = payload["source"] === "kubevirt";
+        const uptimeRaw = parseFloat(payload["uptime"]);
+        const uptime =
+            Number.isFinite(uptimeRaw) && uptimeRaw >= 0
+                ? (uptimeRaw / (60 * 60 * 24)).toFixed(2) + " d"
+                : "—";
         const coresRaw = parseInt(payload["core_count"], 10);
         const cores =
             Number.isFinite(coresRaw) && coresRaw >= 0 ? String(coresRaw) : "—";
@@ -102,17 +108,21 @@ export class NodeHealthElement extends GraphElement {
                     <span class="prom-health-value">${memTotal} GiB</span>
                 </div>
                 <div class="prom-health-metric">
-                    <span class="prom-health-label">Load</span>
-                    <span class="prom-health-value">${load}</span>
+                    <span class="prom-health-label">${fromCluster ? "CPU" : "Load"}</span>
+                    <span class="prom-health-value">${load}${fromCluster && load !== "—" ? "%" : ""}</span>
                 </div>
                 <div class="prom-health-metric">
                     <span class="prom-health-label">Uptime</span>
-                    <span class="prom-health-value">${uptime} d</span>
+                    <span class="prom-health-value">${uptime}</span>
                 </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Scraper CPU</span>
-                    <span class="prom-health-value">${scraperCpuUse}</span>
-                </div>
+                ${fromCluster
+                    ? ""
+                    : html`
+                          <div class="prom-health-metric">
+                              <span class="prom-health-label">Scraper CPU</span>
+                              <span class="prom-health-value">${scraperCpuUse}</span>
+                          </div>
+                      `}
             </div>
         `;
         render(markup, this);
