@@ -30,6 +30,7 @@ Then run `collectstatic` (or "Collect Static Assets" on Admin > Extensions) and 
 - The tab appears on OpenShift Virtualization VMs and on servers with the `monitor` tag.
 - For an OpenShift Virtualization VM, the CPU chart shows utilization instead of load average, memory needs the virtio balloon driver in the guest, and disk usage (the Disk used tile and the filesystem chart) needs the QEMU guest agent in the guest; without it the tile shows the disk size alone.
 - OpenShift Virtualization VMs are left out of the targets endpoint, because their address is a pod IP that an outside Prometheus cannot reach.
+- The **Alerts** card lists the alerts that are firing or pending for the server, most severe first, and a pill beside the server name sums them up. It only reads alerts; rules are defined on the monitoring source. An OpenShift cluster ships few alerts about a single VM, so the card stays at "No alerts firing" until the VM's project has alert rules of its own.
 - A user sees metrics only for servers they are allowed to view.
 - The targets endpoint is unauthenticated (`@login_not_required`) and returns hostnames and private IPs; restrict it at the network level.
 - `scripts/generate_targets.py` prints the same targets JSON from the CloudBolt shell for troubleshooting.

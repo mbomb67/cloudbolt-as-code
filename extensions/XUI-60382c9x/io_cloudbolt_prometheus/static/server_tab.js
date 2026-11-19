@@ -5,6 +5,7 @@ import { DiskUsageGraphElement } from "./disk_usage_element.js";
 import { DiskIOGraphElement } from "./disk_io_element.js";
 import { IopsGraphElement } from "./iops_element.js";
 import { NetIOGraphElement } from "./net_io_element.js";
+import { ServerAlertsElement } from "./alerts_element.js";
 
 customElements.define("node-health", NodeHealthElement);
 customElements.define("cpu-load-graph", CpuLoadGraphElement);
@@ -13,6 +14,7 @@ customElements.define("disk-usage-graph", DiskUsageGraphElement);
 customElements.define("disk-io-graph", DiskIOGraphElement);
 customElements.define("iops-graph", IopsGraphElement);
 customElements.define("net-io-graph", NetIOGraphElement);
+customElements.define("server-alerts", ServerAlertsElement);
 
 // The tab's Refresh button reloads every card. This module runs once per page while
 // CloudBolt may insert the tab's markup again, so the listener sits on the document.

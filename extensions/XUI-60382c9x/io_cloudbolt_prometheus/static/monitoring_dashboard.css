@@ -9,6 +9,11 @@
     --prom-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
     --prom-primary: var(--bs-primary, #0d6efd);
     --prom-bad: var(--bs-danger, #dc3545);
+    --prom-ok: var(--bs-success, #198754);
+    --prom-warn: var(--bs-warning, #ffc107);
+    --prom-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --prom-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --prom-rule: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent);
 }
 
 .io-prom-dash .prom-hero { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 26px; }
@@ -24,6 +29,29 @@
 .io-prom-dash .v { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .io-prom-dash .v .prom-of { display: block; font-size: 13.5px; font-weight: 600; color: var(--prom-muted); margin-top: 2px; }
 
+/* Severity colors appear only on these pills: red and amber mean an error or a warning. */
+.io-prom-dash .prom-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--prom-soft); }
+.io-prom-dash .prom-pill-ok { background: color-mix(in srgb, var(--prom-ok) 14%, transparent); color: var(--prom-ok); }
+.io-prom-dash .prom-pill-info { background: color-mix(in srgb, var(--prom-primary) 13%, transparent); color: var(--prom-primary); }
+.io-prom-dash .prom-pill-warn { background: color-mix(in srgb, var(--prom-warn) 22%, transparent); color: var(--prom-warn-text); }
+.io-prom-dash .prom-pill-bad { background: color-mix(in srgb, var(--prom-bad) 12%, transparent); color: var(--prom-bad); }
+.io-prom-dash .prom-status { display: inline-flex; vertical-align: middle; margin-left: 8px; }
+
+.io-prom-dash .prom-alerts { margin-bottom: 16px; }
+.io-prom-dash .prom-alerts .prom-card-h { display: flex; align-items: baseline; gap: 12px; padding-bottom: 12px; }
+.io-prom-dash .prom-alert-row { display: flex; gap: 16px; align-items: flex-start; padding: 12px 24px; border-top: 1px solid var(--prom-rule); }
+.io-prom-dash .prom-alert-sev { flex: 0 0 96px; }
+.io-prom-dash .prom-alert-text { flex: 1 1 auto; min-width: 0; }
+.io-prom-dash .prom-alert-t { font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
+.io-prom-dash .prom-alert-d { font-size: 12.5px; font-weight: 600; color: var(--prom-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.io-prom-dash .prom-alert-meta { flex: 0 0 auto; text-align: right; font-size: 12.5px; font-weight: 600; color: var(--prom-muted); white-space: nowrap; }
+.io-prom-dash .prom-alert-meta a { color: var(--prom-primary); font-weight: 700; text-decoration: none; }
+.io-prom-dash .prom-alert-meta a:hover { text-decoration: underline; }
+.io-prom-dash .prom-alerts-ok { display: flex; align-items: center; gap: 10px; padding: 14px 24px; }
+.io-prom-dash .prom-alerts-ok .bi { color: var(--prom-ok); font-size: 16px; }
+.io-prom-dash .prom-alerts-ok-t { font-size: 13.5px; font-weight: 700; }
+.io-prom-dash .prom-alerts-ok .prom-card-s { margin-top: 0; }
+
 .io-prom-dash .prom-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
 .io-prom-dash .prom-card { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; overflow: hidden; min-width: 0; }
 .io-prom-dash .prom-card-h { padding: 16px 24px 4px; }
@@ -34,6 +62,7 @@
 .io-prom-dash .prom-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--prom-bad); overflow-wrap: anywhere; }
 .io-prom-dash .prom-alert .bi { flex: 0 0 auto; margin-top: 2px; }
 
+.io-prom-dash server-alerts,
 .io-prom-dash node-health,
 .io-prom-dash cpu-load-graph,
 .io-prom-dash disk-io-graph,

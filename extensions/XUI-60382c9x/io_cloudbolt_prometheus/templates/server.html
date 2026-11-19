@@ -6,7 +6,7 @@
     <div class="prom-hero">
         <div>
             <div class="prom-eyebrow"><i class="bi bi-activity" aria-hidden="true"></i> Monitoring</div>
-            <div class="prom-title">{{ hostname }}</div>
+            <div class="prom-title">{{ hostname }} <span class="prom-status" data-prom-status></span></div>
             <div class="prom-sub">Last 24 hours, from {{ source_label }}</div>
         </div>
         <div class="prom-tools">
@@ -17,6 +17,8 @@
     </div>
 
     <node-health server-id="{{ server_id }}"></node-health>
+
+    <server-alerts server-id="{{ server_id }}"></server-alerts>
 
     <div class="prom-cards">
         <section class="prom-card">

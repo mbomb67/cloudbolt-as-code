@@ -20,6 +20,7 @@ from requests import RequestException
 
 from utilities.exceptions import CloudBoltException
 from utilities.logger import ThreadLogger
+from xui.io_cloudbolt_prometheus.alert_rows import alert_row, ordered
 
 logger = ThreadLogger(__name__)
 
@@ -75,24 +76,29 @@ class ThanosQuerier:
         except Exception as error:  # the wrapper raises bare Exception when the login fails
             logger.warning(f"Monitoring: could not connect to the cluster for {server.hostname}: {error}")
 
-    def _get(self, path, params):
+    def get_data(self, path, params=None):
+        """Return the "data" member of the answer, or None when the cluster cannot be asked."""
         if self.session is None:
-            return []
+            return None
         try:
             response = self.session.get(
-                f"{self.base_url}{path}", params=params, timeout=QUERY_TIMEOUT_SECONDS
+                f"{self.base_url}{path}", params=params or {}, timeout=QUERY_TIMEOUT_SECONDS
             )
         except RequestException as error:
             logger.warning(f"Monitoring: Thanos Querier request failed: {error}")
-            return []
+            return None
         if response.status_code != 200:
             # 403 means the handler's identity lacks the cluster-monitoring-view cluster role.
             logger.warning(
                 f"Monitoring: Thanos Querier answered {response.status_code} for "
-                f"{params.get('query')}: {response.text[:200]}"
+                f"{path} {(params or {}).get('query', '')}: {response.text[:200]}"
             )
-            return []
-        return response.json().get("data", {}).get("result", [])
+            return None
+        return response.json().get("data") or {}
+
+    def _get(self, path, params):
+        data = self.get_data(path, params)
+        return data.get("result", []) if data else []
 
     def instant(self, query):
         return self._get("/query", {"query": query})
@@ -226,7 +232,50 @@ def fetch_health(server):
     }
 
 
+def _about_vm(labels, namespace, hostname):
+    """True when an alert's labels point at this VM.
+
+    Rules name the VM differently: KubeVirt's own use name or vmi, a rule written on the
+    kubevirt_vmi_* series inherits name, and a pod rule carries the virt-launcher pod.
+    """
+    if labels.get("namespace") != namespace:
+        return False
+    if hostname in (labels.get("name"), labels.get("vmi"), labels.get("vm")):
+        return True
+    return bool(re.fullmatch(f"virt-launcher-{re.escape(hostname)}-[a-z0-9]{{5}}", labels.get("pod", "")))
+
+
+def fetch_alerts(server):
+    """Firing and pending alerts about this VM, from platform rules and the project's own.
+
+    The cluster's alerts API takes no label filter, so every alert is fetched and matched here.
+    https://github.com/openshift/cluster-monitoring-operator/blob/main/Documentation/resources.md
+    """
+    querier = ThanosQuerier(server)
+    namespace = server.ovirtserverinfo.namespace
+    data = querier.get_data("/alerts")
+    if data is not None:
+        rows = [
+            alert_row(alert.get("labels", {}), alert.get("annotations"), alert.get("state"), alert.get("activeAt"))
+            for alert in data.get("alerts", [])
+            if _about_vm(alert.get("labels", {}), namespace, server.hostname)
+        ]
+        return {"available": True, "alerts": ordered(rows)}
+
+    # Without the alerts API the ALERTS series still names what is active, with labels only.
+    data = querier.get_data("/query", {"query": f'ALERTS{{namespace="{_quote(namespace)}"}}'})
+    if data is None:
+        return {"available": False, "alerts": []}
+    rows = [
+        alert_row(series["metric"], state=series["metric"].get("alertstate"))
+        for series in data.get("result", [])
+        if _about_vm(series["metric"], namespace, server.hostname)
+    ]
+    return {"available": True, "alerts": ordered(rows)}
+
+
 FETCHERS = {
+    "alerts": fetch_alerts,
     "cpu_load": fetch_cpu_load,
     "disk_io": fetch_disk_io,
     "iops": fetch_iops,

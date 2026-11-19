@@ -13,6 +13,7 @@ from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.models import ConnectionInfo
 from xui.io_cloudbolt_prometheus import kubevirt_metrics
+from xui.io_cloudbolt_prometheus.alert_rows import alert_row, ordered
 from xui.io_cloudbolt_prometheus.prom_api_wrapper import PromConnection
 
 logger = ThreadLogger(__name__)
@@ -979,6 +980,25 @@ def __query_scraper_cpu_use(server, conn, is_windows=False):
         return results[0]['value'][1]
     else:
         return 0
+
+
+def fetch_alerts(request, server, ci):
+    """Firing and pending alerts whose server label is this server, from Prometheus's own rules."""
+    try:
+        with PromConnection(ci) as conn:
+            response = conn.get("/alerts", timeout=REQUEST_TIMEOUT)
+        data = validate_prometheus_response(response)
+    except RequestException as error:
+        logger.error(f"fetch_alerts: {error}")
+        data = None
+    if data is None:
+        return {"available": False, "alerts": []}
+    rows = [
+        alert_row(alert.get("labels", {}), alert.get("annotations"), alert.get("state"), alert.get("activeAt"))
+        for alert in data.get("alerts", [])
+        if alert.get("labels", {}).get("server") == str(server.id)
+    ]
+    return {"available": True, "alerts": ordered(rows)}
 
 
 def validate_prometheus_response(response):
