@@ -486,7 +486,7 @@ def _blank_row(name):
         "name": name, "key": PREFIX + name,
         "group": known[1] if known else "other",
         "label": known[2] if known else name,
-        "default": known[3] if known else "",
+        "default": known[3] if known else "", "default_note": "",
         "value": None, "level": "conditional", "level_label": LEVEL_LABELS["conditional"], "source": "",
         "overridden": [], "conditional": [], "confirmed": False, "reported": None,
     }
@@ -658,23 +658,50 @@ def default_count(rows):
     return sum(1 for row in CATALOG if row[0] not in given)
 
 
+# A reliability response that is enabled fills the settings left unset with
+# these values, not the annotation defaults in the catalog ("Default when
+# enabled", https://docs.stormforge.io/docs/configure/settings/reliability/).
+ENABLED_DEFAULTS = {
+    "reliability.oom.memory-bump-up.": {
+        "percent": "20", "min": "100Mi", "max": "2Gi", "apply-immediately": "IfAutoDeployEnabled", "period": "P4D"},
+    "reliability.cpu-pressure.cpu-bump-up.": {
+        "percent": "20", "min": "50m", "max": "500m", "apply-immediately": "IfAutoDeployEnabled", "period": "P4D"},
+}
+ENABLED_NOTE = "Default while this response is enabled"
+
+
+def _enabled(rows, prefix):
+    """True when the value in effect for ``prefix``enabled is on for every kind of workload."""
+    row = next((r for r in rows if r["name"] == prefix + "enabled"), None)
+    if row is None or row["value"] is None:
+        return False
+    first = str(row["value"]).split(",")[0].strip()     # "True,resource:daemonsets=False"
+    return "=" not in first and _normal(first) == "true"
+
+
 def complete(rows, config=None):
     """``rows`` plus a row for every catalog setting nothing sets, so the list names all of them.
 
-    A row nothing sets has no value and carries StormForge's default.
-    ``config`` is StormForge's configuration for a workload, when the list is
-    a workload's: where it reports a value for an unset setting that differs
-    from the catalog's default, the reported value is the default shown.
+    A row nothing sets has no value and carries StormForge's default: the
+    catalog's, or for a reliability response that is enabled the value
+    StormForge uses then. ``config`` is StormForge's configuration for a
+    workload, when the list is a workload's: where it reports a value for an
+    unset setting that differs from that default, the reported value is shown.
     """
     present = {row["name"] for row in rows}
+    enabled = {prefix: values for prefix, values in ENABLED_DEFAULTS.items() if _enabled(rows, prefix)}
     out = list(rows)
     for name, _group, _label, default, path in CATALOG:
         if name in present:
             continue
         row = _blank_row(name)
+        for prefix, values in enabled.items():
+            when_enabled = values.get(name[len(prefix):]) if name.startswith(prefix) else None
+            if when_enabled and not _same(when_enabled, default):
+                row["default"], row["default_note"] = when_enabled, ENABLED_NOTE
         reported = _lookup(config, path) if isinstance(config, dict) else None
-        if isinstance(reported, (str, int, float)) and not _unset(reported) and not _same(reported, default):
-            row["default"] = _text(reported)
+        if isinstance(reported, (str, int, float)) and not _unset(reported) and not _same(reported, row["default"]):
+            row["default"], row["default_note"] = _text(reported), ""
         out.append(row)
     out.sort(key=lambda r: (_POSITION.get(r["name"], len(CATALOG)), r["name"]))
     return out

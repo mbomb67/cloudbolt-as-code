@@ -54,7 +54,7 @@
         <tr data-sfx-filter-row="{{ g.title|lower }} {{ r.label|lower }} {{ r.key|lower }} {% if r.value is None %}{{ r.default|lower }}{% else %}{{ r.value|lower }} {{ r.level_label|lower }}{% endif %}">
           <td>{{ r.label }}<div class="sfx-hint sfx-mono">{{ r.key }}</div></td>
           <td>
-            {% if r.value is None %}{% if r.default %}<span class="sfx-mono">{{ r.default }}</span>{% else %}<span class="sfx-muted">Not set</span>{% endif %}
+            {% if r.value is None %}{% if r.default %}<span class="sfx-mono">{{ r.default }}</span>{% if r.default_note %}<div class="sfx-hint">{{ r.default_note }}</div>{% endif %}{% else %}<span class="sfx-muted">Not set</span>{% endif %}
             {% else %}<span class="sfx-mono">{{ r.value }}</span>{% endif %}
             {% if r.reported %}<div class="sfx-hint" style="color:var(--sfx-warn-text)"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> StormForge reports {{ r.reported }}</div>{% endif %}
           </td>
