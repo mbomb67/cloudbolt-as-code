@@ -2193,9 +2193,7 @@ def _settings_sources_context(request, resource, reader, cluster):
     context = {
         "level": level,
         "ns": ns, "kind": kind, "name": name,
-        "groups": sources.grouped(rows),
-        "all_groups": sources.grouped(every),
-        "all_count": len(every),
+        "groups": sources.grouped(every),
         "counts": sources.counts(rows),
         "default_count": sources.default_count(rows),
         "checked": checked,

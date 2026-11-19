@@ -192,7 +192,14 @@
   .sfx .sfx-src-cluster { background: color-mix(in srgb, var(--sfx-cur-req) 20%, transparent); color: color-mix(in srgb, var(--sfx-cur-req) 70%, var(--bs-body-color, #212529)); }
   .sfx .sfx-src-platform { background: color-mix(in srgb, var(--sfx-rec-req) 22%, transparent); color: color-mix(in srgb, var(--sfx-rec-req) 60%, var(--bs-body-color, #212529)); }
   .sfx .sfx-src-summary { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; font-size: 12.5px; }
-  .sfx .sfx-src-table .sfx-src-group td { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--sfx-muted); background: var(--sfx-surface-2); padding: 6px 14px; }
+  .sfx .sfx-src-table .sfx-src-group td { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--sfx-muted); background: var(--sfx-surface-2); padding: 0; }
+  .sfx .sfx-src-group button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; border: 0; background: none; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+  .sfx .sfx-src-group button:focus-visible { outline: 2px solid var(--sfx-primary); outline-offset: -2px; }
+  .sfx .sfx-src-group button .bi { font-size: 11px; transition: transform .15s; }
+  .sfx .sfx-src-table tbody:not(.sfx-closed) .sfx-src-group button .bi { transform: rotate(90deg); }
+  .sfx .sfx-src-group .sfx-src-n { font-weight: 600; }
+  .sfx .sfx-src-group .sfx-src { text-transform: none; letter-spacing: 0; }
+  .sfx .sfx-src-table tbody.sfx-closed tr[data-sfx-filter-row], .sfx .sfx-src-table [hidden] { display: none; }
   .sfx .sfx-src-line { margin-bottom: 3px; }
   .sfx .sfx-struck { text-decoration: line-through; color: var(--sfx-muted); }
   .sfx .sfx-fold { margin-bottom: 18px; }
@@ -202,13 +209,6 @@
   .sfx .sfx-fold[open] > summary .bi { transform: rotate(90deg); }
   .sfx .sfx-fold > summary .sfx-h { margin: 0; }
   .sfx .sfx-fold > summary:focus-visible { outline: 2px solid var(--sfx-primary); outline-offset: 3px; border-radius: 4px; }
-  .sfx .sfx-all { margin-top: 4px; }
-  .sfx .sfx-all-group { margin: 0 0 6px 20px; }
-  .sfx .sfx-all-group > .sfx-table-wrap { margin-bottom: 14px; }
-  .sfx .sfx-all-group .sfx-table { table-layout: fixed; }
-  .sfx .sfx-all-group .sfx-table th:first-child { width: 50%; }
-  .sfx .sfx-all-group .sfx-table th:nth-child(2) { width: 25%; }
-  .sfx .sfx-all [hidden] { display: none; }
   @keyframes sfx-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
@@ -420,8 +420,19 @@
     clearTimeout(searchTimer);
     searchTimer = setTimeout(function () { reloadTable(tableOf(input), { q: input.value, offset: 0 }); }, 350);
   });
-  // All settings: narrow the list as the user types. A group with no match
-  // hides; the others open while there is a query and fold again without one.
+  // Settings table: each group of settings is a tbody whose grey first row
+  // opens and folds it. Typing in the search box narrows the rows: a group
+  // with no match hides, the others open while there is a query and fold
+  // again without one.
+  function setGroup(group, open) {
+    group.classList.toggle("sfx-closed", !open);
+    var button = group.querySelector("[data-sfx-group-toggle]");
+    if (button) { button.setAttribute("aria-expanded", open ? "true" : "false"); }
+  }
+  $(document).on("click", ".sfx [data-sfx-group-toggle]", function () {
+    var group = $(this).closest("[data-sfx-filter-group]")[0];
+    setGroup(group, group.classList.contains("sfx-closed"));
+  });
   $(document).on("input", ".sfx [data-sfx-filter]", function () {
     var $host = $(this).closest("[data-sfx-filter-host]");
     var query = this.value.trim().toLowerCase();
@@ -434,7 +445,7 @@
         if (match) { hits += 1; }
       });
       this.hidden = !hits;
-      this.open = !!query && hits > 0;
+      setGroup(this, !!query && hits > 0);
       shown += hits;
     });
     $host.find("[data-sfx-filter-empty]").prop("hidden", shown > 0);

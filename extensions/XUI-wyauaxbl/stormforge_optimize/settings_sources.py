@@ -629,12 +629,16 @@ def _text(value):
 # Presentation helpers
 # ---------------------------------------------------------------------------
 def grouped(rows):
-    """[{title, rows}] in StormForge's settings order, empty groups left out."""
+    """[{title, rows, given}] in StormForge's settings order, empty groups left out.
+
+    ``given`` counts the group's rows something sets, for the group's header.
+    """
     out = []
     for key, title in GROUPS:
         members = [row for row in rows if row["group"] == key]
         if members:
-            out.append({"key": key, "title": title, "rows": members})
+            out.append({"key": key, "title": title, "rows": members,
+                        "given": sum(1 for row in members if row["value"] is not None)})
     return out
 
 
