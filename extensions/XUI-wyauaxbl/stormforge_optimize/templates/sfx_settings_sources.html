@@ -51,15 +51,15 @@
       <tbody class="sfx-closed" data-sfx-filter-group>
         <tr class="sfx-src-group"><td colspan="4"><button type="button" aria-expanded="false" data-sfx-group-toggle><i class="bi bi-chevron-right" aria-hidden="true"></i><span>{{ g.title }}</span><span class="sfx-src-n">{{ g.rows|length }}</span>{% if g.given %}<span class="sfx-src sm">{{ g.given }} set</span>{% endif %}</button></td></tr>
         {% for r in g.rows %}
-        <tr data-sfx-filter-row="{{ g.title|lower }} {{ r.label|lower }} {{ r.key|lower }} {% if r.value is None %}{{ r.default|lower }}{% else %}{{ r.value|lower }} {{ r.level_label|lower }}{% endif %}">
+        <tr data-sfx-filter-row="{{ g.title|lower }} {{ r.label|lower }} {{ r.key|lower }} {% if r.value is None %}{{ r.default|lower }}{% if r.automatic and not r.default %} automatic{% endif %}{% else %}{{ r.value|lower }} {{ r.level_label|lower }}{% endif %}">
           <td>{{ r.label }}<div class="sfx-hint sfx-mono">{{ r.key }}</div></td>
           <td>
-            {% if r.value is None %}{% if r.default %}<span class="sfx-mono">{{ r.default }}</span>{% if r.default_note %}<div class="sfx-hint">{{ r.default_note }}</div>{% endif %}{% else %}<span class="sfx-muted">Not set</span>{% endif %}
+            {% if r.value is None %}{% if r.default %}<span class="sfx-mono">{{ r.default }}</span>{% if r.default_note %}<div class="sfx-hint">{{ r.default_note }}</div>{% endif %}{% elif r.automatic %}Automatic<div class="sfx-hint">{{ r.automatic }}</div>{% else %}<span class="sfx-muted">Not set</span>{% endif %}
             {% else %}<span class="sfx-mono">{{ r.value }}</span>{% endif %}
             {% if r.reported %}<div class="sfx-hint" style="color:var(--sfx-warn-text)"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> StormForge reports {{ r.reported }}</div>{% endif %}
           </td>
           <td>
-            {% if r.value is None %}{% if r.default %}<span class="sfx-src">StormForge default</span>{% else %}<span class="sfx-muted">&ndash;</span>{% endif %}
+            {% if r.value is None %}{% if r.default or r.automatic %}<span class="sfx-src">StormForge default</span>{% else %}<span class="sfx-muted">&ndash;</span>{% endif %}
             {% else %}<span class="sfx-src sfx-src-{{ r.level }}">{{ r.level_label }}</span><div class="sfx-hint">{{ r.source }}</div>{% endif %}
           </td>
           <td>
