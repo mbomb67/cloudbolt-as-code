@@ -121,8 +121,8 @@ def _cpu_fraction(querier, server, window):
     return f"sum(rate(kubevirt_vmi_cpu_usage_seconds_total{{{querier.selector}}}[{window}])) / {vcpus}"
 
 
-def _rate_sum(querier, metric):
-    return f"sum(irate({metric}{{{querier.selector}}}[5m]))"
+def _rate_sum(querier, metric, function="irate"):
+    return f"sum({function}({metric}{{{querier.selector}}}[5m]))"
 
 
 def fetch_cpu_load(server):
@@ -187,9 +187,11 @@ def fetch_disk_usage(server):
 
 def fetch_net_io(server):
     querier = ThanosQuerier(server)
+    # A five-minute average: a quiet interface moves in bursts, so the last two samples alone
+    # swing between zero and the burst and draw as a solid block.
     return {
-        "rx": querier.values(_rate_sum(querier, "kubevirt_vmi_network_receive_bytes_total"), 120),
-        "tx": querier.values(_rate_sum(querier, "kubevirt_vmi_network_transmit_bytes_total"), 120),
+        "rx": querier.values(_rate_sum(querier, "kubevirt_vmi_network_receive_bytes_total", "rate"), 120),
+        "tx": querier.values(_rate_sum(querier, "kubevirt_vmi_network_transmit_bytes_total", "rate"), 120),
     }
 
 
