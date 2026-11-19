@@ -67,7 +67,7 @@
       <span class="l">Next scheduled</span><span>{{ next|default:"--" }}</span>
       {% if applied %}<span class="l">Applied</span><span>{{ applied }}</span>{% endif %}
       {% if learning and status_class == "info" %}<span class="l">Learning completes</span><span>{{ learning }}</span>{% endif %}
-      <span class="l">Automatic Deployment</span><span>{% if auto_deploy %}<span class="good"><i class="bi bi-lightning-charge" aria-hidden="true"></i> On</span>{% else %}<i class="bi bi-slash-circle" aria-hidden="true"></i> Off{% endif %}</span>
+      <span class="l">Automatic Deployment</span><span>{% if auto_deploy %}<span class="good"><i class="bi bi-lightning-charge" aria-hidden="true"></i> On</span>{% else %}<i class="bi bi-cloud-slash" aria-hidden="true"></i> Off{% endif %}</span>
     </div>
   </div>
 </div>
@@ -101,7 +101,7 @@
           <div class="sfx-line"><span class="sfx-line-t">Status Messages</span>{% if not messages %}<span class="sfx-muted">None</span>{% endif %}</div>
           {% if messages %}
           <ul class="sfx-msgs">
-            {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% if m.items %}<ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div></li>{% endfor %}
+            {% for m in messages %}<li class="{{ m.css }}"><i class="bi bi-{{ m.icon }}" aria-hidden="true"></i><div>{% if m.items %}<details class="sfx-msg-fold"><summary><b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %} <span class="sfx-msg-more">{{ m.items|length }} detail{{ m.items|length|pluralize }} <i class="bi bi-chevron-right" aria-hidden="true"></i></span></summary><ul>{% for i in m.items %}<li>{{ i }}</li>{% endfor %}</ul></details>{% else %}<b>{{ m.title }}</b>{% if m.message %} &mdash; {{ m.message }}{% endif %}{% endif %}</div></li>{% endfor %}
           </ul>
           {% endif %}
         </div>

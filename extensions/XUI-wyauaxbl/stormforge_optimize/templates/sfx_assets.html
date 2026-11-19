@@ -141,6 +141,12 @@
   .sfx .sfx-msgs > li.bad > .bi { color: var(--sfx-bad); }
   .sfx .sfx-msgs ul { margin: 4px 0 0; padding-left: 18px; color: var(--sfx-soft); font-size: 12.5px; list-style: disc; }
   .sfx .sfx-msgs ul li { padding: 1px 0; }
+  .sfx .sfx-msg-fold > summary { cursor: pointer; list-style: none; }
+  .sfx .sfx-msg-fold > summary::-webkit-details-marker { display: none; }
+  .sfx .sfx-msg-fold > summary:focus-visible { outline: 2px solid var(--sfx-primary); outline-offset: 2px; border-radius: 4px; }
+  .sfx .sfx-msg-more { color: var(--sfx-primary); font-weight: 700; font-size: 12.5px; white-space: nowrap; margin-left: 4px; }
+  .sfx .sfx-msg-more .bi { font-size: 10px; display: inline-block; transition: transform .15s; }
+  .sfx .sfx-msg-fold[open] .sfx-msg-more .bi { transform: rotate(90deg); }
   .sfx .sfx-section { padding: 20px 24px; }
   .sfx .sfx-section + .sfx-section { border-top: 1px solid var(--sfx-line); }
   .sfx .sfx-h { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
