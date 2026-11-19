@@ -1,0 +1,34 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": null,
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-o1vb8kba",
+            "label": "Shell script",
+            "name": "script",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "CODE",
+            "value_pattern_string": null
+        }
+    ],
+    "description": "Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API",
+    "id": "OHK-yqrralqk",
+    "max_retries": 0,
+    "name": "Run Script (OpenShift API tunnel)",
+    "resource_technologies": [
+        "OpenShift Virtualization"
+    ],
+    "script_filename": "OHK-yqrralqk_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
