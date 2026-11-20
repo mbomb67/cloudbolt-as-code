@@ -1,0 +1,568 @@
+{
+    "any_group_can_deploy": true,
+    "auto_historical_resources": false,
+    "deployment_items": [
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 1,
+            "description": "Database VM (MariaDB).",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": true,
+            "hostname_template": "demo-db-00X",
+            "id": "BDI-pjw51xeu",
+            "name": "DB",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 2,
+            "description": "Application VM (Apache and PHP).",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": true,
+            "hostname_template": "demo-app-00X",
+            "id": "BDI-ancprjnt",
+            "name": "App",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "all_environments_enabled": false,
+            "allowed_os_families": [
+                "Linux"
+            ],
+            "applications": null,
+            "deploy_seq": 3,
+            "description": "Web VM (Apache TLS reverse proxy).",
+            "environment_selection_orchestration": null,
+            "execute_in_parallel": false,
+            "hostname_template": "demo-web-00X",
+            "id": "BDI-x6rjcby1",
+            "name": "Web",
+            "os_build": null,
+            "rate": null,
+            "restrict_applications": false,
+            "show_on_order_form": false,
+            "tier_type": "server"
+        },
+        {
+            "action_name": "Install MariaDB",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-92i4lt1y"
+            },
+            "deploy_seq": 4,
+            "description": "Installs MariaDB on the database VM, creates the app's database, table and user, and stores the database password on the resource for later steps.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-my9c5ds1",
+            "name": "Install MariaDB",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "DB"
+                },
+                {
+                    "label": "Database Name",
+                    "name": "database_name_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "Database User",
+                    "name": "database_user_a1",
+                    "value": "requestlog"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Install Apache and PHP",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-d9ujne9z"
+            },
+            "deploy_seq": 5,
+            "description": "Installs Apache and the distribution's default PHP on the app VM, listening on 8080.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-1xbhxqgf",
+            "name": "Install Apache and PHP",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "App"
+                },
+                {
+                    "label": "PHP Stream",
+                    "name": "php_stream_a1",
+                    "value": "default"
+                },
+                {
+                    "label": "HTTP Port",
+                    "name": "http_port_a1",
+                    "value": "8080"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Install Apache TLS Proxy",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-lwhuaezv"
+            },
+            "deploy_seq": 6,
+            "description": "Installs Apache with mod_ssl on the web VM.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-i6is14o6",
+            "name": "Install Apache TLS Proxy",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Expose VM Port as Service",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-vmmz9jfq"
+            },
+            "deploy_seq": 7,
+            "description": "Gives the database VM a stable in-cluster name on port 3306.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-l2c9p6by",
+            "name": "Service: Database 3306",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "DB"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "3306"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Expose VM Port as Service",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-vmmz9jfq"
+            },
+            "deploy_seq": 8,
+            "description": "Gives the app VM a stable in-cluster name on port 8080.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-8u98914v",
+            "name": "Service: App 8080",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "App"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "8080"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Expose VM Port as Service",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-vmmz9jfq"
+            },
+            "deploy_seq": 9,
+            "description": "Gives the web VM a Service on port 443 for its Route.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-zarayg6n",
+            "name": "Service: Web 443",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "443"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Publish VM HTTPS Route",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-njnsxqbf"
+            },
+            "deploy_seq": 10,
+            "description": "Publishes the web VM at a public HTTPS URL and stores the link on the resource.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-ysald047",
+            "name": "Publish Web Route",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "443"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Deploy Request Log App",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-ulnznmqb"
+            },
+            "deploy_seq": 11,
+            "description": "Deploys the Request Log app on the app VM and points it at the database Service.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-no5i39ja",
+            "name": "Deploy App",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "App"
+                },
+                {
+                    "label": "Database Tier",
+                    "name": "db_tier_a1",
+                    "value": "DB"
+                },
+                {
+                    "label": "Database Name",
+                    "name": "database_name_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "Database User",
+                    "name": "database_user_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "App Title",
+                    "name": "app_title_a1",
+                    "value": "Request Log"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Configure Reverse Proxy",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-0q5dbdq6"
+            },
+            "deploy_seq": 12,
+            "description": "Points the web VM's Apache at the app Service on port 8080.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-qahcm72f",
+            "name": "Configure Reverse Proxy",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                },
+                {
+                    "label": "Backend Tier",
+                    "name": "backend_tier_a1",
+                    "value": "App"
+                },
+                {
+                    "label": "Backend Port",
+                    "name": "backend_port_a1",
+                    "value": "8080"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Issue Key Vault Certificate for Web Server",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-ca90z6g2"
+            },
+            "deploy_seq": 13,
+            "description": "Issues the web VM's TLS certificate in Azure Key Vault and installs it.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-wo0dy100",
+            "name": "Key Vault Certificate",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": true,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Restrict VM Ingress",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yf2kpzkx"
+            },
+            "deploy_seq": 14,
+            "description": "The database VM accepts port 3306 from the app VM only.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-rx3oxebx",
+            "name": "NetworkPolicy: Database",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "DB"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "3306"
+                },
+                {
+                    "label": "Allowed From",
+                    "name": "allowed_from_a1",
+                    "value": "App"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Restrict VM Ingress",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yf2kpzkx"
+            },
+            "deploy_seq": 15,
+            "description": "The app VM accepts port 8080 from the web VM only.",
+            "enabled": true,
+            "execute_in_parallel": true,
+            "id": "BDI-hzj9aktl",
+            "name": "NetworkPolicy: App",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "App"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "8080"
+                },
+                {
+                    "label": "Allowed From",
+                    "name": "allowed_from_a1",
+                    "value": "Web"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Restrict VM Ingress",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-yf2kpzkx"
+            },
+            "deploy_seq": 16,
+            "description": "The web VM accepts port 443 from the cluster's routers only.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-cdtxvxu5",
+            "name": "NetworkPolicy: Web",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                },
+                {
+                    "label": "Port",
+                    "name": "port_a1",
+                    "value": "443"
+                },
+                {
+                    "label": "Allowed From",
+                    "name": "allowed_from_a1",
+                    "value": "router"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
+            "action_name": "Verify 3-Tier Web App",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-jru4jomd"
+            },
+            "deploy_seq": 17,
+            "description": "Adds an entry through the app, checks the web VM cannot reach the database, and opens the public URL.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-dfnlo1oe",
+            "name": "Verify App",
+            "parameter_defaults": [
+                {
+                    "label": "Web Tier",
+                    "name": "web_tier_a1",
+                    "value": "Web"
+                },
+                {
+                    "label": "Database Tier",
+                    "name": "db_tier_a1",
+                    "value": "DB"
+                },
+                {
+                    "label": "Database Port",
+                    "name": "db_port_a1",
+                    "value": "3306"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        }
+    ],
+    "deployment_permissions": [],
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
+    "favorited": false,
+    "icon": "OpenShift_Logo_a0RM62N.png",
+    "id": "BP-sy5pb325",
+    "is_orderable": true,
+    "labels": [
+        {
+            "color": "rgba(255,133,0,1)",
+            "id": "TAG-9t6dn4od",
+            "image": null,
+            "name": "OpenShift",
+            "parent": {
+                "color": "rgba(25,171,188,1)",
+                "id": "TAG-cvblowou",
+                "image": null,
+                "name": "Clouds",
+                "sequence": 0
+            },
+            "sequence": 0
+        }
+    ],
+    "last_updated": "2026-11-20",
+    "management_actions": [],
+    "metadata_version": "2026.1.0",
+    "name": "3-Tier Web App on OpenShift Virtualization",
+    "parameters": [],
+    "resource_name_template": null,
+    "resource_type": {
+        "icon": "fas fa-layer-group",
+        "id": "RT-ymgw09ct",
+        "internal_only": false,
+        "label": "3-Tier Web App",
+        "lifecycle": "ACTIVE",
+        "list_view_columns": [],
+        "name": "three_tier_web_app",
+        "plural_label": "3-Tier Web Apps"
+    },
+    "sequence": 60,
+    "show_recipient_field_on_order_form": false,
+    "teardown_items": [
+        {
+            "action_name": "Teardown 3-Tier Web App Networking",
+            "continue_on_failure": false,
+            "dependencies": {
+                "hook": "plugins/OHK-mfcauahq"
+            },
+            "deploy_seq": -1,
+            "description": "Deletes the app's Route, Services, NetworkPolicies and Key Vault certificate before CloudBolt deletes the VMs.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-quiajtfa",
+            "name": "Teardown 3-Tier Web App Networking",
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "teardown_plugin"
+        }
+    ]
+}

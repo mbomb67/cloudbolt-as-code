@@ -8,15 +8,18 @@ as its first interface.
 
     exit_code, output = kubevirt_api_tunnel.run_script(server, "hostname")   # one script over SSH
     transport = kubevirt_api_tunnel.connect_ssh(server)                      # paramiko.Transport
+    kubevirt_api_tunnel.wait_for_ssh(server)                                 # a VM that was just built
     sock = kubevirt_api_tunnel.ApiTunnel(server, port=5432)                  # any guest TCP port
 
 Every function raises TunnelError, with a message the requester can act on, when the tunnel cannot
-be opened. Close what you open: transport.close() or sock.close().
+be opened. TunnelUnsupported, a TunnelError, means the VM's networking can never be tunnelled to, so
+waiting will not help. Close what you open: transport.close() or sock.close().
 """
 
 import io
 import socket
 import ssl
+import time
 
 import paramiko
 import websocket
@@ -31,6 +34,10 @@ SCRIPT_TIMEOUT_SECONDS = 600
 
 class TunnelError(Exception):
     """The API tunnel could not be opened; the message says why in terms the requester can act on."""
+
+
+class TunnelUnsupported(TunnelError):
+    """The VM has no pod network interface KubeVirt can port-forward to; retrying cannot fix that."""
 
 
 def check_port_forward_target(client, namespace, name):
@@ -59,7 +66,7 @@ def check_port_forward_target(client, namespace, name):
         attached = ", ".join(
             network.get("multus", {}).get("networkName", network["name"]) for network in networks
         )
-        raise TunnelError(
+        raise TunnelUnsupported(
             f"{name} has no pod network interface (it is attached to: {attached or 'no network'}). "
             "KubeVirt port-forward reaches a VM only through the pod network, so add a pod network "
             "(masquerade) NIC as the VM's first interface."
@@ -69,7 +76,7 @@ def check_port_forward_target(client, namespace, name):
     if not interfaces or not interfaces[0].get("ipAddress"):
         raise TunnelError(f"{name} has not reported an IP address on its first interface yet.")
     if interfaces[0].get("name") != pod_network:
-        raise TunnelError(
+        raise TunnelUnsupported(
             f"The first interface of {name} is {interfaces[0].get('name')}, not its pod network "
             f"interface {pod_network}. KubeVirt port-forward dials the first interface, so the pod "
             "network NIC must come first."
@@ -80,8 +87,11 @@ def check_port_forward_target(client, namespace, name):
 class ApiTunnel:
     """A TCP connection to a port on the VM, carried by the port-forward websocket.
 
-    Implements the part of the socket interface paramiko needs: send, recv, settimeout, close.
+    Implements the part of the socket interface paramiko needs: send, recv, settimeout, close, and
+    the _closed flag paramiko's Transport.close() reads while it waits for its thread to stop.
     """
+
+    _closed = False
 
     def __init__(self, server, port=SSH_PORT):
         handler = server.resource_handler.cast()
@@ -140,6 +150,7 @@ class ApiTunnel:
         self.websocket.settimeout(seconds)
 
     def close(self):
+        self._closed = True
         self.websocket.close()
 
 
@@ -164,6 +175,26 @@ def connect_ssh(server, port=SSH_PORT):
         transport.close()
         raise
     return transport
+
+
+def wait_for_ssh(server, timeout=600, interval=10, port=SSH_PORT):
+    """Wait until the VM accepts an SSH login with the server's CloudBolt credentials.
+
+    A VM that was just built is Running before it has an address, before sshd listens and before
+    cloud-init has installed the key, and each of those fails a connection in a different way. All
+    of them are retried until the timeout, when the last reason is raised as a TunnelError.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            connect_ssh(server, port).close()
+            return
+        except TunnelUnsupported:
+            raise
+        except (TunnelError, paramiko.SSHException, websocket.WebSocketException, EOFError, OSError) as error:
+            if time.time() + interval > deadline:
+                raise TunnelError(f"{server.hostname} did not accept an SSH login within {timeout} seconds: {error}")
+        time.sleep(interval)
 
 
 def run_script(server, script, interpreter="bash -s", timeout=SCRIPT_TIMEOUT_SECONDS):

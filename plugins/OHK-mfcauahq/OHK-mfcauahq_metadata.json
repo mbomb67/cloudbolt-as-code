@@ -1,0 +1,22 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5t7bom9y",
+            "shared_modules/SHM-ny8h0nx0"
+        ]
+    },
+    "description": "Deletes the Routes, Services and NetworkPolicies a 3-tier web app created on OpenShift and its certificate in Azure Key Vault.",
+    "id": "OHK-mfcauahq",
+    "max_retries": 0,
+    "name": "Teardown 3-Tier Web App Networking",
+    "resource_technologies": [
+        "OpenShift Virtualization",
+        "Azure"
+    ],
+    "script_filename": "OHK-mfcauahq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

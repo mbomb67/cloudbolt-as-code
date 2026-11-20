@@ -549,6 +549,28 @@
     "used_by": []
   },
   {
+    "id": "BP-sy5pb325",
+    "type": "blueprints",
+    "name": "3-Tier Web App on OpenShift Virtualization",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
+    "path": "blueprints/BP-sy5pb325",
+    "readme": "blueprints/BP-sy5pb325/README.md",
+    "uses": [
+      "plugins/OHK-0q5dbdq6",
+      "plugins/OHK-92i4lt1y",
+      "plugins/OHK-ca90z6g2",
+      "plugins/OHK-d9ujne9z",
+      "plugins/OHK-jru4jomd",
+      "plugins/OHK-lwhuaezv",
+      "plugins/OHK-mfcauahq",
+      "plugins/OHK-njnsxqbf",
+      "plugins/OHK-ulnznmqb",
+      "plugins/OHK-vmmz9jfq",
+      "plugins/OHK-yf2kpzkx"
+    ],
+    "used_by": []
+  },
+  {
     "id": "BP-tikkhf2y",
     "type": "blueprints",
     "name": "OpenShift Project Landing Zone",
@@ -1953,6 +1975,23 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-0q5dbdq6",
+    "type": "plugins",
+    "name": "Configure Reverse Proxy",
+    "description": "Makes Apache on a blueprint's web tier a reverse proxy for another tier, addressed by that tier's Service name.",
+    "path": "plugins/OHK-0q5dbdq6",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-0ql0870k",
     "type": "plugins",
     "name": "Install IIS Windows",
@@ -2663,6 +2702,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-92i4lt1y",
+    "type": "plugins",
+    "name": "Install MariaDB",
+    "description": "Installs MariaDB on a blueprint's database tier through the OpenShift API tunnel, creates the application's database, table and user, and stores the database password on the resource.",
+    "path": "plugins/OHK-92i4lt1y",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-96zebx6i",
     "type": "plugins",
     "name": "Build Azure Subscription",
@@ -3095,6 +3150,24 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ca90z6g2",
+    "type": "plugins",
+    "name": "Issue Key Vault Certificate for Web Server",
+    "description": "Issues a TLS certificate in Azure Key Vault, installs it with its private key on a blueprint's web tier through the OpenShift API tunnel, and makes the VM's Route trust it.",
+    "path": "plugins/OHK-ca90z6g2",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-ny8h0nx0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-cco2r73h",
     "type": "plugins",
     "name": "Create GKE Namespace",
@@ -3180,6 +3253,22 @@
     ],
     "used_by": [
       "resource_actions/RSA-j4f98ti1"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-d9ujne9z",
+    "type": "plugins",
+    "name": "Install Apache and PHP",
+    "description": "Installs Apache httpd and PHP on a blueprint's app tier through the OpenShift API tunnel, on the distribution's default PHP or a chosen stream.",
+    "path": "plugins/OHK-d9ujne9z",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3615,6 +3704,23 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-jru4jomd",
+    "type": "plugins",
+    "name": "Verify 3-Tier Web App",
+    "description": "Adds and reads back an entry through a deployed 3-tier web app, confirms the web tier cannot reach the database port, and opens the app's public URL.",
+    "path": "plugins/OHK-jru4jomd",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-jzkblrv7",
     "type": "plugins",
     "name": "Attach Data Disks from Disk Map",
@@ -3792,6 +3898,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-lwhuaezv",
+    "type": "plugins",
+    "name": "Install Apache TLS Proxy",
+    "description": "Installs Apache httpd with mod_ssl on a blueprint's web tier through the OpenShift API tunnel, ready to act as a TLS reverse proxy.",
+    "path": "plugins/OHK-lwhuaezv",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-m0s3j1ax",
     "type": "plugins",
     "name": "Scale GKE Node Pool",
@@ -3818,6 +3940,22 @@
     ],
     "used_by": [
       "resource_actions/RSA-gqwszlzf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-mfcauahq",
+    "type": "plugins",
+    "name": "Teardown 3-Tier Web App Networking",
+    "description": "Deletes the Routes, Services and NetworkPolicies a 3-tier web app created on OpenShift and its certificate in Azure Key Vault.",
+    "path": "plugins/OHK-mfcauahq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-ny8h0nx0"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3892,6 +4030,23 @@
     ],
     "used_by": [
       "resource_actions/RSA-afixcgmf"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-njnsxqbf",
+    "type": "plugins",
+    "name": "Publish VM HTTPS Route",
+    "description": "Publishes an OpenShift Virtualization VM's HTTPS port outside the cluster with a re-encrypt Route and stores the URL on the resource.",
+    "path": "plugins/OHK-njnsxqbf",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4532,6 +4687,23 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ulnznmqb",
+    "type": "plugins",
+    "name": "Deploy Request Log App",
+    "description": "Deploys the one-page PHP Request Log sample app on a blueprint's app tier and points it at the database tier's Service.",
+    "path": "plugins/OHK-ulnznmqb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-uof2rcaa",
     "type": "plugins",
     "name": "AKS Cluster Discovery",
@@ -4648,6 +4820,23 @@
     "uses": [],
     "used_by": [
       "blueprints/BP-p7zmh96m"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-vmmz9jfq",
+    "type": "plugins",
+    "name": "Expose VM Port as Service",
+    "description": "Creates a ClusterIP Service named after an OpenShift Virtualization VM, so other workloads reach one of its ports by a DNS name that survives restarts.",
+    "path": "plugins/OHK-vmmz9jfq",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4893,6 +5082,23 @@
     ],
     "used_by": [
       "blueprints/BP-j25t4xpv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-yf2kpzkx",
+    "type": "plugins",
+    "name": "Restrict VM Ingress",
+    "description": "Applies a NetworkPolicy so an OpenShift Virtualization VM accepts one port from one source, another tier's VM or the cluster's routers, and nothing else.",
+    "path": "plugins/OHK-yf2kpzkx",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -6302,6 +6508,25 @@
     ]
   },
   {
+    "id": "SHM-5t7bom9y",
+    "type": "shared_modules",
+    "name": "openshift_vm_network",
+    "description": "Creates and removes the Services, Routes and NetworkPolicies that give OpenShift Virtualization VMs stable names, public URLs and restricted inbound traffic.",
+    "path": "shared_modules/SHM-5t7bom9y",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-0q5dbdq6",
+      "plugins/OHK-ulnznmqb",
+      "plugins/OHK-vmmz9jfq",
+      "plugins/OHK-ca90z6g2",
+      "plugins/OHK-njnsxqbf",
+      "plugins/OHK-yf2kpzkx",
+      "plugins/OHK-mfcauahq",
+      "plugins/OHK-jru4jomd"
+    ]
+  },
+  {
     "id": "SHM-6gtujb8t",
     "type": "shared_modules",
     "name": "azure_pricing",
@@ -6397,6 +6622,29 @@
       "plugins/OHK-dnsbld01",
       "plugins/OHK-dnsdsc01",
       "plugins/OHK-dnstrd01"
+    ]
+  },
+  {
+    "id": "SHM-eanos2e0",
+    "type": "shared_modules",
+    "name": "vm_tier_scripts",
+    "description": "Finds the VM of a blueprint server tier and runs setup scripts on it through the OpenShift API tunnel.",
+    "path": "shared_modules/SHM-eanos2e0",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "plugins/OHK-0q5dbdq6",
+      "plugins/OHK-ulnznmqb",
+      "plugins/OHK-vmmz9jfq",
+      "plugins/OHK-d9ujne9z",
+      "plugins/OHK-lwhuaezv",
+      "plugins/OHK-92i4lt1y",
+      "plugins/OHK-ca90z6g2",
+      "plugins/OHK-njnsxqbf",
+      "plugins/OHK-yf2kpzkx",
+      "plugins/OHK-jru4jomd"
     ]
   },
   {
@@ -6509,6 +6757,19 @@
     "used_by": [
       "plugins/OHK-67bw7wgu",
       "plugins/OHK-ul8wbswa"
+    ]
+  },
+  {
+    "id": "SHM-ny8h0nx0",
+    "type": "shared_modules",
+    "name": "azure_key_vault_certificates",
+    "description": "Issues, fetches and deletes TLS certificates in Azure Key Vault with an Azure resource handler's identity.",
+    "path": "shared_modules/SHM-ny8h0nx0",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "plugins/OHK-ca90z6g2",
+      "plugins/OHK-mfcauahq"
     ]
   },
   {
@@ -6691,7 +6952,18 @@
     "readme": null,
     "uses": [],
     "used_by": [
-      "plugins/OHK-yqrralqk"
+      "plugins/OHK-0q5dbdq6",
+      "plugins/OHK-ulnznmqb",
+      "plugins/OHK-vmmz9jfq",
+      "plugins/OHK-d9ujne9z",
+      "plugins/OHK-lwhuaezv",
+      "plugins/OHK-92i4lt1y",
+      "plugins/OHK-ca90z6g2",
+      "plugins/OHK-njnsxqbf",
+      "plugins/OHK-yf2kpzkx",
+      "plugins/OHK-yqrralqk",
+      "plugins/OHK-jru4jomd",
+      "shared_modules/SHM-eanos2e0"
     ]
   },
   {
