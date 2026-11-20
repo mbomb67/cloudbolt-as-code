@@ -1,10 +1,8 @@
 {% load i18n %}
 <div class="tf-card-h">
   <span class="tf-card-t">{% trans "Workspace variables" %}{% if not error %} &middot; {{ rows|length }}{% endif %}</span>
-  {% if not error and rows %}
-    <span class="tf-muted" style="font-size: 12px;">{{ terraform_count }} {% trans "Terraform" %} &middot; {{ env_count }} {% trans "environment" %}</span>
-  {% endif %}
   <div class="tf-card-tools">
+    {% if not error and rows %}<span class="tf-muted">{{ terraform_count }} {% trans "Terraform" %} &middot; {{ env_count }} {% trans "environment" %}</span>{% endif %}
     <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter variables' %}" data-tf-filter="#tfws-variables-table">
   </div>
 </div>
@@ -12,7 +10,7 @@
   {% include "hcp_terraform_workspace/templates/_alert.html" %}
 {% else %}
 <div class="table-responsive">
-  <table id="tfws-variables-table" class="tf-table">
+  <table id="tfws-variables-table" class="tf-table tf-table-top">
     <thead>
       <tr>
         <th>{% trans "Key" %}</th>
