@@ -31,5 +31,7 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 - Limitations: Linux only; datastreams come from the SCAP Security Guide on the server; remote content is never fetched; `oscap` output per rule is not kept in the job log.
 - The previous version stored reports in `MEDIA_ROOT/openscap_reports` on the appliance, readable by anyone who could reach that URL. This version does not use that folder; delete it by hand.
 
-## Not yet tested
-Nothing here has run on a live appliance. Untested: the S3 backend and its presigned URLs (including the private botocore accessor used to sign with Signature Version 4); the local upload route behind `httpd`; running as a job on each handler type (SSH, SSM, Azure Run Command, vCenter tools); installs on dnf, yum, zypper and apt; datastream ranking on Rocky, Alma, Oracle, SLES, Ubuntu and Debian; and the permission check for non-admin roles. The summary parser is covered by local tests with sample XCCDF results only.
+## Tested
+On CloudBolt 2026.3.131 with an Amazon Linux 2023 server over SSH and appliance storage: Check server, install through `dnf`, scans with the `standard` profile (about a minute), upload of the three files, and opening the report and downloads from the tab.
+
+Not yet tested: the S3 backend and its presigned URLs; script channels other than SSH (SSM, Azure Run Command, VMware Tools); installs through `yum`, `zypper` and `apt`; datastream matching on RHEL, Rocky, Alma, Oracle, SLES, Ubuntu and Debian; long-running profiles such as CIS or STIG; and scanning as a non-admin user.
