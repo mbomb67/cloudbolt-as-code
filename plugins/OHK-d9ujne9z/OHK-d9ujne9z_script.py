@@ -1,10 +1,12 @@
 """Blueprint build item: installs Apache httpd and PHP on a server tier.
 
-Runs on the VM through the OpenShift API tunnel (shared_modules/SHM-wkubiao7). With no PHP stream
-given, the distribution's default PHP is installed (8.0 on Enterprise Linux 9), which leaves a
-newer stream to move to later: run this again with php_stream set, for example 8.3.
+Runs on the VM through the OpenShift API tunnel (shared_modules/SHM-wkubiao7). With the PHP stream
+set to the word default, or left empty, the distribution's own PHP is installed (8.0 on Enterprise
+Linux 9), which leaves a newer stream to move to later: run this again with php_stream set, for
+example 8.3.
 
-Inputs: tier (the server build item's name, default App), php_stream, http_port (default 8080).
+Inputs: tier (the server build item's name, default App), php_stream (default: default),
+http_port (default 8080).
 """
 
 import re
@@ -14,12 +16,14 @@ from shared_modules import vm_tier_scripts as tiers
 
 TIER = tiers.clean("{{ tier }}", "App")
 PHP_STREAM = tiers.clean("{{ php_stream }}")
+if PHP_STREAM.lower() == "default":
+    PHP_STREAM = ""
 HTTP_PORT = tiers.clean("{{ http_port }}", "8080")
 
 
 def run(job, resource=None, **kwargs):
     if PHP_STREAM and not re.match(r"^\d+\.\d+$", PHP_STREAM):
-        return "FAILURE", "", f"PHP stream '{PHP_STREAM}' must look like 8.3, or be empty for the default."
+        return "FAILURE", "", f"PHP stream '{PHP_STREAM}' must look like 8.3, or be the word default."
     if not HTTP_PORT.isdigit():
         return "FAILURE", "", f"HTTP port '{HTTP_PORT}' must be a number."
     try:

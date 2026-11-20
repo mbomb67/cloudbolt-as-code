@@ -76,6 +76,16 @@
                     "label": "Tier",
                     "name": "tier_a1",
                     "value": "DB"
+                },
+                {
+                    "label": "Database Name",
+                    "name": "database_name_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "Database User",
+                    "name": "database_user_a1",
+                    "value": "requestlog"
                 }
             ],
             "rate": null,
@@ -100,6 +110,16 @@
                     "label": "Tier",
                     "name": "tier_a1",
                     "value": "App"
+                },
+                {
+                    "label": "PHP Stream",
+                    "name": "php_stream_a1",
+                    "value": "default"
+                },
+                {
+                    "label": "HTTP Port",
+                    "name": "http_port_a1",
+                    "value": "8080"
                 }
             ],
             "rate": null,
@@ -269,6 +289,21 @@
                     "label": "Database Tier",
                     "name": "db_tier_a1",
                     "value": "DB"
+                },
+                {
+                    "label": "Database Name",
+                    "name": "database_name_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "Database User",
+                    "name": "database_user_a1",
+                    "value": "requestlog"
+                },
+                {
+                    "label": "App Title",
+                    "name": "app_title_a1",
+                    "value": "Request Log"
                 }
             ],
             "rate": null,
@@ -458,6 +493,11 @@
                     "label": "Database Tier",
                     "name": "db_tier_a1",
                     "value": "DB"
+                },
+                {
+                    "label": "Database Port",
+                    "name": "db_port_a1",
+                    "value": "3306"
                 }
             ],
             "rate": null,

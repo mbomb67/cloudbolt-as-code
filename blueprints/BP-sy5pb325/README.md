@@ -24,6 +24,12 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 - **Database Password**: the password of the database user the app connects as.
 - **Azure Environment** and **Key Vault**: the vault that issues the certificate. The Azure environment's resource handler signs in to it.
 
+Nothing else is asked. Every other input of every step has a default on its build item, and an input with a default is left off the form.
+
+## Changing the defaults
+
+Open the build item on the blueprint's Build tab and edit its inputs: tier names, ports, database name and user, app title, PHP stream. Clearing a default puts that input back on the order form. To take **Azure Environment** or **Key Vault** off the form too, give them a default there. A sync from the repository sets the defaults the repository lists back to its values.
+
 ## Setup
 
 1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size).
@@ -34,7 +40,7 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 ## What you get
 
 - The resource's **Application URL** parameter is a link to the app.
-- The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's default PHP (8.0 on Enterprise Linux 9); **Install Apache and PHP** takes a PHP stream, such as 8.3, when you want to move it later.
+- The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's own PHP (8.0 on Enterprise Linux 9) because the PHP Stream input of **Install Apache and PHP** is `default`; set it to a stream, such as 8.3, when you want to move it later.
 - Browsers see the cluster router's certificate. The Key Vault certificate secures the connection from the router to the web VM, and the Route trusts only that certificate.
 
 ## Contents

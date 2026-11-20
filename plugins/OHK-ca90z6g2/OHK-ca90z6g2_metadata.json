@@ -7,7 +7,7 @@
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-hei3xh0r",
             "label": "Tier",
             "name": "tier",
@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Azure environment whose resource handler signs in to Key Vault. Lists the Azure environments your group can use.",
+            "description": "Azure environment whose resource handler signs in to Key Vault. Lists the Azure environments your group can use. Give it a default on the build item to pin it and hide it.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [
                 {
@@ -40,7 +40,7 @@
                 }
             ],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-xqnbxxe2",
             "label": "Azure Environment",
             "name": "azure_env_id",
@@ -55,7 +55,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Vault that issues and keeps the certificate. Lists the vaults in the chosen environment's subscription and region.",
+            "description": "Vault that issues and keeps the certificate. Lists the vaults in the chosen environment's subscription and region. Give it a default on the build item to pin it and hide it.",
             "field_dependency_controlling_set": [
                 {
                     "controlling-field": {
@@ -73,7 +73,7 @@
             ],
             "field_dependency_dependent_set": [],
             "global_options": [],
-            "hide_if_default_value": false,
+            "hide_if_default_value": true,
             "id": "CF-v56vmxwi",
             "label": "Key Vault",
             "name": "key_vault",

@@ -8,7 +8,8 @@
 The private key goes from the vault to the VM inside the tunnel and is never logged or stored in
 CloudBolt. The order form asks for an Azure environment the ordering group may use, then for a
 vault in that environment's subscription and region; the environment's resource handler is the
-identity that talks to the vault. Key Vault calls are in shared_modules/SHM-ny8h0nx0.
+identity that talks to the vault. An admin can pin either one by giving it a default on the build
+item, which also takes it off the form. Key Vault calls are in shared_modules/SHM-ny8h0nx0.
 
 Inputs: tier (default Web), azure_env_id, key_vault (the vault's URI).
 """
@@ -58,18 +59,34 @@ def generate_options_for_azure_env_id(field=None, group=None, **kwargs):
     return [(environment.id, environment.name) for environment in environments]
 
 
-def generate_options_for_key_vault(field=None, control_value=None, **kwargs):
-    """Vaults in the chosen environment's subscription and region (control_value is azure_env_id)."""
-    if not control_value:
-        return [("", "------ Choose an Azure environment first ------")]
-    try:
-        environment, handler = _azure_handler(control_value)
-        vaults = kv.list_vaults(handler, location=environment.node_location or None)
-    except (ValueError, kv.KeyVaultError) as error:
-        return [("", f"------ Could not list key vaults: {str(error)[:120]} ------")]
-    if not vaults:
-        return [("", f"------ No key vaults in {environment.node_location or 'this subscription'} ------")]
-    return [(vault["uri"], f"{vault['name']} ({vault['location']})") for vault in vaults]
+def generate_options_for_key_vault(field=None, control_value=None, group=None, **kwargs):
+    """Vaults in the chosen environment's subscription and region (control_value is azure_env_id).
+
+    No environment arrives when the Azure Environment input is pinned on the build item and so is
+    not on the form. The vaults of every Azure environment the group can use are listed then.
+    """
+    if control_value:
+        try:
+            environments = [_azure_handler(control_value)]
+        except ValueError as error:
+            return [("", f"------ {error} ------")]
+    else:
+        environments = [(environment, environment.resource_handler.cast()) for environment in _azure_environments(group)]
+        if not environments:
+            return [("", "------ Choose an Azure environment first ------")]
+
+    options, problems = {}, []
+    for environment, handler in environments:
+        try:
+            for vault in kv.list_vaults(handler, location=environment.node_location or None):
+                options[vault["uri"]] = f"{vault['name']} ({vault['location']})"
+        except kv.KeyVaultError as error:
+            problems.append(str(error)[:120])
+    if options:
+        return sorted(options.items(), key=lambda option: option[1])
+    if problems:
+        return [("", f"------ Could not list key vaults: {problems[0]} ------")]
+    return [("", "------ No key vaults in this environment's subscription and region ------")]
 
 
 def run(job, resource=None, **kwargs):
