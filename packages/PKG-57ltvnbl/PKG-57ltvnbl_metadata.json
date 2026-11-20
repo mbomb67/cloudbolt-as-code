@@ -1,13 +1,15 @@
 {
     "contents": [
         "extensions/XUI-y9bdnzxt",
-        "blueprints/BP-tikkhf2y"
+        "server_actions/SVA-5vsp0tv6",
+        "blueprints/BP-tikkhf2y",
+        "blueprints/BP-sy5pb325"
     ],
-    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, and the Connect and Workloads tabs on each project.",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, and the Run Script server action that reaches VMs through the cluster API.",
     "id": "PKG-57ltvnbl",
-    "last_updated": "2026-10-22",
+    "last_updated": "2026-11-20",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "OpenShift",
-    "version": "1.0.0"
+    "version": "1.1.0"
 }
