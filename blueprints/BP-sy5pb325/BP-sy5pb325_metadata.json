@@ -3,12 +3,30 @@
     "auto_historical_resources": false,
     "deployment_items": [
         {
+            "action_name": "Prepare OpenShift Pod Network",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-zsv5qq15"
+            },
+            "deploy_seq": 1,
+            "description": "Adds the Pod networking record CloudBolt needs for the namespace of each OpenShift Virtualization environment in the order, when it is missing.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-oeby2t69",
+            "name": "Prepare Pod Network",
+            "parameter_defaults": [],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
+        },
+        {
             "all_environments_enabled": false,
             "allowed_os_families": [
                 "Linux"
             ],
             "applications": null,
-            "deploy_seq": 1,
+            "deploy_seq": 2,
             "description": "Database VM (MariaDB).",
             "environment_selection_orchestration": null,
             "execute_in_parallel": true,
@@ -27,7 +45,7 @@
                 "Linux"
             ],
             "applications": null,
-            "deploy_seq": 2,
+            "deploy_seq": 3,
             "description": "Application VM (Apache and PHP).",
             "environment_selection_orchestration": null,
             "execute_in_parallel": true,
@@ -46,7 +64,7 @@
                 "Linux"
             ],
             "applications": null,
-            "deploy_seq": 3,
+            "deploy_seq": 4,
             "description": "Web VM (Apache TLS reverse proxy).",
             "environment_selection_orchestration": null,
             "execute_in_parallel": false,
@@ -65,7 +83,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-92i4lt1y"
             },
-            "deploy_seq": 4,
+            "deploy_seq": 5,
             "description": "Installs MariaDB on the database VM, creates the app's database, table and user, and stores the database password on the resource for later steps.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -99,7 +117,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-d9ujne9z"
             },
-            "deploy_seq": 5,
+            "deploy_seq": 6,
             "description": "Installs Apache and the distribution's default PHP on the app VM, listening on 8080.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -133,7 +151,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-lwhuaezv"
             },
-            "deploy_seq": 6,
+            "deploy_seq": 7,
             "description": "Installs Apache with mod_ssl on the web VM.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -157,7 +175,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-vmmz9jfq"
             },
-            "deploy_seq": 7,
+            "deploy_seq": 8,
             "description": "Gives the database VM a stable in-cluster name on port 3306.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -186,7 +204,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-vmmz9jfq"
             },
-            "deploy_seq": 8,
+            "deploy_seq": 9,
             "description": "Gives the app VM a stable in-cluster name on port 8080.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -215,7 +233,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-vmmz9jfq"
             },
-            "deploy_seq": 9,
+            "deploy_seq": 10,
             "description": "Gives the web VM a Service on port 443 for its Route.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -244,7 +262,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-njnsxqbf"
             },
-            "deploy_seq": 10,
+            "deploy_seq": 11,
             "description": "Publishes the web VM at a public HTTPS URL and stores the link on the resource.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -273,7 +291,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-ulnznmqb"
             },
-            "deploy_seq": 11,
+            "deploy_seq": 12,
             "description": "Deploys the Request Log app on the app VM and points it at the database Service.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -317,7 +335,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-0q5dbdq6"
             },
-            "deploy_seq": 12,
+            "deploy_seq": 13,
             "description": "Points the web VM's Apache at the app Service on port 8080.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -351,7 +369,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-ca90z6g2"
             },
-            "deploy_seq": 13,
+            "deploy_seq": 14,
             "description": "Issues the web VM's TLS certificate in Azure Key Vault and installs it.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -375,7 +393,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-yf2kpzkx"
             },
-            "deploy_seq": 14,
+            "deploy_seq": 15,
             "description": "The database VM accepts port 3306 from the app VM only.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -409,7 +427,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-yf2kpzkx"
             },
-            "deploy_seq": 15,
+            "deploy_seq": 16,
             "description": "The app VM accepts port 8080 from the web VM only.",
             "enabled": true,
             "execute_in_parallel": true,
@@ -443,7 +461,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-yf2kpzkx"
             },
-            "deploy_seq": 16,
+            "deploy_seq": 17,
             "description": "The web VM accepts port 443 from the cluster's routers only.",
             "enabled": true,
             "execute_in_parallel": false,
@@ -477,7 +495,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-jru4jomd"
             },
-            "deploy_seq": 17,
+            "deploy_seq": 18,
             "description": "Adds an entry through the app, checks the web VM cannot reach the database, and opens the public URL.",
             "enabled": true,
             "execute_in_parallel": false,

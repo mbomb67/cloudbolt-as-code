@@ -8,6 +8,7 @@ Steps in a group run in parallel; the groups run in order.
 
 | Group | Build items | What happens |
 |---|---|---|
+| 0 | Prepare Pod Network | Adds the Pod networking record CloudBolt looks up for the VMs' namespace, when it is missing. See [Known CloudBolt defect](#known-cloudbolt-defect). |
 | 1 | DB, App, Web | The three VMs are built. |
 | 2 | Install MariaDB, Install Apache and PHP, Install Apache TLS Proxy | Packages are installed and started. The database, its `entries` table and its user are created. |
 | 3 | Service: Database 3306, Service: App 8080, Service: Web 443, Publish Web Route | Each VM gets a Service named after it, so the tiers find each other by DNS name. The web VM gets a public HTTPS Route. |
@@ -45,10 +46,15 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 - The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's own PHP (8.0 on Enterprise Linux 9) because the PHP Stream input of **Install Apache and PHP** is `default`; set it to a stream, such as 8.3, when you want to move it later.
 - Browsers see the cluster router's certificate. The Key Vault certificate secures the connection from the router to the web VM, and the Route trusts only that certificate.
 
+## Known CloudBolt defect
+
+CloudBolt imports an OpenShift handler's **Pod networking** network under the namespace `default`, but after it builds a VM it looks that network up under the VM's own namespace. On a CloudBolt that imported its OpenShift networks after that change, a VM in any other namespace fails at **Adjusting NICs based on provisioning parameters** with `OVirtNetwork matching query does not exist`. The **Prepare Pod Network** step adds the missing record before the VMs are built and does nothing where it exists. Remove the step once your CloudBolt version has the fix.
+
 ## Contents
 
 | Role | ID | Name |
 |---|---|---|
+| Build | OHK-zsv5qq15 | Prepare OpenShift Pod Network |
 | Build | OHK-92i4lt1y | Install MariaDB |
 | Build | OHK-d9ujne9z | Install Apache and PHP |
 | Build | OHK-lwhuaezv | Install Apache TLS Proxy |
