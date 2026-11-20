@@ -13,7 +13,7 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 6 |
 | [MCP tool actions](#mcp-tool-actions) | 10 |
-| [Plugins](#plugins) | 223 |
+| [Plugins](#plugins) | 224 |
 | [Shared modules](#shared-modules) | 32 |
 | [UI extensions](#ui-extensions) | 18 |
 | [Parameters](#parameters) | 3 |
@@ -398,6 +398,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Node Size - Generate Options by Region, OS Image, Security, Networking and Storage (Azure SKU capabilities) | [OHK-kujhsds0](plugins/OHK-kujhsds0/README.md) | Generates node_size options filtered by live Azure SKU capabilities for the selected region, image, security, networking, and storage settings. | CloudBolt Plug-in | standalone |
 | OpenShift Project Landing Zone | [OHK-prew0osh](plugins/OHK-prew0osh/) | Creates an OpenShift project with quota, limits, network policies, and an optional role binding, then pins a CloudBolt environment to it. | CloudBolt Plug-in | [OpenShift Project Landing Zone](blueprints/BP-tikkhf2y/README.md) |
 | Order Counts by Blueprint | [OHK-yjblxbwg](plugins/OHK-yjblxbwg/) |  | CloudBolt Plug-in | [Order Counts by Blueprint](mcp_tool_actions/MTA-lp8lgi7e/) |
+| Prepare OpenShift Pod Network | [OHK-zsv5qq15](plugins/OHK-zsv5qq15/) | Adds the Pod networking record CloudBolt looks up under the namespace of each OpenShift Virtualization environment in the order, so server builds outside the default namespace do not fail at Adjusting NICs. | CloudBolt Plug-in | [3-Tier Web App on OpenShift Virtualization](blueprints/BP-sy5pb325/README.md) |
 | Publish VM HTTPS Route | [OHK-njnsxqbf](plugins/OHK-njnsxqbf/) | Publishes an OpenShift Virtualization VM's HTTPS port outside the cluster with a re-encrypt Route and stores the URL on the resource. | CloudBolt Plug-in | [3-Tier Web App on OpenShift Virtualization](blueprints/BP-sy5pb325/README.md) |
 | Remove from StormForge | [OHK-vdr6oo2z](plugins/OHK-vdr6oo2z/) | After an EKS, AKS or GKE cluster is deleted, deletes the cluster in StormForge. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md), [Azure Kubernetes Service](blueprints/BP-20q58q9z/README.md), [Google Kubernetes Engine](blueprints/BP-g8g8aecx/README.md) |
 | Remove Resource Group from Environments | [OHK-vm5p34w3](plugins/OHK-vm5p34w3/) | Removes the deleted resource group's resource_group_arm option from environments on the same subscription. | CloudBolt Plug-in | [Azure Resource Group - Bicep](blueprints/BP-p7zmh96m/README.md) |
