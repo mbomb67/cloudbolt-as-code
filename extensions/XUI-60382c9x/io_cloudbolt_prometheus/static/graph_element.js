@@ -1,3 +1,5 @@
+import { isRealHighcharts, localTimeOptions } from "./chart_theme.js";
+
 /**
  * Base class for a monitoring card's chart. A subclass names its metric and
  * builds chart options from the payload; this class fetches the payload,
@@ -16,10 +18,44 @@ export class GraphElement extends HTMLElement {
         if (this.dash) {
             this.dash.addEventListener("prom-refresh", this.onRefresh);
         }
+        // Real Highcharts measures its container once, when it creates the chart, and uses 600 px when
+        // the container has no width (the tab's pane is still hidden). So it waits for a width and
+        // is resized when the window changes or the pane is shown.
+        this.onResize = () => this.reflow();
+        window.addEventListener("resize", this.onResize);
+        document.addEventListener("shown.bs.tab", this.onResize);
+        if (typeof ResizeObserver === "function") {
+            this.sizeWatcher = new ResizeObserver(this.onResize);
+            this.sizeWatcher.observe(this);
+        }
         this.load();
     }
 
+    /** Create the chart once the card has a width; resize an existing one (real Highcharts only). */
+    reflow() {
+        if (!isRealHighcharts()) {
+            return;
+        }
+        if (this.pendingOptions) {
+            if (this.offsetWidth > 0) {
+                const options = this.pendingOptions;
+                this.pendingOptions = null;
+                this.create(options);
+            }
+            return;
+        }
+        const chart = this.chartDiv && $(this.chartDiv).highcharts && $(this.chartDiv).highcharts();
+        if (chart && typeof chart.reflow === "function") {
+            chart.reflow();
+        }
+    }
+
     disconnectedCallback() {
+        window.removeEventListener("resize", this.onResize);
+        document.removeEventListener("shown.bs.tab", this.onResize);
+        if (this.sizeWatcher) {
+            this.sizeWatcher.disconnect();
+        }
         if (this.dash) {
             this.dash.removeEventListener("prom-refresh", this.onRefresh);
         }
@@ -73,13 +109,23 @@ export class GraphElement extends HTMLElement {
         }
         this.textContent = "";
         this.chartDiv = null;
+        this.pendingOptions = null;
     }
 
     draw(options) {
         this.clear();
+        this.pendingOptions = null;
+        if (isRealHighcharts() && !this.offsetWidth) {
+            this.pendingOptions = options;
+            return;
+        }
+        this.create(options);
+    }
+
+    create(options) {
         this.chartDiv = document.createElement("div");
         this.appendChild(this.chartDiv);
-        $(this.chartDiv).highcharts(options);
+        $(this.chartDiv).highcharts(localTimeOptions(options));
     }
 
     showMessage(text, isError) {
