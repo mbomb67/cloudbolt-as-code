@@ -16,7 +16,7 @@ No inputs.
 
 from common.methods import set_progress
 from orders.models import BlueprintOrderItem
-from resourcehandlers.ovirt.models import OVirtNetwork, OVirtResourceHandler
+from resourcehandlers.ovirt.models import OVirtNetwork, OVirtHandler
 from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
@@ -60,7 +60,7 @@ def order_environments(job):
 def ensure_pod_network(environment):
     """Add the pod network record for the environment's namespace; return the namespace if added."""
     handler = environment.resource_handler.cast() if environment.resource_handler else None
-    if not isinstance(handler, OVirtResourceHandler):
+    if not isinstance(handler, OVirtHandler):
         return None
     # The same attribute CloudBolt reads when it attaches the NIC.
     namespace = getattr(environment, "ovirt_namespace", None)
