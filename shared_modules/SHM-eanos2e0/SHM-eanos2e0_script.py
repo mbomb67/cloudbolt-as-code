@@ -15,6 +15,8 @@ tier_server and run raise TierError with a message that can go straight to the j
 
 import base64
 
+import paramiko
+
 from common.methods import set_progress
 from shared_modules import kubevirt_api_tunnel
 
@@ -103,11 +105,15 @@ def run(server, script, timeout=1800):
 
     The script itself is never logged, because it can carry a password.
     """
-    set_progress(f"Opening the API tunnel to {server.hostname}")
+    set_progress(f"Opening the API tunnel to {server.hostname} and waiting for it to accept SSH")
     try:
+        # A VM that was just built may not have its address, sshd or SSH key yet.
+        kubevirt_api_tunnel.wait_for_ssh(server)
         exit_code, output = kubevirt_api_tunnel.run_script(server, PREAMBLE + script, timeout=timeout)
     except kubevirt_api_tunnel.TunnelError as error:
         raise TierError(str(error))
+    except (paramiko.SSHException, EOFError, OSError) as error:
+        raise TierError(f"The SSH session to {server.hostname} failed: {error}")
     set_progress(output or "(the script printed nothing)")
     if exit_code:
         last_lines = "\n".join(output.strip().splitlines()[-15:])
