@@ -4,6 +4,8 @@ Adds an **OpenSCAP** tab to Linux servers, and to any server labelled `OpenScap`
 
 Scans run `oscap xccdf eval` as root on the server through `Server.execute_script`, with the server's own credentials or its resource handler's agent channel. The server uploads its result files itself, so they never pass through the CloudBolt database.
 
+Other content can run a scan too: `oscap_api.scan_and_wait(server, job.owner, profile_id, install=True)` starts the same job from a plug-in, waits for it, and returns the summary and a link to the report. The [Run OpenSCAP Scan](../../plugins/OHK-oqqmfoah/) blueprint step uses it to scan new servers before an order completes.
+
 ## How results are stored
 
 Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small index per server (`/var/opt/cloudbolt/proserv/openscap/servers/<server id>.json`) keeps the summary: score, counts, failed rules, and where the files are.
@@ -14,11 +16,11 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 ## Prerequisites
 - CloudBolt 8.6 or later.
 - A Linux server in a resource handler whose script execution works (the same channel Remote Scripts use), powered on, with `curl` and `gzip`.
-- OpenShift Virtualization VMs are reached through the `kubevirt_api_tunnel` shared module (the pod network as the VM's first NIC, and an SSH key or password on the server record); the module comes with `server_actions/SVA-5vsp0tv6`.
+- OpenShift Virtualization VMs are reached through the `kubevirt_api_tunnel` shared module (the pod network as the VM's first NIC, and an SSH key or password on the server record); the module comes with `server_actions/SVA-5vsp0tv6`. With appliance storage these VMs do not upload: the job reads the result files back over the same tunnel, so the VM needs no route to CloudBolt.
 - `openscap-scanner` and the SCAP Security Guide on the server (`scap-security-guide`; `ssg-debderived` on Debian and Ubuntu), or turn on **Allow install** in settings and tick Install when running.
 - To scan: the `server.all_actions` permission on the server (the permission to run any server action), or CB Admin. To view: the view permission on the server.
 - For S3: an AWS resource handler whose credentials allow `s3:PutObject` and `s3:GetObject` on the bucket's prefix, and `s3:ListBucket` if you leave the region empty. The server needs outbound HTTPS to S3.
-- For appliance storage: the default portal must have a domain (Admin > Portals): the upload URL is built from it and never from a request's host. Without it a scan still runs but its files are not stored. The server must reach CloudBolt at that domain over HTTPS. If the certificate is not trusted by the server, turn on **Skip certificate check** in settings.
+- For appliance storage, except on OpenShift Virtualization VMs: the default portal must have a domain (Admin > Portals): the upload URL is built from it and never from a request's host. Without it a scan still runs but its files are not stored. The server must reach CloudBolt at that domain over HTTPS. If the certificate is not trusted by the server, turn on **Skip certificate check** in settings.
 
 ## Setup
 1. Sync the repository, then restart the web service (`httpd`) so the new routes load, and confirm the extension is enabled under Admin > Extensions.
@@ -29,6 +31,7 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 - Settings: default profiles tried in order when none is chosen (`cis_server_l1,cis,stig,standard`), scan timeout (30 minutes), link lifetime, scans kept per server (1-100) and the total space the appliance backend may use in GB (`local_max_gb`, 1-100), whether Install is allowed, and whether the tab shows on Linux servers or only on servers labelled `OpenScap`.
 - The tab does not contact the server when it opens; it shows the last check and scan. One scan or check runs per server at a time.
 - The upload links are bearer secrets held in the job's context and blanked when the job ends. A job cannot be rerun after that; start a new scan.
+- A scan started by content with `install=True` installs OpenSCAP when it is missing, whatever the **Allow install** setting says. That setting governs the tab's Install box.
 - Limitations: Linux only; datastreams come from the SCAP Security Guide on the server; remote content is never fetched; `oscap` output per rule is not kept in the job log.
 - The previous version stored reports in `MEDIA_ROOT/openscap_reports` on the appliance, readable by anyone who could reach that URL. This version does not use that folder; delete it by hand.
 

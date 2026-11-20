@@ -4,7 +4,8 @@
 # a temp file and runs it with bash, after a header of VAR=<quoted value> lines:
 #   MODE (scan|check), DATASTREAM, PROFILE, DEFAULT_PROFILES, ALLOW_INSTALL (0|1),
 #   UP_REPORT, UP_RESULTS, UP_ARF (upload URLs or empty), UP_TOKEN (local
-#   backend only), UP_INSECURE (0|1).
+#   backend only), UP_INSECURE (0|1), HOLD_DIR (a directory to leave the result
+#   files in for CloudBolt to collect, or empty).
 # Nothing below is formatted with user input. The script always exits 0 and
 # reports through lines "OSCAP|<key>|<value>" on stdout. Stdout stays small
 # because cloud agent channels keep only the first or the last few KB:
@@ -399,5 +400,23 @@ upload() {
 upload report.html "$UP_REPORT" report.html
 upload results.xml.gz "$UP_RESULTS" results.xml.gz
 upload arf.xml.gz "$UP_ARF" arf.xml.gz
+
+# ---- hold for collection -------------------------------------------------
+# A server that cannot reach an upload address gets HOLD_DIR and no upload
+# URLs: the files wait in a root-only directory, and CloudBolt reads them over
+# the channel it ran this script through and then removes the directory. One a
+# job that died left behind is removed by the next scan.
+if [ -n "$HOLD_DIR" ]; then
+    find "${HOLD_DIR%/*}" -maxdepth 1 -type d -name 'oscap-hold-*' -mmin +180 -exec rm -rf {} + 2>/dev/null
+    rm -rf "$HOLD_DIR"
+    if mkdir -m 700 "$HOLD_DIR" 2>/dev/null; then
+        for name in report.html results.xml.gz arf.xml.gz; do
+            if [ -s "$name" ]; then mv "$name" "$HOLD_DIR/$name"; fi
+        done
+        emit held 1
+    else
+        emit held 0
+    fi
+fi
 
 finish

@@ -17,6 +17,7 @@
         "oscap_hooks.py",
         "oscap_job.py",
         "oscap_jobs.py",
+        "oscap_api.py",
         "oscap_scan.sh",
         "templates/oscap_assets.html",
         "templates/oscap_tab.html",
