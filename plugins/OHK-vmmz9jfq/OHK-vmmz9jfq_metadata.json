@@ -1,0 +1,64 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the server build item, in the same blueprint, whose VM this step works on.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-u10xf4b4",
+            "label": "Tier",
+            "name": "tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "TCP port on the VM to expose.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-uymgq865",
+            "label": "Port",
+            "name": "port",
+            "placeholder": "3306",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "tier",
+        "port"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eanos2e0",
+            "shared_modules/SHM-wkubiao7",
+            "shared_modules/SHM-5t7bom9y"
+        ]
+    },
+    "description": "Creates a ClusterIP Service named after an OpenShift Virtualization VM, so other workloads reach one of its ports by a DNS name that survives restarts.",
+    "id": "OHK-vmmz9jfq",
+    "max_retries": 0,
+    "name": "Expose VM Port as Service",
+    "resource_technologies": [
+        "OpenShift Virtualization"
+    ],
+    "script_filename": "OHK-vmmz9jfq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

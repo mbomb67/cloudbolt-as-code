@@ -1,0 +1,12 @@
+{
+    "description": "Creates and removes the Services, Routes and NetworkPolicies that give OpenShift Virtualization VMs stable names, public URLs and restricted inbound traffic.",
+    "id": "SHM-5t7bom9y",
+    "label": "OpenShift VM Network",
+    "max_retries": 0,
+    "module_name": "openshift_vm_network",
+    "name": "openshift_vm_network",
+    "resource_technologies": [],
+    "script_filename": "SHM-5t7bom9y_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}
