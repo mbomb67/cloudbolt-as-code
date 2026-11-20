@@ -1,246 +1,349 @@
 """
-UI Extension for OpenScap on Enterprise Linux
+OpenSCAP XUI
 
-Confirmed Support:
-CentOS7, RHEL7
+Adds an OpenSCAP tab to Linux servers (or to servers labelled OpenScap). The
+tab runs OpenSCAP scans on the server as CloudBolt jobs, shows the last scan's
+score, failed rules and history, and links to the stored reports.
 
-Requires:
-yum install openscap-scanner scap-security-guide
+- The tab itself renders a shell and loads its panel asynchronously; nothing
+  on the tab render touches the network or the server.
+- The panel (openscap_panel) is one small JSON read plus at most one Job
+  query: the server's last readiness check, its latest scans and the scan or
+  check in progress. It answers with an inline message instead of raising.
+- Start (openscap_start) runs a readiness check or a scan as a job
+  (oscap_jobs.py). The job runs oscap_scan.sh on the server as root through
+  Server.execute_script; the server uploads its result files itself to the
+  result repository (oscap_repo.py), an S3 bucket or the appliance, so the
+  files never pass through the CloudBolt database.
+- Artifact (openscap_artifact) opens a stored file: a redirect to a
+  short-lived presigned S3 link, or the local file streamed.
+- Upload (openscap_upload) takes the local backend's uploads. It needs no
+  CloudBolt login; the signed token in its X-Oscap-Token header is the
+  credential.
+- Settings is an admin page (Admin > Custom Extensions > OpenSCAP Settings).
+  Its title must differ from the tab's: CloudBolt indexes both by title.
+
+Viewing needs the view permission on the server (Server.objects_for_profile).
+Running a scan needs can_scan below.
 """
-from infrastructure.models import Server, CustomField
+import functools
+import json
+
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+
+from extensions.views import admin_extension, tab_extension, TabExtensionDelegate
+from infrastructure.models import Server
 from utilities.logger import ThreadLogger
-from utilities.decorators import dialog_view
-from utilities.exceptions import NotFoundException, CommandExecutionException
-from utilities.ssh_options_service import SSHOptions
-from common.methods import shlex_quote, get_file_for_key_material, execute_command
-from django.shortcuts import get_object_or_404, render, redirect
-from extensions.views import tab_extension, TabExtensionDelegate
-from tempfile import NamedTemporaryFile
-from django.conf import settings
-from xui.openscap import forms
-from datetime import datetime
-import glob
-import os
+from utilities.middleware import login_not_required
+from utilities.permissions import cbadmin_required
 
-LOGGER = ThreadLogger(__name__)
-report_target_path = os.path.join(
-    settings.MEDIA_ROOT,
-    'openscap_reports'
-)
+from . import oscap_jobs, oscap_repo, oscap_store as store
+
+logger = ThreadLogger(__name__)
+
+TEMPLATES = "openscap/templates/"
+
+# Folder name of this XUI and the admin view's function name; together they
+# form the settings page URL /extensions/admin/<package>/<view>.
+XUI_PACKAGE = "openscap"
+PAGE_VIEW = "settings"
+
+# Running a scan runs a script as root on the server, the same thing a Remote
+# Script server action does. CloudBolt lets a user run any server action on a
+# server when their role in the server's group (or a management group, or as
+# the server's owner) has server.all_actions; utilities/permissions.py
+# server_action_permitted checks that, and so does has_permission on a Server.
+SCAN_PERMISSION = "server.all_actions"
+
+# The tab shows on servers whose OS family belongs to this root family, or
+# that carry this label.
+LINUX_FAMILY = "Linux"
+LABEL = "OpenScap"
 
 
-def copy_file_from_target(
-    ip,
-    timeout=120,
-    username=None,
-    password=None,
-    key_name=None,
-    key_location=None,
-    guest_file_path=None,
-    file_path=None,
-    ssh_options: SSHOptions = None,
-) -> str:
-    """
-    Given an IP and data to copy, copy the data from the target and save
-    it to a new file.
-    Returns the local file_path
-    """
-    # determine authentication method
-    keyfile_args, sshpass_args = "", ""
-    keyfile = None
-    is_temp_file = False
-    if key_name:
-        keyfile = get_file_for_key_material(
-            key_name, key_location=key_location
-        )
-        if not keyfile:
-            raise NotFoundException(
-                "Could not find required key material " "{}".format(key_name)
-            )
-        keyfile_args = "-i '{}'".format(keyfile)
-    else:
-        sshpass_args = "sshpass -p {}".format(shlex_quote(password))
+# ---------------------------------------------------------------------------
+# Permission helpers
+# ---------------------------------------------------------------------------
+def _viewable_server(request, server_id):
+    """The server when the viewer may view it, else None. Never a bare lookup."""
+    profile = request.get_user_profile()
+    return Server.objects_for_profile(profile).filter(pk=server_id).first()
+
+
+def can_scan(profile, server):
+    """Whether the profile may run OpenSCAP on the server: a CB Admin, or the
+    server.all_actions permission on it."""
+    if getattr(profile, "is_cbadmin", False):
+        return True
     try:
-        if not guest_file_path:
-            raise NotFoundException("Need guest_file_path")
-        if not file_path:
-            # save data to a tempfile
-            script = NamedTemporaryFile()
-            file_path = script.name
-        # Default scp options
-        scp_options = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        # Override default scp options if SSHOptions is utilized
-        if ssh_options:
-            scp_options = ssh_options.options
-            LOGGER.info(f"Using SSHOptions Service. Options passed: '{scp_options}'")
-        script = (
-            "{sshpass_args} "
-            "scp {keyfile_args} "
-            # do not check if server is in known_hosts
-            "{scp_options} "
-            "{username}@{ip}:{guest_file_path} "
-            "{file_path}".format(**locals())
-        )
-        execute_command(
-            script,
-            timeout=timeout,
-            strip=[password] if password else [],
-            stream_remote_output=False,
-        )
-    except Exception as e:
-        # Just doing try-except so can have finally for temp file deletion,
-        # so re-raise
-        raise e
-    finally:
-        # delete temporary key file if necessary
-        if keyfile and is_temp_file:
-            os.remove(keyfile)
-    return file_path
+        return bool(profile.has_permission(SCAN_PERMISSION, server))
+    except Exception:
+        logger.exception("Permission check '%s' failed for server %s", SCAN_PERMISSION, server.id)
+        return False
 
 
-def create_custom_fields():
-    CustomField.objects.update_or_create(
-        name='openscap_schedule',
-        defaults={'type': 'STR', 'label': 'OpenScap Schedule'}
-    )
+def _is_linux(server):
+    family = server.os_family
+    return bool(family and family.get_base_name() == LINUX_FAMILY)
 
 
-def get_version_info(server):
-    script = '''
-    oscap --version |grep -i "version:"
-    '''
-    stdout = server.execute_script(
-        script_contents=script, timeout=120, show_streaming_output=True, remove_after_run=True,
-        runas_username=server.username, runas_password=server.password, run_with_sudo=False)
-    stdout_list = stdout.split('\n')
-    version_info = []
-    for i in stdout_list:
-        if 'Version' in i:
-            line = i.split('Version:')
-            version_info.append({"label": line[0], "version": line[1]})
-    return version_info
+def _base_url(request):
+    """The address servers use to reach CloudBolt: the default portal's
+    configured site URL, or "" when it is not set. Never built from the
+    request's Host header, which a client controls."""
+    from portals.models import PortalConfig
+
+    portal = PortalConfig.get_current_portal(request)
+    url = (portal.site_url if portal else None) or ""
+    return url.rstrip("/")
 
 
-def get_policies(server):
-    script = '''
-    #!/bin/bash
-
-    tmpfile="/tmp/profiles"
-    echo -n > /tmp/profiles
-
-    for i in $(ls -1 /usr/share/xml/scap/ssg/content/ssg-*-ds.xml); do
-      file=$(basename $i)
-      oscap info --profiles $i | sed 's,^,'"$file:"',' >> $tmpfile
-      # sed -i 's,^,'"$file:"',' $tmpfile
-    done
-    cat $tmpfile
-    '''
-    stdout = server.execute_script(
-        script_contents=script, timeout=120, show_streaming_output=True, remove_after_run=True,
-        runas_username=server.username, runas_password=server.password, run_with_sudo=True)
-    items = stdout.split('\n')
-    policies = []
-    for i in items:
-        if i != "":
-            policies.append(i)
-    return policies
+def _settings_url():
+    return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": PAGE_VIEW})
 
 
-def create_report_path():
-    if not os.path.isdir(report_target_path):
-        os.mkdir(report_target_path)
+# ---------------------------------------------------------------------------
+# Tab
+# ---------------------------------------------------------------------------
+class OpenSCAPTabDelegate(TabExtensionDelegate):
+    """Linux servers, or servers labelled OpenScap. Cheap: no network, no remote call."""
 
-
-def get_reports(server):
-    create_report_path()
-    reports = []
-    for filename in glob.glob(f'{report_target_path}/report_{server.id}_*'):
-        reports.append(os.path.basename(filename))
-    return reports
-
-
-def run_evaluation_for_server(server, policy, profile):
-    timestamp = datetime.now().isoformat()
-    report = f'report_{server.id}_{timestamp}.html'
-    script = f'''
-    #!/bin/env bash
-    oscap xccdf eval --profile {profile} --report /tmp/{report} /usr/share/xml/scap/ssg/content/{policy}
-    '''
-    try:
-        server.execute_script(script_contents=script, timeout=120, show_streaming_output=True, remove_after_run=True,
-                              runas_username=server.username, runas_password=server.password, run_with_sudo=True)
-    except CommandExecutionException as e:
-        expected_error = (f"Warning: Permanently added '{server.ip}' (ECDSA) to "
-                          f"the list of known hosts.\nConnection to {server.ip} "
-                          f"closed.\n\n")
-        std_err = e.output.split('stderr: ')[-1]
-        if std_err == expected_error:
-            # This is expected if the server is not in known_hosts
-            pass
-        else:
-            raise e
-    create_report_path()
-    username, password, key_name, key_location = server.credentials_for_script(None, None, None)
-    copy_file_from_target(
-        server.ip,
-        username=username,
-        password=password,
-        key_name=key_name,
-        key_location=key_location,
-        guest_file_path=f'/tmp/{report}',
-        file_path=f'{report_target_path}/{report}'
-    )
-
-
-@dialog_view
-def run_evaluation(request, server_id):
-    server = get_object_or_404(Server, pk=server_id)
-    if request.method == 'POST':
-        form = forms.RunEvaluationForm(request.POST)
-        if form.is_valid():
-            policy = form.cleaned_data['policy']
-            p_file = policy.split(':')[0]
-            p_profile = policy.split(':')[1]
-            run_evaluation_for_server(server, policy=p_file, profile=p_profile)
-            return redirect('/servers/{}/'.format(server_id))
-    elif request.method == 'GET':
-        form = forms.RunEvaluationForm(
-            request=request,
-            policies=get_policies(server),
-        )
-    else:
-        form = forms.RunEvaluationForm()
-    return dict(
-        form=form,
-        title='Run Evalution',
-        submit='Run',
-        action_url=f'/servers/{server_id}/run_evaluation/',
-    )
-
-
-class TabDelegate(TabExtensionDelegate):
     def should_display(self):
-        # return ChefNode.objects.filter(cb_server_id=self.instance.id).exists()
-        return 'OpenScap' in self.instance.labels
+        server = self.instance
+        if server.status == "HISTORICAL":
+            return False
+        if store.get_settings()["visibility"] == "linux" and _is_linux(server):
+            return True
+        return LABEL in server.labels
 
 
-@tab_extension(model=Server,
-               delegate=TabDelegate,
-               title='OpenScap',
-               description='OpenScap Server Tab')
-def server_tab_chef(request, obj_id=None, logger=None):
-    """
-    OpenScap Server Tab Extension
-    """
-    if not logger:
-        logger = LOGGER
+@tab_extension(
+    model=Server,
+    title="OpenSCAP",
+    delegate=OpenSCAPTabDelegate,
+    description="OpenSCAP compliance scans of the server, with score, failed rules and stored reports",
+)
+def openscap_tab(request, obj_id):
+    server = _viewable_server(request, obj_id)
+    if server is None:
+        raise Http404
+    profile = request.get_user_profile()
+    is_admin = bool(profile.is_cbadmin)
+    return render(request, TEMPLATES + "oscap_tab.html", {
+        "server": server,
+        "panel_url": reverse("openscap_panel", args=[server.id]),
+        "shell": {
+            "can_scan": can_scan(profile, server),
+            "is_admin": is_admin,
+            "settings_url": _settings_url() if is_admin else "",
+            "start_url": reverse("openscap_start", args=[server.id]),
+            "repo_label": oscap_repo.describe()["label"],
+        },
+    })
 
-    # create_custom_fields()
-    server = get_object_or_404(Server, pk=obj_id)
-    version_info = get_version_info(server)
 
-    return render(request, 'openscap/templates/server_tab.html', dict(
-        server=server,
-        version_info=version_info,
-        reports=get_reports(server)
-    ))
+# ---------------------------------------------------------------------------
+# Panel (HTML fragment loaded asynchronously by the tab)
+# ---------------------------------------------------------------------------
+def _scan_view(server, scan):
+    """A scan summary as the panel shows it, with the links to its stored files."""
+    view = dict(scan)
+    files = scan.get("files") or {}
+    for kind, name in oscap_repo.FILES.items():
+        view[kind + "_url"] = (
+            reverse("openscap_artifact", args=[server.id, scan["id"], kind]) if files.get(name) else ""
+        )
+    return view
+
+
+def _panel_context(server, profile, request):
+    cfg = store.get_settings()
+    index = store.read_index(server.id)
+    scans = [_scan_view(server, scan) for scan in index["scans"]]
+    latest = next((scan for scan in scans if scan.get("status") == "completed"), None)
+    state = dict(index["state"])
+    state.setdefault("checked", "")
+    state.setdefault("oscap_version", "")
+    state.setdefault("os_name", "")
+    state.setdefault("ready", False)
+    state.setdefault("problem", "")
+    state.setdefault("datastreams", [])
+    oscap = {
+        "denied": False,
+        "can_scan": can_scan(profile, server),
+        "is_admin": bool(profile.is_cbadmin),
+        "start_url": reverse("openscap_start", args=[server.id]),
+        "panel_url": reverse("openscap_panel", args=[server.id]),
+        "repo": oscap_repo.describe(cfg),
+        "state": state,
+        "active": oscap_jobs.panel_active(server.id, index),
+        "allow_install": cfg["allow_install"],
+        "latest": latest,
+        "last_failed": scans[0] if scans and scans[0].get("status") == "failed" else None,
+        "history": scans,
+    }
+    if oscap["is_admin"]:
+        oscap["settings_url"] = _settings_url()
+    return {"oscap": oscap}
+
+
+def openscap_panel(request, server_id):
+    server = _viewable_server(request, server_id)
+    if server is None:
+        context = {
+            "server": None,
+            "oscap": {"denied": True},
+            "error": "You do not have permission to view this server.",
+        }
+        return render(request, TEMPLATES + "oscap_panel.html", context)
+    profile = request.get_user_profile()
+    try:
+        context = _panel_context(server, profile, request)
+    except store.StoreError:
+        logger.exception("OpenSCAP: the index of server %s cannot be read", server.id)
+        context = {"oscap": {"denied": False}, "error": oscap_jobs.INDEX_ERROR}
+    except Exception:
+        logger.exception("OpenSCAP panel failed for server %s", server.id)
+        context = {
+            "oscap": {"denied": False},
+            "error": "Could not load this panel. The CloudBolt application log has the details.",
+        }
+    context["server"] = server
+    return render(request, TEMPLATES + "oscap_panel.html", context)
+
+
+# ---------------------------------------------------------------------------
+# JSON API: start a scan or a check
+# ---------------------------------------------------------------------------
+def _api(view):
+    """Turn permission and request errors into JSON error responses. Request
+    bodies are small and carry no secrets."""
+
+    @functools.wraps(view)
+    def wrapper(request, *args, **kwargs):
+        try:
+            return view(request, *args, **kwargs)
+        except PermissionDenied:
+            return JsonResponse({"error": "You may not run OpenSCAP on this server."}, status=403)
+        except Http404:
+            return JsonResponse({"error": "This server was not found."}, status=404)
+        except Exception:
+            logger.exception("OpenSCAP API call failed: %s %s", request.method, request.path)
+            return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
+
+    return wrapper
+
+
+def _body(request):
+    """The JSON object in the request body, or None when it is not one."""
+    try:
+        data = json.loads(request.body.decode("utf-8") or "{}")
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+@_api
+def openscap_start(request, server_id):
+    """POST {mode: scan|check, datastream, profile, install}: starts the job,
+    answers 202 with {job_id, job_url}."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    server = _viewable_server(request, server_id)
+    if server is None:
+        raise Http404
+    profile = request.get_user_profile()
+    if not can_scan(profile, server):
+        raise PermissionDenied
+    data = _body(request)
+    if data is None:
+        return JsonResponse({"error": "The request body must be a JSON object."}, status=400)
+    job = oscap_jobs.start(
+        profile,
+        server,
+        str(data.get("mode") or "scan"),
+        str(data.get("datastream") or ""),
+        str(data.get("profile") or ""),
+        bool(data.get("install")),
+        base_url=_base_url(request),
+    )
+    if isinstance(job, oscap_jobs.Refusal):
+        return JsonResponse({"error": job.message}, status=job.status)
+    return JsonResponse({"job_id": job.id, "job_url": job.get_absolute_url()}, status=202)
+
+
+# ---------------------------------------------------------------------------
+# Stored result files
+# ---------------------------------------------------------------------------
+def openscap_artifact(request, server_id, scan_id, kind):
+    """The report, the XCCDF results or the ARF file of one scan."""
+    server = _viewable_server(request, server_id)
+    if server is None:
+        raise Http404
+    oscap_repo.kind_name(kind)
+    try:
+        scan = store.find_scan(server.id, scan_id)
+    except store.StoreError:
+        logger.exception("OpenSCAP: the index of server %s cannot be read", server.id)
+        raise Http404
+    if scan is None:
+        raise Http404
+    try:
+        return oscap_repo.link_or_response(server, scan, kind, request)
+    except oscap_repo.RepoError as exc:
+        # The detail stays in the log; everyone, administrators included, gets one fixed sentence.
+        logger.error("OpenSCAP: cannot open %s of scan %s: %s", kind, scan_id, exc.detail)
+    return HttpResponse(oscap_repo.GENERIC_PUBLIC, status=502, content_type="text/plain")
+
+
+@login_not_required
+@csrf_exempt
+def openscap_upload(request, scan_id, name):
+    """Local backend: a server PUTs one result file here. No login; the signed
+    token is the credential, and every refusal is a plain 404."""
+    try:
+        oscap_repo.receive_upload(request, scan_id, name)
+    except Http404:
+        logger.info("OpenSCAP: refused an upload from %s", request.META.get("REMOTE_ADDR", "unknown address"))
+        raise
+    return HttpResponse(status=200)
+
+
+# ---------------------------------------------------------------------------
+# Settings page
+# ---------------------------------------------------------------------------
+def _handlers():
+    from resourcehandlers.aws.models import AWSHandler
+
+    return [{"id": str(h.id), "name": h.name} for h in AWSHandler.objects.all().order_by("name")]
+
+
+@admin_extension(
+    title="OpenSCAP Settings",
+    description="Choose where OpenSCAP scan reports are stored (S3 or this appliance), which profiles scans "
+    "try, how long they may run, and which servers show the OpenSCAP tab.",
+)
+@cbadmin_required
+def settings(request):
+    saved = False
+    errors = []
+    current = store.get_settings()
+    if request.method == "POST":
+        clean, errors = store.validate_settings(request.POST)
+        if errors:
+            current = dict(clean)
+        else:
+            store.save_settings(clean)
+            current = store.get_settings()
+            saved = True
+    return render(request, TEMPLATES + "oscap_settings.html", {
+        "settings": current,
+        "handlers": _handlers(),
+        "saved": saved,
+        "errors": errors,
+        "local_usage": oscap_repo.local_usage(),
+    })

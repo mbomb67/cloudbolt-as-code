@@ -1,4 +1,1 @@
-"""
-This package includes a server tab extension:
-- OpenScap
-"""
+ALLOWED_XUI_EXTENSIONS = [".py", ".html", ".sh"]

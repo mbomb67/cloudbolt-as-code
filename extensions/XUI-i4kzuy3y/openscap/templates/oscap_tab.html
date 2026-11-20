@@ -1,0 +1,38 @@
+{% load i18n %}
+{% comment %}
+  Shell of the OpenSCAP tab. The page header is static here, as in the EKS and
+  Monitoring tabs; oscap_assets.html loads the panel fragment (panel_url) into
+  the body div and keeps it fresh while a job is running. Run scan and Check
+  server are enabled or disabled from the panel's state after each load.
+{% endcomment %}
+<div id="oscap-root" data-oscap-root="1" data-panel-url="{{ panel_url }}" data-start-url="{{ shell.start_url }}" data-csrf="{{ csrf_token }}">
+  <div class="oscap-hero-top">
+    <div>
+      <div class="oscap-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> {% trans "Compliance" %}</div>
+      <div class="oscap-title">{{ server.hostname }}</div>
+      <div class="oscap-sub">{% blocktrans with label=shell.repo_label %}OpenSCAP security scans. Reports are stored in {{ label }}.{% endblocktrans %}</div>
+    </div>
+    <div class="oscap-tools">
+      {% if shell.can_scan %}
+      <button type="button" class="btn btn-sm btn-primary" data-oscap-act="toggle-form" aria-expanded="false" aria-controls="oscap-form" disabled>
+        <i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Run scan" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="check" disabled>
+        <i class="bi bi-shield-check" aria-hidden="true"></i> {% trans "Check server" %}
+      </button>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="refresh">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+      </button>
+      {% if shell.settings_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ shell.settings_url }}">
+        <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div data-oscap-body aria-live="polite" aria-busy="true">
+    <div class="oscap-loading-note"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Loading from CloudBolt…" %}</div>
+  </div>
+</div>
+{% include "openscap/templates/oscap_assets.html" %}
