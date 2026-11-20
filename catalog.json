@@ -737,7 +737,7 @@
     "id": "XUI-ax1sluwi",
     "type": "extensions",
     "name": "HCP Terraform Workspace",
-    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources with the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
+    "description": "Adds Terraform and Terraform Variables tabs to HCP Terraform resources, the first in place of Overview, with the resource's owner, group, status, labels and rate, the workspace summary, no-code module name and version with an update-available notice, drift and cost estimate, run history with CloudBolt job links, a pending-run discard, managed resources, and read-only variables.",
     "path": "extensions/XUI-ax1sluwi",
     "readme": "extensions/XUI-ax1sluwi/README.md",
     "uses": [],
