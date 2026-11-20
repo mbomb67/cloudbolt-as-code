@@ -33,6 +33,9 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 - The previous version stored reports in `MEDIA_ROOT/openscap_reports` on the appliance, readable by anyone who could reach that URL. This version does not use that folder; delete it by hand.
 
 ## Tested
-On CloudBolt 2026.3.131 with an Amazon Linux 2023 server over SSH and appliance storage: Check server, install through `dnf`, scans with the `standard` profile (about a minute), upload of the three files, and opening the report and downloads from the tab.
+On CloudBolt 2026.3.131:
+- **AWS, Amazon Linux 2023, SSH, appliance storage:** Check server, install through `dnf`, scans with the `standard` profile (the only one its guide ships; about a minute), upload of the three files, and opening the report and downloads from the tab.
+- **OpenShift Virtualization, RHEL 9.9, KubeVirt API tunnel:** check with install and a `cis_server_l1` scan (44 seconds). The guide offers 20 profiles there (CIS, STIG, PCI-DSS, HIPAA, ANSSI and others). The VM could not reach the appliance, so the files were not stored: use S3 for servers that cannot reach CloudBolt.
+- **AWS, Ubuntu 22.04:** `oscap` installs, but Ubuntu's repositories carry no guide content, so there is nothing to scan against. Canonical ships its profiles with Ubuntu Pro (`usg`); that route is not tested.
 
-Not yet tested: the S3 backend and its presigned URLs; script channels other than SSH (SSM, Azure Run Command, VMware Tools); installs through `yum`, `zypper` and `apt`; datastream matching on RHEL, Rocky, Alma, Oracle, SLES, Ubuntu and Debian; long-running profiles such as CIS or STIG; and scanning as a non-admin user.
+Not yet tested: the S3 backend and its presigned URLs; SSM, Azure Run Command and VMware Tools script channels (the lab appliance cannot reach its ESXi hosts, so a vCenter check timed out before the script ran); installs through `yum` and `zypper`; Rocky, Alma, Oracle, SLES and Debian; STIG-length scans; and scanning as a non-admin user.
