@@ -38,6 +38,12 @@
   .tfws .tf-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .tfws .tf-facts { display: flex; flex-wrap: wrap; gap: 10px 36px; margin-top: 16px; }
   .tfws .tf-facts > div { min-width: 0; }
+  {# The CloudBolt facts stay on one row; a long label list scrolls the row sideways on a narrow page. #}
+  .tfws .tf-facts-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 14px; border-bottom: 1px solid var(--tf-rule); }
+  .tfws .tf-facts-row > div { flex: 0 0 auto; }
+  .tfws .tf-facts-row .v { white-space: nowrap; }
+  .tfws .tf-labels { display: flex; align-items: center; gap: 6px; }
+  .tfws .tf-labels .cb-tag { margin: 0; }
   .tfws .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--tf-muted); margin-bottom: 3px; }
   .tfws .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
   .tfws .tf-card-h { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--tf-line); flex-wrap: wrap; }
