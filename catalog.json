@@ -688,7 +688,10 @@
     "readme": "extensions/XUI-60382c9x/README.md",
     "uses": [],
     "used_by": [],
-    "enabled": true
+    "enabled": true,
+    "packages": [
+      "packages/PKG-57ltvnbl"
+    ]
   },
   {
     "id": "XUI-6nzs882l",
@@ -1706,14 +1709,15 @@
     "id": "PKG-57ltvnbl",
     "type": "packages",
     "name": "OpenShift",
-    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, and the Run Script server action that reaches VMs through the cluster API.",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring tab on VMs and on the resources that hold them, and the Run Script server action that reaches VMs through the cluster API.",
     "path": "packages/PKG-57ltvnbl",
     "readme": "packages/PKG-57ltvnbl/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.1.0",
+    "version": "1.2.0",
     "contents": [
       "extensions/XUI-y9bdnzxt",
+      "extensions/XUI-60382c9x",
       "server_actions/SVA-5vsp0tv6",
       "blueprints/BP-tikkhf2y",
       "blueprints/BP-sy5pb325"
