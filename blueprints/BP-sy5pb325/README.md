@@ -20,6 +20,7 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 
 ## Order form
 
+- **Resource Name**: the name of the deployment. It becomes the name of the resource in CloudBolt, with a number added when the name is taken, and the app's page shows it.
 - **Environment** for each VM, when more than one is enabled on its build item.
 - **Database Password**, on the Install MariaDB step: the password of the database user the app connects as. That step stores it encrypted on the resource, and the Deploy App step reads it from there.
 - **Azure Environment** and **Key Vault**: the vault that issues the certificate. The Azure environment's resource handler signs in to it.
@@ -40,6 +41,7 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 ## What you get
 
 - The resource's **Application URL** parameter is a link to the app.
+- The page shows the resource's name next to its heading and in the browser tab, so each deployment's page can be told apart.
 - The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's own PHP (8.0 on Enterprise Linux 9) because the PHP Stream input of **Install Apache and PHP** is `default`; set it to a stream, such as 8.3, when you want to move it later.
 - Browsers see the cluster router's certificate. The Key Vault certificate secures the connection from the router to the web VM, and the Route trusts only that certificate.
 
