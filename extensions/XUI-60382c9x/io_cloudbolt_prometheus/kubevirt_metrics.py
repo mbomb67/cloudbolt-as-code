@@ -21,6 +21,7 @@ from requests import RequestException
 from utilities.exceptions import CloudBoltException
 from utilities.logger import ThreadLogger
 from xui.io_cloudbolt_prometheus.alert_rows import alert_row, ordered
+from xui.io_cloudbolt_prometheus.resource_queries import quote as _quote
 
 logger = ThreadLogger(__name__)
 
@@ -38,11 +39,6 @@ def is_kubevirt_server(server):
     return getattr(server, "ovirtserverinfo", None) is not None
 
 
-def _quote(value):
-    """Escape a value for use inside a double-quoted PromQL string."""
-    return str(value).replace("\\", "\\\\").replace('"', '\\"')
-
-
 def _thanos_host(handler, client):
     """Return the host of the cluster's Thanos Querier route, cached per handler."""
     key = f"io_cloudbolt_prometheus:thanos_host:{handler.id}"
@@ -57,36 +53,39 @@ def _thanos_host(handler, client):
     return host
 
 
-class ThanosQuerier:
-    """Runs PromQL for one VM. Every query returns [] when the cluster cannot be asked."""
+class ThanosClient:
+    """Runs PromQL against a cluster's Thanos Querier. Every query returns [] when it cannot be asked."""
 
-    def __init__(self, server):
+    def __init__(self, handler, description):
+        """handler is the cast OpenShift Virtualization resource handler; description is for the log."""
         self.session = None
-        self.selector = ""
+        self.base_url = ""
+        # Set when the cluster cannot be reached or answers 5xx; every later call then returns at once,
+        # so a dead cluster costs one wait, not one per query.
+        self.failed = False
         try:
-            handler = server.resource_handler.cast()
             # The wrapper's session carries the bearer token, CloudBolt's CA bundle and its proxies.
             client = handler.get_api_wrapper().client
             self.base_url = f"https://{_thanos_host(handler, client)}/api/v1"
-            self.selector = (
-                f'namespace="{_quote(server.ovirtserverinfo.namespace)}", '
-                f'name="{_quote(server.hostname)}"'
-            )
             self.session = client.http_session
         except Exception as error:  # the wrapper raises bare Exception when the login fails
-            logger.warning(f"Monitoring: could not connect to the cluster for {server.hostname}: {error}")
+            self.failed = True
+            logger.warning(f"Monitoring: could not connect to the cluster for {description}: {error}")
 
     def get_data(self, path, params=None):
         """Return the "data" member of the answer, or None when the cluster cannot be asked."""
-        if self.session is None:
+        if self.session is None or self.failed:
             return None
         try:
             response = self.session.get(
                 f"{self.base_url}{path}", params=params or {}, timeout=QUERY_TIMEOUT_SECONDS
             )
         except RequestException as error:
+            self.failed = True
             logger.warning(f"Monitoring: Thanos Querier request failed: {error}")
             return None
+        if response.status_code >= 500:
+            self.failed = True
         if response.status_code != 200:
             # 403 means the handler's identity lacks the cluster-monitoring-view cluster role.
             logger.warning(
@@ -110,15 +109,39 @@ class ThanosQuerier:
     def range(self, query, step):
         """Return the result list of a 24-hour range query."""
         end = time.time()
+        return self.range_between(query, end - DAY_SECONDS, end, step)
+
+    def range_between(self, query, start, end, step):
+        """Return the result list of a range query over exactly this window."""
         return self._get(
             "/query_range",
-            {"query": query, "start": end - DAY_SECONDS, "end": end, "step": step},
+            {"query": query, "start": start, "end": end, "step": step},
         )
 
     def values(self, query, step):
         """Return the [timestamp, value] pairs of the first series of a 24-hour range query."""
         result = self.range(query, step)
         return result[0]["values"] if result else []
+
+
+class ThanosQuerier(ThanosClient):
+    """Runs PromQL for one VM."""
+
+    def __init__(self, server):
+        self.selector = ""
+        try:
+            handler = server.resource_handler.cast()
+            self.selector = (
+                f'namespace="{_quote(server.ovirtserverinfo.namespace)}", '
+                f'name="{_quote(server.hostname)}"'
+            )
+        except Exception as error:
+            logger.warning(f"Monitoring: could not connect to the cluster for {server.hostname}: {error}")
+            self.session = None
+            self.base_url = ""
+            self.failed = True
+            return
+        super().__init__(handler, server.hostname)
 
 
 def _cpu_fraction(querier, server, window):
@@ -232,17 +255,58 @@ def fetch_health(server):
     }
 
 
-def _about_vm(labels, namespace, hostname):
-    """True when an alert's labels point at this VM.
+def matching_vm(labels, namespace, hostnames):
+    """The hostname of the VM, out of hostnames, that an alert's labels point at; None when none.
 
     Rules name the VM differently: KubeVirt's own use name or vmi, a rule written on the
     kubevirt_vmi_* series inherits name, and a pod rule carries the virt-launcher pod.
     """
     if labels.get("namespace") != namespace:
-        return False
-    if hostname in (labels.get("name"), labels.get("vmi"), labels.get("vm")):
-        return True
-    return bool(re.fullmatch(f"virt-launcher-{re.escape(hostname)}-[a-z0-9]{{5}}", labels.get("pod", "")))
+        return None
+    for key in ("name", "vmi", "vm"):
+        if labels.get(key) in hostnames:
+            return labels[key]
+    pod = re.fullmatch(r"virt-launcher-(.+)-[a-z0-9]{5}", labels.get("pod", ""))
+    if pod and pod.group(1) in hostnames:
+        return pod.group(1)
+    return None
+
+
+def _about_vm(labels, namespace, hostname):
+    """True when an alert's labels point at this VM."""
+    return matching_vm(labels, namespace, {hostname}) is not None
+
+
+def fetch_alert_rows(client, wanted):
+    """[(namespace, hostname, alert row)] for alerts about the VMs in wanted ({namespace: {hostnames}}).
+
+    None when the cluster cannot be asked. Same sources as fetch_alerts: the alerts API, else the
+    ALERTS series. One call serves every namespace of the cluster.
+    """
+    data = client.get_data("/alerts")
+    if data is not None:
+        pairs = [
+            (alert.get("labels", {}), alert_row(
+                alert.get("labels", {}), alert.get("annotations"), alert.get("state"), alert.get("activeAt")))
+            for alert in data.get("alerts", [])
+        ]
+    else:
+        namespaces = "|".join(_quote(re.escape(namespace)) for namespace in sorted(wanted))
+        data = client.get_data("/query", {"query": f'ALERTS{{namespace=~"{namespaces}"}}'})
+        if data is None:
+            return None
+        pairs = [
+            (series["metric"], alert_row(series["metric"], state=series["metric"].get("alertstate")))
+            for series in data.get("result", [])
+        ]
+    rows = []
+    for labels, row in pairs:
+        namespace = labels.get("namespace")
+        if namespace in wanted:
+            hostname = matching_vm(labels, namespace, wanted[namespace])
+            if hostname is not None:
+                rows.append((namespace, hostname, row))
+    return rows
 
 
 def fetch_alerts(server):

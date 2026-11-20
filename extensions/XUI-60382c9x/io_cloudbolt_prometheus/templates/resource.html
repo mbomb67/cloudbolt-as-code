@@ -1,0 +1,70 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'io_cloudbolt_prometheus/monitoring_dashboard.css' %}">
+
+<div class="io-prom-dash" data-resource-id="{{ resource_id }}">
+    <div class="prom-hero">
+        <div>
+            <div class="prom-eyebrow"><i class="bi bi-activity" aria-hidden="true"></i> {{ resource_name }}</div>
+            <div class="prom-title">Monitoring <span class="prom-status" data-prom-status></span></div>
+            <div class="prom-sub" data-prom-subtitle>Last 24 hours</div>
+        </div>
+        <div class="prom-tools">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-prom-refresh>
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <resource-tiers></resource-tiers>
+
+    <resource-tiles></resource-tiles>
+
+    <section class="prom-card prom-table-card">
+        <div class="prom-card-h">
+            <div class="prom-card-t" data-prom-title>Tiers</div>
+            <div class="prom-card-s" data-prom-sub></div>
+        </div>
+        <resource-table></resource-table>
+    </section>
+
+    <div class="prom-section-h">
+        <div class="prom-card-t" data-prom-compare-title>Tier comparison</div>
+        <div class="prom-card-s" data-prom-compare-sub></div>
+    </div>
+
+    <div class="prom-chart-grid">
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">CPU utilisation</div>
+                <div class="prom-card-s" data-prom-sub>Share of the servers' CPUs in use, in percent.</div>
+            </div>
+            <resource-graph metric="cpu"></resource-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Memory used</div>
+                <div class="prom-card-s" data-prom-sub>Share of the servers' memory in use, in percent.</div>
+            </div>
+            <resource-graph metric="memory"></resource-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Network throughput</div>
+                <div class="prom-card-s" data-prom-sub>Data received plus sent, per second.</div>
+            </div>
+            <resource-graph metric="net_io"></resource-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Disk IO</div>
+                <div class="prom-card-s" data-prom-sub>Data read plus written, per second.</div>
+            </div>
+            <resource-graph metric="disk_io"></resource-graph>
+        </section>
+    </div>
+
+    <resource-alerts></resource-alerts>
+</div>
+
+<script type="module" src="{% static 'io_cloudbolt_prometheus/resource_tab.js' %}"></script>
