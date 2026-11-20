@@ -544,7 +544,7 @@
         "name": "three_tier_web_app",
         "plural_label": "3-Tier Web Apps"
     },
-    "sequence": 0,
+    "sequence": 60,
     "show_recipient_field_on_order_form": false,
     "teardown_items": [
         {
