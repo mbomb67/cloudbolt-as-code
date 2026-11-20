@@ -323,7 +323,12 @@ def scan_summary(parsed, scan_id, started, job, requested_by, requested_profile,
     files = {name: ok for name, (ok, _reason) in parsed["stored"].items()}
     if disk_files is not None:
         files = {name: bool(disk_files.get(name)) for name in oscap_repo.UPLOAD_NAMES}
-    problems = ["{}: {}".format(name, reason) for name, (ok, reason) in parsed["stored"].items() if not ok]
+    # One line per distinct reason: the three files usually fail the same way.
+    by_reason = {}
+    for name, (ok, reason) in parsed["stored"].items():
+        if not ok:
+            by_reason.setdefault(reason, []).append(name)
+    problems = ["{}: {}".format(", ".join(names), reason) for reason, names in by_reason.items()]
     if not uploads:
         problems = [no_target_problem or NO_TARGETS_PROBLEM]
     elif disk_files is None and completed and not parsed["final"]:
@@ -618,7 +623,8 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
         if parsed["ready"]:
             return "SUCCESS", "OpenSCAP {} is ready on {} ({}).".format(
                 parsed["oscap_version"] or "", server.hostname, parsed["os_name"]), "", outputs
-        return "FAILURE", "", parsed["problem"] or "OpenSCAP is not ready.", outputs
+        # The check itself ran; the server is just not ready to scan.
+        return "WARNING", "", parsed["problem"] or "OpenSCAP is not ready.", outputs
 
     disk = _local_files(server, scan_id) if (uploads and cfg["backend"] == "local") else None
     summary = scan_summary(parsed, scan_id, started or store.stamp(), job, requested_by, profile_id, datastream,

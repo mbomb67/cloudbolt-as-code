@@ -349,7 +349,14 @@ upload() {
             ok=1
             emit stored "$name|yes|"
         else
-            reason=$(tail -n 1 "$WORK/curl.err" | cut -c1-200)
+            # curl -sS prints "curl: (NN) reason" and then, for some errors,
+            # several lines of advice; keep the reason line.
+            reason=$(grep -m 1 '^curl: (' "$WORK/curl.err" | cut -c1-200)
+            case "$reason" in
+                "curl: (60)"*)
+                    reason="the server does not trust the certificate of the upload address (curl 60); install the issuing CA on the server, or for appliance storage turn on Skip certificate check in the OpenSCAP settings" ;;
+                "") reason=$(head -n 1 "$WORK/curl.err" | cut -c1-200) ;;
+            esac
             emit stored "$name|no|${reason:-upload failed}"
         fi
     fi
