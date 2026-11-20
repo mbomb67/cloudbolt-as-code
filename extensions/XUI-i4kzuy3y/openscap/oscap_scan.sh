@@ -182,10 +182,15 @@ if [ ! -s "$RANKED" ]; then
 fi
 
 n=0
-BEST_BASE=""; BEST_PATH=""
+BEST_BASE=""; BEST_PATH=""; BEST_RANK=100
 while IFS='|' read -r rank base path; do
     n=$((n + 1))
     [ "$n" -gt 3 ] && break
+    # When a datastream matches this operating system, offer only matching
+    # ones: content for another release or product (ssg-ol7 on Oracle Linux
+    # 8, ssg-firefox) would only report rules as not applicable.
+    [ "$n" -eq 1 ] && BEST_RANK=$((10#$rank))
+    if [ "$BEST_RANK" -lt 100 ] && [ "$((10#$rank))" -ge 100 ]; then break; fi
     rec=0
     if [ "$n" -eq 1 ] && [ "$((10#$rank))" -lt 100 ]; then rec=1; fi
     [ "$n" -eq 1 ] && { BEST_BASE=$base; BEST_PATH=$path; }
