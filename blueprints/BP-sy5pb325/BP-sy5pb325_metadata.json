@@ -90,7 +90,7 @@
             ],
             "rate": null,
             "run_on_scale_up": false,
-            "show_on_order_form": true,
+            "show_on_order_form": false,
             "tier_type": "plugin"
         },
         {
@@ -366,7 +366,7 @@
             ],
             "rate": null,
             "run_on_scale_up": false,
-            "show_on_order_form": true,
+            "show_on_order_form": false,
             "tier_type": "plugin"
         },
         {
