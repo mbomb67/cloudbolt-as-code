@@ -1,19 +1,27 @@
 {
-    "description": "Adds an OpenSCAP server tab for Enterprise Linux servers that runs profile scans and collects the HTML reports.",
+    "description": "Adds an OpenSCAP tab to Linux servers that runs profile scans as jobs, shows the score, failed rules and history, and keeps the HTML, XCCDF and ARF results in an S3 bucket or on the appliance instead of the database.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-i4kzuy3y",
-    "label": "Openscap",
-    "last_updated": "2026-04-14",
+    "label": "OpenSCAP",
+    "last_updated": "2026-11-20",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "openscap",
     "package_contents": [
-        "forms.py",
-        "urls.py",
         "__init__.py",
         "views.py",
-        "templates/server_tab.html"
+        "urls.py",
+        "oscap_store.py",
+        "oscap_repo.py",
+        "oscap_hooks.py",
+        "oscap_job.py",
+        "oscap_jobs.py",
+        "oscap_scan.sh",
+        "templates/oscap_assets.html",
+        "templates/oscap_tab.html",
+        "templates/oscap_panel.html",
+        "templates/oscap_settings.html"
     ],
     "version": ""
 }
