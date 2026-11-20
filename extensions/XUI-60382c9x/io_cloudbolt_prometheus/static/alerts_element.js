@@ -55,11 +55,29 @@ export class ServerAlertsElement extends GraphElement {
         return "alerts";
     }
 
+    /** What the "No alerts firing" line says the alerts are for. */
+    get scopeText() {
+        return "for this server";
+    }
+
+    /** The line shown when the monitoring source could not be read. */
+    unavailableText(payload) {
+        return "Alerts could not be read from the monitoring source.";
+    }
+
     async load() {
+        // A newer load (another tier, Refresh) supersedes this one; its late answer is dropped.
+        const seq = (this.loadSeq = (this.loadSeq || 0) + 1);
         let payload;
         try {
             payload = (await this.fetchPayload()) || {};
+            if (seq !== this.loadSeq) {
+                return;
+            }
         } catch (error) {
+            if (seq !== this.loadSeq) {
+                return;
+            }
             this.setStatus(null);
             this.renderCard([el("div", "prom-card-t", "Alerts")], null);
             this.card.appendChild(this.message(`Could not load alerts (${error.message}).`, true));
@@ -72,7 +90,7 @@ export class ServerAlertsElement extends GraphElement {
         if (payload.available === false) {
             this.setStatus(null);
             this.renderCard([el("div", "prom-card-t", "Alerts")], null);
-            this.card.appendChild(this.message("Alerts could not be read from the monitoring source.", false));
+            this.card.appendChild(this.message(this.unavailableText(payload), false));
             return;
         }
         this.setStatus(firing, pending);
@@ -80,7 +98,7 @@ export class ServerAlertsElement extends GraphElement {
             const row = el("div", "prom-alerts-ok");
             const icon = el("i", "bi bi-check-circle-fill");
             icon.setAttribute("aria-hidden", "true");
-            row.append(icon, el("span", "prom-alerts-ok-t", "No alerts firing"), el("span", "prom-card-s", "for this server"));
+            row.append(icon, el("span", "prom-alerts-ok-t", "No alerts firing"), el("span", "prom-card-s", this.scopeText));
             this.renderCard(null, row);
             return;
         }

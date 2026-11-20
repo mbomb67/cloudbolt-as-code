@@ -62,7 +62,7 @@ export const PROM_COLORS = {
 };
 
 /** A #rrggbb color as rgba() at the given alpha. */
-function tint(hex, alpha) {
+export function tint(hex, alpha) {
     const n = parseInt(hex.slice(1), 16);
     return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }

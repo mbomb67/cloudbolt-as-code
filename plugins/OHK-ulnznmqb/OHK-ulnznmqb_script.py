@@ -1,7 +1,8 @@
 """Blueprint build item: deploys the Request Log sample app on the app tier and points it at the database.
 
-The app is one PHP page: a form that adds an entry, a table of all entries from MariaDB, and a
-footer with the hostname of the server that answered and its PHP version. Its database settings are
+The app is one PHP page: the name of the CloudBolt resource it belongs to, a form that adds an
+entry, a table of all entries from MariaDB, and a footer with the hostname of the server that
+answered and its PHP version. Its database settings and the resource's name are
 written to /etc/request-log/db.json and name the database tier's Service, never an IP address,
 because a VM's pod IP changes when it restarts. The database password is read from the resource's
 web_app_db_password parameter, where the Install MariaDB step stores it. Runs through the OpenShift
@@ -27,6 +28,7 @@ CONFIG_PATH = "/etc/request-log/db.json"
 INDEX_PHP = r"""<?php
 $config = json_decode(file_get_contents('/etc/request-log/db.json'), true);
 $title = $config['title'];
+$deployment = $config['deployment'] ?? '';
 $entries = [];
 $error = null;
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
@@ -56,11 +58,13 @@ function h($text) { return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8')
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= h($title) ?></title>
+<title><?= h($deployment === '' ? $title : $deployment . ' | ' . $title) ?></title>
 <style>
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #1d2733; }
   main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
-  h1 { font-size: 24px; margin: 0 0 24px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  h1 { font-size: 24px; margin: 0; }
+  .deployment { margin: 0; padding: 4px 12px; border: 1px solid #056159; border-radius: 999px; background: #e3f6f2; color: #056159; font-size: 14px; }
   form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
   input { font: inherit; padding: 8px 10px; border: 1px solid #c3cad3; border-radius: 6px; }
   input[name=name] { flex: 1 1 140px; }
@@ -76,7 +80,12 @@ function h($text) { return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8')
 </head>
 <body>
 <main>
-  <h1><?= h($title) ?></h1>
+  <header>
+    <h1><?= h($title) ?></h1>
+    <?php if ($deployment !== ''): ?>
+      <p class="deployment">Deployment <strong><?= h($deployment) ?></strong></p>
+    <?php endif; ?>
+  </header>
   <?php if ($error !== null): ?>
     <p class="error">Database error: <?= h($error) ?></p>
   <?php else: ?>
@@ -118,6 +127,7 @@ def run(job, resource=None, **kwargs):
     db_host = vmnet.service_fqdn(db_server.hostname, db_server.ovirtserverinfo.namespace)
     config = json.dumps({
         "title": TITLE,
+        "deployment": resource.name,
         "host": db_host,
         "port": 3306,
         "database": DATABASE,
@@ -136,6 +146,7 @@ def run(job, resource=None, **kwargs):
         + "fi\n"
         + "echo \"$page\" | grep -q 'id=\"entries\"'\n"
         + "echo \"The app answers on port ${port} and reads its entries from the database.\"\n"
+        + "echo \"$page\" | grep -o 'Deployment <strong>.*' | sed 's/<[^>]*>//g'\n"
         + "echo \"$page\" | grep -o 'Served by.*' | sed 's/<[^>]*>//g'\n"
     )
 

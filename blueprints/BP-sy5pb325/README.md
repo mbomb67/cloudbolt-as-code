@@ -8,6 +8,7 @@ Steps in a group run in parallel; the groups run in order.
 
 | Group | Build items | What happens |
 |---|---|---|
+| 0 | Prepare Pod Network | Adds the Pod networking record CloudBolt looks up for the VMs' namespace, when it is missing. See [Known CloudBolt defect](#known-cloudbolt-defect). |
 | 1 | DB, App, Web | The three VMs are built. |
 | 2 | Install MariaDB, Install Apache and PHP, Install Apache TLS Proxy | Packages are installed and started. The database, its `entries` table and its user are created. |
 | 3 | Service: Database 3306, Service: App 8080, Service: Web 443, Publish Web Route | Each VM gets a Service named after it, so the tiers find each other by DNS name. The web VM gets a public HTTPS Route. |
@@ -20,6 +21,7 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 
 ## Order form
 
+- **Resource Name**: the name of the deployment. It becomes the name of the resource in CloudBolt, with a number added when the name is taken, and the app's page shows it.
 - **Environment** for each VM, when more than one is enabled on its build item.
 - **Database Password**, on the Install MariaDB step: the password of the database user the app connects as. That step stores it encrypted on the resource, and the Deploy App step reads it from there.
 - **Azure Environment** and **Key Vault**: the vault that issues the certificate. The Azure environment's resource handler signs in to it.
@@ -32,7 +34,7 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 
 ## Setup
 
-1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size).
+1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size). The credentials on the image (the resource handler's Images tab) must be a login the guest accepts: when the environment's user data installs an SSH public key and turns password logins off, the image needs that user and the matching SSH key, not a password. A step that reports **the guest accepts only publickey logins** means the two do not match.
 2. The guests need package repositories. A RHEL guest that is not registered with Red Hat gets CentOS Stream 9 BaseOS and AppStream added, which suits a lab; register the guests for anything else. The guests need outbound HTTPS to reach the repositories.
 3. Grant the Azure resource handler's service principal **Key Vault Certificates Officer** and **Key Vault Secrets User** on the vault. A vault that uses access policies needs certificate Get, Create and Delete, and secret Get.
 4. After the first import, open each of the three server build items on the blueprint's Build tab and enable your OpenShift Virtualization environment, with the CPU, memory and disk you want for that tier. The repository enables no environment, because environments differ on every CloudBolt, so the blueprint cannot be ordered until you do. With one environment enabled the order form does not ask for it. A later sync keeps what you enabled.
@@ -40,13 +42,19 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 ## What you get
 
 - The resource's **Application URL** parameter is a link to the app.
+- The page shows the resource's name next to its heading and in the browser tab, so each deployment's page can be told apart.
 - The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's own PHP (8.0 on Enterprise Linux 9) because the PHP Stream input of **Install Apache and PHP** is `default`; set it to a stream, such as 8.3, when you want to move it later.
 - Browsers see the cluster router's certificate. The Key Vault certificate secures the connection from the router to the web VM, and the Route trusts only that certificate.
+
+## Known CloudBolt defect
+
+CloudBolt imports an OpenShift handler's **Pod networking** network under the namespace `default`, but after it builds a VM it looks that network up under the VM's own namespace. On a CloudBolt that imported its OpenShift networks after that change, a VM in any other namespace fails at **Adjusting NICs based on provisioning parameters** with `OVirtNetwork matching query does not exist`. The **Prepare Pod Network** step adds the missing record before the VMs are built and does nothing where it exists. Remove the step once your CloudBolt version has the fix.
 
 ## Contents
 
 | Role | ID | Name |
 |---|---|---|
+| Build | OHK-zsv5qq15 | Prepare OpenShift Pod Network |
 | Build | OHK-92i4lt1y | Install MariaDB |
 | Build | OHK-d9ujne9z | Install Apache and PHP |
 | Build | OHK-lwhuaezv | Install Apache TLS Proxy |
