@@ -356,6 +356,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 
 Polymorphic extras by `tier_type`:
 - `server`: `restrict_applications`, `hostname_template`, `all_environments_enabled`, `os_build`, `allowed_os_families`, `applications`, `environment_selection_orchestration`.
+  - **Environments are per appliance.** A repo export carries no enabled environments. On a sync of a blueprint that already exists, the importer saves each build item's enabled environments with the parameter values preset for that item in each one, and restores them afterwards, matched by the item's `BDI-` id (`service_blueprint_import_export_mixin.py`, `enabled_envs_to_restore`; seen on an appliance 2026-11: a tier pinned to one environment with CPU and memory presets kept all three). `all_environments_enabled` is the exception: every sync sets it from the repo, so `true` puts a pinned tier back to offering every environment. Ship `false` when admins are meant to pin an environment per appliance; the blueprint then cannot be ordered until one is enabled on each server item.
 - `tfconfig`: `local_path`, `module_file`, `git_source_code_url`, `source_code_url`, `branch`, `plan_directory`, `preserve_config_dir`, `refresh_on_order`.
 - `tfoperation`: `resource_type`, `working_directory` (`source_type` ∈ {`REPO`, `ZIP`, `LOCAL`}), `variable_maps`, `plan_directory`, `refresh_on_order`, `default_tfvars`, `terraform_version`, `confirm_terraform_plan`.
 
