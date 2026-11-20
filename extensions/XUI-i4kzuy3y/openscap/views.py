@@ -123,7 +123,7 @@ class OpenSCAPTabDelegate(TabExtensionDelegate):
 
 @tab_extension(
     model=Server,
-    title="SCAP",
+    title="OpenSCAP",
     delegate=OpenSCAPTabDelegate,
     description="OpenSCAP compliance scans of the server, with score, failed rules and stored reports",
 )
