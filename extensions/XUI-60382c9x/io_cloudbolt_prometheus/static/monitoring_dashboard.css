@@ -52,6 +52,8 @@
 .io-prom-dash .prom-alerts-ok-t { font-size: 13.5px; font-weight: 700; }
 .io-prom-dash .prom-alerts-ok .prom-card-s { margin-top: 0; }
 
+.io-prom-dash .prom-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .io-prom-dash .prom-chart-grid { grid-template-columns: 1fr; } }
 .io-prom-dash .prom-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
 .io-prom-dash .prom-card { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; overflow: hidden; min-width: 0; }
 .io-prom-dash .prom-card-h { padding: 16px 24px 4px; }

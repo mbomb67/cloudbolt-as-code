@@ -538,17 +538,21 @@ const GRAPH_TEXT = {
     },
 };
 
-/** A scaled copy of [ms, value] points. */
+/** A scaled copy of [ms, value] points. A null value is a gap in the line and stays null. */
 function scaled(points, factor) {
-    return points.map((point) => [point[0], point[1] * factor]);
+    return points.map((point) => [point[0], point[1] === null ? null : point[1] * factor]);
 }
 
 function maxOf(series) {
     let max = 0;
     series.forEach((s) => s.data.forEach((point) => {
-        max = Math.max(max, point[1]);
+        if (point[1] !== null) {
+            max = Math.max(max, point[1]);
+        }
         (s.band || []).forEach((b) => {
-            max = Math.max(max, b[2]);
+            if (b[2] !== null) {
+                max = Math.max(max, b[2]);
+            }
         });
     }));
     return max;
@@ -636,7 +640,9 @@ export class ResourceGraphElement extends GraphElement {
                 return original.call(this);
             }
             const context = Object.create(this);
-            context.points = this.points.filter((point) => !skip.has(point.series.name));
+            context.points = this.points.filter(
+                (point) => !skip.has(point.series.name) && point.y !== null && point.y !== undefined
+            );
             return context.points.length ? original.call(context) : false;
         };
     }
@@ -662,7 +668,7 @@ export class ResourceGraphElement extends GraphElement {
                     showInLegend: false,
                     enableMouseTracking: false,
                     skipTooltip: true,
-                    data: s.band.map((point) => [point[0], point[column] * factor]),
+                    data: s.band.map((point) => [point[0], point[column] === null ? null : point[column] * factor]),
                 }));
             }
         });

@@ -72,6 +72,32 @@ def vector_to_values(result, label):
     return out
 
 
+def drop_before(points, cutoff_ms):
+    """The points at or after cutoff_ms. A server recreated under an old name must not show its predecessor.
+
+    cutoff_ms None keeps everything (the server's add date is unknown).
+    """
+    if cutoff_ms is None:
+        return points
+    return [point for point in points if point[0] >= cutoff_ms]
+
+
+def break_gaps(points, step):
+    """Insert one null point a step after any point followed by more than 1.5 steps of nothing.
+
+    A line chart then breaks there instead of drawing a slope across the gap. Points are
+    [ms, value] or, for a band, [ms, low, high]; the null point has the same length. A series never
+    starts or ends with a null, because nulls only go between two points. step is in seconds.
+    """
+    step_ms = step * 1000
+    out = []
+    for point in points:
+        if out and point[0] - out[-1][0] > 1.5 * step_ms:
+            out.append([out[-1][0] + step_ms] + [None] * (len(point) - 1))
+        out.append(point)
+    return out
+
+
 def scale_series(points, factor):
     return [[ts, value * factor] for ts, value in points]
 
@@ -219,11 +245,12 @@ def build_summary(servers, tier=None):
 
 # --- chart series ---------------------------------------------------------------------------
 
-def aggregate(series_list, how):
+def aggregate(series_list, how, step=None):
     """Combine several servers' series per timestamp.
 
     how "avg": data is the mean and band is [ts, lowest, highest]; how "sum": data is the total
-    and band is None. A timestamp counts the servers that have a point there.
+    and band is None. A timestamp counts the servers that have a point there. With step (seconds),
+    gaps longer than 1.5 steps are broken by a null point.
     """
     by_time = {}
     for points in series_list:
@@ -237,6 +264,9 @@ def aggregate(series_list, how):
             band.append([ts, _round(min(values)), _round(max(values))])
         else:
             data.append([ts, _round(sum(values))])
+    if step:
+        data = break_gaps(data, step)
+        band = break_gaps(band, step)
     return data, (band if how == "avg" and band else None)
 
 
@@ -245,7 +275,7 @@ def choose_mode(tier, tier_count):
     return "servers" if tier is not None or tier_count <= 1 else "tiers"
 
 
-def tier_series(servers, per_server, how):
+def tier_series(servers, per_server, how, step=None):
     """The "tiers" payload series: one per (merged) tier, in tier order.
 
     servers is every server in scope, so counts and the merge match the summary's tiers; a server
@@ -258,25 +288,27 @@ def tier_series(servers, per_server, how):
         merged.setdefault(shown[name], []).extend(members)
     out = []
     for name, members in merged.items():
-        data, band = aggregate([per_server[s["id"]] for s in members if per_server.get(s["id"])], how)
+        data, band = aggregate([per_server[s["id"]] for s in members if per_server.get(s["id"])], how, step)
         out.append({"name": name, "server_count": len(members), "data": data, "band": band})
     out.sort(key=lambda s: s["name"] == OTHER_TIERS)
     return [s for s in out if s["data"]]
 
 
-def server_series(servers, per_server):
+def server_series(servers, per_server, step=None):
     """The "servers" payload series: one per server that has data."""
     return [
-        {"id": s["id"], "hostname": s["hostname"], "data": [[ts, _round(v)] for ts, v in per_server[s["id"]]]}
+        {"id": s["id"], "hostname": s["hostname"],
+         "data": break_gaps([[ts, _round(v)] for ts, v in per_server[s["id"]]], step) if step
+         else [[ts, _round(v)] for ts, v in per_server[s["id"]]]}
         for s in servers
         if per_server.get(s["id"])
     ]
 
 
-def series_payload(servers, per_server, how, unit, tier=None):
+def series_payload(servers, per_server, how, unit, tier=None, step=None):
     """Either payload of the chart endpoints. servers are the ones in scope, monitored or not."""
     monitored = [s for s in servers if s.get("monitored")]
     mode = choose_mode(tier, len(group_by_tier(servers)))
     if mode == "servers":
-        return {"mode": "servers", "unit": unit, "series": server_series(monitored, per_server)}
-    return {"mode": "tiers", "unit": unit, "series": tier_series(servers, per_server, how)}
+        return {"mode": "servers", "unit": unit, "series": server_series(monitored, per_server, step)}
+    return {"mode": "tiers", "unit": unit, "series": tier_series(servers, per_server, how, step)}

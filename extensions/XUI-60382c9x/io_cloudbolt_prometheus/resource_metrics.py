@@ -63,6 +63,10 @@ class Member:
         self.server = server
         self.id = server.id
         self.hostname = server.hostname
+        # When CloudBolt first saw the server (naive local time). Samples older than that belong to an
+        # earlier server of the same name.
+        added = getattr(server, "add_date", None)
+        self.added_ms = int(added.timestamp() * 1000) if added else None
         item = server.service_item
         self.tier = rollup.tier_of(item.name if item else "")
         labels = [tag.name for tag in server.tags.all()]
@@ -170,7 +174,7 @@ class SourceGroup:
         out = {}
         for key, points in rollup.matrix_to_series(result, self.label).items():
             for member in self.by_key.get(key, []):
-                out[member.id] = self.convert_series(metric, member, points)
+                out[member.id] = rollup.drop_before(self.convert_series(metric, member, points), member.added_ms)
         return out
 
     def instant_values(self, metric):
@@ -387,7 +391,7 @@ def series_payload(members, tier, metric_type):
                 per_server[server_id] = parts[0].get(server_id, [])
             else:
                 per_server[server_id] = rollup.aggregate([part.get(server_id, []) for part in parts], "sum")[0]
-    return rollup.series_payload([m.info() for m in scope], per_server, how, unit, tier)
+    return rollup.series_payload([m.info() for m in scope], per_server, how, unit, tier, STEP_SECONDS)
 
 
 def alerts_payload(members, tier):
