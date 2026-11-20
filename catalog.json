@@ -868,7 +868,7 @@
     "id": "XUI-y9bdnzxt",
     "type": "extensions",
     "name": "OpenShift Project",
-    "description": "Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, and a live inventory of quota usage, virtual machines, workloads, routes, and storage.",
+    "description": "Adds Connect and Workloads tabs to OpenShift Project landing zones with oc sign-in commands, OpenShift and CloudBolt access, the alerts firing for the project, and a live inventory of quota usage, virtual machines, workloads, routes, and storage.",
     "path": "extensions/XUI-y9bdnzxt",
     "readme": "extensions/XUI-y9bdnzxt/README.md",
     "uses": [],
