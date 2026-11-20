@@ -24,7 +24,7 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 - **Database Password**, on the Install MariaDB step: the password of the database user the app connects as. That step stores it encrypted on the resource, and the Deploy App step reads it from there.
 - **Azure Environment** and **Key Vault**: the vault that issues the certificate. The Azure environment's resource handler signs in to it.
 
-Nothing else is asked. Every other input of every step has a default on its build item, and an input with a default is left off the form.
+Nothing else is asked. Every other input of every step has a default on its build item, and an input with a default is left off the form. No step is set to always show on the form: a step appears only while one of its inputs has no default, so pinning the Azure environment and key vault removes the Key Vault Certificate step from the form.
 
 ## Changing the defaults
 
