@@ -1,13 +1,17 @@
-from django.shortcuts import render
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, render
 
 from extensions.views import tab_extension, admin_extension, \
     TabExtensionDelegate
 from infrastructure.models import Server
+from resources.models import Resource
 from utilities.decorators import json_view
 from utilities.middleware import login_not_required
 from xui.io_cloudbolt_prometheus.kubevirt_metrics import is_kubevirt_server
+from xui.io_cloudbolt_prometheus.metrics import MONITORING_LABEL
 
 SERVER_TAB_TEMPLATE = "io_cloudbolt_prometheus/templates/server.html"
+RESOURCE_TAB_TEMPLATE = "io_cloudbolt_prometheus/templates/resource.html"
 ADMIN_TEMPLATE = "io_cloudbolt_prometheus/templates/admin.html"
 DEFAULT_EXPORTER_PORT = 9100
 DEFAULT_WINDOWS_EXPORTER_PORT = 9182
@@ -29,6 +33,25 @@ def server_view(request, server_id, **kwargs):
         "source_label": (
             "the OpenShift cluster's monitoring" if is_kubevirt_server(server) else "Prometheus"
         ),
+    })
+
+
+class ResourceTabDelegate(TabExtensionDelegate):
+
+    def should_display(self):
+        # One query on every resource page: any live server that is an OpenShift Virtualization VM
+        # or carries the monitor label. Which servers the viewer may see is applied by the endpoints.
+        return Server.objects.filter(resource=self.instance).exclude(status="HISTORICAL").filter(
+            Q(ovirtserverinfo__isnull=False) | Q(tags__name__in=[MONITORING_LABEL])
+        ).exists()
+
+
+@tab_extension(model=Resource, title="Monitoring", delegate=ResourceTabDelegate)
+def resource_view(request, obj_id, **kwargs):
+    resource = get_object_or_404(Resource.objects_for_profile(request.get_user_profile()), pk=obj_id)
+    return render(request, RESOURCE_TAB_TEMPLATE, context={
+        "resource_id": resource.id,
+        "resource_name": resource.name,
     })
 
 
