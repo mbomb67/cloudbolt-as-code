@@ -101,7 +101,7 @@
 .io-prom-dash .prom-tier-pill[aria-pressed="true"] { background: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent); border-color: transparent; color: var(--bs-body-color, #212529); }
 
 /* Content-width tiles, left-aligned, not a full-width row. */
-.io-prom-dash .prom-tiles { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.io-prom-dash .prom-tiles { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; margin-bottom: 16px; }
 .io-prom-dash .prom-tile { background: var(--prom-card); border: 1px solid var(--prom-line); border-radius: 12px; padding: 14px 20px; text-align: left; }
 .io-prom-dash .prom-tile { min-width: 0; max-width: min(100%, 320px); }
 .io-prom-dash .prom-tile .k { margin-bottom: 4px; }
