@@ -658,7 +658,7 @@
     "id": "XUI-60382c9x",
     "type": "extensions",
     "name": "Io Cloudbolt Prometheus",
-    "description": "Adds a Prometheus-backed Monitoring server tab and a service-discovery endpoint that lists servers tagged monitor.",
+    "description": "Adds a Monitoring server tab fed by a Prometheus server for servers tagged monitor and by the cluster's own monitoring for OpenShift Virtualization VMs, plus a service-discovery endpoint for Prometheus.",
     "path": "extensions/XUI-60382c9x",
     "readme": "extensions/XUI-60382c9x/README.md",
     "uses": [],
