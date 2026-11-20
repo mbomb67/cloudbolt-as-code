@@ -102,10 +102,28 @@ if ! command -v oscap >/dev/null 2>&1; then
         elif command -v zypper >/dev/null 2>&1; then
             zypper --non-interactive install openscap-utils scap-security-guide >"$WORK/install.log" 2>&1
         elif command -v apt-get >/dev/null 2>&1; then
+            # Package names differ by release (oscap ships in libopenscap8 on
+            # Ubuntu 22.04 and Debian 11, in openscap-scanner on later ones;
+            # the guide content is ssg-debderived on Ubuntu, ssg-debian on
+            # Debian), so ask apt which of them this release has.
             export DEBIAN_FRONTEND=noninteractive
-            { apt-get update -qq \
-                && { apt-get install -y openscap-scanner ssg-debderived \
-                     || apt-get install -y openscap-scanner ssg-debian; }; } >"$WORK/install.log" 2>&1
+            apt-get update -qq >"$WORK/install.log" 2>&1
+            APT_PKGS=()
+            for p in openscap-scanner libopenscap8; do
+                if apt-cache show "$p" >/dev/null 2>&1; then APT_PKGS+=("$p"); break; fi
+            done
+            case "$OS_ID" in
+                debian) APT_SSG="ssg-debian ssg-debderived" ;;
+                *)      APT_SSG="ssg-debderived ssg-debian" ;;
+            esac
+            for p in $APT_SSG; do
+                if apt-cache show "$p" >/dev/null 2>&1; then APT_PKGS+=("$p"); break; fi
+            done
+            if [ "${#APT_PKGS[@]}" -gt 0 ]; then
+                apt-get install -y "${APT_PKGS[@]}" >>"$WORK/install.log" 2>&1
+            else
+                echo "apt has no OpenSCAP packages for this release (is the universe repository enabled?)" >>"$WORK/install.log"
+            fi
         else
             problem "OpenSCAP is not installed and no supported package manager was found"
             finish
