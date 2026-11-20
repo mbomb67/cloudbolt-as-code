@@ -115,19 +115,54 @@
   .ocpx .ocp-clean { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--ocp-muted); }
   .ocpx .ocp-clean .bi { color: var(--ocp-ok); font-size: 16px; }
   .ocpx .ocp-clean-note .bi { color: inherit; }
+  .ocpx .ocp-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 0 0; font-size: 12.5px; font-weight: 600; color: var(--ocp-muted); }
+  .ocpx .ocp-card .ocp-pager { padding: 12px 24px; border-top: 1px solid var(--ocp-line); }
   @keyframes ocp-spin { to { transform: rotate(360deg); } }
 </style>
 <script>
 (function () {
   "use strict";
   // Loads every [data-ocp-panel] inside a tab root from its data-ocp-src URL
-  // and wires client-side filters (data-ocp-filter), the Refresh button
-  // (data-ocp-refresh), and copy buttons (data-ocp-copy names the element
-  // whose text it takes). A panel may name its source in data-ocp-loading.
+  // and wires client-side filters (data-ocp-filter), client-side pages for a
+  // table with data-ocp-page-size (a filter then pages over the matching rows
+  // only), the Refresh button (data-ocp-refresh), and copy buttons
+  // (data-ocp-copy names the element whose text it takes). A panel may name
+  // its source in data-ocp-loading.
   window.ocpxInit = function (rootId) {
     var $root = $("#" + rootId);
     if (!$root.length || $root.data("ocpx-ready")) { return; }
     $root.data("ocpx-ready", true);
+
+    function paginate($table) {
+      var size = parseInt($table.attr("data-ocp-page-size"), 10) || 25;
+      var page = 0;
+      var $pager = $('<div class="ocp-pager"></div>');
+      var $after = $table.closest(".table-responsive");
+      ($after.length ? $after : $table).after($pager);
+      function render(reset) {
+        if (reset) { page = 0; }
+        var $rows = $table.find("tbody tr[data-ocp-row]");
+        var $match = $rows.filter(function () { return $(this).data("ocp-match") !== false; });
+        var pages = Math.max(1, Math.ceil($match.length / size));
+        page = Math.max(0, Math.min(page, pages - 1));
+        $rows.hide();
+        $match.slice(page * size, page * size + size).show();
+        $pager.empty().toggle($match.length > size);
+        if ($match.length > size) {
+          var first = page * size + 1;
+          var last = Math.min($match.length, first + size - 1);
+          $pager.append($("<span>").text(first + "–" + last + " of " + $match.length));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-ocp-step="-1" aria-label="Previous page"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>').prop("disabled", page === 0));
+          $pager.append($('<button type="button" class="btn btn-sm btn-outline-secondary" data-ocp-step="1" aria-label="Next page"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>').prop("disabled", page >= pages - 1));
+        }
+      }
+      $pager.on("click", "[data-ocp-step]", function () {
+        page += parseInt($(this).attr("data-ocp-step"), 10);
+        render(false);
+      });
+      $table.data("ocp-pager", render);
+      render(true);
+    }
 
     function load($panel, url) {
       var source = $panel.data("ocp-loading") || "OpenShift";
@@ -135,9 +170,10 @@
       $panel.load(url, function (response, status, xhr) {
         if (status === "error") {
           $panel.html('<div class="ocp-card"><div class="ocp-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>Could not load this panel (HTTP ' + xhr.status + ').</div></div></div>');
-        } else if (window.c2 && c2.tooltips) {
-          c2.tooltips.init($panel);
+          return;
         }
+        $panel.find("table[data-ocp-page-size]").each(function () { paginate($(this)); });
+        if (window.c2 && c2.tooltips) { c2.tooltips.init($panel); }
       });
     }
     function loadAll() {
@@ -145,9 +181,14 @@
     }
     $root.on("input", "input[data-ocp-filter]", function () {
       var needle = this.value.toLowerCase();
-      $($(this).data("ocp-filter")).find("tbody tr[data-ocp-row]").each(function () {
-        $(this).toggle(this.textContent.toLowerCase().indexOf(needle) > -1);
+      // find() treats the attribute as a selector only, never as HTML.
+      var $table = $root.find($(this).attr("data-ocp-filter"));
+      var pager = $table.data("ocp-pager");
+      $table.find("tbody tr[data-ocp-row]").each(function () {
+        var match = this.textContent.toLowerCase().indexOf(needle) > -1;
+        if (pager) { $(this).data("ocp-match", match); } else { $(this).toggle(match); }
       });
+      if (pager) { pager(true); }
     });
     $root.on("click", "[data-ocp-refresh]", function (e) { e.preventDefault(); loadAll(); });
     $root.on("click", "[data-ocp-copy]", function (e) {

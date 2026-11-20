@@ -45,7 +45,7 @@
   <div class="ocp-clean ocp-clean-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ alerts_problem }}</div>
   {% elif alerts %}
   <div class="table-responsive">
-    <table id="ocpx-alerts" class="ocp-table">
+    <table id="ocpx-alerts" class="ocp-table" data-ocp-page-size="25">
       <thead><tr><th>{% trans "Severity" %}</th><th>{% trans "Alert" %}</th><th>{% trans "Resource" %}</th><th>{% trans "Firing for" %}</th></tr></thead>
       <tbody>
         {% for a in alerts %}

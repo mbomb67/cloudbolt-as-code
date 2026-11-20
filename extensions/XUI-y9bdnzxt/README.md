@@ -23,5 +23,5 @@ Each button opens CloudBolt's own dialog for the blueprint's Manage Team Access 
 - OpenShift is read with the resource handler's credentials, never the viewer's, so every panel re-checks the viewer's CloudBolt permission and the tabs stay read-only.
 - There is no kubeconfig to download: OpenShift issues each person a token when they sign in with `oc login`.
 - A Route that OpenShift generated for an Ingress is shown once, as the Ingress.
-- Alerts are the ones labelled with the project's namespace. OpenShift's built-in pod and workload alerts cover only its own namespaces, so a project shows the alerts of OpenShift Virtualization, of a managed service's own rules, and of any `PrometheusRule` in the project. Red and amber mark critical and warning alerts only.
+- Alerts are the ones labelled with the project's namespace. OpenShift's built-in pod and workload alerts cover only its own namespaces, so a project shows the alerts of OpenShift Virtualization, of a managed service's own rules, and of any `PrometheusRule` in the project. Red and amber mark critical and warning alerts only. The table shows 25 alerts a page, and its Filter box searches all of them.
 - Panels load asynchronously and read the cluster API on every load; nothing is cached in CloudBolt.

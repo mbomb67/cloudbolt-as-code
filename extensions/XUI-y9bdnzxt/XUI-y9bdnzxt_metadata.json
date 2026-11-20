@@ -4,7 +4,7 @@
     "icon_url": "",
     "id": "XUI-y9bdnzxt",
     "label": "OpenShift Project",
-    "last_updated": "2026-11-19",
+    "last_updated": "2026-11-20",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
     "name": "openshift_project",
