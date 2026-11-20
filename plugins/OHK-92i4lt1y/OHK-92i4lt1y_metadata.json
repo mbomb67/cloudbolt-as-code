@@ -56,12 +56,32 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Password for the database user. Stored encrypted on the resource for the steps that connect to the database.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-qby05fdj",
+            "label": "Database Password",
+            "name": "database_password",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "PWD",
+            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
         "tier",
         "database_name",
-        "database_user"
+        "database_user",
+        "database_password"
     ],
     "dependencies": {
         "sharedModules": [
@@ -69,7 +89,7 @@
             "shared_modules/SHM-wkubiao7"
         ]
     },
-    "description": "Installs MariaDB on a blueprint's database tier through the OpenShift API tunnel and creates the application's database, table and user.",
+    "description": "Installs MariaDB on a blueprint's database tier through the OpenShift API tunnel, creates the application's database, table and user, and stores the database password on the resource.",
     "id": "OHK-92i4lt1y",
     "max_retries": 0,
     "name": "Install MariaDB",

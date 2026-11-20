@@ -30,15 +30,21 @@ KEY_PATH = "/etc/pki/tls/private/web-app.key"
 
 
 def _azure_environments(group):
-    """Azure environments the group may order into. See docs/agents/rbac-and-security.md."""
-    if group is not None and not isinstance(group, Group):
+    """Azure environments the group may order into; every Azure environment when there is no group.
+
+    The order form always passes the ordering group, and its entitlements decide the list (see
+    docs/agents/rbac-and-security.md). No group arrives when an admin edits this build item on the
+    blueprint's Build tab to pin a default, and an admin may pin any Azure environment.
+    """
+    azure = Environment.objects.filter(resource_handler__azurearmhandler__isnull=False).order_by("name")
+    if group is None or group == "":
+        return azure
+    if not isinstance(group, Group):
         group = Group.objects.filter(name=str(group)).first()
     if not group:
         return Environment.objects.none()
     available = [environment.id for environment in group.get_available_environments()]
-    return Environment.objects.filter(
-        id__in=available, resource_handler__azurearmhandler__isnull=False
-    ).order_by("name")
+    return azure.filter(id__in=available)
 
 
 def _azure_handler(env_id):
@@ -55,7 +61,7 @@ def _azure_handler(env_id):
 def generate_options_for_azure_env_id(field=None, group=None, **kwargs):
     environments = _azure_environments(group)
     if not environments.exists():
-        return [("", "------ No Azure environments available to this group ------")]
+        return [("", "------ No Azure environments available ------")]
     return [(environment.id, environment.name) for environment in environments]
 
 
@@ -63,7 +69,9 @@ def generate_options_for_key_vault(field=None, control_value=None, group=None, *
     """Vaults in the chosen environment's subscription and region (control_value is azure_env_id).
 
     No environment arrives when the Azure Environment input is pinned on the build item and so is
-    not on the form. The vaults of every Azure environment the group can use are listed then.
+    not on the form, or when an admin sets this input's default on the Build tab. The vaults of
+    every Azure environment the group can use are listed then, or of every Azure environment when
+    there is no group either.
     """
     if control_value:
         try:

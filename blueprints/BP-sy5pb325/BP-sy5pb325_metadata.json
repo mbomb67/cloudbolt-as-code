@@ -3,7 +3,7 @@
     "auto_historical_resources": false,
     "deployment_items": [
         {
-            "all_environments_enabled": true,
+            "all_environments_enabled": false,
             "allowed_os_families": [
                 "Linux"
             ],
@@ -22,7 +22,7 @@
             "tier_type": "server"
         },
         {
-            "all_environments_enabled": true,
+            "all_environments_enabled": false,
             "allowed_os_families": [
                 "Linux"
             ],
@@ -41,7 +41,7 @@
             "tier_type": "server"
         },
         {
-            "all_environments_enabled": true,
+            "all_environments_enabled": false,
             "allowed_os_families": [
                 "Linux"
             ],
@@ -66,7 +66,7 @@
                 "hook": "plugins/OHK-92i4lt1y"
             },
             "deploy_seq": 4,
-            "description": "Installs MariaDB on the database VM and creates the app's database, table and user.",
+            "description": "Installs MariaDB on the database VM, creates the app's database, table and user, and stores the database password on the resource for later steps.",
             "enabled": true,
             "execute_in_parallel": true,
             "id": "BDI-my9c5ds1",
@@ -90,7 +90,7 @@
             ],
             "rate": null,
             "run_on_scale_up": false,
-            "show_on_order_form": false,
+            "show_on_order_form": true,
             "tier_type": "plugin"
         },
         {
@@ -517,29 +517,7 @@
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "3-Tier Web App on OpenShift Virtualization",
-    "parameters": [
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "constraints": "Unconstrained",
-            "description": "Password for the database user the app connects as.",
-            "destination": "Resource",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [],
-            "id": "CF-93ilxtjj",
-            "label": "Database Password",
-            "name": "web_app_db_password",
-            "options": [],
-            "placeholder": null,
-            "relevant_osfamilies": [],
-            "required": true,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "PWD",
-            "value_pattern_string": null
-        }
-    ],
+    "parameters": [],
     "resource_name_template": null,
     "resource_type": {
         "icon": "fas fa-layer-group",

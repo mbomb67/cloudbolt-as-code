@@ -2,10 +2,14 @@
 
 Runs on the VM through the OpenShift API tunnel (shared_modules/SHM-wkubiao7). The database user may
 connect from any host, because traffic from another VM arrives from a pod IP that changes; who can
-reach port 3306 is decided by a NetworkPolicy instead. The password comes from the resource's
-web_app_db_password parameter, which the blueprint asks for on the order form.
+reach port 3306 is decided by a NetworkPolicy instead.
 
-Inputs: tier (the server build item's name, default DB), database_name, database_user.
+This is the first step that needs the database password, so it asks for it and then stores it,
+encrypted, on the resource as web_app_db_password, where the steps that connect to the database
+read it. Run again without a password, it reuses the stored one.
+
+Inputs: tier (the server build item's name, default DB), database_name, database_user,
+database_password.
 """
 
 import base64
@@ -17,6 +21,9 @@ from shared_modules import vm_tier_scripts as tiers
 TIER = tiers.clean("{{ tier }}", "DB")
 DATABASE = tiers.clean("{{ database_name }}", "requestlog")
 USER = tiers.clean("{{ database_user }}", "requestlog")
+# CloudBolt escapes backslashes and quotes in a string input before it renders, so any password
+# is a valid literal here, and it keeps password inputs out of the job's logged parameters.
+PASSWORD = "{{ database_password }}"
 PASSWORD_PARAMETER = "web_app_db_password"
 
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,31}$")
@@ -36,9 +43,13 @@ def run(job, resource=None, **kwargs):
     except tiers.TierError as error:
         return "FAILURE", "", str(error)
 
-    password = resource.get_value_for_custom_field(PASSWORD_PARAMETER)
+    password = "" if PASSWORD in ("", "None") else PASSWORD
+    if password:
+        tiers.remember(resource, PASSWORD_PARAMETER, password, "Database Password", "PWD")
+    else:
+        password = resource.get_value_for_custom_field(PASSWORD_PARAMETER)
     if not password:
-        return "FAILURE", "", f"The resource has no {PASSWORD_PARAMETER} parameter; the order form asks for it."
+        return "FAILURE", "", "Enter a Database Password for this step; none is stored on the resource yet."
 
     sql = f"""
 CREATE DATABASE IF NOT EXISTS `{DATABASE}` CHARACTER SET utf8mb4;

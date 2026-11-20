@@ -2705,7 +2705,7 @@
     "id": "OHK-92i4lt1y",
     "type": "plugins",
     "name": "Install MariaDB",
-    "description": "Installs MariaDB on a blueprint's database tier through the OpenShift API tunnel and creates the application's database, table and user.",
+    "description": "Installs MariaDB on a blueprint's database tier through the OpenShift API tunnel, creates the application's database, table and user, and stores the database password on the resource.",
     "path": "plugins/OHK-92i4lt1y",
     "readme": null,
     "uses": [

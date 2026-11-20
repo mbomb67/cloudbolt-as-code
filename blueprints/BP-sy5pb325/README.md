@@ -20,22 +20,22 @@ Deleting the resource removes the Route, Services, NetworkPolicies and the Key V
 
 ## Order form
 
-- **Environment** for each VM: an OpenShift Virtualization environment. Use the same one for all three.
-- **Database Password**: the password of the database user the app connects as.
+- **Environment** for each VM, when more than one is enabled on its build item.
+- **Database Password**, on the Install MariaDB step: the password of the database user the app connects as. That step stores it encrypted on the resource, and the Deploy App step reads it from there.
 - **Azure Environment** and **Key Vault**: the vault that issues the certificate. The Azure environment's resource handler signs in to it.
 
 Nothing else is asked. Every other input of every step has a default on its build item, and an input with a default is left off the form.
 
 ## Changing the defaults
 
-Open the build item on the blueprint's Build tab and edit its inputs: tier names, ports, database name and user, app title, PHP stream. Clearing a default puts that input back on the order form. To take **Azure Environment** or **Key Vault** off the form too, give them a default there. A sync from the repository sets the defaults the repository lists back to its values.
+Open the build item on the blueprint's Build tab and edit its inputs: tier names, ports, database name and user, app title, PHP stream. Clearing a default puts that input back on the order form. To take **Azure Environment** or **Key Vault** off the form too, give them a default there; on the Build tab their lists show every Azure environment and its vaults, not only one group's. A sync from the repository sets the defaults the repository lists back to its values.
 
 ## Setup
 
 1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size).
 2. The guests need package repositories. A RHEL guest that is not registered with Red Hat gets CentOS Stream 9 BaseOS and AppStream added, which suits a lab; register the guests for anything else. The guests need outbound HTTPS to reach the repositories.
 3. Grant the Azure resource handler's service principal **Key Vault Certificates Officer** and **Key Vault Secrets User** on the vault. A vault that uses access policies needs certificate Get, Create and Delete, and secret Get.
-4. To skip the environment question, open each server build item on the blueprint's Build tab and limit it to your OpenShift environment. A sync does not carry that setting.
+4. After the first import, open each of the three server build items on the blueprint's Build tab and enable your OpenShift Virtualization environment, with the CPU, memory and disk you want for that tier. The repository enables no environment, because environments differ on every CloudBolt, so the blueprint cannot be ordered until you do. With one environment enabled the order form does not ask for it. A later sync keeps what you enabled.
 
 ## What you get
 

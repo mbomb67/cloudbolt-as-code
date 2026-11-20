@@ -3,8 +3,9 @@
 The app is one PHP page: a form that adds an entry, a table of all entries from MariaDB, and a
 footer with the hostname of the server that answered and its PHP version. Its database settings are
 written to /etc/request-log/db.json and name the database tier's Service, never an IP address,
-because a VM's pod IP changes when it restarts. Runs through the OpenShift API tunnel
-(shared_modules/SHM-wkubiao7).
+because a VM's pod IP changes when it restarts. The database password is read from the resource's
+web_app_db_password parameter, where the Install MariaDB step stores it. Runs through the OpenShift
+API tunnel (shared_modules/SHM-wkubiao7).
 
 Inputs: tier (default App), db_tier (default DB), database_name, database_user, app_title.
 """
@@ -112,7 +113,7 @@ def run(job, resource=None, **kwargs):
 
     password = resource.get_value_for_custom_field(PASSWORD_PARAMETER)
     if not password:
-        return "FAILURE", "", f"The resource has no {PASSWORD_PARAMETER} parameter; the order form asks for it."
+        return "FAILURE", "", f"The resource has no {PASSWORD_PARAMETER} parameter; the Install MariaDB step stores it."
 
     db_host = vmnet.service_fqdn(db_server.hostname, db_server.ovirtserverinfo.namespace)
     config = json.dumps({
