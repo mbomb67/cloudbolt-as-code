@@ -24,11 +24,14 @@ import time
 import paramiko
 import websocket
 
-from common.methods import find_key_material
+from common.methods import find_key_material, set_progress
 from utilities.exceptions import NotFoundException
 
 SSH_PORT = 22
 HANDSHAKE_TIMEOUT_SECONDS = 30
+# How long a new VM may refuse the kind of login CloudBolt holds before that counts as final:
+# cloud-init can switch password logins on a little after sshd starts.
+LOGIN_KIND_GRACE_SECONDS = 120
 SCRIPT_TIMEOUT_SECONDS = 600
 
 
@@ -38,6 +41,10 @@ class TunnelError(Exception):
 
 class TunnelUnsupported(TunnelError):
     """The VM has no pod network interface KubeVirt can port-forward to; retrying cannot fix that."""
+
+
+class LoginRefused(TunnelError):
+    """The tunnel works, but the guest does not accept the kind of login CloudBolt holds for it."""
 
 
 def check_port_forward_target(client, namespace, name):
@@ -185,16 +192,41 @@ def wait_for_ssh(server, timeout=600, interval=10, port=SSH_PORT):
     of them are retried until the timeout, when the last reason is raised as a TunnelError.
     """
     deadline = time.time() + timeout
+    refused_since = None
+    reported = None
     while True:
         try:
             connect_ssh(server, port).close()
             return
         except TunnelUnsupported:
             raise
+        except paramiko.BadAuthenticationType as error:
+            # sshd answered, so the tunnel works; it does not offer the kind of login CloudBolt has.
+            refused_since = refused_since or time.time()
+            reason = login_refused_reason(server, error)
+            if time.time() - refused_since > LOGIN_KIND_GRACE_SECONDS:
+                raise LoginRefused(reason)
         except (TunnelError, paramiko.SSHException, websocket.WebSocketException, EOFError, OSError) as error:
+            reason = str(error) or type(error).__name__
             if time.time() + interval > deadline:
-                raise TunnelError(f"{server.hostname} did not accept an SSH login within {timeout} seconds: {error}")
+                raise TunnelError(f"{server.hostname} did not accept an SSH login within {timeout} seconds: {reason}")
+        if reason != reported:
+            # Say why as soon as it is known, so nobody waits out the timeout to learn it.
+            set_progress(f"Waiting for {server.hostname}: {reason}")
+            reported = reason
         time.sleep(interval)
+
+
+def login_refused_reason(server, error):
+    """What to change when the guest's sshd does not offer the login CloudBolt holds for the server."""
+    username, _password, key_name, _key_location = server.credentials_for_script()
+    held = f"the SSH key {key_name}" if key_name else "a password and no SSH key"
+    return (
+        f"The API tunnel to {server.hostname} works, but the guest accepts only "
+        f"{', '.join(error.allowed_types) or 'no'} logins and CloudBolt holds {held} for user {username}. "
+        "Set the credentials of the server's image in CloudBolt to a user and SSH key the guest's "
+        "cloud-init user data sets up, or change that user data to allow what CloudBolt holds."
+    )
 
 
 def run_script(server, script, interpreter="bash -s", timeout=SCRIPT_TIMEOUT_SECONDS):

@@ -34,7 +34,7 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 
 ## Setup
 
-1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size).
+1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size). The credentials on the image (the resource handler's Images tab) must be a login the guest accepts: when the environment's user data installs an SSH public key and turns password logins off, the image needs that user and the matching SSH key, not a password. A step that reports **the guest accepts only publickey logins** means the two do not match.
 2. The guests need package repositories. A RHEL guest that is not registered with Red Hat gets CentOS Stream 9 BaseOS and AppStream added, which suits a lab; register the guests for anything else. The guests need outbound HTTPS to reach the repositories.
 3. Grant the Azure resource handler's service principal **Key Vault Certificates Officer** and **Key Vault Secrets User** on the vault. A vault that uses access policies needs certificate Get, Create and Delete, and secret Get.
 4. After the first import, open each of the three server build items on the blueprint's Build tab and enable your OpenShift Virtualization environment, with the CPU, memory and disk you want for that tier. The repository enables no environment, because environments differ on every CloudBolt, so the blueprint cannot be ordered until you do. With one environment enabled the order form does not ask for it. A later sync keeps what you enabled.
