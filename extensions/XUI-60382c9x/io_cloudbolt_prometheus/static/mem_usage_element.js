@@ -1,118 +1,27 @@
-import { html, render } from "https://unpkg.com/lit-html";
-import { GraphElement } from "./graph_element.js";
-import {
-    PROM_CHART_HEIGHT,
-    promCredits,
-    promChartCommon,
-    promLegendCompact,
-    promXAxisDatetime,
-    promYAxisCompact,
-} from "./chart_theme.js";
+import { GraphElement, hasPoints } from "./graph_element.js";
+import { SERIES, byteUnit, maxValue, promOptions, toPoints } from "./chart_theme.js";
 
 export class MemUsageElement extends GraphElement {
-    connectedCallback() {
-        const server_id = this.getAttribute("server-id");
-        this.chartDiv = document.createElement("div");
-        this.controlsDiv = document.createElement("div");
-        this.controlsDiv.className = "prom-refresh-toolbar";
-
-        render(
-            html`
-                <button
-                    type="button"
-                    class="prom-refresh-btn"
-                    @click="${() => this.load(server_id)}"
-                >
-                    Refresh
-                </button>
-            `,
-            this.controlsDiv
-        );
-
-        this.appendChild(this.controlsDiv);
-        this.appendChild(this.chartDiv);
-
-        this.load(server_id);
+    get metric() {
+        return "memory";
     }
 
-    render_component(payload) {
-        payload["used"] = payload["used"].map((a) => [
-            a[0] * 1000,
-            parseInt(a[1], 10) / 2 ** 30,
-        ]);
-        payload["buffers"] = payload["buffers"].map((a) => [
-            a[0] * 1000,
-            parseInt(a[1], 10) / 2 ** 30,
-        ]);
-        payload["cached"] = payload["cached"].map((a) => [
-            a[0] * 1000,
-            parseInt(a[1], 10) / 2 ** 30,
-        ]);
-        payload["free"] = payload["free"].map((a) => [
-            a[0] * 1000,
-            parseInt(a[1], 10) / 2 ** 30,
-        ]);
-
-        this.options = {
-            title: { text: undefined },
-            credits: promCredits("Memory"),
-            legend: promLegendCompact,
-            chart: promChartCommon({
-                type: "area",
-                zoomType: "x",
-                height: PROM_CHART_HEIGHT,
-            }),
-            xAxis: [promXAxisDatetime],
-            yAxis: [promYAxisCompact],
-            plotOptions: {
-                area: {
-                    marker: { enabled: false },
-                },
-            },
-            tooltip: {
-                shared: true,
-                crosshairs: true,
-            },
-            series: [
-                {
-                    name: "Free",
-                    data: payload["free"],
-                    animation: false,
-                    stacking: "normal",
-                },
-                {
-                    name: "Cached",
-                    data: payload["cached"],
-                    animation: false,
-                    stacking: "normal",
-                },
-                {
-                    name: "Used",
-                    data: payload["used"],
-                    animation: false,
-                    stacking: "normal",
-                },
-                {
-                    name: "Buffers",
-                    data: payload["buffers"],
-                    animation: false,
-                    stacking: "normal",
-                },
-            ],
-        };
-
-        const $el = $(this.chartDiv);
-        const existing = $el.highcharts && $el.highcharts();
-        if (existing) {
-            existing.destroy();
+    build(payload) {
+        if (!hasPoints(payload.used, payload.cached, payload.free)) {
+            return null;
         }
-        $el.highcharts(this.options);
-    }
-
-    async load(server_id) {
-        const response = await fetch(
-            `/xui/io_cloudbolt_prometheus/api/servers/${server_id}/memory/`
+        const { divisor, unit } = byteUnit(
+            maxValue(payload.used, payload.cached, payload.free, payload.buffers)
         );
-        this.render_component(await response.json());
+        const series = [
+            { name: "Used", color: SERIES.blue, data: toPoints(payload.used, 1 / divisor) },
+            { name: "Cached", color: SERIES.aqua, data: toPoints(payload.cached, 1 / divisor) },
+        ];
+        // Some sources fold buffers into cached and report none.
+        if (maxValue(payload.buffers) > 0) {
+            series.push({ name: "Buffers", color: SERIES.violet, data: toPoints(payload.buffers, 1 / divisor) });
+        }
+        series.push({ name: "Free", color: SERIES.neutral, data: toPoints(payload.free, 1 / divisor) });
+        return promOptions({ unit, series });
     }
 }

@@ -5,6 +5,7 @@ from extensions.views import tab_extension, admin_extension, \
 from infrastructure.models import Server
 from utilities.decorators import json_view
 from utilities.middleware import login_not_required
+from xui.io_cloudbolt_prometheus.kubevirt_metrics import is_kubevirt_server
 
 SERVER_TAB_TEMPLATE = "io_cloudbolt_prometheus/templates/server.html"
 ADMIN_TEMPLATE = "io_cloudbolt_prometheus/templates/admin.html"
@@ -15,13 +16,19 @@ DEFAULT_WINDOWS_EXPORTER_PORT = 9182
 class ServerTabDelegate(TabExtensionDelegate):
 
     def should_display(self):
-        return "monitor" in self.instance.labels
+        # OpenShift Virtualization VMs need no exporter or tag: their cluster already collects them.
+        return "monitor" in self.instance.labels or is_kubevirt_server(self.instance)
 
 
 @tab_extension(model=Server, title="Monitoring", delegate=ServerTabDelegate)
 def server_view(request, server_id, **kwargs):
+    server = Server.objects.get(id=server_id)
     return render(request, SERVER_TAB_TEMPLATE, context={
-        "server_id": server_id
+        "server_id": server_id,
+        "hostname": server.hostname,
+        "source_label": (
+            "the OpenShift cluster's monitoring" if is_kubevirt_server(server) else "Prometheus"
+        ),
     })
 
 
@@ -42,7 +49,8 @@ def prometheus_targets(request, **kwargs):
     group_targets = dict()
     server: Server
     for server in active_servers:
-        if "monitor" in server.labels and server.ip:
+        # An OpenShift Virtualization VM's address is a pod IP no outside Prometheus can scrape.
+        if "monitor" in server.labels and server.ip and not is_kubevirt_server(server):
             if server.os_family.name == "Windows":
                 port = DEFAULT_WINDOWS_EXPORTER_PORT
             else:
