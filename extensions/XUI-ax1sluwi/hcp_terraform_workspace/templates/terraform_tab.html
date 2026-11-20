@@ -2,12 +2,12 @@
 {% include "hcp_terraform_workspace/templates/_assets.html" %}
 
 <div id="tfws-tab" class="tfws">
-  {# ── Workspace hero: identity from the resource's custom fields, live state loaded below ── #}
-  <div class="tf-card">
+  {# ── Page header: identity from the resource's custom fields ── #}
+  <div class="tf-flat">
     <div class="tf-hero-top">
       <div>
-        <div class="tf-eyebrow">{% trans "HCP Terraform workspace" %}</div>
-        <div class="tf-title"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> {{ workspace_name }}</div>
+        <div class="tf-eyebrow"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i> {% trans "HCP Terraform workspace" %}</div>
+        <div class="tf-title">{{ workspace_name }}</div>
         <div class="tf-sub">{{ organization }}{% if project %} / {{ project }}{% endif %}</div>
       </div>
       <div class="tf-tools">
@@ -22,19 +22,19 @@
       </div>
     </div>
 
-    <div class="tf-meta">
-      <div class="cell">
+    <div class="tf-facts">
+      <div>
         <div class="k">{% trans "Source" %}</div>
         {# Loaded live (module name, version, update notice); the stored values below show until the panel answers. #}
         <div class="v" data-tf-panel="source" data-tf-src="{{ source_url }}">
           {% include "hcp_terraform_workspace/templates/source_panel.html" %}
         </div>
       </div>
-      <div class="cell">
+      <div>
         <div class="k">{% trans "Workspace ID" %}</div>
         <div class="v tf-mono">{{ workspace_id }}</div>
       </div>
-      <div class="cell">
+      <div>
         <div class="k">{% trans "Last CloudBolt run" %}</div>
         <div class="v">
           {% if last_run_url %}
@@ -45,13 +45,14 @@
         </div>
       </div>
     </div>
-
-    <div data-tf-panel="summary" data-tf-src="{{ summary_url }}"></div>
   </div>
 
-  {# ── Runs and managed resources: each panel renders its own card header ── #}
-  <div class="tf-card" data-tf-panel="runs" data-tf-src="{{ runs_url }}"></div>
-  <div class="tf-card" data-tf-panel="resources" data-tf-src="{{ resources_url }}"></div>
+  {# ── Live state: banners, then the summary tiles ── #}
+  <div data-tf-panel="summary" data-tf-src="{{ summary_url }}"></div>
+
+  {# ── Runs and managed resources: each panel renders its own heading and table ── #}
+  <div class="tf-flat" data-tf-panel="runs" data-tf-src="{{ runs_url }}"></div>
+  <div class="tf-flat" data-tf-panel="resources" data-tf-src="{{ resources_url }}"></div>
 </div>
 
 <script>
