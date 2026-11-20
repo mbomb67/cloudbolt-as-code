@@ -21,7 +21,7 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 
 ## Setup
 1. Sync the repository, then restart the web service (`httpd`) so the new routes load, and confirm the extension is enabled under Admin > Extensions.
-2. Open Admin > Custom Extensions > OpenSCAP and choose where results are stored. For S3, pick the AWS handler and enter the bucket (and region, optionally).
+2. Open Admin > Custom Extensions > OpenSCAP Settings and choose where results are stored. For S3, pick the AWS handler and enter the bucket (and region, optionally).
 3. Open a Linux server's OpenSCAP tab and click **Check server**.
 
 ## Notes

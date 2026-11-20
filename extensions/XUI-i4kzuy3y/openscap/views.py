@@ -20,7 +20,8 @@ score, failed rules and history, and links to the stored reports.
 - Upload (openscap_upload) takes the local backend's uploads. It needs no
   CloudBolt login; the signed token in its X-Oscap-Token header is the
   credential.
-- Settings is an admin page (Admin > Custom Extensions > OpenSCAP).
+- Settings is an admin page (Admin > Custom Extensions > OpenSCAP Settings).
+  Its title must differ from the tab's: CloudBolt indexes both by title.
 
 Viewing needs the view permission on the server (Server.objects_for_profile).
 Running a scan needs can_scan below.
@@ -322,7 +323,7 @@ def _handlers():
 
 
 @admin_extension(
-    title="OpenSCAP",
+    title="OpenSCAP Settings",
     description="Choose where OpenSCAP scan reports are stored (S3 or this appliance), which profiles scans "
     "try, how long they may run, and which servers show the OpenSCAP tab.",
 )
