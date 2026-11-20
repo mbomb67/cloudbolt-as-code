@@ -114,7 +114,7 @@ When editing an existing file, match the casing already present.
 | `label`, `description`, `placeholder` | string / null | |
 | `type` | string (enum) | CustomField ATTR_TYPES (see below). |
 | `allow_multiple`, `required`, `show_on_servers`, `available_all_servers`, `show_as_attribute` | boolean | Last three stripped on import. |
-| `hide_if_default_value` | boolean | Default `true`. |
+| `hide_if_default_value` | boolean | Default `true`. An input is left off the order form only when this is `true` **and** the build item gives it a default (`parameter_defaults`). The importer applies the value only when it creates the input (`c2_wrapper.update_or_create_hook_input`): a re-sync never changes it on an input that already exists, so decide it before the first sync, or change it on the appliance. |
 | `value_pattern_string` / `formatter_pattern` | string / null | The display **Formatter pattern**, a Python format string such as `{:,.2f}` (`CustomField.render_value`), not a validation regex. Export writes it as `formatter_pattern`; import sets `value_pattern_string` from `formatter_pattern` and discards a `value_pattern_string` key, so a regex written there is lost on sync. Put a regex in `regex_constraint`. |
 | `relevant_osfamilies` | array[object] | `[{"name": ...}]`. |
 | `global_options` | array | |
