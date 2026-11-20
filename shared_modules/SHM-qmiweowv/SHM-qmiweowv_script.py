@@ -376,6 +376,27 @@ class OpenShiftLandingZoneClient:
         """The items of a Kubernetes list call; [] when the API or namespace does not exist."""
         return (self.get(path, params=params) or {}).get("items", []) or []
 
+    def get_from_route(self, host, path, params=None, timeout=None):
+        """GET ``path`` on another HTTPS route of the same cluster, such as the
+        monitoring stack's ``thanos-querier``, with this client's token and TLS
+        settings: the parsed JSON object. OpenShift's routes accept the bearer
+        token the API server does. Raises LandingZoneError, which carries the
+        HTTP status as ``status_code`` when the route answered.
+        """
+        url = f"https://{host}/{path.lstrip('/')}"
+        try:
+            resp = self._session.get(url, params=params, timeout=timeout or self.timeout)
+        except requests.exceptions.RequestException as exc:
+            raise LandingZoneError(f"GET {path} could not reach {host}: {exc}") from exc
+        if not resp.ok:
+            error = LandingZoneError(f"GET {path} on {host} failed ({resp.status_code}): {resp.text[:300]}")
+            error.status_code = resp.status_code
+            raise error
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise LandingZoneError(f"GET {path} on {host} did not return JSON") from exc
+
     # -- transport ----------------------------------------------------------
 
     def _request(self, method, path, json=None, params=None, headers=None, allow_404=False):

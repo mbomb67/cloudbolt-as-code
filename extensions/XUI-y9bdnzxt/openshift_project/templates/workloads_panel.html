@@ -12,15 +12,73 @@
 {% endfor %}
 
 {# ── Summary ── #}
-<div class="ocp-card">
-  <div class="ocp-stats">
-    <div class="ocp-stat"><div class="k">{% trans "Virtual machines running" %}</div><div class="v">{{ machines_running }} <span class="ocp-muted">/ {{ machines|length }}</span></div></div>
-    <div class="ocp-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="ocp-muted">/ {{ workloads|length }}</span></div></div>
-    <div class="ocp-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="ocp-muted">/ {{ pods|length }}</span></div></div>
-    <div class="ocp-stat"><div class="k">{% trans "Services and routes" %}</div><div class="v">{{ endpoints|length }}</div></div>
-    <div class="ocp-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
+<div class="ocp-stats">
+  <div class="ocp-stat">
+    <div class="k">{% trans "Alerts firing" %}</div>
+    <div class="v">{% if alerts_problem %}<span class="ocp-muted">&mdash;</span>{% else %}{{ alerts_firing }}{% endif %}</div>
+    {% if alerts_critical or alerts_warning %}
+    <div class="ocp-stat-pills">
+      {% if alerts_critical %}<span class="ocp-pill ocp-pill-bad">{{ alerts_critical }} {% trans "critical" %}</span>{% endif %}
+      {% if alerts_warning %}<span class="ocp-pill ocp-pill-warn">{{ alerts_warning }} {% trans "warning" %}</span>{% endif %}
+    </div>
+    {% endif %}
   </div>
+  <div class="ocp-stat"><div class="k">{% trans "Virtual machines running" %}</div><div class="v">{{ machines_running }} <span class="ocp-muted">/ {{ machines|length }}</span></div></div>
+  <div class="ocp-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="ocp-muted">/ {{ workloads|length }}</span></div></div>
+  <div class="ocp-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="ocp-muted">/ {{ pods|length }}</span></div></div>
+  <div class="ocp-stat"><div class="k">{% trans "Services and routes" %}</div><div class="v">{{ endpoints|length }}</div></div>
+  <div class="ocp-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
 </div>
+
+{# ── Alerts ── #}
+<details class="ocp-flat ocp-fold" open>
+  <summary class="ocp-card-h">
+    <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
+    <span class="ocp-card-t">{% trans "Alerts" %}{% if not alerts_problem %} &middot; {{ alerts_firing }} {% trans "firing" %}{% if alerts_pending %} &middot; {{ alerts_pending }} {% trans "pending" %}{% endif %}{% endif %}</span>
+    {% if alerts %}
+    <div class="ocp-card-tools">
+      <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter alerts' %}" data-ocp-filter="#ocpx-alerts">
+    </div>
+    {% endif %}
+  </summary>
+  {% if alerts_problem %}
+  <div class="ocp-clean ocp-clean-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ alerts_problem }}</div>
+  {% elif alerts %}
+  <div class="table-responsive">
+    <table id="ocpx-alerts" class="ocp-table" data-ocp-page-size="25">
+      <thead><tr><th>{% trans "Severity" %}</th><th>{% trans "Alert" %}</th><th>{% trans "Resource" %}</th><th>{% trans "Firing for" %}</th></tr></thead>
+      <tbody>
+        {% for a in alerts %}
+        <tr data-ocp-row{% if not a.firing %} class="ocp-row-pending"{% endif %}>
+          <td class="ocp-nowrap"><span class="ocp-pill ocp-pill-{{ a.pill.style }}"><i class="bi {{ a.pill.icon }}" aria-hidden="true"></i> {{ a.pill.text }}</span></td>
+          <td>
+            <span class="ocp-alert-name">{{ a.name }}</span>{% if not a.firing %} <span class="ocp-tag">{{ a.severity_text }}</span>{% endif %}
+            {% if a.text %}<div class="ocp-alert-text">{{ a.text }}</div>{% endif %}
+            {% if a.runbook_url %}<div class="ocp-hint"><a href="{{ a.runbook_url }}" target="_blank" rel="noopener">{% trans "Runbook" %}</a></div>{% endif %}
+          </td>
+          <td>
+            {% if a.object %}
+            <div class="k">{{ a.kind }}</div>
+            <span class="ocp-mono">{{ a.object }}</span>
+            {% if a.machine and a.kind != "Virtual machine" %}<div class="ocp-hint">{% trans "Virtual machine" %} <span class="ocp-mono">{{ a.machine }}</span></div>{% endif %}
+            {% if a.server_url %}<div class="ocp-hint"><a href="{{ a.server_url }}">{% trans "Server" %}</a></div>{% endif %}
+            {% else %}
+            <span class="ocp-muted">{% trans "The project" %}</span>
+            {% endif %}
+          </td>
+          <td class="ocp-nowrap"{% if a.since_title %} title="{% trans 'Since' %} {{ a.since_title }}"{% endif %}>{{ a.since|default:"&mdash;" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ocp-clean"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "No alerts are firing in this project." %}</div>
+  {% endif %}
+  {% if not alerts_problem %}
+  <div class="ocp-note">{% trans "Read from the cluster's monitoring. OpenShift's built-in pod and workload alerts cover only its own namespaces, so a project shows the alerts of OpenShift Virtualization and of rules in the project." %}</div>
+  {% endif %}
+</details>
 
 {# ── Quota usage ── #}
 <details class="ocp-card ocp-fold" open>
@@ -71,7 +129,7 @@
 </details>
 
 {# ── Virtual machines (OpenShift Virtualization) ── #}
-<details class="ocp-card ocp-fold" open>
+<details class="ocp-flat ocp-fold" open>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Virtual machines" %} &middot; {{ machines|length }}</span>
@@ -84,7 +142,7 @@
         {% for m in machines %}
         <tr>
           <td class="ocp-mono">{{ m.name }}</td>
-          <td><span class="ocp-pill ocp-pill-{{ m.status.style }}"><i class="bi {{ m.status.icon }}{% if m.status.spin %} ocp-spin{% endif %}" aria-hidden="true"></i> {{ m.status.text }}</span></td>
+          <td><span class="ocp-pill ocp-pill-{{ m.status.style }}"><i class="bi {{ m.status.icon }}{% if m.status.spin %} ocp-spin{% endif %}" aria-hidden="true"></i> {{ m.status.text }}</span>{% include "openshift_project/templates/_alerts_pill.html" with row=m %}</td>
           <td>{% if m.ready %}{% trans "Yes" %}{% else %}<span class="ocp-muted">{% trans "No" %}</span>{% endif %}</td>
           <td class="ocp-mono">{{ m.address|default:"&mdash;" }}</td>
           <td class="ocp-hint ocp-mono">{{ m.node|default:"&mdash;" }}</td>
@@ -101,7 +159,7 @@
 </details>
 
 {# ── Workloads ── #}
-<details class="ocp-card ocp-fold" open>
+<details class="ocp-flat ocp-fold" open>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Deployments, StatefulSets and DaemonSets" %} &middot; {{ workloads|length }}</span>
@@ -115,7 +173,7 @@
         <tr>
           <td class="ocp-mono">{{ w.name }}</td>
           <td>{{ w.kind }}</td>
-          <td><span class="ocp-pill ocp-pill-{{ w.status.style }}"><i class="bi {{ w.status.icon }}" aria-hidden="true"></i> {{ w.status.text }}</span></td>
+          <td><span class="ocp-pill ocp-pill-{{ w.status.style }}"><i class="bi {{ w.status.icon }}" aria-hidden="true"></i> {{ w.status.text }}</span>{% include "openshift_project/templates/_alerts_pill.html" with row=w %}</td>
           <td class="ocp-nowrap">{{ w.ready }}</td>
           <td>{% for image in w.images %}<div class="ocp-hint ocp-mono">{{ image }}</div>{% endfor %}</td>
           <td class="ocp-nowrap">{{ w.age }}</td>
@@ -130,7 +188,7 @@
 </details>
 
 {# ── Pods ── #}
-<details class="ocp-card ocp-fold" open>
+<details class="ocp-flat ocp-fold" open>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Pods" %} &middot; {{ pods|length }}</span>
@@ -149,7 +207,7 @@
         {% for p in pods %}
         <tr data-ocp-row>
           <td class="ocp-mono">{{ p.name }}</td>
-          <td><span class="ocp-pill ocp-pill-{{ p.status.style }}"><i class="bi {{ p.status.icon }}" aria-hidden="true"></i> {{ p.status.text }}</span></td>
+          <td><span class="ocp-pill ocp-pill-{{ p.status.style }}"><i class="bi {{ p.status.icon }}" aria-hidden="true"></i> {{ p.status.text }}</span>{% include "openshift_project/templates/_alerts_pill.html" with row=p %}</td>
           <td class="ocp-nowrap">{{ p.ready }}</td>
           <td>{% if p.restarts %}<span class="ocp-tag ocp-tag-warn">{{ p.restarts }}</span>{% else %}0{% endif %}</td>
           <td class="ocp-hint">{{ p.owner|default:"&mdash;" }}</td>
@@ -166,7 +224,7 @@
 </details>
 
 {# ── Services and ingresses ── #}
-<details class="ocp-card ocp-fold" open>
+<details class="ocp-flat ocp-fold" open>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Services, routes and ingresses" %} &middot; {{ endpoints|length }}</span>
@@ -196,7 +254,7 @@
 </details>
 
 {# ── Storage ── #}
-<details class="ocp-card ocp-fold"{% if claims %} open{% endif %}>
+<details class="ocp-flat ocp-fold"{% if claims %} open{% endif %}>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Persistent volume claims" %} &middot; {{ claims|length }}</span>
@@ -209,7 +267,7 @@
         {% for c in claims %}
         <tr>
           <td class="ocp-mono">{{ c.name }}</td>
-          <td><span class="ocp-pill ocp-pill-{{ c.status.style }}"><i class="bi {{ c.status.icon }}" aria-hidden="true"></i> {{ c.status.text }}</span></td>
+          <td><span class="ocp-pill ocp-pill-{{ c.status.style }}"><i class="bi {{ c.status.icon }}" aria-hidden="true"></i> {{ c.status.text }}</span>{% include "openshift_project/templates/_alerts_pill.html" with row=c %}</td>
           <td class="ocp-nowrap">{{ c.size|default:"&mdash;" }}</td>
           <td>{{ c.storage_class|default:"&mdash;" }}</td>
           <td class="ocp-nowrap">{{ c.age }}</td>
@@ -224,7 +282,7 @@
 </details>
 
 {# ── Warning events ── #}
-<details class="ocp-card ocp-fold"{% if events %} open{% endif %}>
+<details class="ocp-flat ocp-fold"{% if events %} open{% endif %}>
   <summary class="ocp-card-h">
     <i class="bi bi-chevron-right ocp-chevron" aria-hidden="true"></i>
     <span class="ocp-card-t">{% trans "Recent warning events" %} &middot; {{ warning_count }}</span>
