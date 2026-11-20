@@ -31,6 +31,7 @@ References:
   https://docs.stormforge.io/docs/configure/annotate-workloads/
   https://docs.stormforge.io/docs/configure/optimization-configurations/
   https://docs.stormforge.io/docs/configure/settings/annotations/
+  https://docs.stormforge.io/docs/recommendations/workload-groups/
   https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
 """
 
@@ -69,6 +70,7 @@ GROUPS = (
     ("hpa", "HPA"),
     ("runtime", "Runtime"),
     ("scheduling", "Pod Scheduling"),
+    ("group", "Workload Group"),
     ("other", "Other"),
 )
 
@@ -161,6 +163,17 @@ def _catalog():
          "", "podScheduling.instanceCategories.nodeAffinityPatchPath"),
         ("pod-scheduling.instance-categories.node-affinity.patch-format", "scheduling",
          "Node affinity patch format", "", "podScheduling.instanceCategories.nodeAffinityPatchFormat"),
+        # https://docs.stormforge.io/docs/recommendations/workload-groups/
+        ("workload-group.selector", "group", "Workloads to include, by label selector", "",
+         "workloadGroup.selector"),
+        ("workload-group.expression", "group", "Workloads to include, by CEL expression", "",
+         "workloadGroup.expression"),
+        ("workload-group.name", "group", "Workload to include, name", "", "workloadGroup.name"),
+        ("workload-group.cluster", "group", "Workload to include, cluster", "", "workloadGroup.cluster"),
+        ("workload-group.namespace", "group", "Workload to include, namespace", "", "workloadGroup.namespace"),
+        ("workload-group.resource", "group", "Workload to include, resource type", "", "workloadGroup.resource"),
+        ("workload-group.mirror", "group", "Mirror the group, leaving this workload out", "false",
+         "workloadGroup.mirror"),
     ]
     return rows
 
@@ -168,6 +181,28 @@ def _catalog():
 CATALOG = _catalog()
 _BY_NAME = {row[0]: row for row in CATALOG}
 _POSITION = {row[0]: index for index, row in enumerate(CATALOG)}
+
+# Settings with no default value that StormForge works out itself when nothing
+# sets them: name -> what it uses. Only what StormForge's documentation states.
+#   https://docs.stormforge.io/docs/configure/settings/cpu-and-memory/   (patch paths)
+#   https://docs.stormforge.io/docs/configure/settings/apply-settings/   (pod template metadata)
+#   https://docs.stormforge.io/docs/configure/settings/runtime/          (Java max heap format)
+#   https://docs.stormforge.io/docs/recommendations/workload-groups/     (workload to include)
+_BUILT_IN_KINDS = "Known for built-in Kubernetes workload kinds; set it for a custom resource kind"
+AUTOMATIC = {
+    "pod-template.metadata.patch-path": "The pod template's metadata, for most built-in workload kinds",
+    "pod-template.metadata.patch-format": "The stormforge.io/recommendation-url annotation",
+    "containers.cpu.requests.patch-path": _BUILT_IN_KINDS,
+    "containers.cpu.limits.patch-path": _BUILT_IN_KINDS,
+    "containers.memory.requests.patch-path": _BUILT_IN_KINDS,
+    "containers.memory.limits.patch-path": _BUILT_IN_KINDS,
+    "containers.java.max-heap.patch-format":
+        "MaxRAMPercentage when the container has a memory limit, MaxHeapSize when it has none",
+    "workload-group.name": "The workload's own name",
+    "workload-group.cluster": "The workload's own cluster",
+    "workload-group.namespace": "The workload's own namespace",
+    "workload-group.resource": "The workload's own resource type",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +521,7 @@ def _blank_row(name):
         "name": name, "key": PREFIX + name,
         "group": known[1] if known else "other",
         "label": known[2] if known else name,
-        "default": known[3] if known else "",
+        "default": known[3] if known else "", "default_note": "", "automatic": AUTOMATIC.get(name, ""),
         "value": None, "level": "conditional", "level_label": LEVEL_LABELS["conditional"], "source": "",
         "overridden": [], "conditional": [], "confirmed": False, "reported": None,
     }
@@ -629,12 +664,16 @@ def _text(value):
 # Presentation helpers
 # ---------------------------------------------------------------------------
 def grouped(rows):
-    """[{title, rows}] in StormForge's settings order, empty groups left out."""
+    """[{title, rows, given}] in StormForge's settings order, empty groups left out.
+
+    ``given`` counts the group's rows something sets, for the group's header.
+    """
     out = []
     for key, title in GROUPS:
         members = [row for row in rows if row["group"] == key]
         if members:
-            out.append({"key": key, "title": title, "rows": members})
+            out.append({"key": key, "title": title, "rows": members,
+                        "given": sum(1 for row in members if row["value"] is not None)})
     return out
 
 
@@ -652,6 +691,65 @@ def default_count(rows):
     """How many catalog settings nothing sets, so StormForge's default applies."""
     given = {row["name"] for row in rows if row["value"] is not None}
     return sum(1 for row in CATALOG if row[0] not in given)
+
+
+# The values an enabled reliability response uses in place of the annotation
+# defaults in the catalog ("Default when enabled",
+# https://docs.stormforge.io/docs/configure/settings/reliability/). StormForge
+# uses them only when the response is enabled and neither its percent nor its
+# min is given; once either is given, the settings left unset keep the
+# annotation defaults. Period and max are the same either way.
+ENABLED_DEFAULTS = {
+    "reliability.oom.memory-bump-up.": {
+        "percent": "20", "min": "100Mi", "apply-immediately": "IfAutoDeployEnabled"},
+    "reliability.cpu-pressure.cpu-bump-up.": {
+        "percent": "20", "min": "50m", "apply-immediately": "IfAutoDeployEnabled"},
+}
+ENABLED_NOTE = "Default while this response is enabled"
+
+
+def _given(rows, name):
+    """The value in effect for setting ``name``, or None when nothing sets it."""
+    row = next((r for r in rows if r["name"] == name), None)
+    return None if row is None else row["value"]
+
+
+def _enabled_defaults(rows, prefix):
+    """True when the response under ``prefix`` is enabled with neither percent nor min given."""
+    enabled = _given(rows, prefix + "enabled")
+    if enabled is None or _given(rows, prefix + "percent") is not None or _given(rows, prefix + "min") is not None:
+        return False
+    first = str(enabled).split(",")[0].strip()     # "True,resource:daemonsets=False"
+    return "=" not in first and _normal(first) == "true"
+
+
+def complete(rows, config=None):
+    """``rows`` plus a row for every catalog setting nothing sets, so the list names all of them.
+
+    A row nothing sets has no value and carries StormForge's default: the
+    catalog's, or for a reliability response that is enabled on its own the
+    value StormForge uses then. A row with no default may say what StormForge
+    works out instead (``automatic``). ``config`` is StormForge's configuration for a
+    workload, when the list is a workload's: where it reports a value for an
+    unset setting that differs from that default, the reported value is shown.
+    """
+    present = {row["name"] for row in rows}
+    enabled = {prefix: values for prefix, values in ENABLED_DEFAULTS.items() if _enabled_defaults(rows, prefix)}
+    out = list(rows)
+    for name, _group, _label, default, path in CATALOG:
+        if name in present:
+            continue
+        row = _blank_row(name)
+        for prefix, values in enabled.items():
+            when_enabled = values.get(name[len(prefix):]) if name.startswith(prefix) else None
+            if when_enabled and not _same(when_enabled, default):
+                row["default"], row["default_note"] = when_enabled, ENABLED_NOTE
+        reported = _lookup(config, path) if isinstance(config, dict) else None
+        if isinstance(reported, (str, int, float)) and not _unset(reported) and not _same(reported, row["default"]):
+            row["default"], row["default_note"] = _text(reported), ""
+        out.append(row)
+    out.sort(key=lambda r: (_POSITION.get(r["name"], len(CATALOG)), r["name"]))
+    return out
 
 
 def rule_objects(configs):
