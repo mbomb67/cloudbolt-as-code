@@ -28,6 +28,46 @@ export const BLUE_STEPS = DARK_THEME
     ? ["#184f95", "#3987e5", "#9ec5f4"]
     : ["#86b6ef", "#2a78d6", "#104281"];
 
+/**
+ * True on an appliance that still draws charts with real Highcharts (a version string, and none of the
+ * ECharts layer). Current CloudBolt defines window.Highcharts as a compatibility shim with no version.
+ */
+export function isRealHighcharts() {
+    const hc = window.Highcharts;
+    return !!(hc && typeof hc.version === "string" && !window.echarts && !window.cbChart);
+}
+
+/**
+ * On real Highcharts with its default useUTC, the time axis and tooltips would show UTC. Highcharts 4 has
+ * no per-chart time zone and the global options belong to CloudBolt's other charts, so this chart's
+ * x values are moved by the browser's offset (taken at each point, so daylight saving is right): UTC
+ * drawing of the moved values reads as local time, ticks included. The tooltip formatter moves x back
+ * before it formats. Does nothing on the ECharts path, where times are already local.
+ */
+export function localTimeOptions(options) {
+    if (!isRealHighcharts() || !window.Highcharts.getOptions) {
+        return options;
+    }
+    const global = window.Highcharts.getOptions().global || {};
+    if (global.useUTC === false) {
+        return options;
+    }
+    const shift = (ts) => ts - new Date(ts).getTimezoneOffset() * 60000;
+    const unshift = (x) => x + new Date(x).getTimezoneOffset() * 60000;
+    options.series.forEach((s) => {
+        s.data = (s.data || []).map((p) => (Array.isArray(p) ? [shift(p[0]), ...p.slice(1)] : p));
+    });
+    const original = options.tooltip && options.tooltip.formatter;
+    if (original) {
+        options.tooltip.formatter = function () {
+            const context = Object.create(this);
+            context.x = unshift(this.x);
+            return original.call(context);
+        };
+    }
+    return options;
+}
+
 /** A #rgb or #rrggbb token from /portal.css as [r, g, b], or null. */
 function themeRgb(token) {
     let hex = getComputedStyle(document.documentElement)
