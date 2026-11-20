@@ -16,8 +16,9 @@ reads settings.json.
 
 run_scan() runs inside that job. It builds the script (oscap_scan.sh with a
 generated header of quoted VAR=value lines, never string-formatted input,
-inside a POSIX sh launcher), runs it with Server.execute_script as root
-through the server's own credentials or agent channel, parses the
+inside a POSIX sh launcher), runs it as root (Server.execute_script,
+through the server's own credentials or agent channel; OpenShift Virtualization
+VMs go through the kubevirt_api_tunnel shared module, see _execute), parses the
 OSCAP|key|value lines it prints (bounded: known keys only, capped lists and
 lengths), writes the summary into the server's index (oscap_store.py) and
 adds a server event. Everything that came from the server is stripped of
@@ -116,7 +117,7 @@ def _launcher(inner):
         '    echo "OSCAP|problem|bash is not installed on the server"; echo "OSCAP|done|1"; exit 0\n'
         "fi\n"
         'cat > "$f" <<\'' + delimiter + "'\n" + inner + delimiter + "\n"
-        'bash "$f"\n'
+        'bash "$f" </dev/null\n'
         "exit 0\n"
     )
 
@@ -557,6 +558,102 @@ def run_scan(job, oscap_server_id=None, oscap_mode="scan", oscap_datastream="", 
         _clear_secrets(job)
 
 
+class TransportError(Exception):
+    """The script could not be delivered to the server; the message says why."""
+
+
+# Seconds of silence after which the tunnel's SSH session sends a keepalive, so a long quiet oscap
+# run does not look idle to the cluster's API endpoint or a load balancer in front of it.
+TUNNEL_KEEPALIVE = 30
+
+
+def _is_openshift_vm(server):
+    """True for a VM on an OpenShift Virtualization resource handler (resourcehandlers/ovirt). Only
+    those servers have an OVirtServerInfo row, and it is what kubevirt_api_tunnel reads the
+    namespace from (resourcehandlers/ovirt/models.py OVirtServerInfo)."""
+    return getattr(server, "ovirtserverinfo", None) is not None
+
+
+def _execute(server, script, timeout, job=None):
+    """Run the script as root on the server and return its stdout text.
+
+    Most servers use Server.execute_script. A script that exits non-zero or times
+    out raises, with the output on the exception's .output. OpenShift
+    Virtualization guests sit on the pod network and CloudBolt cannot reach them,
+    so they run through the kubevirt_api_tunnel shared module (SSH over the
+    KubeVirt port-forward websocket) and raise the same way. A tunnel that cannot
+    be opened raises TransportError.
+    """
+    if not _is_openshift_vm(server):
+        # Server.execute_script runs the script through the server's own
+        # credentials or its resource handler's agent channel
+        # (infrastructure/models.py Server.execute_script).
+        return server.execute_script(
+            script_contents=script,
+            run_with_sudo=True,
+            timeout=timeout,
+            show_streaming_output=False,
+        )
+
+    try:
+        from shared_modules import kubevirt_api_tunnel
+    except ImportError:
+        raise TransportError(
+            "{} is an OpenShift Virtualization VM, which OpenSCAP reaches through the kubevirt_api_tunnel "
+            "shared module, and that module is not on this CloudBolt. Sync server_actions/SVA-5vsp0tv6, "
+            "which carries it.".format(server.hostname)
+        )
+    import socket
+    import time
+    import paramiko
+
+    _progress(job, "Opening the API tunnel to {}".format(server.hostname))
+    transport = None
+    try:
+        # connect_ssh logs in with the server's CloudBolt credentials (key or password). Used instead of
+        # run_script because run_script waits at most its timeout between reads, sets no keepalive and
+        # cannot run the command under sudo.
+        transport = kubevirt_api_tunnel.connect_ssh(server)
+        transport.set_keepalive(TUNNEL_KEEPALIVE)
+        channel = transport.open_session()
+        channel.set_combine_stderr(True)
+        channel.settimeout(5)
+        channel.exec_command("sudo -n sh -s")
+        channel.sendall(script.replace("\r\n", "\n"))
+        channel.shutdown_write()
+        deadline = time.time() + timeout
+        chunks = []
+        while True:
+            try:
+                data = channel.recv(65536)
+            except socket.timeout:
+                if time.time() > deadline:
+                    exc = TimeoutError("The script did not finish within {} minutes.".format(int(timeout // 60)))
+                    exc.output = b"".join(chunks).decode(errors="replace")
+                    raise exc
+                continue
+            if not data:
+                break
+            chunks.append(data)
+        output = b"".join(chunks).decode(errors="replace")
+        exit_code = channel.recv_exit_status()
+    except kubevirt_api_tunnel.TunnelError as exc:
+        raise TransportError(str(exc))
+    except (paramiko.SSHException, EOFError, OSError) as exc:
+        if isinstance(exc, TimeoutError):
+            raise
+        raise TransportError("The SSH session to {} failed: {}".format(server.hostname, exc))
+    finally:
+        if transport is not None:
+            transport.close()
+    if exit_code:
+        tail = [line for line in output.strip().splitlines() if line.strip()][-1:]
+        exc = RuntimeError("The script exited with code {}.{}".format(exit_code, " " + tail[0] if tail else ""))
+        exc.output = output
+        raise exc
+    return output
+
+
 def _local_files(server, scan_id):
     """Which result files the local backend holds for a scan, by looking at the disk."""
     found = {}
@@ -583,15 +680,9 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     error = ""
     output = ""
     try:
-        # Server.execute_script runs the script through the server's own
-        # credentials or its resource handler's agent channel
-        # (infrastructure/models.py Server.execute_script).
-        output = server.execute_script(
-            script_contents=script,
-            run_with_sudo=True,
-            timeout=cfg["timeout_min"] * 60,
-            show_streaming_output=False,
-        )
+        output = _execute(server, script, cfg["timeout_min"] * 60, job)
+    except TransportError as exc:
+        return "FAILURE", "", clean(str(exc), MESSAGE_LEN), {}
     except NotImplementedError:
         return "FAILURE", "", "This server's resource handler cannot run scripts on servers.", {}
     except Exception as exc:

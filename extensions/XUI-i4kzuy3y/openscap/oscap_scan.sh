@@ -170,7 +170,14 @@ done
 sort -t'|' -k1,1 -k2,2 "$RANKED" -o "$RANKED"
 
 if [ ! -s "$RANKED" ]; then
-    problem "No SCAP Security Guide content was found (ssg-*-ds.xml)"
+    case "$OS_ID" in
+        ubuntu)
+            # Ubuntu 22.04's repositories carry oscap but no guide content;
+            # Canonical delivers its profiles through Ubuntu Pro.
+            problem "OpenSCAP is installed, but this server has no SCAP Security Guide content (ssg-*-ds.xml) and Ubuntu's repositories do not provide it. Canonical ships it with Ubuntu Pro: run 'pro enable usg' and install usg" ;;
+        *)
+            problem "OpenSCAP is installed, but no SCAP Security Guide content was found (ssg-*-ds.xml). Install the scap-security-guide package for this operating system" ;;
+    esac
     finish
 fi
 

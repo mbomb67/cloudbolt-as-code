@@ -14,6 +14,7 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 ## Prerequisites
 - CloudBolt 8.6 or later.
 - A Linux server in a resource handler whose script execution works (the same channel Remote Scripts use), powered on, with `curl` and `gzip`.
+- OpenShift Virtualization VMs are reached through the `kubevirt_api_tunnel` shared module (the pod network as the VM's first NIC, and an SSH key or password on the server record); the module comes with `server_actions/SVA-5vsp0tv6`.
 - `openscap-scanner` and the SCAP Security Guide on the server (`scap-security-guide`; `ssg-debderived` on Debian and Ubuntu), or turn on **Allow install** in settings and tick Install when running.
 - To scan: the `server.all_actions` permission on the server (the permission to run any server action), or CB Admin. To view: the view permission on the server.
 - For S3: an AWS resource handler whose credentials allow `s3:PutObject` and `s3:GetObject` on the bucket's prefix, and `s3:ListBucket` if you leave the region empty. The server needs outbound HTTPS to S3.
