@@ -83,10 +83,16 @@ INDEX_ERROR = "The scan history for this server cannot be read or written; ask a
 
 
 class ScanError(Exception):
-    """A request that cannot start; status is the HTTP status the view answers with."""
+    """The script cannot be built. Raised inside a running job only; never shown
+    in an HTTP response."""
+
+
+class Refusal:
+    """A request that cannot start: the sentence to show and the HTTP status. start()
+    returns one instead of raising, so no response is built from an exception."""
 
     def __init__(self, message, status=400):
-        super().__init__(message)
+        self.message = message
         self.status = status
 
 
@@ -106,7 +112,7 @@ def _launcher(inner):
             delimiter = candidate
             break
     if not delimiter:
-        raise ScanError("Could not build the script.", 500)
+        raise ScanError("Could not build the script.")
     return (
         "#!/bin/sh\n"
         "umask 077\n"
@@ -386,21 +392,21 @@ def active_job(server_id, index=None):
 # ---------------------------------------------------------------- start
 def start(profile, server, mode, datastream, profile_id, install, base_url=""):
     """Validate and start the job. base_url is the default portal's configured
-    site URL (never a request's Host). Returns the Job; raises ScanError."""
+    site URL (never a request's Host). Returns the Job, or a Refusal."""
     if mode not in MODES:
-        raise ScanError("The mode must be scan or check.")
+        return Refusal("The mode must be scan or check.")
     datastream = (datastream or "").strip()
     profile_id = (profile_id or "").strip()
     if datastream and not store.DATASTREAM_RE.fullmatch(datastream):
-        raise ScanError("The datastream name has characters that are not allowed.")
+        return Refusal("The datastream name has characters that are not allowed.")
     if not store.PROFILE_RE.fullmatch(profile_id):
-        raise ScanError("The profile id has characters that are not allowed.")
+        return Refusal("The profile id has characters that are not allowed.")
     if server.status == "HISTORICAL":
-        raise ScanError("This server is historical.")
+        return Refusal("This server is historical.")
     if server.is_windows():
-        raise ScanError("OpenSCAP scans Linux servers only.")
+        return Refusal("OpenSCAP scans Linux servers only.")
     if server.power_status != "POWERON":
-        raise ScanError("The server is not powered on.", 409)
+        return Refusal("The server is not powered on.", 409)
 
     is_admin = bool(getattr(profile, "is_cbadmin", False))
     cfg = store.get_settings()
@@ -412,17 +418,18 @@ def start(profile, server, mode, datastream, profile_id, install, base_url=""):
         with store.server_lock(server.id):
             running = active_job(server.id)
             if running is not None:
-                raise ScanError(
+                return Refusal(
                     "Job {} is still running on this server; wait for it to finish.".format(running[1].id), 409
                 )
             created = _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin)
     except store.StoreError:
         logger.exception("OpenSCAP: index problem starting a job on server %s", server.id)
-        raise ScanError(INDEX_ERROR, 500)
+        return Refusal(INDEX_ERROR, 500)
     return created
 
 
 def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin):
+    """The queued Job, or a Refusal."""
     scan_id = store.new_scan_id()
     urls, token, region = {}, "", ""
     uploads = False
@@ -444,7 +451,8 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
                 )
             except oscap_repo.RepoError as exc:
                 logger.error("OpenSCAP: no upload targets for server %s: %s", server.id, exc.detail)
-                raise ScanError(exc.detail if is_admin else str(exc), 409)
+                # Administrators get the sentence for the error code (a fixed table), others the generic one.
+                return Refusal(oscap_repo.admin_text(exc.code, cfg) if is_admin else oscap_repo.GENERIC_PUBLIC, 409)
             urls, token, region = targets["urls"], targets["token"], targets["region"]
             uploads = True
         where = oscap_repo.location(server, scan_id, region)
@@ -469,7 +477,7 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
         },
     )
     if not created:
-        raise ScanError("CloudBolt did not start the job; see the application log.", 500)
+        return Refusal("CloudBolt did not start the job; see the application log.", 500)
     job = created[0]
     # From here the job is queued: nothing below may turn into an error.
     try:
@@ -658,7 +666,7 @@ def _local_files(server, scan_id):
     """Which result files the local backend holds for a scan, by looking at the disk."""
     found = {}
     for name in oscap_repo.UPLOAD_NAMES:
-        found[name] = os.path.isfile(os.path.join(oscap_repo.local_dir(server.id, scan_id), name))
+        found[name] = os.path.isfile(oscap_repo.local_file(server.id, scan_id, name))
     return found
 
 
@@ -688,7 +696,12 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     except Exception as exc:
         # A script that exits non-zero or times out raises; its output rides on the exception.
         output = str(getattr(exc, "output", "") or "")
-        error = clean(str(exc), MESSAGE_LEN)
+        if hasattr(exc, "output"):
+            # A timeout or a non-zero exit: the exception carries the script output, and its message is ours.
+            error = clean(str(exc), MESSAGE_LEN)
+        else:
+            logger.exception("OpenSCAP: running the script on server %s failed", server.id)
+            error = "The script could not be run on the server. The CloudBolt job log has the details."
     wall = int((store.now_utc() - began).total_seconds())
 
     parsed = parse_output(output)

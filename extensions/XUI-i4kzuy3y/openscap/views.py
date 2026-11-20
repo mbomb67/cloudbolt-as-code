@@ -231,8 +231,6 @@ def _api(view):
             return JsonResponse({"error": "You may not run OpenSCAP on this server."}, status=403)
         except Http404:
             return JsonResponse({"error": "This server was not found."}, status=404)
-        except oscap_jobs.ScanError as exc:
-            return JsonResponse({"error": str(exc)}, status=exc.status)
         except Exception:
             logger.exception("OpenSCAP API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
@@ -241,13 +239,12 @@ def _api(view):
 
 
 def _body(request):
+    """The JSON object in the request body, or None when it is not one."""
     try:
         data = json.loads(request.body.decode("utf-8") or "{}")
     except ValueError:
-        raise oscap_jobs.ScanError("The request body must be a JSON object.")
-    if not isinstance(data, dict):
-        raise oscap_jobs.ScanError("The request body must be a JSON object.")
-    return data
+        return None
+    return data if isinstance(data, dict) else None
 
 
 @_api
@@ -263,6 +260,8 @@ def openscap_start(request, server_id):
     if not can_scan(profile, server):
         raise PermissionDenied
     data = _body(request)
+    if data is None:
+        return JsonResponse({"error": "The request body must be a JSON object."}, status=400)
     job = oscap_jobs.start(
         profile,
         server,
@@ -272,6 +271,8 @@ def openscap_start(request, server_id):
         bool(data.get("install")),
         base_url=_base_url(request),
     )
+    if isinstance(job, oscap_jobs.Refusal):
+        return JsonResponse({"error": job.message}, status=job.status)
     return JsonResponse({"job_id": job.id, "job_url": job.get_absolute_url()}, status=202)
 
 
@@ -294,10 +295,9 @@ def openscap_artifact(request, server_id, scan_id, kind):
     try:
         return oscap_repo.link_or_response(server, scan, kind, request)
     except oscap_repo.RepoError as exc:
+        # The detail stays in the log; everyone, administrators included, gets one fixed sentence.
         logger.error("OpenSCAP: cannot open %s of scan %s: %s", kind, scan_id, exc.detail)
-        # Administrators see why; everyone else a generic sentence.
-        text = exc.detail if request.get_user_profile().is_cbadmin else str(exc)
-        return HttpResponse(text, status=502, content_type="text/plain")
+    return HttpResponse(oscap_repo.GENERIC_PUBLIC, status=502, content_type="text/plain")
 
 
 @login_not_required

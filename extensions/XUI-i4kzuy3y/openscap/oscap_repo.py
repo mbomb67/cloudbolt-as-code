@@ -67,13 +67,38 @@ GENERIC_PUBLIC = "The stored result is not available right now. Ask an administr
 TOKEN_HEADER = "HTTP_X_OSCAP_TOKEN"
 
 
+# What an administrator is told, by error code. The text never comes from an
+# exception: a response body is built from this table, the log keeps the detail.
+ADMIN_TEXT = {
+    "handler_missing": "The AWS resource handler chosen for the S3 bucket no longer exists.",
+    "s3_client": "CloudBolt could not create an S3 client from the chosen AWS resource handler.",
+    "bucket_read": (
+        "CloudBolt could not read bucket {bucket}. Check the bucket name, the handler's "
+        "s3:ListBucket permission, or set the bucket region. The CloudBolt application log has the error."
+    ),
+    "bucket_region": "S3 did not report the region of bucket {bucket}; set it on the settings page.",
+    "s3_unconfigured": "S3 storage is not configured. An administrator must finish the OpenSCAP settings page.",
+    "no_site_url": "The default portal has no site URL.",
+}
+
+
+def admin_text(code, cfg):
+    """The sentence an administrator sees for an error code, or the generic one."""
+    template = ADMIN_TEXT.get(code)
+    if template is None:
+        return GENERIC_PUBLIC
+    return template.format(bucket=cfg.get("s3_bucket", ""))
+
+
 class RepoError(Exception):
     """A problem with the result repository. str() is a generic sentence safe
-    for any viewer; detail is for administrators and the log."""
+    for any viewer; detail is for the log; code picks the administrator's
+    sentence from ADMIN_TEXT."""
 
-    def __init__(self, public=GENERIC_PUBLIC, detail=""):
+    def __init__(self, public=GENERIC_PUBLIC, detail="", code=""):
         super().__init__(public)
         self.detail = detail or public
+        self.code = code
 
 
 def _safe_host(server):
@@ -132,10 +157,31 @@ def read_token(token, scan_id, name, key=None, now=None):
 
 
 # ---------------------------------------------------------------- local backend
+def _contained(base, *parts):
+    """base joined with parts, normalised, and only if it is strictly inside
+    base (Http404 otherwise). Every path built from a scan id, a file name or a
+    server id goes through here, and the returned value is the one to use.
+    https://codeql.github.com/codeql-query-help/python/py-path-injection/"""
+    base = os.path.normpath(base)
+    path = os.path.normpath(os.path.join(base, *parts))
+    if not path.startswith(base + os.sep):
+        raise Http404
+    return path
+
+
+def _server_dir(server_id):
+    return _contained(store.REPORTS_DIR, str(int(server_id)))
+
+
 def local_dir(server_id, scan_id):
     if not store.SCAN_ID_RE.fullmatch(scan_id or ""):
         raise Http404
-    return os.path.join(store.REPORTS_DIR, str(int(server_id)), scan_id)
+    return _contained(_server_dir(server_id), scan_id)
+
+
+def local_file(server_id, scan_id, name):
+    """Path of one stored file of a scan (Http404 if the name leaves the scan's directory)."""
+    return _contained(local_dir(server_id, scan_id), name)
 
 
 def local_usage():
@@ -185,7 +231,7 @@ def receive_upload(request, scan_id, name):
     if declared <= 0 or declared > MAX_UPLOAD_BYTES:
         raise Http404
     directory = local_dir(payload["v"], payload["s"])
-    final = os.path.join(directory, name)
+    final = _contained(directory, name)
     # Only into a scan directory a scan start made (retention removes it), and
     # only once per file name.
     if not os.path.isdir(directory) or os.path.exists(final):
@@ -222,7 +268,7 @@ def receive_upload(request, scan_id, name):
 
 def _local_response(server, scan, kind):
     name = kind_name(kind)
-    path = os.path.join(local_dir(server.id, scan["id"]), name)
+    path = local_file(server.id, scan["id"], name)
     if not os.path.isfile(path):
         raise Http404
     if kind == "report":
@@ -252,7 +298,10 @@ def _remove_scans(victims):
     """Delete (server id, scan id) pairs from disk and mark them pruned."""
     by_server = {}
     for server_id, scan_id in victims:
-        shutil.rmtree(os.path.join(store.REPORTS_DIR, str(int(server_id)), scan_id), ignore_errors=True)
+        try:
+            shutil.rmtree(_contained(_server_dir(server_id), scan_id), ignore_errors=True)
+        except Http404:
+            pass  # a name that is not inside the server's folder is not ours to remove
         by_server.setdefault(server_id, []).append(scan_id)
     for server_id, scan_ids in by_server.items():
         store.drop_scans(server_id, scan_ids)
@@ -264,7 +313,7 @@ def prune(server, cfg, reserve=0):
     backend is over its space limit (less room for one more scan), remove the
     oldest scans across all servers. Returns the removed scan ids."""
     victims = []
-    base = os.path.join(store.REPORTS_DIR, str(int(server.id)))
+    base = _server_dir(server.id)
     if os.path.isdir(base):
         scan_ids = sorted(
             e.name for e in os.scandir(base) if e.is_dir() and store.SCAN_ID_RE.fullmatch(e.name)
@@ -298,7 +347,7 @@ def _s3_handler(cfg):
     except (TypeError, ValueError):
         handler = None
     if handler is None:
-        raise RepoError(detail="The AWS resource handler chosen for the S3 bucket no longer exists.")
+        raise RepoError(detail="The AWS resource handler chosen for the S3 bucket no longer exists.", code="handler_missing")
     return handler
 
 
@@ -311,7 +360,9 @@ def _s3_clients(cfg, region=""):
     # credentials (resourcehandlers/aws/models.py AWSHandler.get_boto3_client).
     lookup = handler.get_boto3_client(region or "us-east-1", "s3")
     if lookup is None:
-        raise RepoError(detail="CloudBolt could not create an S3 client from the chosen AWS resource handler.")
+        raise RepoError(
+            detail="CloudBolt could not create an S3 client from the chosen AWS resource handler.", code="s3_client"
+        )
     cache_key = (cfg["aws_handler_id"], cfg["s3_bucket"])
     if not region:
         region = _REGION_CACHE.get(cache_key)
@@ -321,13 +372,14 @@ def _s3_clients(cfg, region=""):
             # (response key BucketRegion)
             region = lookup.head_bucket(Bucket=cfg["s3_bucket"]).get("BucketRegion") or ""
         except Exception as exc:
-            raise RepoError(detail=(
-                "CloudBolt could not read bucket {}: {}. Check the bucket name, the handler's "
-                "s3:ListBucket permission, or set the bucket region.".format(cfg["s3_bucket"], _short(exc))
-            ))
+            raise RepoError(
+                detail="CloudBolt could not read bucket {}: {}".format(cfg["s3_bucket"], _short(exc)),
+                code="bucket_read",
+            )
         if not region:
-            raise RepoError(detail="S3 did not report the region of bucket {}; set it on the settings page.".format(
-                cfg["s3_bucket"]))
+            raise RepoError(
+                detail="S3 did not report the region of bucket {}.".format(cfg["s3_bucket"]), code="bucket_region"
+            )
         _REGION_CACHE[cache_key] = region
     return _presign_client(lookup, region), region
 
@@ -466,11 +518,14 @@ def upload_targets(server, scan_id, base_url="", minutes=35):
     cfg = store.get_settings()
     if cfg["backend"] == "s3":
         if not cfg["s3_bucket"] or not cfg["aws_handler_id"]:
-            raise RepoError(detail="S3 storage is not configured. An administrator must finish the OpenSCAP settings page.")
+            raise RepoError(
+                detail="S3 storage is not configured. An administrator must finish the OpenSCAP settings page.",
+                code="s3_unconfigured",
+            )
         urls, region = _s3_upload_targets(cfg, server, scan_id, minutes)
         return {"urls": urls, "token": "", "region": region}
     if not base_url:
-        raise RepoError(detail="The default portal has no site URL.")
+        raise RepoError(detail="The default portal has no site URL.", code="no_site_url")
     prepare_local(server.id, scan_id)
     token = make_token(scan_id, server.id, UPLOAD_NAMES, minutes)
     return {
@@ -497,7 +552,7 @@ def exists(server, scan, kind):
     if scan.get("backend") == "s3":
         return bool((scan.get("files") or {}).get(kind_name(kind)))
     try:
-        return os.path.isfile(os.path.join(local_dir(server.id, scan["id"]), kind_name(kind)))
+        return os.path.isfile(local_file(server.id, scan["id"], kind_name(kind)))
     except Http404:
         return False
 
