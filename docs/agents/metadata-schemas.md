@@ -344,6 +344,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `deploy_seq` | integer | Ordering. |
 | `tier_type` | string | Polymorphic discriminator — see enums. |
 | `execute_in_parallel`, `show_on_order_form` | boolean | Import defaults `false`. |
+| | | `execute_in_parallel: true` starts the item and moves on without waiting; the next item that is not parallel starts as well and then waits for every job started since the last wait (`deploy_blueprint_job.py`). A group that runs together is therefore its parallel items followed by one non-parallel item. An input that a hidden build item fills from `parameter_defaults` must not be `required`: the order API does not count the default as provided. |
 | `rate` | string / null | |
 | `action_name`, `rate_action_name` | string | For action SIs. |
 | `dependencies` | object | See cross-references. |
