@@ -532,8 +532,30 @@
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "3-Tier Web App on OpenShift Virtualization",
-    "parameters": [],
-    "resource_name_template": null,
+    "parameters": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "constraints": "Unconstrained",
+            "description": "Name of this deployment. It becomes the name of the resource in CloudBolt and is shown on the app's page.",
+            "destination": "Both",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "id": "CF-rsn585dk",
+            "label": "Resource Name",
+            "name": "web_app_resource_name",
+            "options": [],
+            "placeholder": "orders-demo",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "resource_name_template": "{{ web_app_resource_name }}",
     "resource_type": {
         "icon": "fas fa-layer-group",
         "id": "RT-ymgw09ct",
