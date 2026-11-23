@@ -2,7 +2,7 @@
 
 Post-Provision orchestration action (run_seq 900) that installs OpenSCAP on each new Linux server of a provisioning job and starts a first scan. Provisioning does not wait: the scan runs as a sub-job of the Provision Server job, and the report is on the server's Compliance tab when that sub-job ends. Ships enabled.
 
-It never fails or warns provisioning. Every problem is written to the provisioning job's progress messages, and the scan sub-job, "Compliance scan: <hostname>", ends as Failure when the scan fails; that does not change the provisioning job or the order. It runs after the other Post-Provision actions in this repository (the highest other run_seq is 100, the AD join).
+It never fails or warns provisioning. The only progress message it writes says that a scan started; a skipped server and every problem go to the provisioning job's log only. The scan sub-job, "Compliance scan: <hostname>", ends as Failure when the scan fails; that does not change the provisioning job or the order. It runs after the other Post-Provision actions in this repository (the highest other run_seq is 100, the AD join).
 
 Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/README.md).
 
