@@ -157,10 +157,21 @@ def _ensure_schedule(key, name, cron, description):
         "schedule": row.schedule,
         "enabled": bool(row.enabled),
         # A naive datetime in the appliance's local time (USE_TZ is off), or None before the first run.
-        "last_run": row.last_run,
+        "last_run": _last_run(row),
         # jobs/models.py RecurringJob.get_absolute_url (line 2538): the recurring job's detail page.
         "url": row.get_absolute_url(),
     }
+
+
+def _last_run(row):
+    """When the recurring job last ran, by hand or on its schedule. RecurringJob.last_run is written
+    only by the scheduler, so a job that was only ever run by hand would read "never"; the newest
+    job it spawned (Job.recurring_job, related name spawned_jobs, jobs/models.py line 1054) covers both."""
+    try:
+        started = row.spawned_jobs.order_by("-id").values_list("start_date", flat=True).first()
+    except Exception:
+        started = None
+    return started or row.last_run
 
 
 def ensure_schedules():

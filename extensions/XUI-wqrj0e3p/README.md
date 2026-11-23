@@ -75,6 +75,8 @@ An Unassigned group is never scanned or re-matched by any job. The nightly job r
 
 Tested on CloudBolt 2026.3 with AWS servers over SSH: scanner setup, scans of Amazon Linux 2023 and Ubuntu 22.04, a repeat scan, the tab's search, filters and paging, the certificate failure message, and the refusal for a server in an Unassigned group.
 
-Step 2 (the Vulnerability search page, the two scheduled jobs, scan after provisioning, the new settings and cleanup of deleted servers) is not yet tested on an appliance.
+Also tested there: the upgrade of an existing findings store, the Vulnerability search page (lists, one vulnerability's servers, search by CVE and by advisory), both scheduled jobs run by hand (cleanup of a deleted server, a weekly inventory limited to labelled servers that scanned one server and skipped two scanned recently), and the scan after provisioning starting as its own job while the build finished.
 
-Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, and a database update after the first one.
+Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, a database update after the first one, the nightly job re-matching a server against a newer database, either job running on its schedule, and more than a few servers at once.
+
+`extensions/XUI-wqrj0e3p/tests` holds unit tests that run without CloudBolt: `python -B -m unittest discover -s extensions/XUI-wqrj0e3p/tests -p "test_*.py"`.
