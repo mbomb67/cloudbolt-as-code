@@ -13,8 +13,7 @@ Compliance scans for other content: scan a server from a plug-in, and wait for t
 
 The scan is the job the Compliance tab starts (oscap_jobs.start), so it takes the
 same lock, lands in the server's scan history and stores its files the same
-way. A blueprint build item uses this to scan the servers it built before the
-order finishes (plugins/OHK-oqqmfoah).
+way.
 
     result = oscap_api.start_scan(server, job.owner, profile_id="cis_server_l1", install=True, parent_job=job)
     result["status"]         "started" or "refused"
