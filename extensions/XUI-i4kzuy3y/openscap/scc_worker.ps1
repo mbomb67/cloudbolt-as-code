@@ -165,7 +165,8 @@ function Rn($id, $full) {
     if ($n) { $n.InnerText = $set[$k] }
   }
   [IO.File]::WriteAllText("$Work\options.xml", $x.OuterXml, $U8)
-  $pr = Start-Process -FilePath $Cs -ArgumentList '-o', "$Work\options.xml", '-u', "$Work\scc" -WorkingDirectory $Sd -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$Work\o.txt" -RedirectStandardError "$Work\e.txt"
+  New-Item -ItemType Directory -Force -Path "$Work\scc" | Out-Null
+  $pr = Start-Process -FilePath $Cs -ArgumentList "-o `"$Work\options.xml`" -u `"$Work\scc`"" -WorkingDirectory $Sd -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$Work\o.txt" -RedirectStandardError "$Work\e.txt"
   $pr.ExitCode
 }
 
