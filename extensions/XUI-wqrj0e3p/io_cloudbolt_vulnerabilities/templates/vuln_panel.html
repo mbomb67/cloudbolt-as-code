@@ -80,7 +80,17 @@
   {% with s=vuln.summary %}
   <div class="vuln-cards">
     <div class="vuln-card">
-      <span class="vuln-eyebrow">{% trans "Open findings" %}</span>
+      <span class="vuln-eyebrow">{% trans "Known vulnerabilities" %}</span>
+      {# A row saved before distinct counts existed has no vulns value; it shows the match counts. #}
+      {% if s.vulns is not None %}
+      <div class="vuln-sev-figs">
+        <div class="vuln-sev-fig"><b class="n{% if s.vuln_critical %} vuln-c-crit{% endif %}">{{ s.vuln_critical|default:0 }}</b><small>{% trans "Critical" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n{% if s.vuln_high %} vuln-c-high{% endif %}">{{ s.vuln_high|default:0 }}</b><small>{% trans "High" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n">{{ s.vuln_medium|default:0 }}</b><small>{% trans "Medium" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n">{{ s.vuln_low|default:0 }}</b><small>{% trans "Low" %}</small></div>
+        {% if s.vuln_unknown %}<div class="vuln-sev-fig"><b class="n">{{ s.vuln_unknown }}</b><small>{% trans "Unknown" %}</small></div>{% endif %}
+      </div>
+      {% else %}
       <div class="vuln-sev-figs">
         <div class="vuln-sev-fig"><b class="n{% if s.critical %} vuln-c-crit{% endif %}">{{ s.critical|default:0 }}</b><small>{% trans "Critical" %}</small></div>
         <div class="vuln-sev-fig"><b class="n{% if s.high %} vuln-c-high{% endif %}">{{ s.high|default:0 }}</b><small>{% trans "High" %}</small></div>
@@ -88,6 +98,7 @@
         <div class="vuln-sev-fig"><b class="n">{{ s.low|default:0 }}</b><small>{% trans "Low" %}</small></div>
         {% if s.unknown %}<div class="vuln-sev-fig"><b class="n">{{ s.unknown }}</b><small>{% trans "Unknown" %}</small></div>{% endif %}
       </div>
+      {% endif %}
     </div>
     <div class="vuln-card">
       <span class="vuln-eyebrow">{% trans "Known exploited" %}</span>

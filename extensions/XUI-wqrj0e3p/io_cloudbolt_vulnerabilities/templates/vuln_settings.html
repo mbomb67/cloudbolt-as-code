@@ -101,7 +101,7 @@
       <div><div class="n">{{ store_stats.bytes|default:0|filesizeformat }}</div><div class="l">Findings store size</div></div>
       {% endif %}
     </div>
-    {% if tools.db.checked %}<div class="vuln-help" style="margin: -4px 0 14px;">Database last checked {{ tools.db.checked }}.</div>{% endif %}
+    {% if tools.db.checked %}<div class="vuln-help" style="margin: -4px 0 14px;">Database last checked {% if db_checked %}{{ db_checked|date:"j M Y H:i" }}{% else %}{{ tools.db.checked }}{% endif %}.</div>{% endif %}
     {% endif %}
 
     {% if setup_active %}

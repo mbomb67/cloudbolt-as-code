@@ -300,11 +300,17 @@ def parse_grype(doc):
 
 
 def summarize(matches):
-    """Counts for the servers row; counts of matches, distinct CVE ids."""
+    """Counts for the servers row: match counts (findings and the severity keys),
+    distinct CVE ids (cves), and distinct vulnerabilities (vulns, vuln_<severity>)
+    where each vulnerability counts once at the worst severity of its matches."""
     counts = {name.lower(): 0 for name in SEVERITIES}
     cves, exploited = set(), set()
+    worst = {}
     for match in matches:
         counts[normalise_severity(match.get("severity")).lower()] += 1
+        # Same identity as package_rows: a match with no CVE is its own entry.
+        for entry in [c["cve"] for c in match.get("cves") or []] or [match.get("vuln_id")]:
+            worst[entry] = max(worst.get(entry, 0), sev_rank(match.get("severity")))
         for item in match.get("cves") or []:
             cves.add(item["cve"])
             if item.get("kev"):
@@ -312,6 +318,9 @@ def summarize(matches):
     counts["findings"] = len(matches)
     counts["kev"] = len(exploited)
     counts["cves"] = len(cves)
+    counts["vulns"] = len(worst)
+    for name in SEVERITIES:
+        counts["vuln_" + name.lower()] = sum(1 for rank in worst.values() if rank == _RANKS[name])
     return counts
 
 

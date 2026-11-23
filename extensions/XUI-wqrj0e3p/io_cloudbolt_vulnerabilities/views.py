@@ -320,13 +320,26 @@ def _db_age_days(built):
     return max((datetime.now(timezone.utc) - when).days, 0)
 
 
+def _local_time(stamp):
+    """A UTC ISO stamp as a datetime in the appliance's local zone, or None."""
+    try:
+        when = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return when.astimezone().replace(tzinfo=None)
+
+
 def _scanner_context():
     """What the Scanner card shows. Each part is read on its own so one failure
     leaves the rest of the page usable."""
-    context = {"setup_active": None, "tools": None, "store_stats": None, "db_age_days": None, "scanner_error": ""}
+    context = {"setup_active": None, "tools": None, "store_stats": None, "db_age_days": None, "db_checked": None,
+               "scanner_error": ""}
     try:
         context["tools"] = vuln_tools.status()
         context["db_age_days"] = _db_age_days(context["tools"].get("db", {}).get("built"))
+        context["db_checked"] = _local_time(context["tools"].get("db", {}).get("checked"))
         context["setup_active"] = vuln_jobs.setup_active()
     except Exception:
         logger.exception("Vulnerabilities: cannot read the scanner status")

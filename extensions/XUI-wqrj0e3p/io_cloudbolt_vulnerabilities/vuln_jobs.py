@@ -993,10 +993,12 @@ def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, star
         "error": "", "duration_s": int((finished - began).total_seconds()), "packages": facts["packages"],
         "findings": findings,
     })
-    message = "Scan of {} finished: {} packages, {} findings ({} critical, {} high).".format(
-        server.hostname, facts["packages"], findings, summary["critical"], summary["high"])
+    # The count of packages with a match is computed inside replace_server, so it is left out here.
+    message = "Scan of {} finished: {} packages, {} known vulnerabilities ({} critical, {} high).".format(
+        server.hostname, facts["packages"], summary["vulns"], summary["vuln_critical"], summary["vuln_high"])
     add_server_event("MODIFICATION", server, "Vulnerability scan finished: " + message, job=job)
     outputs = {"scan_id": scan_id, "status": "completed", "packages": facts["packages"], "findings": findings}
-    for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves"):
+    for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves", "vulns", "vuln_critical",
+                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown"):
         outputs[key] = summary[key]
     return "SUCCESS", message, "", outputs

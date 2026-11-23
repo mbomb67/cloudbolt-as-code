@@ -37,7 +37,8 @@ _SCHEMA = (
         server_id INTEGER PRIMARY KEY, hostname TEXT, os_name TEXT, group_name TEXT, environment TEXT,
         scan_id TEXT, inventory_at TEXT, packages INTEGER, matched_at TEXT, db_built TEXT,
         findings INTEGER, critical INTEGER, high INTEGER, medium INTEGER, low INTEGER, unknown INTEGER,
-        kev INTEGER, cves INTEGER)""",
+        kev INTEGER, cves INTEGER, vulns INTEGER, vuln_critical INTEGER, vuln_high INTEGER,
+        vuln_medium INTEGER, vuln_low INTEGER, vuln_unknown INTEGER)""",
     """CREATE TABLE IF NOT EXISTS matches(
         id INTEGER PRIMARY KEY, pkg_name TEXT, pkg_version TEXT, pkg_type TEXT, vuln_id TEXT,
         severity TEXT, sev_rank INTEGER, fix_state TEXT, fix_version TEXT, kev INTEGER, epss REAL,
@@ -58,7 +59,10 @@ _SCHEMA = (
 _SERVER_COLUMNS = (
     "server_id", "hostname", "os_name", "group_name", "environment", "scan_id", "inventory_at", "packages",
     "matched_at", "db_built", "findings", "critical", "high", "medium", "low", "unknown", "kev", "cves",
+    "vulns", "vuln_critical", "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown",
 )
+# Columns added after the first release; an older file gets them in ensure_schema.
+_ADDED_SERVER_COLUMNS = _SERVER_COLUMNS[18:]
 _PACKAGE_COLUMNS = (
     "pkg_name", "pkg_version", "pkg_type", "path", "severity", "sev_rank", "cve_count", "kev", "fix_version",
     "risk", "advisories", "advisory_count", "cves",
@@ -70,6 +74,10 @@ def ensure_schema(conn):
     """Create the tables if missing and stamp the schema version."""
     for statement in _SCHEMA:
         conn.execute(statement)
+    have = {row[1] for row in conn.execute("PRAGMA table_info(servers)")}
+    for column in _ADDED_SERVER_COLUMNS:
+        if column not in have:
+            conn.execute("ALTER TABLE servers ADD COLUMN {} INTEGER".format(column))
     if conn.execute("PRAGMA user_version").fetchone()[0] == 0:
         conn.execute("PRAGMA user_version = {}".format(SCHEMA_VERSION))
 
@@ -176,6 +184,8 @@ def replace_server(server, parsed):
         server.get("environment"), server.get("scan_id"), server.get("inventory_at"), server.get("packages"),
         server.get("matched_at"), parsed.get("db_built") or "", totals["findings"], totals["critical"],
         totals["high"], totals["medium"], totals["low"], totals["unknown"], totals["kev"], totals["cves"],
+        totals["vulns"], totals["vuln_critical"], totals["vuln_high"], totals["vuln_medium"], totals["vuln_low"],
+        totals["vuln_unknown"],
     )
     packages = [
         (
