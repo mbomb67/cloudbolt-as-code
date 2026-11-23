@@ -133,7 +133,18 @@ def restart_and_wait(cluster, namespace, vm_name):
         return None, False
     old_uid = old.get("metadata", {}).get("uid")
     set_progress("Restarting the VM so the probe takes effect")
-    cluster.request("PUT", RESTART_PATH % (namespace, vm_name), body={})
+    # The subresource API declares no response type, so "Accept: application/json" (the shared client's
+    # default) is refused with 406; any type must be accepted.
+    path = RESTART_PATH % (namespace, vm_name)
+    try:
+        response = cluster.session.put(
+            cluster.api_url + path, json={},
+            headers={"Accept": "*/*", "Content-Type": "application/json"}, timeout=60,
+        )
+    except Exception as error:
+        raise vmnet.OpenShiftApiError("PUT %s could not reach the cluster: %s" % (path, type(error).__name__))
+    if not response.ok:
+        raise vmnet.OpenShiftApiError("PUT %s failed (%s): %s" % (path, response.status_code, response.text[:500]))
     deadline = time.time() + WAIT_SECONDS
     state = "no VirtualMachineInstance yet"
     while time.time() < deadline:
@@ -254,7 +265,11 @@ def run(job, server=None, **kwargs):
     try:
         probe_changed = ensure_probe(cluster, namespace, vm_name)
         restarted = False
-        if probe_changed:
+        # The running instance, not the template, decides: a probe patched in by an earlier run that
+        # could not restart the VM is still not in effect.
+        running = cluster.request("GET", VMI_PATH % (namespace, vm_name), allow_404=True)
+        in_effect = (((running or {}).get("spec", {}).get("readinessProbe") or {}).get("tcpSocket") or {}).get("port")
+        if probe_changed or (running is not None and str(in_effect) != str(PORT)):
             problem, restarted = restart_and_wait(cluster, namespace, vm_name)
             if problem:
                 report_status(cluster, server, namespace, vm_name)
