@@ -149,7 +149,7 @@
       <div class="oscap-field">
         <label class="oscap-label" for="oscap-default-profiles">Default profiles</label>
         <input type="text" class="form-control form-control-sm" id="oscap-default-profiles" name="default_profiles" value="{{ settings.default_profiles }}" placeholder="stig, cis">
-        <div class="oscap-help">Profiles tried in order when a user runs a scan without choosing one. Separate names with commas.</div>
+        <div class="oscap-help">Profiles tried in order when a user runs a scan on a Linux server without choosing one. Separate names with commas.</div>
       </div>
       <div class="oscap-field">
         <label class="oscap-label" for="oscap-timeout">Scan timeout (minutes)</label>
@@ -161,15 +161,40 @@
           <input class="form-check-input" type="checkbox" id="oscap-allow-install" name="allow_install" value="1"{% if settings.allow_install %} checked{% endif %}>
           <label class="form-check-label" for="oscap-allow-install">Let users install OpenSCAP on a server</label>
         </div>
-        <div class="oscap-help">Adds the "Install OpenSCAP if it is missing" option to scans.</div>
+        <div class="oscap-help">Adds the install option to scans: OpenSCAP on Linux servers, SCC on Windows servers.</div>
       </div>
       <div class="oscap-field">
         <label class="oscap-label" for="oscap-visibility">Show the tab on</label>
         <select class="form-select form-select-sm" id="oscap-visibility" name="visibility">
-          <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux server</option>
+          <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux and Windows server</option>
           <option value="label"{% if settings.visibility == "label" %} selected{% endif %}>Only servers labelled OpenScap</option>
         </select>
         <div class="oscap-help">Choose who sees the OpenSCAP tab on a server page.</div>
+      </div>
+    </div>
+
+    <div class="oscap-card">
+      <h2 class="oscap-h">Windows (SCC)</h2>
+      <div class="oscap-help" style="margin: -6px 0 18px;">Windows servers are scanned with the DISA SCAP Compliance Checker (SCC), which each server downloads from DISA on its first scan. DISA removes old SCC versions from its download site, so a pinned version can stop downloading. Version latest follows NIWC's release file and has no checksum check.</div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-win-profile">Windows default profile</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-win-profile" name="windows_default_profile" value="{{ settings.windows_default_profile }}" placeholder="MAC-1_Classified">
+        <div class="oscap-help">The profile a Windows scan uses when a user does not choose one.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-version">SCC version</label>
+        <input type="text" class="form-control form-control-sm oscap-narrow" id="oscap-scc-version" name="scc_version" value="{{ settings.scc_version }}" placeholder="5.15">
+        <div class="oscap-help">The SCC version servers download, such as 5.15, or latest.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-sha256">SCC checksum (SHA-256)</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-scc-sha256" name="scc_sha256" value="{{ settings.scc_sha256 }}" spellcheck="false">
+        <div class="oscap-help">The SHA-256 of that version's Windows bundle, checked after the download; clear or replace it when you change the version. It is ignored when the version is latest.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-url">SCC download URL</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-scc-url" name="scc_url" value="{{ settings.scc_url }}" spellcheck="false">
+        <div class="oscap-help">An https address for the Windows bundle; {version} stands for the SCC version.</div>
       </div>
     </div>
 

@@ -24,6 +24,10 @@ lengths), writes the summary into the server's index (oscap_store.py) and
 adds a server event. Everything that came from the server is stripped of
 URLs and tokens before it is stored or shown.
 
+A Windows server is scanned with DISA SCC instead (oscap_windows.py): _run calls
+oscap_windows.run, which prints the same OSCAP|key|value lines plus engine|scc, so
+parse_output, the index and the panels are shared. Its files are stored only by upload.
+
 An OpenShift Virtualization VM usually has no route to CloudBolt, so with the
 local backend it gets no upload URLs: the script leaves the result files in a
 root-only directory (HOLD_DIR) and the job reads them over the same API tunnel
@@ -50,7 +54,7 @@ from jobs.models import Job
 from utilities.events import add_server_event
 from utilities.logger import ThreadLogger
 
-from . import oscap_hooks, oscap_repo, oscap_store as store
+from . import oscap_hooks, oscap_repo, oscap_store as store, oscap_windows
 
 logger = ThreadLogger(__name__)
 
@@ -79,8 +83,9 @@ ID_RE = re.compile(r"[A-Za-z0-9._:-]{1,200}")
 KNOWN_KEYS = (
     "os_name", "oscap_version", "problem", "installed", "ready", "datastream", "profile", "scan_datastream",
     "scan_profile", "scan_profile_title", "exit_code", "failed", "stored", "duration", "summary", "done",
-    "progress", "failed_total", "held",
+    "progress", "failed_total", "held", "engine",
 )
+ENGINES = ("oscap", "scc")
 # Where a server keeps its result files for _collect; the scan id is appended.
 HOLD_PREFIX = "/var/tmp/oscap-hold-"
 NOT_HELD = "the server could not keep the result files for CloudBolt to collect"
@@ -258,6 +263,7 @@ def parse_output(text):
         "datastreams": [], "scan_datastream": "", "scan_profile": "", "scan_profile_title": "",
         "exit_code": None, "counts": {}, "severity": {}, "score": None, "rules": None, "failed": [],
         "stored": {}, "duration": None, "done": False, "summary": False, "final": False, "held": False,
+        "engine": "oscap",
     }
     by_file = {}
     for raw in _bounded(text).splitlines():
@@ -321,6 +327,9 @@ def parse_output(text):
             result["done"] = True
         elif key == "held":
             result["held"] = value.strip() == "1"
+        elif key == "engine":
+            if value.strip() in ENGINES:
+                result["engine"] = value.strip()
     if result["rules"] is None and result["counts"]:
         result["rules"] = sum(result["counts"].values())
     return result
@@ -337,6 +346,7 @@ def state_from(parsed, previous=None):
     return {
         "checked": store.stamp(),
         "oscap_version": parsed["oscap_version"],
+        "engine": parsed["engine"],
         "os_name": parsed["os_name"],
         "ready": ready,
         "problem": problem,
@@ -369,7 +379,8 @@ def scan_summary(parsed, scan_id, started, job, requested_by, requested_profile,
     error = ""
     if not completed:
         if exited and not has_results:
-            error = "oscap finished but its results could not be read."
+            error = "{} finished but its results could not be read.".format(
+                "SCC" if parsed["engine"] == "scc" else "oscap")
         else:
             error = parsed["scan_problem"] or parsed["problem"] or "The scan did not finish."
     summary = {
@@ -379,6 +390,7 @@ def scan_summary(parsed, scan_id, started, job, requested_by, requested_profile,
         "profile_id": parsed["scan_profile"] or requested_profile,
         "profile_title": parsed["scan_profile_title"],
         "datastream": parsed["scan_datastream"] or requested_datastream,
+        "engine": parsed["engine"],
         "status": "completed" if completed else "failed",
         "error": error,
         "score": parsed["score"] if completed else None,
@@ -431,12 +443,12 @@ def is_linux(server):
 
 
 def shows_tab(server, visibility):
-    """Whether the server gets the OpenSCAP tab: not historical, and a Linux
-    server or one labelled OpenScap, as the settings' visibility says. Cheap: no
-    network, no remote call."""
+    """Whether the server gets the OpenSCAP tab: not historical, and a Linux or
+    Windows server or one labelled OpenScap, as the settings' visibility says (the
+    stored value "linux" covers both). Cheap: no network, no remote call."""
     if server.status == "HISTORICAL":
         return False
-    if visibility == "linux" and is_linux(server):
+    if visibility == "linux" and (is_linux(server) or server.is_windows()):
         return True
     # Not server.labels: that is a new query per server; tags.all() reads a prefetch.
     return LABEL in [tag.name for tag in server.tags.all()]
@@ -477,8 +489,6 @@ def start(profile, server, mode, datastream, profile_id, install, base_url="", c
         return Refusal("The profile id has characters that are not allowed.")
     if server.status == "HISTORICAL":
         return Refusal("This server is historical.")
-    if server.is_windows():
-        return Refusal("OpenSCAP scans Linux servers only.")
     if server.power_status != "POWERON":
         return Refusal("The server is not powered on.", 409)
 
@@ -667,8 +677,8 @@ TUNNEL_KEEPALIVE = 30
 def _is_openshift_vm(server):
     """True for a VM on an OpenShift Virtualization resource handler (resourcehandlers/ovirt). Only
     those servers have an OVirtServerInfo row, and it is what kubevirt_api_tunnel reads the
-    namespace from (resourcehandlers/ovirt/models.py OVirtServerInfo)."""
-    return getattr(server, "ovirtserverinfo", None) is not None
+    namespace from (resourcehandlers/ovirt/models.py OVirtServerInfo). Never a Windows server."""
+    return not server.is_windows() and getattr(server, "ovirtserverinfo", None) is not None
 
 
 def _execute(server, script, timeout, job=None):
@@ -797,6 +807,34 @@ def _collect(server, scan_id):
     return results
 
 
+def windows_params(mode, datastream, profile_id, scan_id, cfg, urls, token):
+    """The parameters oscap_windows.run takes: the same checks build_script makes, then
+    the settings the engine needs. urls is the upload targets by file name."""
+    if mode not in MODES:
+        raise ScanError("Unknown mode.")
+    if datastream and not store.DATASTREAM_RE.fullmatch(datastream):
+        raise ScanError("The benchmark name has characters that are not allowed.")
+    if not store.PROFILE_RE.fullmatch(profile_id or ""):
+        raise ScanError("The profile id has characters that are not allowed.")
+    if not store.SCAN_ID_RE.fullmatch(scan_id or ""):
+        raise ScanError("The scan id has characters that are not allowed.")
+    defaults = store.DEFAULT_SETTINGS
+    return {
+        "mode": mode,
+        "scan_id": scan_id,
+        "benchmark": datastream or "",
+        "profile": profile_id or "",
+        "default_profile": cfg.get("windows_default_profile") or defaults["windows_default_profile"],
+        "allow_install": bool(cfg["allow_install"]),
+        "scc_version": cfg.get("scc_version") or defaults["scc_version"],
+        "scc_sha256": cfg.get("scc_sha256", defaults["scc_sha256"]),
+        "scc_url": cfg.get("scc_url") or defaults["scc_url"],
+        "uploads": dict(urls or {}),
+        "upload_token": token or "",
+        "insecure": bool(cfg["insecure"]),
+    }
+
+
 def _local_files(server, scan_id):
     """Which result files the local backend holds for a scan, by looking at the disk."""
     found = {}
@@ -815,16 +853,28 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     if server.power_status != "POWERON":
         return "FAILURE", "", "{} is not powered on.".format(server.hostname), {}
 
-    script = build_script(
-        mode, datastream, profile_id, cfg["default_profiles"], cfg["allow_install"], urls, cfg["insecure"], token,
-        hold=hold_dir(scan_id) if (pull and mode == "scan") else "",
-    )
-    _progress(job, "Running the OpenSCAP {} on {}".format("scan" if mode == "scan" else "check", server.hostname))
+    windows = server.is_windows()
+    if windows:
+        params = windows_params(mode, datastream, profile_id, scan_id, cfg, urls, token)
+    else:
+        script = build_script(
+            mode, datastream, profile_id, cfg["default_profiles"], cfg["allow_install"], urls, cfg["insecure"], token,
+            hold=hold_dir(scan_id) if (pull and mode == "scan") else "",
+        )
+    _progress(job, "Running the {} {} on {}".format(
+        "SCC" if windows else "OpenSCAP", "scan" if mode == "scan" else "check", server.hostname))
     began = store.now_utc()
     error = ""
     output = ""
     try:
-        output = _execute(server, script, cfg["timeout_min"] * 60, job)
+        if windows:
+            # Raises RuntimeError with the partial marker text on .output, as a failed script does.
+            output = oscap_windows.run(
+                server, params, cfg["timeout_min"] * 60,
+                progress=lambda text: _progress(job, clean(text, MESSAGE_LEN)),
+            )
+        else:
+            output = _execute(server, script, cfg["timeout_min"] * 60, job)
     except TransportError as exc:
         return "FAILURE", "", clean(str(exc), MESSAGE_LEN), {}
     except NotImplementedError:
@@ -841,6 +891,9 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     wall = int((store.now_utc() - began).total_seconds())
 
     parsed = parse_output(output)
+    if windows:
+        # Whatever the output says, a Windows server's engine is SCC (a transport failure prints nothing).
+        parsed["engine"] = "scc"
     if not parsed["done"] and not parsed["summary"]:
         extra = "The script did not finish (the connection dropped, it timed out, or the output was cut off)."
         if not output.strip():
@@ -861,8 +914,9 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
             job=job,
         )
         if parsed["ready"]:
-            return "SUCCESS", "OpenSCAP {} is ready on {} ({}).".format(
-                parsed["oscap_version"] or "", server.hostname, parsed["os_name"]), "", outputs
+            return "SUCCESS", "{} {} is ready on {} ({}).".format(
+                "SCC" if windows else "OpenSCAP", parsed["oscap_version"] or "", server.hostname,
+                parsed["os_name"]), "", outputs
         # The check itself ran; the server is just not ready to scan.
         return "WARNING", "", parsed["problem"] or "OpenSCAP is not ready.", outputs
 

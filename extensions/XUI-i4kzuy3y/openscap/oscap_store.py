@@ -73,6 +73,10 @@ DEFAULT_SETTINGS = {
     "scan_timeout_min": 30,
     "allow_install": False,
     "visibility": "linux",
+    "windows_default_profile": "MAC-1_Classified",
+    "scc_version": "5.15",
+    "scc_sha256": "a537a0f9a39ccc2231818709f8bb5f8f9b9cbfc2ec0d44dbbfabbe35d4f558ba",
+    "scc_url": "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/scc-{version}_Windows_bundle.zip",
 }
 BACKENDS = ("local", "s3")
 VISIBILITIES = ("linux", "label")
@@ -80,6 +84,12 @@ S3_BUCKET_RE = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
 S3_PREFIX_RE = re.compile(r"[A-Za-z0-9._/-]*")
 REGION_RE = re.compile(r"[a-z]{2}(-[a-z]+)+-[0-9]+")
 DEFAULT_PROFILES_RE = re.compile(r"[A-Za-z0-9._-]+(,[ ]*[A-Za-z0-9._-]+)*")
+# The Windows engine (DISA SCC): "latest" or a dotted version, a SHA-256 or nothing, an https URL that is
+# safe to put in a PowerShell string, and one profile id.
+SCC_VERSION_RE = re.compile(r"\d+(\.\d+){1,2}")
+SCC_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+SCC_URL_RE = re.compile(r"https://[^\s\"'`\x00-\x1f\x7f]{1,480}")
+WINDOWS_PROFILE_LEN = 100
 
 
 class StoreError(Exception):
@@ -269,6 +279,18 @@ def get_settings():
         result["visibility"] = "linux"
     for key in ("local_insecure_upload", "allow_install"):
         result[key] = bool(result[key])
+    version = str(result["scc_version"]).strip()
+    if version != "latest" and not SCC_VERSION_RE.fullmatch(version):
+        version = DEFAULT_SETTINGS["scc_version"]
+    result["scc_version"] = version
+    sha = str(result["scc_sha256"]).strip().lower()
+    result["scc_sha256"] = sha if version != "latest" and SCC_SHA256_RE.fullmatch(sha) else ""
+    url = str(result["scc_url"]).strip()
+    result["scc_url"] = url if SCC_URL_RE.fullmatch(url) else DEFAULT_SETTINGS["scc_url"]
+    profile = str(result["windows_default_profile"]).strip()
+    if not profile or len(profile) > WINDOWS_PROFILE_LEN or not PROFILE_RE.fullmatch(profile):
+        profile = DEFAULT_SETTINGS["windows_default_profile"]
+    result["windows_default_profile"] = profile
     return result
 
 
@@ -279,6 +301,10 @@ def job_settings(cfg=None):
     return {
         "timeout_min": cfg["scan_timeout_min"],
         "default_profiles": cfg["default_profiles"],
+        "windows_default_profile": cfg["windows_default_profile"],
+        "scc_version": cfg["scc_version"],
+        "scc_sha256": cfg["scc_sha256"],
+        "scc_url": cfg["scc_url"],
         "insecure": bool(cfg["local_insecure_upload"] and cfg["backend"] == "local"),
         "allow_install": cfg["allow_install"],
         "backend": cfg["backend"],
@@ -335,9 +361,33 @@ def validate_settings(data):
 
     visibility = str(data.get("visibility", "linux")).strip()
     if visibility not in VISIBILITIES:
-        errors.append("Show the tab on must be Linux servers or servers labelled OpenScap.")
+        errors.append("Show the tab on must be Linux and Windows servers or servers labelled OpenScap.")
         visibility = "linux"
     clean["visibility"] = visibility
+
+    profile = str(data.get("windows_default_profile", "")).strip() or DEFAULT_SETTINGS["windows_default_profile"]
+    if len(profile) > WINDOWS_PROFILE_LEN or not PROFILE_RE.fullmatch(profile):
+        errors.append("The Windows default profile is a profile id such as MAC-1_Classified (letters, digits, dots, dashes, underscores and colons).")
+        profile = DEFAULT_SETTINGS["windows_default_profile"]
+    clean["windows_default_profile"] = profile
+
+    version = str(data.get("scc_version", "")).strip().lower() or DEFAULT_SETTINGS["scc_version"]
+    if version != "latest" and not SCC_VERSION_RE.fullmatch(version):
+        errors.append("The SCC version must be latest or a version such as 5.15.")
+        version = DEFAULT_SETTINGS["scc_version"]
+    clean["scc_version"] = version
+    sha = str(data.get("scc_sha256", "")).strip().lower()
+    if version == "latest":
+        sha = ""
+    elif sha and not SCC_SHA256_RE.fullmatch(sha):
+        errors.append("The SCC checksum must be 64 hexadecimal characters, or empty.")
+        sha = ""
+    clean["scc_sha256"] = sha
+    url = str(data.get("scc_url", "")).strip() or DEFAULT_SETTINGS["scc_url"]
+    if not SCC_URL_RE.fullmatch(url):
+        errors.append("The SCC download URL must start with https:// and have no spaces, quotes or control characters.")
+        url = DEFAULT_SETTINGS["scc_url"]
+    clean["scc_url"] = url
     return clean, errors
 
 

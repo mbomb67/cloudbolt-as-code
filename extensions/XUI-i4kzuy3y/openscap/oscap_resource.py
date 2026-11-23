@@ -58,9 +58,8 @@ def live_servers(resource):
 
 
 def eligible(server, visibility):
-    """Whether the server is part of the resource tab: it would get the server
-    tab, and it is not Windows (the scan runs a shell script)."""
-    return oscap_jobs.shows_tab(server, visibility) and not server.is_windows()
+    """Whether the server is part of the resource tab: it would get the server tab."""
+    return oscap_jobs.shows_tab(server, visibility)
 
 
 def summary_input(server_id, hostname, scan):
@@ -228,8 +227,6 @@ def _start_child(job, resource, server_id, mode, datastream, profile_id, install
         return _entry(server_id, hostname, reason="The server is no longer part of this resource."), None
     if server.status == "HISTORICAL":
         return _entry(server_id, hostname, reason="The server is historical."), None
-    if server.is_windows():
-        return _entry(server_id, hostname, reason="OpenSCAP scans Linux servers only."), None
     if job is None or job.owner is None:
         return _entry(server_id, hostname, reason="The run has no owner to start the scan as."), None
     # The permissions are checked again as the user the run belongs to: they may have changed since the click.

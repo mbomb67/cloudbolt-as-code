@@ -1,8 +1,8 @@
 """
 OpenSCAP XUI
 
-Adds an OpenSCAP tab to Linux servers (or to servers labelled OpenScap). The
-tab runs OpenSCAP scans on the server as CloudBolt jobs, shows the last scan's
+Adds an OpenSCAP tab to Linux and Windows servers (or to servers labelled
+OpenScap). The tab runs OpenSCAP scans (DISA SCC on Windows) on the server as CloudBolt jobs, shows the last scan's
 score, failed rules and history, and links to the stored reports. Resources
 that have such servers get an OpenSCAP tab too: it scans all of them in one
 job and rolls up each server's latest result (oscap_resource.py,
@@ -82,8 +82,7 @@ def _viewable_resource(request, resource_id):
 
 def _resource_servers(request, resource, visibility):
     """The servers the resource tab lists for this viewer: the resource's live
-    servers that the viewer may view and that would get the server tab, never
-    Windows. Deploy order."""
+    servers that the viewer may view and that would get the server tab. Deploy order."""
     profile = request.get_user_profile()
     viewable = set(Server.objects_for_profile(profile).filter(resource=resource).values_list("id", flat=True))
     return [
@@ -111,7 +110,7 @@ def _settings_url():
 # Tab
 # ---------------------------------------------------------------------------
 class OpenSCAPTabDelegate(TabExtensionDelegate):
-    """Linux servers, or servers labelled OpenScap. Cheap: no network, no remote call."""
+    """Linux and Windows servers, or servers labelled OpenScap. Cheap: no network, no remote call."""
 
     def should_display(self):
         return oscap_jobs.shows_tab(self.instance, store.get_settings()["visibility"])
@@ -178,6 +177,8 @@ def _panel_context(server, profile, request):
         "state": state,
         "active": oscap_jobs.panel_active(server.id, index),
         "allow_install": cfg["allow_install"],
+        "windows": server.is_windows(),
+        "scanner": "DISA SCC" if server.is_windows() else "OpenSCAP",
         "latest": latest,
         "last_failed": scans[0] if scans and scans[0].get("status") == "failed" else None,
         "history": scans,
@@ -213,7 +214,7 @@ def openscap_panel(request, server_id):
 
 
 # ---------------------------------------------------------------------------
-# Resource tab: every Linux server of a resource, scanned in one job
+# Resource tab: every server of a resource, scanned in one job
 # ---------------------------------------------------------------------------
 class OpenSCAPResourceTabDelegate(TabExtensionDelegate):
     """Resources with at least one live server that would get the server tab. Cheap:
@@ -229,7 +230,7 @@ class OpenSCAPResourceTabDelegate(TabExtensionDelegate):
     model=Resource,
     title="OpenSCAP",
     delegate=OpenSCAPResourceTabDelegate,
-    description="OpenSCAP compliance scans of all the Linux servers of a resource at once, with each server's "
+    description="OpenSCAP compliance scans of all the servers of a resource at once, with each server's "
     "latest score, the failed rules across servers and links to each server's report",
 )
 def openscap_resource_tab(request, obj_id):
@@ -424,6 +425,10 @@ def _resource_panel_context(request, resource, profile):
         "active": active,
         "any_scanning": any(row["status"] in ("scanning", "checking") for row in rows),
         "allow_install": cfg["allow_install"],
+        "has_windows": any(server.is_windows() for server in servers),
+        "has_linux": any(not server.is_windows() for server in servers),
+        "scanner": "OpenSCAP or DISA SCC" if any(s.is_windows() for s in servers) and any(not s.is_windows() for s in servers)
+        else ("DISA SCC" if any(s.is_windows() for s in servers) else "OpenSCAP"),
         "servers": rows,
         "scanned_count": len(scanned),
         "show_unknown": any((row["latest"].get("fail_by_severity") or {}).get("unknown") for row in scanned),
@@ -622,7 +627,7 @@ def _handlers():
 @admin_extension(
     title="OpenSCAP Settings",
     description="Choose where OpenSCAP scan reports are stored (S3 or this appliance), which profiles scans "
-    "try, how long they may run, and which servers show the OpenSCAP tab.",
+    "try, how long they may run, how Windows servers are scanned, and which servers show the OpenSCAP tab.",
 )
 @cbadmin_required
 def settings(request):

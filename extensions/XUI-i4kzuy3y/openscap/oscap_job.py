@@ -15,6 +15,7 @@ MODULES = (
     "xui.openscap.oscap_store",
     "xui.openscap.oscap_repo",
     "xui.openscap.oscap_hooks",
+    "xui.openscap.oscap_windows",
     "xui.openscap.oscap_jobs",
 )
 

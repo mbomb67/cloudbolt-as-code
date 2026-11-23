@@ -22,7 +22,7 @@ SCAN_FILE = "oscap_job.py"
 
 RESOURCE_NAME = "OpenSCAP Resource Scan"
 RESOURCE_DESCRIPTION = (
-    "Runs an OpenSCAP scan or readiness check on the Linux servers of one resource for the OpenSCAP UI "
+    "Runs an OpenSCAP scan or readiness check on the servers of one resource for the OpenSCAP UI "
     "extension: it starts one OpenSCAP Scan job per server, a few at a time, and records the run. "
     "Created and run by the extension; its code is the extension's oscap_resource_job.py, so do not "
     "edit or delete it here."

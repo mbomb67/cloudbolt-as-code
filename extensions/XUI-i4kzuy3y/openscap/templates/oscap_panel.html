@@ -17,7 +17,7 @@
 {% else %}
 
   <div class="oscap-meta">
-    {% if oscap.state.oscap_version %}<span>OpenSCAP {{ oscap.state.oscap_version }}</span>{% endif %}
+    {% if oscap.state.oscap_version %}<span>{% if oscap.state.engine == "scc" %}SCC{% else %}OpenSCAP{% endif %} {{ oscap.state.oscap_version }}</span>{% endif %}
     {% if oscap.state.os_name %}<span>{{ oscap.state.os_name }}</span>{% endif %}
     <span>{% if oscap.state.checked %}{% blocktrans with when=oscap.state.checked %}Last checked {{ when }}{% endblocktrans %}{% else %}{% trans "Not checked yet" %}{% endif %}</span>
   </div>
@@ -52,7 +52,7 @@
       {% if oscap.allow_install %}
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="oscap-install" data-oscap-install>
-        <label class="form-check-label" for="oscap-install">{% trans "Install OpenSCAP if it is missing" %}</label>
+        <label class="form-check-label" for="oscap-install">{% if oscap.windows %}{% trans "Install SCC if it is missing (downloads about 108 MB from DISA)" %}{% else %}{% trans "Install OpenSCAP if it is missing" %}{% endif %}</label>
       </div>
       {% endif %}
       <div class="oscap-form-actions">
@@ -61,7 +61,7 @@
       </div>
     </div>
     {% if not oscap.state.datastreams %}
-    <div class="oscap-hint">{% trans "Use Check server to list the profiles available on this server." %}</div>
+    <div class="oscap-hint">{% if oscap.windows %}{% trans "Use Check server to list the profiles of the benchmark for this server." %}{% else %}{% trans "Use Check server to list the profiles available on this server." %}{% endif %}</div>
     {% endif %}
   </form>
   {% endif %}
@@ -102,7 +102,7 @@
   {% if not oscap.latest and not oscap.last_failed and not oscap.history and not oscap.state.checked and not oscap.state.problem and not oscap.active %}
   <div class="oscap-section">
     <div class="oscap-card-h"><span class="oscap-card-t">{% trans "No scans yet" %}</span></div>
-    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label %}A scan checks this server against a security profile with OpenSCAP and reports which rules pass and fail. The full report is kept in {{ label }}.{% endblocktrans %}</div>
+    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label scanner=oscap.scanner %}A scan checks this server against a security profile with {{ scanner }} and reports which rules pass and fail. The full report is kept in {{ label }}.{% endblocktrans %}</div>
   </div>
   {% elif not oscap.latest and not oscap.last_failed and not oscap.history and not oscap.active and not oscap.state.problem %}
   <div class="oscap-empty">{% trans "No scans yet. Run a scan to see results here." %}</div>
@@ -165,7 +165,7 @@
       <div class="oscap-card">
         <div class="oscap-kv">
           <span class="l">{% trans "Profile" %}</span><span class="v">{% if latest.profile_title %}{{ latest.profile_title }}{% elif latest.profile_id %}{{ latest.profile_id }}{% else %}{% trans "Default profile" %}{% endif %}</span>
-          <span class="l">{% trans "Datastream" %}</span><span class="v">{% if latest.datastream %}{{ latest.datastream }}{% else %}&ndash;{% endif %}</span>
+          <span class="l">{% if latest.engine == "scc" %}{% trans "Benchmark" %}{% else %}{% trans "Datastream" %}{% endif %}</span><span class="v">{% if latest.datastream %}{{ latest.datastream }}{% else %}&ndash;{% endif %}</span>
           <span class="l">{% trans "Started" %}</span><span class="v">{{ latest.started }}</span>
           <span class="l">{% trans "Duration" %}</span><span class="v">{{ latest.duration_s|default:0 }} s</span>
           <span class="l">{% trans "Requested by" %}</span><span class="v">{% if latest.requested_by %}{{ latest.requested_by }}{% else %}&ndash;{% endif %}</span>

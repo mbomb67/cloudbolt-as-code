@@ -70,8 +70,9 @@ def scan_and_wait(server, owner, profile_id="", datastream="", install=False, ti
 
     owner is the UserProfile the scan job belongs to (a plug-in passes
     job.owner). profile_id is a profile id or its ending, such as
-    cis_server_l1; empty tries the default profiles of the settings page.
-    install=True installs OpenSCAP and the SCAP Security Guide when they are
+    cis_server_l1; empty tries the default profiles of the settings page (a Windows
+    server uses the Windows default profile). datastream is the SCC benchmark on Windows.
+    install=True installs OpenSCAP and the SCAP Security Guide (SCC on Windows) when they are
     missing, whatever the Allow install setting says: that setting governs the
     tab's Install box. timeout is in seconds; the default is the scan timeout
     setting plus ten minutes.
