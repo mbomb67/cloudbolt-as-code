@@ -225,6 +225,11 @@ if [ -r /proc/mounts ]; then
         esac
         [ "$mp" = "/" ] && continue
         case "$mp" in
+            # Kernel file systems mounted inside these are never read; counting them would
+            # report network mounts on a server that has none.
+            /proc/*|/sys/*|/dev/*) continue ;;
+        esac
+        case "$mp" in
             *\\*) skipped_escaped=$((skipped_escaped + 1)); continue ;;
         esac
         add_exclude "$mp"

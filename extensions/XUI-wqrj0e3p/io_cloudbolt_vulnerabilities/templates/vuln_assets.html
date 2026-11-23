@@ -303,7 +303,8 @@
       } else {
         wrap.appendChild(buildTable(view, rows));
       }
-      var noun = view === "cves" ? "CVEs" : "packages with findings";
+      // The CVE view lists one row per CVE and package, so its count is rows, not distinct CVEs.
+      var noun = view === "cves" ? "rows" : "packages with findings";
       var from = total ? (page - 1) * size + 1 : 0;
       var to = Math.min(page * size, total);
       pager.appendChild(el("span", "", total ? (from + "–" + to + " of " + total + " " + noun) : ("0 " + noun)));

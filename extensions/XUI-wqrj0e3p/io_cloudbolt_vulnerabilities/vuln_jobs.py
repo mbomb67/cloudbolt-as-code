@@ -84,6 +84,7 @@ URL_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://\S+")
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
+UNASSIGNED = "Servers in an Unassigned group are not scanned. Move the server to a group first."
 NOT_SET_UP = ("The scanner is not set up yet. A CloudBolt admin can set it up on the Vulnerability Settings page.")
 NO_SITE_URL = "The default portal has no site URL, so servers cannot be told where to send their software list."
 STATE_ERROR = "The scan history for this server cannot be read or written; ask an administrator to check the Vulnerabilities folder."
@@ -306,6 +307,21 @@ def parse_output(text):
     return result
 
 
+# ---------------------------------------------------------------- unassigned groups
+def in_unassigned_group(server):
+    """True when the server is in an Unassigned group: the general one or a
+    tenant's own (Group.is_unassigned in accounts/models.py, the test core uses:
+    the group is named Unassigned or is a tenant's default group). A server with
+    no group is not in one. A server that cannot be checked counts as in one,
+    because such a server is never scanned."""
+    try:
+        group = server.group
+        return bool(group is not None and group.is_unassigned)
+    except Exception:
+        logger.exception("Unassigned group check failed for server %s", getattr(server, "id", ""))
+        return True
+
+
 # ---------------------------------------------------------------- permissions
 # Collecting the software list runs a script as root on the server, the same
 # thing a Remote Script server action does. CloudBolt lets a user run any
@@ -315,7 +331,9 @@ def parse_output(text):
 # has_permission on a Server.
 def can_scan(profile, server):
     """Whether the profile may scan the server: a CB Admin, or the
-    server.all_actions permission on it."""
+    server.all_actions permission on it. Never for a server in an Unassigned group."""
+    if in_unassigned_group(server):
+        return False
     if getattr(profile, "is_cbadmin", False):
         return True
     try:
@@ -415,6 +433,8 @@ def start(profile, server, base_url, parent_job=None):
     site URL (never a request's Host). Returns the Job, or a Refusal."""
     if server.status == "HISTORICAL":
         return Refusal("This server is historical.")
+    if in_unassigned_group(server):
+        return Refusal(UNASSIGNED, 409)
     if not is_linux(server):
         return Refusal("Vulnerability scanning supports Linux servers only.")
     if server.power_status != "POWERON":
@@ -646,6 +666,9 @@ def run_scan(job, vuln_server_id=None, vuln_scan_id="", vuln_cfg=None, vuln_uplo
     try:
         if server is None:
             return "FAILURE", "", "The server no longer exists.", {}
+        if in_unassigned_group(server):
+            # A rerun or a clone of an old job reaches here without passing start().
+            return _fail(job, server, vuln_scan_id, vuln_started, began, UNASSIGNED)
         cfg = vuln_cfg or store.job_settings(store.DEFAULT_SETTINGS)
         try:
             return _run(job, server, vuln_scan_id, cfg, vuln_upload_url or "", vuln_tools or {}, vuln_token or "",

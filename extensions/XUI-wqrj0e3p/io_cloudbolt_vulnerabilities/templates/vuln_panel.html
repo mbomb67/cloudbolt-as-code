@@ -68,7 +68,9 @@
     <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No scan yet" %}</span></div>
     <div class="vuln-empty">{% trans "A scan collects a list of the software installed on this server, then matches it against a database of known vulnerabilities. Nothing is changed on the server." %}</div>
     {% endif %}
-    {% if vuln.can_scan %}
+    {% if vuln.unassigned %}
+    <div class="vuln-empty">{{ vuln.unassigned_text }}</div>
+    {% elif vuln.can_scan %}
     <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if not vuln.ready %} disabled{% endif %}><i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Collect software list" %}</button>
     {% endif %}
   </section>

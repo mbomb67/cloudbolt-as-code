@@ -140,6 +140,8 @@ def _panel_context(server, profile):
     vuln = {
         "denied": False,
         "can_scan": vuln_jobs.can_scan(profile, server),
+        "unassigned": vuln_jobs.in_unassigned_group(server),
+        "unassigned_text": vuln_jobs.UNASSIGNED,
         "is_admin": bool(profile.is_cbadmin),
         "start_url": reverse("vuln_start", args=[server.id]),
         "tools": tools,
@@ -227,7 +229,7 @@ def vuln_findings(request, server_id):
     if server is None:
         raise Http404
     view = "cves" if request.GET.get("view") == "cves" else "packages"
-    severity = request.GET.get("severity", "")
+    severity = request.GET.get("severity", "").strip().capitalize()
     if severity not in vuln_match.SEVERITIES:
         severity = ""
     result = (vuln_db.server_cves if view == "cves" else vuln_db.server_packages)(
@@ -251,6 +253,8 @@ def vuln_start(request, server_id):
     if server is None:
         raise Http404
     profile = request.get_user_profile()
+    if vuln_jobs.in_unassigned_group(server):
+        return JsonResponse({"error": vuln_jobs.UNASSIGNED}, status=409)
     if not vuln_jobs.can_scan(profile, server):
         raise PermissionDenied
     if _body(request) is None:
