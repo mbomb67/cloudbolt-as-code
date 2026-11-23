@@ -20,7 +20,7 @@ Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/RE
 
 ## Tested
 On CloudBolt 2026.3.131, AWS, servers ordered from a blueprint:
-- **Amazon Linux 2023:** OpenSCAP installed and scanned with the `standard` profile (46.4%), the three result files stored and the report link written to the provisioning job. The action added about 100 seconds.
+- **Amazon Linux 2023:** OpenSCAP installed and scanned with the `standard` profile (46.4%), the three result files stored and the report link written to the provisioning job. The action added about 100 seconds. Run again after the extension was renamed to Compliance, with the same result in about 75 seconds.
 - **Ubuntu 22.04:** the scan failed (Ubuntu's repositories carry no guide content). The scan job ended as Failure; the provisioning job, the deploy job and the order stayed Success with no error text. The action added about 15 seconds.
 
 Not tested: other Linux distributions, a job with more than one server, the Maximum wait cut-off, and a Windows server being skipped.
