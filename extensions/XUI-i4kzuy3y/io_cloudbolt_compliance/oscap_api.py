@@ -1,5 +1,5 @@
 """
-Compliance scans for other content: scan a server from a plug-in and wait for the result.
+Compliance scans for other content: scan a server from a plug-in, and wait for the result or not.
 
     from xui.io_cloudbolt_compliance import oscap_api
 
@@ -16,11 +16,20 @@ same lock, lands in the server's scan history and stores its files the same
 way. A blueprint build item uses this to scan the servers it built before the
 order finishes (plugins/OHK-oqqmfoah).
 
+    result = oscap_api.start_scan(server, job.owner, profile_id="cis_server_l1", install=True, parent_job=job)
+    result["status"]         "started" or "refused"
+    result["job"]            the scan's own Job when it started
+
+start_scan starts the same job and returns at once. With parent_job the scan is a
+sub-job of that job: shown under it, cancelled with it, and the parent neither
+waits for it nor is changed by its result. The result is in the server's scan history.
+
     ok, reason = eligible(server)   (True, "") or (False, one sentence why not)
 
 eligible says whether content may start a scan on a server at all: it is not
 historical, has a VM, and gets the Compliance tab under the "Show the tab on"
-setting. The Post-Provision actions HPA-b14wu721 (Linux) and HPA-ruxgbj67 (Windows) use it.
+setting. The Post-Provision actions HPA-b14wu721 (Linux) and HPA-ruxgbj67 (Windows) use eligible
+and start_scan.
 
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.
@@ -80,6 +89,29 @@ def eligible(server):
     if not oscap_jobs.shows_tab(server, store.get_settings()["visibility"]):
         return False, 'the Compliance "Show the tab on" setting does not include this server.'
     return True, ""
+
+
+def start_scan(server, owner, profile_id="", datastream="", install=False, parent_job=None):
+    """Start a scan of one server and return without waiting for it.
+
+    owner is the UserProfile the scan job belongs to (a plug-in passes job.owner).
+    profile_id is a profile id or its ending, such as cis_server_l1; empty tries
+    the default profiles of the settings page (a Windows server uses the Windows
+    default profile). datastream is the SCC benchmark on Windows. install=True
+    installs OpenSCAP and the SCAP Security Guide (SCC on Windows) when they are
+    missing, whatever the Allow install setting says: that setting governs the
+    tab's Install box. parent_job makes the scan a sub-job of that job, which is
+    then shown under it and is cancelled with it; the parent does not wait for
+    the scan and is not changed by its result. The result appears in the scan
+    history on the server's Compliance tab.
+    """
+    started = oscap_jobs.start(
+        owner, server, "scan", datastream, profile_id, False,
+        base_url=site_url(), content_install=bool(install), parent_job=parent_job,
+    )
+    if isinstance(started, oscap_jobs.Refusal):
+        return _result("refused", started.message)
+    return _result("started", "The scan of {} started as job {}.".format(server.hostname, started.id), job=started)
 
 
 def scan_and_wait(server, owner, profile_id="", datastream="", install=False, timeout=None):

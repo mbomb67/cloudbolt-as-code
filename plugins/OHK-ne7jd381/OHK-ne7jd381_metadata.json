@@ -18,32 +18,12 @@
             "show_on_servers": false,
             "type": "STR",
             "value_pattern_string": null
-        },
-        {
-            "allow_multiple": false,
-            "available_all_servers": false,
-            "description": "How long provisioning may wait for all of the job's scans together; a scan still running then is cancelled and the servers left are skipped. Empty uses 30.",
-            "field_dependency_controlling_set": [],
-            "field_dependency_dependent_set": [],
-            "global_options": [],
-            "hide_if_default_value": true,
-            "id": "CF-dyygqabf",
-            "label": "Maximum wait (minutes)",
-            "name": "max_wait_minutes",
-            "placeholder": "30",
-            "relevant_osfamilies": [],
-            "required": false,
-            "show_as_attribute": false,
-            "show_on_servers": false,
-            "type": "STR",
-            "value_pattern_string": null
         }
     ],
     "action_inputs_sequence": [
-        "profile",
-        "max_wait_minutes"
+        "profile"
     ],
-    "description": "Installs OpenSCAP on each new Linux server and runs a first scan with the Compliance UI extension, so a report is on the server's Compliance tab when provisioning completes.",
+    "description": "Installs OpenSCAP on each new Linux server and starts a first scan with the Compliance UI extension as a sub-job, so provisioning does not wait and the report appears on the server's Compliance tab when the scan ends.",
     "id": "OHK-ne7jd381",
     "max_retries": 0,
     "name": "Install OpenSCAP and Run First Scan (Linux)",

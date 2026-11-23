@@ -1,20 +1,17 @@
-"""Post-Provision action: installs DISA SCC on each new Windows server and runs a first scan.
+"""Post-Provision action: installs SCC on each new Windows server and starts a first scan.
 
 All of the scan work belongs to the Compliance UI extension (extensions/XUI-i4kzuy3y). This action
-asks its oscap_api which servers of the job may be scanned, then calls oscap_api.scan_and_wait for each
-one: that installs SCC when it is missing, runs the scan as its own job and adds the result to the
-history on the server's Compliance tab. Servers are scanned one after another, and provisioning waits,
-up to the maximum wait for the whole action; servers left when the time is up are skipped.
+asks its oscap_api which servers of the job may be scanned, then calls oscap_api.start_scan for each
+one: that installs SCC when it is missing and runs the scan as its own job, a sub-job of the
+provisioning job. The action does not wait for the scan, so the server is handed over while the scan
+runs. The result and the report appear on the server's Compliance tab when the scan's job ends.
 
 It never fails or warns provisioning. Every problem is written to the job's progress messages, and the
 action always returns SUCCESS.
 
 Inputs: profile (an SCC profile id, such as MAC-1_Classified; empty uses the Windows default profile
-of the Compliance settings page), max_wait_minutes (how long provisioning may wait for all of the
-job's scans together; empty uses 45).
+of the Compliance settings page).
 """
-
-import time
 
 from common.methods import set_progress
 
@@ -26,35 +23,9 @@ def _clean(value):
 
 
 PROFILE = _clean("{{ profile }}")
-MAX_WAIT = _clean("{{ max_wait_minutes }}")
 
 
-def _budget_seconds():
-    try:
-        minutes = int(MAX_WAIT)
-    except ValueError:
-        minutes = 45
-    return (minutes if 1 <= minutes <= 240 else 45) * 60
-
-
-def _scan(oscap_api, server, owner, timeout):
-    """Scan one server; returns the line for the job output."""
-    host = server.hostname
-    set_progress(f"{host}: installing SCC if it is missing and scanning")
-    result = oscap_api.scan_and_wait(server, owner, profile_id=PROFILE, install=True, timeout=timeout)
-    if result["job"] is not None:
-        set_progress(f"{host}: the scan ran as job {result['job'].id}")
-    message = result["message"]
-    if result["status"] != "completed":
-        return message if host in message else f"{host}: no first scan, {message}"
-    if result["report_url"]:
-        set_progress(f"{host}: report {result['report_url']}")
-    else:
-        set_progress(f"{host}: no report link, {result['report_problem']}")
-    return message
-
-
-def _one(oscap_api, server, owner, deadline):
+def _one(oscap_api, server, job):
     """The outcome line for one server; never raises."""
     host = getattr(server, "hostname", "server")
     try:
@@ -63,10 +34,12 @@ def _one(oscap_api, server, owner, deadline):
         ok, reason = oscap_api.eligible(server)
         if not ok:
             return f"{host}: skipped, {reason}"
-        left = int(deadline - time.monotonic())
-        if left < 60:
-            return f"{host}: skipped, the maximum wait of this action was used up by earlier servers."
-        return _scan(oscap_api, server, owner, left)
+        set_progress(f"{host}: starting the scan, SCC is installed first if it is missing")
+        result = oscap_api.start_scan(server, job.owner, profile_id=PROFILE, install=True, parent_job=job)
+        message = result["message"]
+        if result["status"] == "started":
+            return f"{host}: scan started as job {result['job'].id}; the result will be on the server's Compliance tab."
+        return message if host in message else f"{host}: no first scan, {message}"
     except Exception as err:
         return f"{host}: no first scan, {err}"
 
@@ -78,20 +51,19 @@ def run(job, *args, **kwargs):
         try:
             from xui.io_cloudbolt_compliance import oscap_api
 
-            oscap_api.eligible
+            oscap_api.start_scan
         except ImportError:
             set_progress("The Compliance extension (extensions/XUI-i4kzuy3y) is not installed, so no server was scanned.")
             return "SUCCESS", "", ""
         except AttributeError:
-            set_progress("The installed Compliance extension is too old to offer eligible(); sync extensions/XUI-i4kzuy3y and restart the web service.")
+            set_progress("The installed Compliance extension is too old to offer start_scan(); sync extensions/XUI-i4kzuy3y and restart the web service.")
             return "SUCCESS", "", ""
-        deadline = time.monotonic() + _budget_seconds()
         lines = []
         for server in kwargs.get("servers") or list(job.server_set.all()):
-            line = _one(oscap_api, server, job.owner, deadline)
+            line = _one(oscap_api, server, job)
             set_progress(line)
             lines.append(line)
         return "SUCCESS", "\n".join(lines) or "No eligible Windows server in this job.", ""
     except Exception as err:
-        set_progress(f"The first SCC scan stopped early: {err}")
+        set_progress(f"The first SCC scan could not be started: {err}")
         return "SUCCESS", "", ""
