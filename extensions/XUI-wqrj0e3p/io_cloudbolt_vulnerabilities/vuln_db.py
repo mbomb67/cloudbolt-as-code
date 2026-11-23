@@ -257,6 +257,24 @@ def upgrade():
         return _version(conn)
 
 
+def readable():
+    """None when there is no findings store file; True when a read-only connection can read the current
+    version's tables (servers with the added columns, and server_cves); False when the file exists but is busy,
+    unreadable, damaged or not yet upgraded. One statement, which only has to compile and read at most a row.
+    Never raises."""
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return None if not os.path.exists(vuln_store.FINDINGS_DB) else False
+            conn.execute("SELECT {} FROM servers s LEFT JOIN server_cves c ON 0 LIMIT 1".format(
+                ", ".join(["s." + name for name in _SERVER_ADDED_COLUMNS] + ["c.cve"]))).fetchone()
+            return True
+    except Exception as exc:
+        if not isinstance(exc, sqlite3.Error) or not _missing_table(exc):
+            logger.warning("Vulnerabilities: findings store not readable: %s", exc)
+        return False
+
+
 def schema_version():
     """The file's schema version, or None when there is no readable store."""
     try:
@@ -932,3 +950,245 @@ def fleet_servers(search="", kev_only=False, page=1, page_size=25):
     except sqlite3.OperationalError as exc:
         _busy(exc, "the fleet servers")
         return _empty_page(page, page_size, unavailable=not _missing_table(exc))
+
+
+# ---------------------------------------------------------------- set reads
+# The roll-up of a given set of servers (a resource's servers). The cost of each
+# call is the sum of the set's own server_cves rows, reached through the primary
+# key prefix server_id; nothing here reads fleet_cves or any fleet-sized table.
+MAX_SET = 500  # more ids than this: the first MAX_SET (sorted) are used and "truncated" says so
+_INT64 = 2 ** 63
+
+
+def _clean_ids(ids):
+    """(sorted unique real ints, truncated). Anything that is not an int (a bool
+    included), or does not fit SQLite's 64-bit integer, is dropped; a value that
+    is not iterable gives an empty set."""
+    try:
+        wanted = {i for i in ids if isinstance(i, int) and not isinstance(i, bool) and -_INT64 <= i < _INT64}
+    except TypeError:
+        wanted = set()
+    wanted = sorted(wanted)
+    return wanted[:MAX_SET], len(wanted) > MAX_SET
+
+
+@contextlib.contextmanager
+def _id_set(conn, ids):
+    """Yield (fragment, params): the text that follows a column name, like
+    IN (?, ?) with the ids bound, or, for more than CHUNK ids, IN (SELECT id
+    FROM temp.vset_ids) with the ids loaded into a temp table of this
+    connection (a read-only connection may create temp tables; they live in
+    the temp database, never in the file). The table is dropped on the way out,
+    and goes with the connection anyway."""
+    if len(ids) <= CHUNK:  # always, while MAX_SET == CHUNK; the temp table below only applies if MAX_SET grows
+        yield "IN ({})".format(", ".join("?" for _ in ids)), list(ids)
+        return
+    conn.execute("PRAGMA temp_store = MEMORY")
+    conn.execute("DROP TABLE IF EXISTS temp.vset_ids")
+    conn.execute("CREATE TEMP TABLE vset_ids(id INTEGER PRIMARY KEY)")
+    try:
+        conn.executemany("INSERT INTO vset_ids(id) VALUES (?)", [(i,) for i in ids])
+        yield "IN (SELECT id FROM temp.vset_ids)", []
+    finally:
+        try:
+            conn.execute("DROP TABLE IF EXISTS temp.vset_ids")
+        except sqlite3.Error:
+            pass  # the connection closes next, and the table goes with it
+
+
+def _set_empty_page(page, page_size, truncated=False, unavailable=False):
+    result = _empty_page(page, page_size, unavailable)
+    result["truncated"] = truncated
+    return result
+
+
+_SET_SERVER_COLUMNS = (
+    "server_id", "hostname", "os_name", "packages", "vulns", "vuln_critical", "vuln_high", "kev", "inventory_at",
+    "matched_at", "db_built",
+)
+
+
+def set_servers(ids):
+    """{server_id: row} for the given ids that have a servers row (at most
+    MAX_SET of them, the lowest ids); {} when the store is missing or unreadable."""
+    ids, _truncated = _clean_ids(ids)
+    if not ids:
+        return {}
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return {}
+            with _id_set(conn, ids) as (member, params):
+                cursor = conn.execute(
+                    "SELECT {} FROM servers WHERE server_id {}".format(", ".join(_SET_SERVER_COLUMNS), member),
+                    params)
+                return {row["server_id"]: {key: row[key] for key in _SET_SERVER_COLUMNS} for row in cursor}
+    except sqlite3.Error as exc:
+        _busy(exc, "the servers of a set")
+        return {}
+
+
+def set_summary(ids):
+    """Totals across the given servers: how many have stored findings and how
+    many distinct vulnerabilities they have between them, each counted once at
+    its worst severity and as exploited when any of them has it exploited.
+
+    None when the store is missing, not upgraded yet, or not readable. An empty
+    set is a summary of nothing (scanned 0) and does not look at the store."""
+    ids, truncated = _clean_ids(ids)
+    result = {"scanned": 0, "vulns": 0, "critical": 0, "high": 0, "exploited": 0, "servers_exploited": 0,
+              "oldest_inventory": None, "newest_matched": None, "db_builts": [], "truncated": truncated}
+    if not ids:
+        return result
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return None
+            with _id_set(conn, ids) as (member, params):
+                # The one aggregation: the set's rows grouped by identity.
+                vulns = conn.execute(
+                    "SELECT COUNT(*), COALESCE(SUM(worst = 4), 0), COALESCE(SUM(worst = 3), 0), "
+                    "COALESCE(SUM(hot = 1), 0) FROM (SELECT MAX(sev_rank) AS worst, MAX(kev) AS hot "
+                    "FROM server_cves WHERE server_id {} GROUP BY cve)".format(member), params).fetchone()
+                servers = conn.execute(
+                    "SELECT kev, inventory_at, matched_at, db_built FROM servers WHERE server_id {}".format(member),
+                    params).fetchall()
+    except sqlite3.Error as exc:
+        _busy(exc, "the summary of a set")
+        return None
+    inventories = [row["inventory_at"] for row in servers if row["inventory_at"]]
+    matched = [row["matched_at"] for row in servers if row["matched_at"]]
+    builts = sorted({row["db_built"] for row in servers if row["db_built"]}, reverse=True)[:5]
+    result.update({
+        "scanned": len(servers), "vulns": vulns[0], "critical": vulns[1], "high": vulns[2], "exploited": vulns[3],
+        "servers_exploited": sum(1 for row in servers if row["kev"] and row["kev"] > 0),
+        "oldest_inventory": min(inventories) if inventories else None,
+        "newest_matched": max(matched) if matched else None, "db_builts": builts,
+    })
+    return result
+
+
+def set_cves(ids, search="", severity="", kev_only=False, page=1, page_size=25):
+    """The vulnerabilities of the given servers, worst first: exploited,
+    severity, most servers, id. servers and fixable count servers in the set.
+
+    Search works as in fleet_cves: a term containing CVE- is a substring match
+    on the id; any other term that equals an advisory id (exact, any case)
+    selects that advisory's identities; any other term is a substring match.
+    Only identities some server of the set has can appear either way. The set's
+    rows are aggregated once into a temp table, then counted and paged from it."""
+    page, page_size = _paging(page, page_size)
+    ids, truncated = _clean_ids(ids)
+    if not ids:
+        return _set_empty_page(page, page_size, truncated)
+    where, params = ["1 = 1"], []
+    rank = _rank_filter(severity)
+    if rank is not None:
+        where.append("a.sev_rank = ?")
+        params.append(rank)
+    if kev_only:
+        where.append("a.kev = 1")
+    term = str(search or "").strip()[:MAX_SEARCH]
+    order = "a.kev DESC, a.sev_rank DESC, a.servers DESC, a.cve"
+    columns = "a.cve, a.sev_rank, a.kev, a.servers, a.fixable"
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return _set_empty_page(page, page_size, truncated)
+            with _id_set(conn, ids) as (member, member_params):
+                inner, inner_params = ["server_id " + member], list(member_params)
+                if term:
+                    advisory = "cve-" not in term.lower() and conn.execute(
+                        "SELECT 1 FROM matches WHERE vuln_id = ? COLLATE NOCASE LIMIT 1", (term,)).fetchone()
+                    if advisory:
+                        inner.append(
+                            "cve IN (SELECT COALESCE(c.cve, m.vuln_id) FROM matches m "
+                            "LEFT JOIN match_cves c ON c.match_id = m.id WHERE m.vuln_id = ? COLLATE NOCASE)")
+                        inner_params.append(term)
+                    else:
+                        inner.append("cve LIKE ? ESCAPE '\\'")
+                        inner_params.append(_like(term))
+                conn.execute("PRAGMA temp_store = MEMORY")
+                conn.execute("DROP TABLE IF EXISTS temp.vset_agg")
+                conn.execute(
+                    "CREATE TEMP TABLE vset_agg AS SELECT cve, MAX(sev_rank) AS sev_rank, MAX(kev) AS kev, "
+                    "COUNT(*) AS servers, SUM(CASE WHEN fix_version <> '' THEN 1 ELSE 0 END) AS fixable "
+                    "FROM server_cves WHERE {} GROUP BY cve".format(" AND ".join(inner)), inner_params)
+                try:
+                    result = _page_of(conn, " AND ".join(where), params, order, columns, page, page_size,
+                                      "temp.vset_agg a", _fleet_row)
+                finally:
+                    try:
+                        conn.execute("DROP TABLE IF EXISTS temp.vset_agg")
+                    except sqlite3.Error:
+                        pass
+            result["truncated"] = truncated
+            return result
+    except sqlite3.Error as exc:
+        _busy(exc, "the vulnerabilities of a set")
+        return _set_empty_page(page, page_size, truncated, unavailable=not _missing_table(exc))
+
+
+def set_cve_servers(ids, cve, search="", page=1, page_size=25):
+    """The servers of the given set that have one vulnerability, by hostname;
+    search is a substring of the hostname. A CVE id is looked up in upper case.
+    The rows are those of cve_servers."""
+    page, page_size = _paging(page, page_size)
+    ids, truncated = _clean_ids(ids)
+    if not ids:
+        return _set_empty_page(page, page_size, truncated)
+    ident = str(cve or "").strip()[:MAX_SEARCH]
+    if ident.lower().startswith("cve-"):
+        ident = ident.upper()
+    where, params = ["sc.cve = ?"], [ident]
+    pattern = _like(search)
+    if pattern:
+        where.append("s.hostname LIKE ? ESCAPE '\\'")
+        params.append(pattern)
+    columns = ("s.server_id, s.hostname, s.group_name, s.environment, s.os_name, sc.pkg_name, sc.pkg_version, "
+               "sc.fix_version, sc.pkg_count, sc.sev_rank, sc.kev, s.matched_at, s.inventory_at")
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return _set_empty_page(page, page_size, truncated)
+            with _id_set(conn, ids) as (member, member_params):
+                where.append("sc.server_id " + member)
+                result = _page_of(
+                    conn, " AND ".join(where), params + member_params, "s.hostname, s.server_id", columns, page,
+                    page_size, "server_cves sc JOIN servers s ON s.server_id = sc.server_id", _cve_server_row)
+            result["truncated"] = truncated
+            return result
+    except sqlite3.Error as exc:
+        _busy(exc, "the servers of a vulnerability in a set")
+        return _set_empty_page(page, page_size, truncated, unavailable=not _missing_table(exc))
+
+
+def set_cve_info(ids, cve):
+    """The row set_cves gives for one identity among the given servers: {"cve", "severity", "sev_rank",
+    "kev", "servers", "fixable"}, or None when no server of the set has it or the store is missing,
+    unreadable or not upgraded. A CVE id is looked up in upper case, as set_cve_servers does. One indexed
+    lookup through server_cves_cve (cve, server_id); no GROUP BY over the set."""
+    ids, _truncated = _clean_ids(ids)
+    ident = str(cve or "").strip()[:MAX_SEARCH]
+    if not ids or not ident:
+        return None
+    if ident.lower().startswith("cve-"):
+        ident = ident.upper()
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return None
+            with _id_set(conn, ids) as (member, member_params):
+                # INDEXED BY: the primary key (server_id, cve) would also serve, and walks every id of the set.
+                row = conn.execute(
+                    "SELECT COUNT(*) AS servers, MAX(sev_rank) AS sev_rank, MAX(kev) AS kev, "
+                    "COALESCE(SUM(CASE WHEN fix_version <> '' THEN 1 ELSE 0 END), 0) AS fixable "
+                    "FROM server_cves INDEXED BY server_cves_cve WHERE cve = ? AND server_id {}".format(member),
+                    [ident] + member_params).fetchone()
+    except sqlite3.Error as exc:
+        _busy(exc, "one vulnerability of a set")
+        return None
+    if not row or not row["servers"]:
+        return None
+    return _fleet_row({"cve": ident, "sev_rank": row["sev_rank"], "kev": row["kev"], "servers": row["servers"],
+                       "fixable": row["fixable"]})

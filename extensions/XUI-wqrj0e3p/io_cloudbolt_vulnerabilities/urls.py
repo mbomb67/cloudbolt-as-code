@@ -52,6 +52,34 @@ xui_urlpatterns = [
         views.vuln_fleet_servers,
         name="vuln_fleet_servers",
     ),
+    # JSON for a resource's Vulnerabilities tab. Each route re-checks that the viewer may see the
+    # resource and works only on the servers of it that the viewer may see.
+    path(
+        "vulnerabilities/resources/<int:resource_id>/summary/",
+        views.vuln_resource_summary,
+        name="vuln_resource_summary",
+    ),
+    path(
+        "vulnerabilities/resources/<int:resource_id>/cves/",
+        views.vuln_resource_cves,
+        name="vuln_resource_cves",
+    ),
+    path(
+        "vulnerabilities/resources/<int:resource_id>/cve-servers/",
+        views.vuln_resource_cve_servers,
+        name="vuln_resource_cve_servers",
+    ),
+    path(
+        "vulnerabilities/resources/<int:resource_id>/servers/",
+        views.vuln_resource_servers,
+        name="vuln_resource_servers",
+    ),
+    # JSON: scan the servers of the resource the viewer may scan, as one job
+    path(
+        "vulnerabilities/resources/<int:resource_id>/scan/",
+        views.vuln_resource_scan,
+        name="vuln_resource_scan",
+    ),
     # Servers send their software list here with a signed token
     path(
         "vulnerabilities/upload/<str:scan_id>/<str:name>",

@@ -852,7 +852,7 @@
     "id": "XUI-wqrj0e3p",
     "type": "extensions",
     "name": "Vulnerabilities",
-    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab per server, a search across all servers, and a nightly re-match.",
+    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab on servers and on resources, a search across all servers, and a nightly re-match.",
     "path": "extensions/XUI-wqrj0e3p",
     "readme": "extensions/XUI-wqrj0e3p/README.md",
     "uses": [],

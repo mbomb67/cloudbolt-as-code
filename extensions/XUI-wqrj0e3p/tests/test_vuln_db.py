@@ -7,6 +7,7 @@ CloudBolt: vuln_store is a stub, the database is a SQLite file in a temp folder.
 The package is loaded under a private name so that another test file's stub of
 the same extension cannot get in the way.
 """
+import contextlib
 import importlib
 import os
 import random
@@ -195,7 +196,9 @@ class FreshSchemaTests(StoreTestCase):
         self.assertFalse(os.path.exists(store.FINDINGS_DB))  # readers and no-op writers never create it
 
 
-class UpgradeTests(StoreTestCase):
+class V1Builder:
+    """Makes a version-1 store (the first release's tables and rows)."""
+
     def make_v1(self, with_added, user_version=1):
         conn = sqlite3.connect(store.FINDINGS_DB, isolation_level=None)
         conn.execute(V1_SERVERS_ADDED if with_added else V1_SERVERS_OLD)
@@ -249,6 +252,8 @@ class UpgradeTests(StoreTestCase):
         conn.close()
         return data
 
+
+class UpgradeTests(V1Builder, StoreTestCase):
     def test_reader_never_upgrades_and_never_raises(self):
         for with_added in (True, False):
             with self.subTest(with_added=with_added):
@@ -571,7 +576,9 @@ class RandomisedFleetTests(StoreTestCase):
 
 
 # ---------------------------------------------------------------- reads
-class ReadTests(StoreTestCase):
+class FleetStore(StoreTestCase):
+    """Sixty servers with overlapping findings, and the matches each was saved with in self.model."""
+
     def setUp(self):
         super().setUp()
         rng = random.Random(3)
@@ -591,9 +598,12 @@ class ReadTests(StoreTestCase):
             matches.append(mk("onlyadv", "1", "GHSA-xxxx-yyyy-%04d" % (server_id % 3), "Medium", [], False, "2", "", "deb"))
             host = "web-%02d" % server_id if server_id % 4 else "db_%02d" % server_id
             save(server_id, matches, db_built=builds[server_id % 7], hostname=host, group_name="Team %d" % (server_id % 3),
-                 environment="Env %s" % ("A" if server_id % 2 else "B"), matched_at="2026-11-%02dT00:00:00Z" % (server_id % 28 + 1))
+                 environment="Env %s" % ("A" if server_id % 2 else "B"), matched_at="2026-11-%02dT00:00:00Z" % (server_id % 28 + 1),
+                 inventory_at="2026-10-%02dT12:00:00Z" % (server_id % 20 + 1))
             self.model[server_id] = matches
 
+
+class ReadTests(FleetStore):
     def test_known_servers(self):
         rows = vuln_db.known_servers()
         self.assertEqual([r["server_id"] for r in rows], list(range(1, 61)))
@@ -750,6 +760,586 @@ class ReadTests(StoreTestCase):
         self.assertTrue(vuln_db.server_packages(5)["total"] > 0)
         stats = vuln_db.stats()
         self.assertEqual(stats["servers"], 60)
+
+
+# ---------------------------------------------------------------- set reads
+def page_dicts_agree(test, page, total, rows, page_size):
+    test.assertEqual(sorted(page), ["page", "page_size", "pages", "rows", "total", "truncated", "unavailable"])
+    test.assertEqual((page["total"], page["rows"], page["page_size"]), (total, rows, page_size))
+
+
+class SetReadTests(FleetStore):
+    """set_servers, set_summary, set_cves and set_cve_servers against a brute-force
+    computation from the matches each server was saved with."""
+
+    def expected_identities(self, ids):
+        """cve -> (worst rank, exploited, servers in the set, servers with a fix), from the model alone."""
+        found = {}
+        for server_id in set(ids):
+            for row in vuln_match.vuln_rows(self.model.get(server_id, [])):
+                found.setdefault(row["cve"], []).append((row["sev_rank"], int(bool(row["kev"])), row["fix_version"]))
+        return {cve: (max(r for r, _k, _f in rows), max(k for _r, k, _f in rows), len(rows),
+                      sum(1 for _r, _k, f in rows if f)) for cve, rows in found.items()}
+
+    def expected_rows(self, ids, keep=lambda cve, value: True):
+        rows = [{"cve": cve, "severity": vuln_match.SEVERITIES[4 - value[0]], "sev_rank": value[0],
+                 "kev": bool(value[1]), "servers": value[2], "fixable": value[3]}
+                for cve, value in self.expected_identities(ids).items() if keep(cve, value)]
+        return sorted(rows, key=lambda r: (not r["kev"], -r["sev_rank"], -r["servers"], r["cve"]))
+
+    def everything(self, function, ids, *args, **kwargs):
+        """Every row of a paged read, through its pages."""
+        rows, number = [], 1
+        while True:
+            page = function(ids, *args, page=number, page_size=100, **kwargs)
+            rows += page["rows"]
+            if number >= page["pages"]:
+                return page, rows
+            number += 1
+
+    def sets(self):
+        rng = random.Random(5)
+        picks = [[1], [2, 3, 4], rng.sample(range(1, 61), 10), rng.sample(range(1, 61), 25), list(range(1, 61)),
+                 [58, 59, 60, 61, 500], [7, 7, 7]]
+        return picks + [rng.sample(range(1, 61), rng.randint(1, 60)) for _ in range(6)]
+
+    # ---- ids
+    def test_ids_are_cleaned(self):
+        clean = vuln_db._clean_ids
+        self.assertEqual(clean([3, 1, 3, 2]), ([1, 2, 3], False))
+        self.assertEqual(clean([True, False, 1, 2.0, "3", None, 4, b"5", 2 ** 70, -2 ** 70, 2 ** 63 - 1]),
+                         ([1, 4, 2 ** 63 - 1], False))
+        self.assertEqual(clean(i for i in (9, 8, 9)), ([8, 9], False))
+        self.assertEqual(clean(set([5, 1])), ([1, 5], False))
+        for bad in (None, 7, 3.5, object()):
+            self.assertEqual(clean(bad), ([], False))
+        self.assertEqual(clean("123"), ([], False))
+        self.assertEqual(clean(range(vuln_db.MAX_SET + 3)), (list(range(vuln_db.MAX_SET)), True))
+        self.assertEqual(clean(range(vuln_db.MAX_SET)), (list(range(vuln_db.MAX_SET)), False))
+        with mock.patch.object(vuln_db, "MAX_SET", 4):
+            self.assertEqual(clean([9, 3, 7, 1, 5, 3]), ([1, 3, 5, 7], True))
+
+    def test_junk_ids_read_as_nothing_and_never_raise(self):
+        for junk in (None, 5, [True, None, "1", 1.5, 2 ** 80], "12", [], (), {}):
+            with self.subTest(junk=junk):
+                self.assertEqual(vuln_db.set_servers(junk), {})
+                self.assertEqual(vuln_db.set_summary(junk)["scanned"], 0)
+                for page in (vuln_db.set_cves(junk), vuln_db.set_cve_servers(junk, "CVE-2024-0001")):
+                    page_dicts_agree(self, page, 0, [], 25)
+                    self.assertEqual((page["pages"], page["unavailable"], page["truncated"]), (1, False, False))
+        self.assertEqual(vuln_db.set_servers({3: "x", 4: "y"}), vuln_db.set_servers([3, 4]))  # a mapping is its keys
+        self.assertEqual(set(vuln_db.set_servers([True, 3, "4", 4.0])), {3})
+
+    def test_empty_and_unknown_ids(self):
+        summary = vuln_db.set_summary([])
+        self.assertEqual(summary, {"scanned": 0, "vulns": 0, "critical": 0, "high": 0, "exploited": 0,
+                                   "servers_exploited": 0, "oldest_inventory": None, "newest_matched": None,
+                                   "db_builts": [], "truncated": False})
+        self.assertEqual(vuln_db.set_summary([9001, 9002]), summary)  # no row: scanned 0, not None
+        self.assertEqual(vuln_db.set_servers([9001]), {})
+        page_dicts_agree(self, vuln_db.set_cves([9001]), 0, [], 25)
+        page_dicts_agree(self, vuln_db.set_cve_servers([9001], "CVE-2024-0001"), 0, [], 25)
+
+    # ---- set_servers
+    def test_set_servers(self):
+        rows = vuln_db.set_servers([5, 6, 999, 5])
+        self.assertEqual(sorted(rows), [5, 6])
+        self.assertEqual(sorted(rows[5]), sorted(["server_id", "hostname", "os_name", "packages", "vulns",
+                                                  "vuln_critical", "vuln_high", "kev", "inventory_at", "matched_at",
+                                                  "db_built"]))
+        for server_id, row in rows.items():
+            whole = vuln_db.server_summary(server_id)
+            self.assertEqual(row, {key: whole[key] for key in row})
+            self.assertEqual(row["vulns"], len(vuln_match.vuln_rows(self.model[server_id])))
+        self.assertEqual(rows[5]["inventory_at"], "2026-10-06T12:00:00Z")
+        self.assertEqual(sorted(vuln_db.set_servers(range(1, 61))), list(range(1, 61)))
+
+    # ---- set_summary
+    def test_set_summary_equals_a_brute_force_computation(self):
+        conn = self.raw()
+        for ids in self.sets():
+            with self.subTest(ids=ids):
+                known = [i for i in set(ids) if i in self.model]
+                idents = self.expected_identities(ids)
+                rows = [conn.execute("SELECT kev, inventory_at, matched_at, db_built FROM servers WHERE server_id = ?",
+                                     (i,)).fetchone() for i in known]
+                summary = vuln_db.set_summary(ids)
+                self.assertEqual(sorted(summary), ["critical", "db_builts", "exploited", "high", "newest_matched",
+                                                   "oldest_inventory", "scanned", "servers_exploited", "truncated",
+                                                   "vulns"])
+                self.assertEqual(summary["scanned"], len(known))
+                self.assertEqual(summary["vulns"], len(idents))
+                self.assertEqual(summary["critical"], sum(1 for v in idents.values() if v[0] == 4))
+                self.assertEqual(summary["high"], sum(1 for v in idents.values() if v[0] == 3))
+                self.assertEqual(summary["exploited"], sum(1 for v in idents.values() if v[1]))
+                self.assertEqual(summary["servers_exploited"], sum(1 for r in rows if r[0] > 0))
+                self.assertEqual(summary["oldest_inventory"], min(r[1] for r in rows) if rows else None)
+                self.assertEqual(summary["newest_matched"], max(r[2] for r in rows) if rows else None)
+                self.assertEqual(summary["db_builts"], sorted({r[3] for r in rows}, reverse=True)[:5])
+                self.assertIs(summary["truncated"], False)
+
+    def test_set_summary_counts_a_shared_identity_once_at_its_worst_severity(self):
+        self.reset()
+        save(1, [mk("a", "1", "A1", "Low", [("CVE-2024-0900", False)], False, "")], inventory_at="2026-11-05T00:00:00Z")
+        save(2, [mk("b", "1", "A2", "Critical", [("CVE-2024-0900", True)], True, "2")], inventory_at="2026-11-02T00:00:00Z")
+        save(3, [mk("c", "1", "A3", "High", [("CVE-2024-0901", False)], False, "")])
+        both = vuln_db.set_summary([1, 2])
+        self.assertEqual((both["scanned"], both["vulns"], both["critical"], both["high"], both["exploited"]),
+                         (2, 1, 1, 0, 1))
+        self.assertEqual((both["servers_exploited"], both["oldest_inventory"]), (1, "2026-11-02T00:00:00Z"))
+        alone = vuln_db.set_summary([1])
+        self.assertEqual((alone["vulns"], alone["critical"], alone["exploited"], alone["servers_exploited"]), (1, 0, 0, 0))
+        self.assertEqual(vuln_db.set_summary([1, 2, 3])["vulns"], 2)
+
+    def test_set_summary_db_builts_are_distinct_newest_first_and_at_most_five(self):
+        ids = list(range(1, 61))
+        builts = vuln_db.set_summary(ids)["db_builts"]
+        self.assertEqual(builts, ["2026-10-0%dT00:00:00Z" % n for n in (7, 6, 5, 4, 3)])
+        small = vuln_db.set_summary([1, 8, 15])  # all the same build (id % 7 == 1)
+        self.assertEqual(small["db_builts"], ["2026-10-02T00:00:00Z"])
+
+    # ---- set_cves
+    def test_set_cves_equal_a_brute_force_computation(self):
+        for ids in self.sets():
+            with self.subTest(ids=ids):
+                page, rows = self.everything(vuln_db.set_cves, ids)
+                self.assertEqual(rows, self.expected_rows(ids))
+                self.assertEqual(page["total"], len(rows))
+                self.assertEqual(sorted(page["rows"][0]) if rows else None,
+                                 ["cve", "fixable", "kev", "servers", "sev_rank", "severity"] if rows else None)
+                self.assertIs(page["truncated"], False)
+                self.assertIs(page["unavailable"], False)
+
+    def test_servers_and_fixable_count_the_set_not_the_fleet(self):
+        fleet = {r["cve"]: r for r in vuln_db.fleet_cves(page_size=100)["rows"]}
+        ids = [1, 2, 3]
+        rows = {r["cve"]: r for r in self.everything(vuln_db.set_cves, ids)[1]}
+        self.assertTrue(any(rows[c]["servers"] < fleet[c]["servers"] for c in rows))
+        for cve, row in rows.items():
+            self.assertLessEqual(row["servers"], 3)
+            self.assertLessEqual(row["fixable"], row["servers"])
+        # The whole fleet as the set gives the fleet's own roll-up.
+        whole = {r["cve"]: r for r in self.everything(vuln_db.set_cves, range(1, 61))[1]}
+        self.assertEqual(whole, fleet)
+
+    def test_set_cves_filters(self):
+        ids = list(range(1, 41))
+        every = self.expected_rows(ids)
+        for severity, rank in (("critical", 4), ("HIGH", 3), ("low", 1), ("Unknown", 0)):
+            _page, rows = self.everything(vuln_db.set_cves, ids, severity=severity)
+            self.assertEqual(rows, [r for r in every if r["sev_rank"] == rank], severity)
+        self.assertEqual(self.everything(vuln_db.set_cves, ids, severity="nonsense")[1], every)
+        _page, rows = self.everything(vuln_db.set_cves, ids, kev_only=True)
+        self.assertEqual(rows, [r for r in every if r["kev"]])
+        self.assertTrue(rows)
+        _page, rows = self.everything(vuln_db.set_cves, ids, severity="medium", kev_only=True)
+        self.assertEqual(rows, [r for r in every if r["kev"] and r["sev_rank"] == 2])
+        # The filters see the set's worst severity and exploited flag, not the fleet's.
+        self.reset()
+        save(1, [mk("a", "1", "A1", "Low", [("CVE-2024-0900", False)])])
+        save(2, [mk("b", "1", "A2", "Critical", [("CVE-2024-0900", True)], True)])
+        self.assertEqual(vuln_db.set_cves([1], severity="low")["total"], 1)
+        self.assertEqual(vuln_db.set_cves([1], severity="critical")["total"], 0)
+        self.assertEqual(vuln_db.set_cves([1], kev_only=True)["total"], 0)
+        self.assertEqual(vuln_db.set_cves([1, 2], kev_only=True)["total"], 1)
+
+    def test_set_cves_search_by_cve(self):
+        ids = list(range(1, 31))
+        for term in ("CVE-2024-001", "cve-2024-001", " CVE-2024-001 ", "2024-001", "0042"):
+            _page, rows = self.everything(vuln_db.set_cves, ids, search=term)
+            needle = term.strip().lower()
+            self.assertEqual(rows, self.expected_rows(ids, lambda cve, _v: needle in cve.lower()), term)
+        self.assertEqual(vuln_db.set_cves(ids, search="CVE-2099")["total"], 0)
+        self.assertEqual(vuln_db.set_cves(ids, search="%")["total"], 0)  # a wildcard is a literal
+        self.assertEqual(vuln_db.set_cves(ids, search="_")["total"], 0)
+        _page, rows = self.everything(vuln_db.set_cves, ids, search="CVE-2024-00", severity="critical")
+        self.assertEqual(rows, [r for r in self.expected_rows(ids, lambda c, _v: "cve-2024-00" in c.lower())
+                                if r["sev_rank"] == 4])
+
+    def advisory_cves(self, advisory):
+        found = set()
+        for matches in self.model.values():
+            for m in matches:
+                if m["vuln_id"].lower() == advisory.lower():
+                    found.update(c["cve"] for c in m["cves"] or [{"cve": m["vuln_id"]}])
+        return found
+
+    def test_set_cves_search_by_advisory_is_limited_to_the_set(self):
+        for term in ("ALAS-7", "alas-7", "Alas-7"):
+            for ids in ([1, 2, 3, 4], list(range(1, 61)), [9]):
+                wanted = self.advisory_cves(term)
+                self.assertTrue(wanted)
+                _page, rows = self.everything(vuln_db.set_cves, ids, search=term)
+                self.assertEqual(rows, self.expected_rows(ids, lambda cve, _v: cve in wanted), (term, ids))
+        # The advisory's CVEs the set does not have are not in the answer, however many servers outside have them.
+        outside = [s for s in range(1, 61) if not any(m["vuln_id"] == "ALAS-7" for m in self.model[s])]
+        self.assertTrue(outside)
+        self.assertEqual(vuln_db.set_cves(outside[:3], search="ALAS-7")["total"], 0)
+        # A pure advisory is its own identity; a partial advisory id is a plain substring.
+        _page, rows = self.everything(vuln_db.set_cves, range(1, 61), search="ghsa-xxxx-yyyy-0001")
+        self.assertEqual([r["cve"] for r in rows], ["GHSA-xxxx-yyyy-0001"])
+        servers = [s for s in range(1, 61) if s % 3 == 1]
+        self.assertEqual(rows[0]["servers"], len(servers))
+        self.assertEqual(vuln_db.set_cves([1, 2, 3], search="ghsa-xxxx-yyyy-0001")["rows"][0]["servers"], 1)
+        self.assertEqual({r["cve"] for r in vuln_db.set_cves(range(1, 61), search="GHSA-xxxx")["rows"]},
+                         {"GHSA-xxxx-yyyy-000%d" % n for n in range(3)})
+
+    def test_set_cves_paging(self):
+        ids = list(range(1, 61))
+        every = self.expected_rows(ids)
+        total = len(every)
+        first = vuln_db.set_cves(ids, page=1, page_size=10)
+        self.assertEqual((first["total"], first["page"], first["page_size"], first["pages"]),
+                         (total, 1, 10, -(-total // 10)))
+        self.assertEqual(first["rows"], every[:10])
+        mid = vuln_db.set_cves(ids, page=3, page_size=10)
+        self.assertEqual(mid["rows"], every[20:30])
+        last = vuln_db.set_cves(ids, page=999, page_size=10)
+        self.assertEqual(last["page"], first["pages"])
+        self.assertEqual(last["rows"], every[10 * (first["pages"] - 1):])
+        self.assertEqual(vuln_db.set_cves(ids, page_size=1)["page_size"], 10)  # clamped
+        self.assertEqual(vuln_db.set_cves(ids, page_size=5000)["page_size"], 100)
+        self.assertEqual(vuln_db.set_cves(ids, page="x", page_size="y")["page"], 1)
+        self.assertEqual(vuln_db.set_cves(ids, page=0)["page"], 1)
+        # A search that matches nothing is one empty page of the set, not "unavailable".
+        none = vuln_db.set_cves(ids, search="CVE-2099")
+        self.assertEqual((none["total"], none["pages"], none["page"], none["unavailable"]), (0, 1, 1, False))
+
+    # ---- set_cve_servers
+    def test_set_cve_servers_equal_the_fleet_rows_of_the_set(self):
+        for cve in ("CVE-2024-0001", "CVE-2024-0002", "GHSA-xxxx-yyyy-0000"):
+            fleet = vuln_db.cve_servers(cve, page_size=100)["rows"]
+            for ids in ([1, 2, 3, 4, 5, 6], [3], list(range(1, 61)), [58, 59, 60, 61]):
+                with self.subTest(cve=cve, ids=ids):
+                    page = vuln_db.set_cve_servers(ids, cve, page_size=100)
+                    expected = [r for r in fleet if r["server_id"] in set(ids)]
+                    self.assertEqual(page["rows"], expected)
+                    self.assertEqual((page["total"], page["unavailable"], page["truncated"]), (len(expected), False, False))
+        page = vuln_db.set_cve_servers([1, 2, 3], "CVE-2024-0001")
+        self.assertEqual(sorted(page["rows"][0]), sorted([
+            "server_id", "hostname", "group_name", "environment", "os_name", "pkg_name", "pkg_version",
+            "fix_version", "pkg_count", "severity", "sev_rank", "kev", "matched_at", "inventory_at"]))
+        self.assertEqual(vuln_db.set_cve_servers([1, 2, 3], "cve-2024-0001")["rows"], page["rows"])
+        self.assertEqual(vuln_db.set_cve_servers(range(1, 61), "CVE-1999-0000")["total"], 0)
+
+    def test_set_cve_servers_search_and_paging(self):
+        ids = list(range(1, 61))
+        cve = "CVE-2024-0002"
+        everyone = vuln_db.set_cve_servers(ids, cve, page_size=100)
+        self.assertGreater(everyone["total"], 10)
+        db_hosts = vuln_db.set_cve_servers(ids, cve, search="db_", page_size=100)  # the underscore is a literal
+        self.assertEqual(db_hosts["rows"], [r for r in everyone["rows"] if r["hostname"].startswith("db_")])
+        self.assertEqual(db_hosts["total"], len(db_hosts["rows"]))
+        self.assertEqual(vuln_db.set_cve_servers(ids, cve, search="WEB-0")["total"],
+                         sum(1 for r in everyone["rows"] if "web-0" in r["hostname"]))
+        self.assertEqual(vuln_db.set_cve_servers(ids, cve, search="%")["total"], 0)
+        small = vuln_db.set_cve_servers(ids, cve, page=2, page_size=10)
+        self.assertEqual((small["page"], small["pages"]), (2, -(-everyone["total"] // 10)))
+        self.assertEqual(small["rows"], everyone["rows"][10:20])
+        self.assertEqual(vuln_db.set_cve_servers(ids, cve, page=99, page_size=10)["page"], small["pages"])
+        keys = [(r["hostname"], r["server_id"]) for r in everyone["rows"]]
+        self.assertEqual(keys, sorted(keys))
+        # A server of the set without a servers row is not listed, and not counted either.
+        self.assertEqual(vuln_db.set_cve_servers([1000, 1001], cve)["total"], 0)
+
+    # ---- set_cve_info
+    def test_set_cve_info_is_the_set_cves_row_of_that_identity(self):
+        for ids in ([1, 2, 3, 4, 5, 6], [3], list(range(1, 61)), [58, 59, 60, 61]):
+            rows = {r["cve"]: r for r in self.everything(vuln_db.set_cves, ids)[1]}
+            for cve in ("CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003", "GHSA-xxxx-yyyy-0000", "CVE-2024-0042"):
+                with self.subTest(cve=cve, ids=ids):
+                    self.assertEqual(vuln_db.set_cve_info(ids, cve), rows.get(cve))
+        info = vuln_db.set_cve_info(range(1, 61), "cve-2024-0001")      # upper-cased, as set_cve_servers does
+        self.assertEqual(sorted(info), ["cve", "fixable", "kev", "servers", "sev_rank", "severity"])
+        self.assertEqual(info["cve"], "CVE-2024-0001")
+        self.assertIs(type(info["kev"]), bool)
+
+    def test_set_cve_info_is_none_when_absent_or_only_present_outside_the_set(self):
+        present = [i for i in range(1, 61) if vuln_db.set_cve_servers([i], "CVE-2024-0001")["total"]]
+        self.assertTrue(present and len(present) < 60)
+        outside = [i for i in range(1, 61) if i not in present]
+        self.assertIsNone(vuln_db.set_cve_info(outside, "CVE-2024-0001"))
+        self.assertIsNone(vuln_db.set_cve_info(range(1, 61), "CVE-1999-0000"))
+        self.assertIsNone(vuln_db.set_cve_info(present, ""))
+        self.assertIsNone(vuln_db.set_cve_info(present, None))
+        self.assertEqual(vuln_db.set_cve_info(present, "CVE-2024-0001")["servers"], len(present))
+
+    def test_set_cve_info_junk_ids_and_large_sets(self):
+        for junk in (None, 5, [True, None, "1", 1.5, 2 ** 80], "12", [], (), {}):
+            self.assertIsNone(vuln_db.set_cve_info(junk, "CVE-2024-0001"))
+        ids = list(range(1, 61))
+        before = vuln_db.set_cve_info(ids, "CVE-2024-0001")
+        with mock.patch.object(vuln_db, "CHUNK", 7):                    # the temp-table branch
+            self.assertEqual(vuln_db.set_cve_info(ids, "CVE-2024-0001"), before)
+        with mock.patch.object(vuln_db, "MAX_SET", 10):                 # the lowest ids only
+            self.assertEqual(vuln_db.set_cve_info(ids, "CVE-2024-0001"),
+                             vuln_db.set_cve_info(range(1, 11), "CVE-2024-0001"))
+
+    def test_set_cve_info_uses_the_cve_index_and_no_group_by(self):
+        seen = self.statements(lambda: vuln_db.set_cve_info(range(1, 41), "CVE-2024-0001"))
+        sql = [s for s in seen if "FROM server_cves" in s]
+        self.assertEqual(len(sql), 1)
+        self.assertNotIn("GROUP BY", sql[0])
+        self.assertNotIn("fleet_cves", sql[0])
+        # The trace callback gives the statement with its parameters filled in.
+        text = " | ".join(row[3] for row in self.raw().execute("EXPLAIN QUERY PLAN " + sql[0]))
+        self.assertIn("server_cves_cve", text)
+        self.assertNotIn("SCAN", text)
+
+    def test_set_cve_info_on_a_store_that_is_not_ready(self):
+        self.reset()
+        self.assertIsNone(vuln_db.set_cve_info([1], "CVE-2024-0001"))
+        self.assertFalse(os.path.exists(store.FINDINGS_DB))
+        with open(store.FINDINGS_DB, "wb") as handle:
+            handle.write(b"this is not a sqlite file" * 100)
+        self.assertIsNone(vuln_db.set_cve_info([1], "CVE-2024-0001"))
+        with mock.patch.object(vuln_db, "_reader", side_effect=sqlite3.OperationalError("database is locked")):
+            self.assertIsNone(vuln_db.set_cve_info([1], "CVE-2024-0001"))
+
+    # ---- large and truncated sets
+    def test_a_set_larger_than_one_chunk_goes_through_a_temp_table_with_the_same_answers(self):
+        ids = self.sets()[4] + [999, 1000]
+        before = (vuln_db.set_summary(ids), vuln_db.set_cves(ids, page_size=100), vuln_db.set_servers(ids),
+                  vuln_db.set_cve_servers(ids, "CVE-2024-0001", page_size=100),
+                  vuln_db.set_cves(ids, search="ALAS-7"), vuln_db.set_cves(ids, search="CVE-2024-00", kev_only=True))
+        for chunk in (1, 7, 59, 60):
+            with self.subTest(chunk=chunk), mock.patch.object(vuln_db, "CHUNK", chunk):
+                seen = []
+                real = vuln_db._id_set
+
+                def spy(conn, items):
+                    seen.append(len(items))
+                    return real(conn, items)
+
+                with mock.patch.object(vuln_db, "_id_set", spy):
+                    after = (vuln_db.set_summary(ids), vuln_db.set_cves(ids, page_size=100), vuln_db.set_servers(ids),
+                             vuln_db.set_cve_servers(ids, "CVE-2024-0001", page_size=100),
+                             vuln_db.set_cves(ids, search="ALAS-7"),
+                             vuln_db.set_cves(ids, search="CVE-2024-00", kev_only=True))
+                self.assertEqual(after, before)
+                self.assertTrue(all(n > chunk for n in seen), seen)
+
+    def test_the_temp_table_is_dropped_and_the_file_untouched(self):
+        ids = list(range(1, 31))
+        size, stamp = os.path.getsize(store.FINDINGS_DB), os.stat(store.FINDINGS_DB).st_mtime_ns
+        with mock.patch.object(vuln_db, "CHUNK", 5), vuln_db._reader() as conn:
+            with vuln_db._id_set(conn, ids) as (member, params):
+                self.assertEqual((member, params), ("IN (SELECT id FROM temp.vset_ids)", []))
+                self.assertEqual(conn.execute("SELECT COUNT(*) FROM temp.vset_ids").fetchone()[0], 30)
+                self.assertEqual(conn.execute(
+                    "SELECT COUNT(*) FROM servers WHERE server_id " + member).fetchone()[0], 30)
+                with self.assertRaises(sqlite3.OperationalError):
+                    conn.execute("INSERT INTO servers(server_id) VALUES (99999)")  # the file itself is read-only
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM sqlite_temp_master").fetchone()[0], 0)
+            # The same when the body raises.
+            with self.assertRaises(RuntimeError):
+                with vuln_db._id_set(conn, ids):
+                    raise RuntimeError("boom")
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM sqlite_temp_master").fetchone()[0], 0)
+        self.assertEqual((os.path.getsize(store.FINDINGS_DB), os.stat(store.FINDINGS_DB).st_mtime_ns), (size, stamp))
+        self.assertEqual(vuln_db.schema_version(), 2)
+
+    def test_set_cves_leaves_no_temp_table_behind(self):
+        names = []
+        real = vuln_db._reader
+
+        @contextlib.contextmanager
+        def watching():
+            with real() as conn:
+                try:
+                    yield conn
+                finally:
+                    if conn is not None:
+                        names.append(conn.execute("SELECT COUNT(*) FROM sqlite_temp_master").fetchone()[0])
+
+        with mock.patch.object(vuln_db, "_reader", watching), mock.patch.object(vuln_db, "CHUNK", 5):
+            vuln_db.set_cves(range(1, 40))
+            vuln_db.set_summary(range(1, 40))
+            vuln_db.set_cve_servers(range(1, 40), "CVE-2024-0001")
+            vuln_db.set_servers(range(1, 40))
+            self.assertEqual(vuln_db.set_cves(range(1, 40), search="[")["total"], 0)
+        self.assertEqual(names, [0] * 5)
+
+    def test_more_than_max_set_uses_the_lowest_ids_and_says_so(self):
+        # 500 ids below every real one: the real servers fall outside the first MAX_SET.
+        low = list(range(-vuln_db.MAX_SET, 0))
+        ids = low + list(range(1, 61))
+        summary = vuln_db.set_summary(ids)
+        self.assertEqual((summary["truncated"], summary["scanned"]), (True, 0))
+        page = vuln_db.set_cves(ids)
+        self.assertEqual((page["truncated"], page["total"], page["unavailable"]), (True, 0, False))
+        page = vuln_db.set_cve_servers(ids, "CVE-2024-0001")
+        self.assertEqual((page["truncated"], page["total"]), (True, 0))
+        self.assertEqual(vuln_db.set_servers(ids), {})
+        # Exactly MAX_SET ids is not truncated.
+        self.assertIs(vuln_db.set_summary(low)["truncated"], False)
+        # With a smaller limit the first ones (sorted) are the ones used.
+        with mock.patch.object(vuln_db, "MAX_SET", 10):
+            ids = list(range(60, 0, -1))
+            self.assertEqual(sorted(vuln_db.set_servers(ids)), list(range(1, 11)))
+            summary = vuln_db.set_summary(ids)
+            self.assertEqual((summary["truncated"], summary["scanned"]), (True, 10))
+            self.assertEqual(summary["vulns"], len(self.expected_identities(range(1, 11))))
+            page, rows = self.everything(vuln_db.set_cves, ids)
+            self.assertTrue(page["truncated"])
+            self.assertEqual(rows, self.expected_rows(range(1, 11)))
+            page = vuln_db.set_cve_servers(ids, "CVE-2024-0001", page_size=100)
+            self.assertTrue(page["truncated"])
+            self.assertTrue(all(r["server_id"] <= 10 for r in page["rows"]))
+            self.assertFalse(vuln_db.set_cves(range(1, 11))["truncated"])
+        full = vuln_db.set_servers(range(1, 601))  # the real limit, 600 ids of which 60 exist
+        self.assertEqual(len(full), 60)
+
+    def test_the_real_limit_runs_a_full_set_in_one_chunk(self):
+        ids = list(range(1, vuln_db.MAX_SET + 1))
+        self.assertLessEqual(len(ids), vuln_db.CHUNK)
+        self.assertEqual(vuln_db.set_summary(ids)["scanned"], 60)
+        self.assertEqual(vuln_db.set_cves(ids)["total"], len(self.expected_identities(ids)))
+
+    # ---- one aggregation, and the plans
+    def statements(self, call):
+        seen = []
+        real = vuln_db._reader
+
+        @contextlib.contextmanager
+        def tracing():
+            with real() as conn:
+                if conn is not None:
+                    conn.set_trace_callback(seen.append)
+                yield conn
+
+        with mock.patch.object(vuln_db, "_reader", tracing):
+            call()
+        return seen
+
+    def test_one_aggregation_per_call(self):
+        def groups(call):
+            return sum(1 for s in self.statements(call) if "GROUP BY cve" in s)
+
+        ids = list(range(1, 41))
+        for chunk in (500, 5):
+            with mock.patch.object(vuln_db, "CHUNK", chunk):
+                self.assertEqual(groups(lambda: vuln_db.set_summary(ids)), 1)
+                self.assertEqual(groups(lambda: vuln_db.set_cves(ids)), 1)
+                self.assertEqual(groups(lambda: vuln_db.set_cves(ids, page=3, page_size=10)), 1)
+                self.assertEqual(groups(lambda: vuln_db.set_cves(ids, page=99, severity="high", kev_only=True)), 1)
+                self.assertEqual(groups(lambda: vuln_db.set_cves(ids, search="ALAS-7")), 1)
+                self.assertEqual(groups(lambda: vuln_db.set_cve_servers(ids, "CVE-2024-0001")), 0)
+        # Nothing here reads the fleet table or counts the shared tables.
+        for call in (lambda: vuln_db.set_summary(ids), lambda: vuln_db.set_cves(ids),
+                     lambda: vuln_db.set_cve_servers(ids, "CVE-2024-0001"), lambda: vuln_db.set_servers(ids)):
+            for statement in self.statements(call):
+                self.assertNotIn("fleet_cves", statement)
+
+    def test_the_set_statements_use_the_indexes_not_scans(self):
+        ids = list(range(1, 11))
+        plan = lambda sql, params: " | ".join(
+            row[3] for row in self.raw().execute("EXPLAIN QUERY PLAN " + sql, params))
+        marks = ", ".join("?" for _ in ids)
+        agg = ("SELECT MAX(sev_rank), MAX(kev), COUNT(*) FROM server_cves WHERE server_id IN ({}) "
+               "AND cve LIKE ? ESCAPE '\\' GROUP BY cve").format(marks)
+        text = plan(agg, ids + ["%x%"])
+        self.assertIn("SEARCH server_cves USING PRIMARY KEY (server_id=?)", text)
+        self.assertNotIn("SCAN server_cves", text)
+        join = ("SELECT 1 FROM server_cves sc JOIN servers s ON s.server_id = sc.server_id WHERE sc.cve = ? "
+                "AND sc.server_id IN ({})").format(marks)
+        text = plan(join, ["CVE-2024-0001"] + ids)
+        # Which way round the planner joins is its choice; either is bounded by the set and by one identity.
+        self.assertTrue("server_cves_cve (cve=? AND server_id=?)" in text
+                        or "SEARCH sc USING PRIMARY KEY (server_id=? AND cve=?)" in text, text)
+        self.assertNotIn("SCAN", text)
+        # The statements the functions really run are the ones above.
+        sql = [s for s in self.statements(lambda: vuln_db.set_cve_servers(ids, "CVE-2024-0001"))
+               if s.startswith("SELECT s.server_id")]
+        self.assertTrue(sql)
+        self.assertNotIn("SCAN", plan(sql[0].split(" ORDER BY")[0], []))
+
+    # ---- stores that are not ready
+    def test_a_missing_store_reads_empty(self):
+        self.reset()
+        self.assertEqual(vuln_db.set_servers([1, 2]), {})
+        self.assertIsNone(vuln_db.set_summary([1, 2]))
+        for page in (vuln_db.set_cves([1, 2]), vuln_db.set_cve_servers([1, 2], "CVE-2024-0001")):
+            page_dicts_agree(self, page, 0, [], 25)
+            self.assertEqual((page["pages"], page["unavailable"]), (1, False))
+        self.assertFalse(os.path.exists(store.FINDINGS_DB))
+
+    def test_a_store_that_is_not_a_database_reads_empty_and_flagged_unavailable(self):
+        self.reset()
+        with open(store.FINDINGS_DB, "wb") as handle:
+            handle.write(b"this is not a sqlite file" * 100)
+        self.assertEqual(vuln_db.set_servers([1]), {})
+        self.assertIsNone(vuln_db.set_summary([1]))
+        self.assertTrue(vuln_db.set_cves([1])["unavailable"])
+        self.assertTrue(vuln_db.set_cve_servers([1], "CVE-2024-0001")["unavailable"])
+
+    def test_a_busy_store_reads_empty_and_flagged_unavailable(self):
+        error = sqlite3.OperationalError("database is locked")
+        with mock.patch.object(vuln_db, "_reader", side_effect=error):
+            self.assertEqual(vuln_db.set_servers([1]), {})
+            self.assertIsNone(vuln_db.set_summary([1]))
+            self.assertTrue(vuln_db.set_cves([1])["unavailable"])
+            self.assertTrue(vuln_db.set_cve_servers([1], "CVE-2024-0001")["unavailable"])
+
+
+class ReadableTests(V1Builder, StoreTestCase):
+    def test_no_file_is_none_and_nothing_is_created(self):
+        self.assertIsNone(vuln_db.readable())
+        self.assertFalse(os.path.exists(store.FINDINGS_DB))
+
+    def test_a_current_store_is_readable_even_when_empty(self):
+        vuln_db.upgrade()
+        self.assertIs(vuln_db.readable(), True)
+        save(1, sample_matches()[1])
+        self.assertIs(vuln_db.readable(), True)
+
+    def test_a_version_1_store_is_not_readable_and_is_not_upgraded(self):
+        for with_added in (True, False):
+            with self.subTest(with_added=with_added):
+                self.reset()
+                self.populated_v1(with_added)
+                self.assertIs(vuln_db.readable(), False)
+                self.assertEqual(vuln_db.schema_version(), 1)
+
+    def test_a_file_that_is_not_a_database_is_not_readable(self):
+        with open(store.FINDINGS_DB, "wb") as handle:
+            handle.write(b"this is not a sqlite file" * 100)
+        self.assertIs(vuln_db.readable(), False)
+
+    def test_a_busy_store_is_not_readable_and_nothing_raises(self):
+        vuln_db.upgrade()
+        with mock.patch.object(vuln_db, "_reader", side_effect=sqlite3.OperationalError("database is locked")):
+            self.assertIs(vuln_db.readable(), False)
+        with mock.patch.object(vuln_db, "_reader", side_effect=RuntimeError("boom")):
+            self.assertIs(vuln_db.readable(), False)
+
+
+class SetReadsOnAVersionOneStoreTests(V1Builder, StoreTestCase):
+    def test_a_version_1_store_is_empty_and_is_not_upgraded(self):
+        for with_added in (True, False):
+            with self.subTest(with_added=with_added):
+                self.reset()
+                self.populated_v1(with_added)
+                self.assertIsNone(vuln_db.set_summary([1, 2, 3]))
+                for page in (vuln_db.set_cves([1, 2, 3]), vuln_db.set_cves([1, 2, 3], search="ALAS-1"),
+                             vuln_db.set_cves(range(1, 40), search="CVE-2024"),
+                             vuln_db.set_cve_servers([1, 2, 3], "CVE-2024-0001")):
+                    page_dicts_agree(self, page, 0, [], 25)
+                    self.assertEqual((page["pages"], page["unavailable"]), (1, False))
+                servers = vuln_db.set_servers([1, 2, 3])
+                self.assertEqual(sorted(servers) if with_added else servers, [1, 2, 3] if with_added else {})
+                self.assertEqual(vuln_db.schema_version(), 1)  # a reader never upgrades
+                self.assertNotIn("server_cves", {r[0] for r in self.raw().execute("SELECT name FROM sqlite_master")})
+
+    def test_once_upgraded_the_same_calls_answer(self):
+        data = self.populated_v1(True)
+        vuln_db.upgrade()
+        summary = vuln_db.set_summary([1, 2, 3])
+        self.assertEqual(summary["scanned"], 3)
+        expected = {r["cve"] for m in data.values() for r in vuln_match.vuln_rows(m)}
+        self.assertEqual(summary["vulns"], len(expected))
+        self.assertEqual(vuln_db.set_cves([1, 2, 3], page_size=100)["total"], len(expected))
+        self.assertEqual(vuln_db.set_cve_servers([1, 2, 3], "CVE-2024-0001")["total"], 3)
 
 
 if __name__ == "__main__":

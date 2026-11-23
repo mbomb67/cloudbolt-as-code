@@ -14,6 +14,7 @@ Everything lives under PROSERV_DIR/vulnerabilities/ (the shared proserv disk):
     findings.db                SQLite findings store (vuln_db.py)
     servers/<server id>.json   one server's scan in progress and recent scans
     servers/<server id>.lock   lock the per-server state writes hold
+    resources/<resource id>.json   the scan run in progress on a resource (a marker only)
 
 Two processes write here: the web process (apache, as the CloudBolt service
 user) and the job engine, which can run jobs as root. So every directory and
@@ -50,6 +51,7 @@ INVENTORY_DIR = os.path.join(ROOT, "inventories")
 WORK_DIR = os.path.join(ROOT, "work")
 FINDINGS_DB = os.path.join(ROOT, "findings.db")
 SERVERS_DIR = os.path.join(ROOT, "servers")
+RESOURCES_DIR = os.path.join(ROOT, "resources")
 KEY_FILE = os.path.join(ROOT, ".signing_key")
 SCANNER_LOCK_FILE = "scanner.lock"
 
@@ -487,3 +489,51 @@ def known_state_ids():
         if number.isascii() and number.isdigit() and suffix in STATE_SUFFIXES:
             ids.add(int(number))
     return sorted(ids)
+
+
+# ---------------------------------------------------------------- per-resource scan run
+# One small marker per resource: the "scan all servers" job in progress. No history is kept.
+def resource_lock(resource_id):
+    """Exclusive lock for the check-then-queue step of a resource scan start (the same split as
+    start_lock: the marker writes take their own lock, so a start cannot hold this one and call them)."""
+    return _lock(RESOURCES_DIR, "{}.start".format(int(resource_id)))
+
+
+def _resource_data_lock(resource_id):
+    return _lock(RESOURCES_DIR, "{}.lock".format(int(resource_id)))
+
+
+def _resource_path(resource_id):
+    return contained(RESOURCES_DIR, "{}.json".format(int(resource_id)))
+
+
+def read_resource_run(resource_id):
+    """The marker {"job_id","started","requested_by","server_ids"} or None when there is none or it is
+    damaged. A file that exists but cannot be read raises StoreError."""
+    found = _read_json(_resource_path(resource_id), None)
+    return found if isinstance(found, dict) else None
+
+
+def set_resource_run(resource_id, marker):
+    """Record the scan run in progress (atomic write)."""
+    with _resource_data_lock(resource_id):
+        _write_json(_resource_path(resource_id), marker)
+
+
+def clear_resource_run(resource_id, job_id=None):
+    """Remove the marker. With job_id, only when the marker is that job's: a rerun of an old job must
+    not clear the marker of a newer run. Returns True when a marker was removed."""
+    path = _resource_path(resource_id)
+    with _resource_data_lock(resource_id):
+        if job_id is not None:
+            found = _read_json(path, None)
+            if not isinstance(found, dict) or found.get("job_id") != job_id:
+                return False
+        try:
+            os.unlink(path)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise StoreError("The scan run of resource {} cannot be cleared: {}".format(
+                int(resource_id), exc.strerror or exc))

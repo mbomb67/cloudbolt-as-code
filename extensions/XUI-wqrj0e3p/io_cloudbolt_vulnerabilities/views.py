@@ -23,16 +23,28 @@ shows the findings, paged and filtered on the server side.
   admins.
 - Settings is an admin page (Admin > Custom Extensions > Vulnerability
   Settings). CloudBolt indexes every tab and admin page of an extension as one
-  component per title, whatever its type, and refuses a repeated title, so the
-  three titles here ("Vulnerabilities", "Vulnerability Settings",
-  "Vulnerability Search") must stay distinct.
+  component per title, whatever its type: a tab and an admin page may not
+  share a title, and neither may two tabs on the same model. Two tabs on
+  different models may, so the server tab (vulnerabilities_tab) and the
+  resource tab (vulnerabilities_resource_tab) are both titled "Vulnerabilities",
+  while "Vulnerability Settings" and "Vulnerability Search" stay distinct from
+  it. The two tab functions must have different names.
 - Vulnerability Search (admin page under Custom Extensions, function
   vulnerabilities) is the fleet search: a shell page plus four JSON routes
   (vuln_fleet_summary, vuln_fleet_cves, vuln_fleet_cve_servers,
   vuln_fleet_servers) that return one page of the findings store each.
+- The resource tab rolls up the findings of the resource's own servers (not
+  those of sub-resources) that the viewer may see: a shell page plus five
+  routes (vuln_resource_summary, vuln_resource_cves, vuln_resource_cve_servers,
+  vuln_resource_servers, vuln_resource_scan). It reuses the Vulnerability
+  Search script (vuln_fleet_assets.html). Neither the tab dispatcher nor the
+  delegate checks permissions, so every route starts with _viewable_resource
+  and works only on the viewer's servers of that resource, the scan included.
 
-Viewing needs the view permission on the server (Server.objects_for_profile).
-Starting a scan needs vuln_jobs.can_scan, checked per server.
+Viewing needs the view permission on the server (Server.objects_for_profile),
+and for the resource tab on the resource (Resource.objects_for_profile) and on
+each server it lists. Starting a scan needs vuln_jobs.can_scan, checked per
+server.
 """
 import functools
 import json
@@ -41,6 +53,8 @@ import re
 from datetime import datetime, timezone
 
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -48,11 +62,13 @@ from django.views.decorators.csrf import csrf_exempt
 
 from extensions.views import admin_extension, tab_extension, TabExtensionDelegate
 from infrastructure.models import Server
+from resources.models import Resource
 from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.permissions import cbadmin_required
 
-from . import vuln_db, vuln_hooks, vuln_jobs, vuln_match, vuln_repo, vuln_store as store, vuln_tools
+from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_repo, vuln_store as store,
+               vuln_tools)
 
 logger = ThreadLogger(__name__)
 
@@ -82,6 +98,12 @@ def _viewable_server(request, server_id):
     """The server when the viewer may view it, else None. Never a bare lookup."""
     profile = request.get_user_profile()
     return Server.objects_for_profile(profile).filter(pk=server_id).first()
+
+
+def _viewable_resource(request, resource_id):
+    """The resource when the viewer may view it, else None. Never a bare lookup."""
+    profile = request.get_user_profile()
+    return Resource.objects_for_profile(profile).filter(pk=resource_id).first()
 
 
 def _base_url(request):
@@ -538,15 +560,20 @@ def vulnerabilities(request):
     return render(request, TEMPLATES + "vuln_fleet.html", context)
 
 
-def _fleet_summary_state():
-    """(summary dict or None, state). A store written by the previous release is upgraded here, once,
-    because readers never do (the upgrade is idempotent and transactional; this route is for CB Admins)."""
+def _upgrade_store():
+    """A store written by the previous release is upgraded, once, because readers never do (the upgrade
+    is idempotent and transactional). Called by the summary routes; never raises."""
     try:
         version = vuln_db.schema_version()
         if version is not None and version < vuln_db.SCHEMA_VERSION:
             vuln_db.upgrade()
     except Exception:
         logger.exception("Vulnerabilities: cannot upgrade the findings store")
+
+
+def _fleet_summary_state():
+    """(summary dict or None, state). The store is upgraded first (_upgrade_store; this route is for CB Admins)."""
+    _upgrade_store()
     summary = vuln_db.fleet_summary()
     if summary is not None:
         return (summary, "ready") if summary.get("servers") else (summary, "empty")
@@ -636,3 +663,285 @@ def vuln_fleet_servers(request):
         **_page_args(request)
     )
     return JsonResponse(_with_urls(result))
+
+
+# ---------------------------------------------------------------------------
+# Resource tab (the findings of one resource's own servers)
+# ---------------------------------------------------------------------------
+# Linux at the server's own OS family or one or two levels up: the same meaning as
+# vuln_jobs.is_linux (the root family is named Linux), written as a filter so should_display
+# costs one query and no Python loop over the servers.
+_LINUX = (Q(os_family__name=vuln_jobs.LINUX_FAMILY)
+          | Q(os_family__parent__name=vuln_jobs.LINUX_FAMILY)
+          | Q(os_family__parent__parent__name=vuln_jobs.LINUX_FAMILY))
+RESOURCE_NOT_FOUND = "This resource was not found."
+NOTHING_TO_SCAN = ("None of the servers of this resource can be scanned right now. They may be powered off or in an "
+                   "Unassigned group, or you may not have permission to scan them.")
+
+
+class VulnerabilitiesResourceTabDelegate(TabExtensionDelegate):
+    """Resources with at least one live server that would get the server tab. Runs on every view of
+    every resource page for every user, so it is one query and never raises. It checks no permission:
+    the tab and its routes restrict everything to the servers the viewer may see."""
+
+    def should_display(self):
+        try:
+            servers = self.instance.server_set.exclude(status="HISTORICAL").filter(_LINUX)
+            if store.get_settings()["visibility"] == "label":
+                servers = servers.filter(tags__name=vuln_jobs.LABEL)
+            return servers.exists()
+        except Exception:
+            logger.exception("Vulnerabilities: cannot tell whether resource %s gets the tab", getattr(self.instance, "id", ""))
+            return False
+
+
+def _visible_ids(profile, resource):
+    """Sorted ids of the resource's own live servers the profile may view. The view check is one
+    objects_for_profile query turned into a set (never .distinct()); the live servers are a second,
+    plain query, which is also what the pages below are cut from."""
+    viewable = set(Server.objects_for_profile(profile).filter(resource=resource).values_list("id", flat=True))
+    if not viewable:
+        return []
+    return sorted(resource.server_set.exclude(status="HISTORICAL").filter(id__in=viewable).values_list("id", flat=True))
+
+
+@tab_extension(
+    model=Resource,
+    title="Vulnerabilities",
+    delegate=VulnerabilitiesResourceTabDelegate,
+    description="Known vulnerabilities across the servers of a resource, with the servers each one affects and "
+    "a button that collects the software lists of all of them",
+)
+def vulnerabilities_resource_tab(request, obj_id):
+    resource = _viewable_resource(request, obj_id)
+    if resource is None:
+        raise Http404
+    profile = request.get_user_profile()
+    is_admin = bool(profile.is_cbadmin)
+    ids = _visible_ids(profile, resource)
+    urls = {}
+    for key, name in (("summary", "vuln_resource_summary"), ("cves", "vuln_resource_cves"),
+                      ("cve_servers", "vuln_resource_cve_servers"), ("servers", "vuln_resource_servers"),
+                      ("scan", "vuln_resource_scan")):
+        urls[key] = reverse(name, args=[resource.id])
+    return render(request, TEMPLATES + "vuln_resource_tab.html", {
+        "resource": resource,
+        "no_servers": not ids,
+        "urls": urls,
+        "shell": {
+            "is_admin": is_admin,
+            "settings_url": _settings_url() if is_admin else "",
+            "fleet_url": _fleet_url() if is_admin else "",
+        },
+    })
+
+
+def _resource_gate(request, resource_id):
+    """(resource, profile, ids) for a resource route, or (None, None, None) when the viewer may not
+    see the resource. Every resource route starts here."""
+    resource = _viewable_resource(request, resource_id)
+    if resource is None:
+        return None, None, None
+    profile = request.get_user_profile()
+    return resource, profile, _visible_ids(profile, resource)
+
+
+def _severity(request):
+    severity = request.GET.get("severity", "").strip().capitalize()
+    return severity if severity in vuln_match.SEVERITIES else ""
+
+
+@_api
+def vuln_resource_summary(request, resource_id):
+    """GET: {state, summary, db_built, run, can_scan} for the viewer's servers of the resource.
+    summary is vuln_db.set_summary with servers (the same number as scanned, the name the shared
+    script reads) and servers_total (the viewer's servers) added. state is "ready" (at least one
+    server has a software list), "empty" or "unavailable" (a store exists but cannot be read now;
+    the page retries). run is the scan in progress, or null (always null for a viewer who can see
+    none of the resource's servers). can_scan is whether the viewer may scan at least one server
+    (vuln_fleet.any_scannable); it is null while a run is in progress.
+    GET ?run=1: only {run}, without touching the findings store: the page polls this every 5 seconds
+    while a scan runs and asks for the full answer when it changes."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    resource, profile, ids = _resource_gate(request, resource_id)
+    if resource is None:
+        return JsonResponse({"error": RESOURCE_NOT_FOUND}, status=404)
+    run = None
+    if ids:
+        try:
+            run = vuln_fleet.resource_run(resource.id)
+        except Exception:
+            logger.exception("Vulnerabilities: cannot read the scan of resource %s", resource.id)
+    if request.GET.get("run") == "1":
+        return JsonResponse({"run": run})
+    db_built = ""
+    try:
+        db_built = vuln_tools.status().get("db", {}).get("built") or ""
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the database date")
+    summary, state = None, "empty"
+    if ids:
+        _upgrade_store()
+        found = vuln_db.set_summary(ids)
+        if found is not None:
+            summary = dict(found)
+            summary["servers"] = summary.get("scanned", 0)
+            summary["servers_total"] = len(ids)
+            if summary.get("truncated"):
+                summary["servers_limit"] = vuln_db.MAX_SET
+            state = "ready" if summary["servers"] else "empty"
+        elif os.path.exists(store.FINDINGS_DB):
+            state = "unavailable"
+    can_scan = None
+    if run is None and ids:
+        try:
+            can_scan = bool(vuln_fleet.any_scannable(profile, resource, store.get_settings()["visibility"]))
+        except Exception:
+            logger.exception("Vulnerabilities: cannot tell whether the viewer may scan servers of resource %s", resource.id)
+    return JsonResponse({"state": state, "summary": summary, "db_built": db_built, "run": run, "can_scan": can_scan})
+
+
+@_api
+def vuln_resource_cves(request, resource_id):
+    """GET ?q=&severity=&kev=1&page=: one page of the vulnerabilities that affect the viewer's servers
+    of the resource (vuln_db.set_cves: servers and fixable count the servers in that set)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    resource, profile, ids = _resource_gate(request, resource_id)
+    if resource is None:
+        return JsonResponse({"error": RESOURCE_NOT_FOUND}, status=404)
+    result = vuln_db.set_cves(
+        ids,
+        search=request.GET.get("q", "").strip()[:100],
+        severity=_severity(request),
+        kev_only=request.GET.get("kev") == "1",
+        **_page_args(request)
+    )
+    return JsonResponse(result)
+
+
+def _set_cve_info(ids, cve):
+    """The row {cve, severity, sev_rank, kev, servers, fixable} of exactly this id among the set, or
+    None (one indexed lookup, vuln_db.set_cve_info)."""
+    try:
+        return vuln_db.set_cve_info(ids, cve)
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the row of %s among a resource's servers", cve)
+    return None
+
+
+@_api
+def vuln_resource_cve_servers(request, resource_id):
+    """GET ?cve=&q=&page=: one page of the viewer's servers of the resource that a vulnerability
+    affects, each with a url to the server's Vulnerabilities tab, plus cve_info (null when none of
+    them has that id)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    resource, profile, ids = _resource_gate(request, resource_id)
+    if resource is None:
+        return JsonResponse({"error": RESOURCE_NOT_FOUND}, status=404)
+    cve = request.GET.get("cve", "").strip()
+    if not ID_RE.match(cve):
+        return JsonResponse({"error": "That is not a valid CVE or advisory id."}, status=400)
+    if cve.upper().startswith("CVE-"):
+        cve = cve.upper()
+    result = _with_urls(vuln_db.set_cve_servers(ids, cve, search=request.GET.get("q", "").strip()[:100],
+                                                **_page_args(request)))
+    result["cve_info"] = _set_cve_info(ids, cve)
+    return JsonResponse(result)
+
+
+def _state_text(code):
+    """The sentence for a server that has no software list: "Not scanned yet" for one that could be
+    scanned (no reason code), else the reason code's text from vuln_fleet.REASONS with a capital."""
+    if not code:
+        return "Not scanned yet"
+    text = vuln_fleet.REASONS.get(code) or "could not be checked"
+    return text[:1].upper() + text[1:]
+
+
+def _is_scanning(server_id):
+    try:
+        return vuln_jobs.active_job(server_id) is not None
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the scan state of server %s", server_id)
+        return False
+
+
+@_api
+def vuln_resource_servers(request, resource_id):
+    """GET ?q=&page=: the viewer's servers of the resource, hostname order, 25 to a page. The page is cut
+    in the database; eligibility, the scan in progress and the stored findings are read for that page's
+    servers only. state_text is "" for a server with a software list, "Not scanned yet" for one that
+    could be scanned, otherwise the reason it cannot."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    resource, profile, ids = _resource_gate(request, resource_id)
+    if resource is None:
+        return JsonResponse({"error": RESOURCE_NOT_FOUND}, status=404)
+    if vuln_db.readable() is False:
+        # The store exists but is busy, unreadable or not upgraded: say so (the page retries) rather than
+        # show scanned servers as "Not scanned yet". None (no store yet) and True answer as usual.
+        return JsonResponse({"total": 0, "page": 1, "page_size": FLEET_PAGE_SIZE, "pages": 1, "rows": [],
+                             "unavailable": True})
+    servers = Server.objects.filter(id__in=ids)
+    term = request.GET.get("q", "").strip()[:100]
+    if term:
+        servers = servers.filter(hostname__icontains=term)
+    servers = (servers.select_related("group", "os_family", "resource_handler").prefetch_related("tags")
+               .order_by("hostname", "id"))
+    paginator = Paginator(servers, FLEET_PAGE_SIZE)
+    page = paginator.get_page(_int_param(request, "page", 1))
+    on_page = list(page.object_list)
+    stored = vuln_db.set_servers([server.id for server in on_page])
+    visibility = store.get_settings()["visibility"]
+    rows = []
+    for server in on_page:
+        found = stored.get(server.id) or {}
+        scanning = _is_scanning(server.id)
+        text = ""
+        if not found and not scanning:
+            text = _state_text(vuln_fleet.eligibility(server, visibility))
+        family = server.os_family
+        rows.append({
+            "server_id": server.id,
+            "hostname": server.hostname,
+            "url": server.get_absolute_url() + SERVER_TAB_HASH,
+            "os_name": found.get("os_name") or (family.name if family else ""),
+            "vuln_critical": found.get("vuln_critical") or 0,
+            "vuln_high": found.get("vuln_high") or 0,
+            "kev": found.get("kev") or 0,
+            "inventory_at": found.get("inventory_at") or "",
+            "scanning": scanning,
+            "state_text": text,
+        })
+    return JsonResponse({"total": paginator.count, "page": page.number, "page_size": FLEET_PAGE_SIZE,
+                         "pages": paginator.num_pages, "rows": rows, "unavailable": False})
+
+
+@_api
+def vuln_resource_scan(request, resource_id):
+    """POST {}: starts one job that scans the servers of the resource that THIS viewer may view and
+    scan (vuln_fleet.scannable_ids), never the resource's other servers. Answers 202 {job_id,
+    job_url}, 403 when none can be scanned, or the refusal's status and sentence (409 while a scan
+    of the resource is running)."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    resource, profile, ids = _resource_gate(request, resource_id)
+    if resource is None:
+        return JsonResponse({"error": RESOURCE_NOT_FOUND}, status=404)
+    if _body(request) is None:
+        return JsonResponse({"error": "The request body must be a JSON object."}, status=400)
+    scannable = vuln_fleet.scannable_ids(profile, resource, store.get_settings()["visibility"]) if ids else []
+    if not scannable:
+        return JsonResponse({"error": NOTHING_TO_SCAN}, status=403)
+    job = vuln_fleet.start_resource_scan(profile, resource, scannable, _base_url(request))
+    job_id = getattr(job, "id", None)
+    if not isinstance(job_id, int) or isinstance(job_id, bool):
+        # A refusal: told apart by the integer id a Job has (as vuln_fleet does), not by isinstance on
+        # a class that the job files reload.
+        status = getattr(job, "status", None)
+        return JsonResponse({"error": getattr(job, "message", "") or "The scan could not be started."},
+                            status=status if isinstance(status, int) and not isinstance(status, bool) else 400)
+    return JsonResponse({"job_id": job_id, "job_url": job.get_absolute_url()}, status=202)

@@ -216,7 +216,7 @@
       <div class="vuln-field">
         <label class="vuln-label" for="vuln-parallel">Servers scanned at once by the weekly inventory</label>
         <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-parallel" name="inventory_parallel" min="1" max="10" value="{{ settings.inventory_parallel }}">
-        <div class="vuln-help">How many servers the weekly inventory collects from at the same time, from 1 to 10.</div>
+        <div class="vuln-help">How many servers the weekly inventory, and the Scan all servers button on a resource, collect from at the same time, from 1 to 10.</div>
         {% if field_errors.inventory_parallel %}<div class="vuln-help vuln-bad">{{ field_errors.inventory_parallel }}</div>{% endif %}
       </div>
     </div>
