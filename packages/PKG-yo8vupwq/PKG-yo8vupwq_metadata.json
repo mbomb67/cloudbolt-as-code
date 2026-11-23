@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "server_actions/SVA-5bg39wkr",
+        "webhooks/IWH-i7b44zvs"
+    ],
+    "description": "Maps monitoring alerts posted to an inbound webhook to a Restart Apache server action that health-checks the server and escalates to ServiceNow and Microsoft Teams when it is still unhealthy.",
+    "id": "PKG-yo8vupwq",
+    "last_updated": "2026-11-23",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "Alert Remediation",
+    "version": "1.0.0"
+}
