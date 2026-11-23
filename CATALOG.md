@@ -9,11 +9,11 @@ Every piece of content in this repo, grouped by type. Names and descriptions com
 | [Blueprints](#blueprints) | 36 |
 | [Resource actions](#resource-actions) | 69 |
 | [Server actions](#server-actions) | 4 |
-| [Orchestration actions](#orchestration-actions) | 23 |
+| [Orchestration actions](#orchestration-actions) | 24 |
 | [Recurring jobs](#recurring-jobs) | 5 |
 | [Webhooks](#webhooks) | 6 |
 | [MCP tool actions](#mcp-tool-actions) | 10 |
-| [Plugins](#plugins) | 226 |
+| [Plugins](#plugins) | 227 |
 | [Shared modules](#shared-modules) | 32 |
 | [UI extensions](#ui-extensions) | 18 |
 | [Parameters](#parameters) | 3 |
@@ -192,6 +192,7 @@ Lifecycle hooks. Actions marked disabled ship that way on purpose; read the READ
 | Generate Options for Domain Service Account | [HPA-g8pqv6uv](orchestration_actions/HPA-g8pqv6uv/README.md) | Lists every connection info labeled domain_service_account as the choices for the domain_service_account parameter. | Generated Parameter Options | yes | [Generate Options for Domain Service Account](plugins/OHK-ww524a3e/) |
 | Generate options for HCP Terraform coordinates | [HPA-swe1kifa](orchestration_actions/HPA-swe1kifa/) | Lists HCP Terraform connections, organizations, projects and no-code modules so an admin pins a no-code blueprint's coordinates from dropdowns. | Generated Parameter Options | yes | [Generate options for HCP Terraform coordinates](plugins/OHK-529jjzli/) |
 | Install OpenSCAP and Run First Scan (Linux) | [HPA-b14wu721](orchestration_actions/HPA-b14wu721/README.md) | Installs OpenSCAP on each new Linux server at Post-Provision and runs a first scan, without ever failing or warning the provisioning job. | Post-Provision | yes | [Install OpenSCAP and Run First Scan (Linux)](plugins/OHK-ne7jd381/) |
+| Install SCC and Run First Scan (Windows) | [HPA-ruxgbj67](orchestration_actions/HPA-ruxgbj67/README.md) | Installs DISA SCC on each new Windows server at Post-Provision and runs a first scan, without ever failing or warning the provisioning job. | Post-Provision | yes | [Install SCC and Run First Scan (Windows)](plugins/OHK-kwx1fvho/) |
 | Join Linux Server to AD Domain | [HPA-o6ctckmt](orchestration_actions/HPA-o6ctckmt/README.md) | Joins newly provisioned Linux servers to their Active Directory domain at Post-Provision. | Post-Provision | yes | [Join Linux Server to AD Domain](plugins/OHK-exqmrl0e/) |
 | Join Windows Server to AD Domain | [HPA-jjp1vlfi](orchestration_actions/HPA-jjp1vlfi/README.md) | Joins newly provisioned Windows servers to the Active Directory OU their domain_ou names at Post-Provision, switching their CloudBolt credentials to the domain_service_account connection info when one is picked. | Post-Provision | yes | [Join Windows Server to AD Domain](plugins/OHK-9oqn6pur/) |
 | ServiceNow Request: Close on Completion | [HPA-fxo5hujp](orchestration_actions/HPA-fxo5hujp/README.md) | Closes the order's ServiceNow RITM when every job of the order has finished and attaches the CIs of the servers it produced. | Post-Order Execution | no | [ServiceNow Request: Close](plugins/OHK-htrxkps2/) |
@@ -365,6 +366,7 @@ Python and remote-script actions. Plugins that belong to a blueprint or action a
 | Install OpenSCAP and Run First Scan (Linux) | [OHK-ne7jd381](plugins/OHK-ne7jd381/) | Installs OpenSCAP on each new Linux server and runs a first scan with the Compliance UI extension, so a report is on the server's Compliance tab when provisioning completes. | CloudBolt Plug-in | [Install OpenSCAP and Run First Scan (Linux)](orchestration_actions/HPA-b14wu721/README.md) |
 | Install or Upgrade StormForge Agent | [OHK-kxxla7cn](plugins/OHK-kxxla7cn/) | Installs, upgrades or reinstalls the StormForge agent on an EKS, AKS or GKE cluster at the chosen chart version. | CloudBolt Plug-in | [Install or Upgrade StormForge Agent](resource_actions/RSA-76jmctg6/) |
 | Install Postgres | [OHK-29uent0x](plugins/OHK-29uent0x/) | Installs PostgreSQL on an Oracle Linux 8 server. | Remote Script | [Postgres Database](blueprints/BP-b91c5f90/README.md) |
+| Install SCC and Run First Scan (Windows) | [OHK-kwx1fvho](plugins/OHK-kwx1fvho/) | Installs DISA SCC on each new Windows server and runs a first scan with the Compliance UI extension, so a report is on the server's Compliance tab when provisioning completes. | CloudBolt Plug-in | [Install SCC and Run First Scan (Windows)](orchestration_actions/HPA-ruxgbj67/README.md) |
 | Install StormForge Agent | [OHK-8mtfn5x1](plugins/OHK-8mtfn5x1/) | Installs the StormForge agent on a new EKS, AKS or GKE cluster and registers it with StormForge, warning instead of failing the order. | CloudBolt Plug-in | [AWS EKS](blueprints/BP-r5apcf7e/README.md), [Azure Kubernetes Service](blueprints/BP-20q58q9z/README.md), [Google Kubernetes Engine](blueprints/BP-g8g8aecx/README.md) |
 | Install Windows File Server | [OHK-up7829pv](plugins/OHK-up7829pv/) | Installs the File Server role on a Windows server. | Remote Script | [Windows File Server](blueprints/BP-psw7rclb/README.md) |
 | IP Address Reservation Build | [OHK-yeykzvdv](plugins/OHK-yeykzvdv/) | Reserves the next free address in the chosen CloudBolt IP pool for an IP Address Reservation resource. | CloudBolt Plug-in | [IP Address Reservation](blueprints/BP-j25t4xpv/README.md) |

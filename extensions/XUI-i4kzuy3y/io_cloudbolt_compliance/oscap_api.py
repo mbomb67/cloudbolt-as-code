@@ -20,7 +20,7 @@ order finishes (plugins/OHK-oqqmfoah).
 
 eligible says whether content may start a scan on a server at all: it is not
 historical, has a VM, and gets the Compliance tab under the "Show the tab on"
-setting. The Post-Provision action HPA-b14wu721 uses it.
+setting. The Post-Provision actions HPA-b14wu721 (Linux) and HPA-ruxgbj67 (Windows) use it.
 
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.

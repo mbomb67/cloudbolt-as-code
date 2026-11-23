@@ -13,7 +13,7 @@ Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/RE
 | Extension | XUI-i4kzuy3y | Compliance |
 
 ## Notes
-- A server is scanned when the extension's "Show the tab on" setting gives it the Compliance tab. Historical servers, Windows servers and servers without a VM are skipped.
+- A server is scanned when the extension's "Show the tab on" setting gives it the Compliance tab. Historical servers, Windows servers and servers without a VM are skipped. Windows servers are handled by the [Install SCC and Run First Scan (Windows)](../HPA-ruxgbj67/) action.
 - The scan picks the SCAP Security Guide datastream that matches the guest's `/etc/os-release`, then the first default profile from the settings page that the datastream offers (`cis_server_l1,cis,stig,standard` by default). The Profile input overrides this.
 - The servers of one job are scanned one after another, and provisioning waits. Maximum wait (minutes) covers the whole action (30 by default): a scan still running then is cancelled and the servers left are skipped.
 - A server that is not powered on is not scanned.

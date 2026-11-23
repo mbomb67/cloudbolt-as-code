@@ -1,0 +1,57 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "SCC profile id, such as MAC-1_Classified. Empty uses the Windows default profile of the Compliance settings page.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-5h2z8wdj",
+            "label": "Profile",
+            "name": "profile",
+            "placeholder": "MAC-1_Classified",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "How long provisioning may wait for all of the job's scans together; a scan still running then is cancelled and the servers left are skipped. Empty uses 45.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-xjgiv7qf",
+            "label": "Maximum wait (minutes)",
+            "name": "max_wait_minutes",
+            "placeholder": "45",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "profile",
+        "max_wait_minutes"
+    ],
+    "description": "Installs DISA SCC on each new Windows server and runs a first scan with the Compliance UI extension, so a report is on the server's Compliance tab when provisioning completes.",
+    "id": "OHK-kwx1fvho",
+    "max_retries": 0,
+    "name": "Install SCC and Run First Scan (Windows)",
+    "resource_technologies": [],
+    "script_filename": "OHK-kwx1fvho_script.py",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "CloudBolt Plug-in"
+}
