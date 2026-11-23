@@ -22,9 +22,9 @@ user) and the job engine, which can run jobs as root. So every directory and
 file either creates is made readable and writable by both: modes 0775 and
 0664, and when running as root a chown to the CloudBolt service account, the
 pattern of resourcehandlers/dynamic/loader.py _own_as_cloudbolt. The signing
-key is the exception: mode 0600, created and read only by the web process
-(tokens are made when a scan starts and checked on upload, both web
-requests; the job never touches it).
+key is the exception: mode 0600 and owned by the CloudBolt service account.
+Tokens are made when a scan starts (a web request, or a job that calls
+oscap_api.py) and checked on upload (a web request).
 
 CloudBolt runs with USE_TZ=False, so every stamp here is made with
 datetime.now(timezone.utc) rather than timezone.now().
@@ -198,9 +198,11 @@ def _write_json(path, data):
 
 
 def signing_key():
-    """The per-install random key. Web process only. Created atomically with
-    mode 0600: written to a temp file and linked into place, so no reader ever
-    sees a partial key; a loser of the race reads the winner's."""
+    """The per-install random key. Created atomically with mode 0600: written
+    to a temp file and linked into place, so no reader ever sees a partial
+    key; a loser of the race reads the winner's. A job running as root that
+    creates it hands it to the CloudBolt service account, so the web process
+    can still read it."""
     try:
         return _valid_key(_read_key())
     except FileNotFoundError:
@@ -211,6 +213,8 @@ def signing_key():
         with os.fdopen(fd, "wb") as handle:
             handle.write(secrets.token_bytes(32))
         os.chmod(temp, 0o600)
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            shutil.chown(temp, settings.CLOUDBOLT_OS_USER, settings.CLOUDBOLT_OS_GROUP)
         try:
             os.link(temp, KEY_FILE)
         except FileExistsError:

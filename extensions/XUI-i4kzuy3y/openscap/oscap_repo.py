@@ -3,7 +3,10 @@ OpenSCAP XUI: where the result files of a scan are kept.
 
 The full results (the HTML report, the XCCDF results and the ARF file) never
 go into the CloudBolt database. The target server uploads them itself, with
-curl, to one of two backends that share this small interface:
+curl, to one of two backends that share this small interface. The exception
+is an OpenShift Virtualization VM with the local backend: such a guest
+usually has no route to CloudBolt, so the job reads the files over the API
+tunnel it ran the scan through and stores them with store_stream.
 
     upload_targets(server, scan_id, base_url, minutes) -> urls, token, region
     location(server, scan_id, region)                  -> where the files will be
@@ -264,6 +267,54 @@ def receive_upload(request, scan_id, name):
         except OSError:
             pass
     return total
+
+
+def store_stream(server_id, scan_id, name, chunks):
+    """Store one result file the job read from the server itself; chunks is an
+    iterable of bytes. The rules of an upload apply: a known file name, into
+    the directory the scan start made, once per name, capped in size and by
+    the space limit. Returns (stored, reason)."""
+    if name not in UPLOAD_NAMES:
+        return False, "not a result file"
+    try:
+        directory = local_dir(server_id, scan_id)
+        final = _contained(directory, name)
+    except Http404:
+        return False, "the scan id is not valid"
+    if not os.path.isdir(directory):
+        return False, "the scan's folder on the appliance is gone"
+    if os.path.exists(final):
+        return True, ""
+    room = store.get_settings()["local_max_gb"] * 1024 ** 3 - local_usage()["bytes"]
+    fd, temp = tempfile.mkstemp(dir=directory, prefix=".collect-")
+    total = 0
+    reason = ""
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            for chunk in chunks:
+                total += len(chunk)
+                if total > MAX_UPLOAD_BYTES:
+                    reason = "the file is larger than {} MB".format(MAX_UPLOAD_BYTES // 1024 ** 2)
+                    break
+                if total > room:
+                    reason = "the OpenSCAP storage on the appliance is full"
+                    break
+                handle.write(chunk)
+        if not reason and total == 0:
+            reason = "the file was not produced"
+        if reason:
+            return False, reason
+        store.own(temp)
+        try:
+            os.link(temp, final)
+        except FileExistsError:
+            pass
+        return True, ""
+    finally:
+        try:
+            os.unlink(temp)
+        except OSError:
+            pass
 
 
 def _local_response(server, scan, kind):

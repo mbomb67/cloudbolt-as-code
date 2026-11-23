@@ -20,6 +20,7 @@
         "oscap_rollup.py",
         "oscap_resource.py",
         "oscap_resource_job.py",
+        "oscap_api.py",
         "oscap_scan.sh",
         "templates/oscap_styles.html",
         "templates/oscap_assets.html",

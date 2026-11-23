@@ -24,6 +24,11 @@ lengths), writes the summary into the server's index (oscap_store.py) and
 adds a server event. Everything that came from the server is stripped of
 URLs and tokens before it is stored or shown.
 
+An OpenShift Virtualization VM usually has no route to CloudBolt, so with the
+local backend it gets no upload URLs: the script leaves the result files in a
+root-only directory (HOLD_DIR) and the job reads them over the same API tunnel
+(_collect).
+
 Vendor reference for the oscap options the script uses (--profile, --results,
 --results-arf, --report, --skip-validation, no remote fetching by default):
     https://static.open-scap.org/openscap-1.3/oscap_user_manual.html
@@ -74,8 +79,11 @@ ID_RE = re.compile(r"[A-Za-z0-9._:-]{1,200}")
 KNOWN_KEYS = (
     "os_name", "oscap_version", "problem", "installed", "ready", "datastream", "profile", "scan_datastream",
     "scan_profile", "scan_profile_title", "exit_code", "failed", "stored", "duration", "summary", "done",
-    "progress", "failed_total",
+    "progress", "failed_total", "held",
 )
+# Where a server keeps its result files for _collect; the scan id is appended.
+HOLD_PREFIX = "/var/tmp/oscap-hold-"
+NOT_HELD = "the server could not keep the result files for CloudBolt to collect"
 URL_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://\S+")
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
@@ -133,9 +141,17 @@ def _launcher(inner):
     )
 
 
-def build_script(mode, datastream, profile, default_profiles, allow_install, urls, insecure, token=""):
+def hold_dir(scan_id):
+    """The directory on the server that keeps one scan's files for collection."""
+    if not store.SCAN_ID_RE.fullmatch(scan_id or ""):
+        raise ScanError("The scan id has characters that are not allowed.")
+    return HOLD_PREFIX + scan_id
+
+
+def build_script(mode, datastream, profile, default_profiles, allow_install, urls, insecure, token="", hold=""):
     """The script to run: an sh launcher around a header of quoted assignments
-    and oscap_scan.sh."""
+    and oscap_scan.sh. hold is the directory to leave the result files in, or
+    empty when the server uploads them."""
     if mode not in MODES:
         raise ScanError("Unknown mode.")
     if datastream and not store.DATASTREAM_RE.fullmatch(datastream):
@@ -153,6 +169,7 @@ def build_script(mode, datastream, profile, default_profiles, allow_install, url
         ("UP_ARF", (urls or {}).get("arf.xml.gz", "")),
         ("UP_TOKEN", token or ""),
         ("UP_INSECURE", "1" if insecure else "0"),
+        ("HOLD_DIR", hold or ""),
     ]
     header = "".join("{}={}\n".format(name, shlex.quote(str(value))) for name, value in values)
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCRIPT_FILE)
@@ -240,7 +257,7 @@ def parse_output(text):
         "os_name": "", "oscap_version": "", "ready": False, "problem": "", "scan_problem": "", "installed": False,
         "datastreams": [], "scan_datastream": "", "scan_profile": "", "scan_profile_title": "",
         "exit_code": None, "counts": {}, "severity": {}, "score": None, "rules": None, "failed": [],
-        "stored": {}, "duration": None, "done": False, "summary": False, "final": False,
+        "stored": {}, "duration": None, "done": False, "summary": False, "final": False, "held": False,
     }
     by_file = {}
     for raw in _bounded(text).splitlines():
@@ -302,6 +319,8 @@ def parse_output(text):
             _apply_summary(result, fields)
         elif key == "done":
             result["done"] = True
+        elif key == "held":
+            result["held"] = value.strip() == "1"
     if result["rules"] is None and result["counts"]:
         result["rules"] = sum(result["counts"].values())
     return result
@@ -439,10 +458,15 @@ def active_job(server_id, index=None):
 
 
 # ---------------------------------------------------------------- start
-def start(profile, server, mode, datastream, profile_id, install, base_url="", parent_job=None):
+def start(profile, server, mode, datastream, profile_id, install, base_url="", content_install=False, parent_job=None):
     """Validate and start the job. base_url is the default portal's configured
     site URL (never a request's Host). parent_job is the resource run's job
-    when this scan is one server of it. Returns the Job, or a Refusal."""
+    when this scan is one server of it. Returns the Job, or a Refusal.
+
+    install is the tab's Install box and counts only while the Allow install
+    setting is on. content_install is for oscap_api.py: content an
+    administrator put in place (a blueprint build item) installs OpenSCAP
+    when it is missing, whatever that setting says."""
     if mode not in MODES:
         return Refusal("The mode must be scan or check.")
     datastream = (datastream or "").strip()
@@ -461,7 +485,7 @@ def start(profile, server, mode, datastream, profile_id, install, base_url="", p
     is_admin = bool(getattr(profile, "is_cbadmin", False))
     cfg = store.get_settings()
     job_cfg = store.job_settings(cfg)
-    job_cfg["allow_install"] = bool(install) and cfg["allow_install"]
+    job_cfg["allow_install"] = bool(content_install) or (bool(install) and cfg["allow_install"])
     try:
         # One start at a time per server: the active check, the queueing and
         # the marker are one step, so two clicks cannot start two jobs.
@@ -484,6 +508,7 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
     scan_id = store.new_scan_id()
     urls, token, region = {}, "", ""
     uploads = False
+    pull = False
     store_problem = ""
     where = {"backend": cfg["backend"], "bucket": "", "key_prefix": "", "region": ""}
     if mode == "scan":
@@ -492,7 +517,12 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
                 oscap_repo.prune(server, cfg, reserve=1)
             except Exception:
                 logger.exception("OpenSCAP: pruning before a scan failed for server %s", server.id)
-        if cfg["backend"] == "local" and not base_url:
+        if cfg["backend"] == "local" and _is_openshift_vm(server):
+            # CloudBolt reaches these guests through the cluster API and they usually cannot reach
+            # CloudBolt, so the job collects the files itself: no upload URLs and no token.
+            oscap_repo.prepare_local(server.id, scan_id)
+            uploads = pull = True
+        elif cfg["backend"] == "local" and not base_url:
             store_problem = NO_TARGETS_PROBLEM
         else:
             try:
@@ -523,6 +553,7 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
             "oscap_scan_id": scan_id,
             "oscap_cfg": job_cfg,
             "oscap_uploads": uploads,
+            "oscap_pull": pull,
             "oscap_store_problem": store_problem,
             "oscap_upload_urls": urls,
             "oscap_upload_token": token,
@@ -599,7 +630,7 @@ def _progress(job, message):
 def run_scan(job, oscap_server_id=None, oscap_mode="scan", oscap_datastream="", oscap_profile="",
              oscap_scan_id="", oscap_cfg=None, oscap_uploads=False, oscap_store_problem="",
              oscap_upload_urls=None, oscap_upload_token="", oscap_location=None, oscap_started="",
-             oscap_requested_by="", **kwargs):
+             oscap_requested_by="", oscap_pull=False, **kwargs):
     """Plugin entry point (via oscap_job.py). Returns the 4-tuple CloudBolt
     plugins use: status, output, errors, outputs."""
     server = Server.objects.filter(id=oscap_server_id).first()
@@ -610,7 +641,7 @@ def run_scan(job, oscap_server_id=None, oscap_mode="scan", oscap_datastream="", 
             return _run(job, server, oscap_mode, oscap_datastream, oscap_profile, oscap_scan_id,
                         oscap_cfg or store.job_settings(store.DEFAULT_SETTINGS), bool(oscap_uploads),
                         oscap_store_problem, oscap_upload_urls or {}, oscap_upload_token or "",
-                        oscap_location or {}, oscap_started, oscap_requested_by)
+                        oscap_location or {}, oscap_started, oscap_requested_by, bool(oscap_pull))
         except Exception as exc:
             logger.exception("OpenSCAP job failed on server %s", oscap_server_id)
             return "FAILURE", "", "OpenSCAP failed: {}".format(clean(str(exc), MESSAGE_LEN)), {}
@@ -720,6 +751,52 @@ def _execute(server, script, timeout, job=None):
     return output
 
 
+def _collect(server, scan_id):
+    """Read the result files an OpenShift Virtualization VM kept in its hold
+    directory, over the API tunnel, into the local backend, then remove the
+    directory. Returns {file name: (stored, reason)}."""
+    import paramiko
+    from shared_modules import kubevirt_api_tunnel
+
+    remote = hold_dir(scan_id)
+    results = {}
+    transport = None
+
+    def chunks(channel):
+        while True:
+            data = channel.recv(65536)
+            if not data:
+                return
+            yield data
+
+    try:
+        transport = kubevirt_api_tunnel.connect_ssh(server)
+        transport.set_keepalive(TUNNEL_KEEPALIVE)
+        for name in oscap_repo.UPLOAD_NAMES:
+            channel = transport.open_session()
+            channel.settimeout(120)
+            # The names are this module's constants and the scan id is checked by hold_dir.
+            channel.exec_command("sudo -n cat " + shlex.quote("{}/{}".format(remote, name)))
+            channel.shutdown_write()
+            results[name] = oscap_repo.store_stream(server.id, scan_id, name, chunks(channel))
+            channel.close()
+        channel = transport.open_session()
+        channel.settimeout(60)
+        channel.exec_command("sudo -n rm -rf " + shlex.quote(remote))
+        channel.recv_exit_status()
+    except (kubevirt_api_tunnel.TunnelError, paramiko.SSHException, EOFError, OSError) as exc:
+        logger.exception("OpenSCAP: collecting the files of scan %s from server %s failed", scan_id, server.id)
+        reason = "the file could not be read over the API tunnel: {}".format(
+            clean(str(exc), 150) or type(exc).__name__
+        )
+        for name in oscap_repo.UPLOAD_NAMES:
+            results.setdefault(name, (False, reason))
+    finally:
+        if transport is not None:
+            transport.close()
+    return results
+
+
 def _local_files(server, scan_id):
     """Which result files the local backend holds for a scan, by looking at the disk."""
     found = {}
@@ -729,8 +806,8 @@ def _local_files(server, scan_id):
 
 
 def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store_problem, urls, token, location,
-         started, requested_by):
-    if uploads and not urls:
+         started, requested_by, pull=False):
+    if uploads and not urls and not pull:
         return "FAILURE", "", (
             "This job's upload links were cleared when it first ran, so it cannot run again. "
             "Start a new scan from the OpenSCAP tab."
@@ -740,6 +817,7 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
 
     script = build_script(
         mode, datastream, profile_id, cfg["default_profiles"], cfg["allow_install"], urls, cfg["insecure"], token,
+        hold=hold_dir(scan_id) if (pull and mode == "scan") else "",
     )
     _progress(job, "Running the OpenSCAP {} on {}".format("scan" if mode == "scan" else "check", server.hostname))
     began = store.now_utc()
@@ -788,6 +866,12 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
         # The check itself ran; the server is just not ready to scan.
         return "WARNING", "", parsed["problem"] or "OpenSCAP is not ready.", outputs
 
+    if pull:
+        if parsed["held"]:
+            _progress(job, "Collecting the result files from {}".format(server.hostname))
+            parsed["stored"] = _collect(server, scan_id)
+        elif parsed["exit_code"] in (0, 2):
+            parsed["stored"] = {name: (False, NOT_HELD) for name in oscap_repo.UPLOAD_NAMES}
     disk = _local_files(server, scan_id) if (uploads and cfg["backend"] == "local") else None
     summary = scan_summary(parsed, scan_id, started or store.stamp(), job, requested_by, profile_id, datastream,
                            location, wall, uploads=uploads, no_target_problem=store_problem, disk_files=disk)
