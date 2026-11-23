@@ -62,7 +62,10 @@ On CloudBolt 2026.3.131:
 - **vCenter, Oracle Linux 8.10, SSH:** check and `stig` scan (52 seconds); the three files were stored on the appliance. With tech-specific script execution on, the lab appliance could not reach its ESXi host and the check timed out before the script ran.
 - **Azure, Oracle Linux 8.10, Azure Run Command:** check with install (about three and a half minutes) and a `stig` scan (about two minutes). Run Command returns only part of the script output, so the tab listed the first 61 of 233 failed rules; the score and counts were complete. The VM could not resolve the appliance, so the files were not stored.
 - **AWS, Ubuntu 22.04:** `oscap` installs, but Ubuntu's repositories carry no guide content, so there is nothing to scan against. Canonical ships its profiles with Ubuntu Pro (`usg`); that route is not tested.
+- **AWS, Windows Server 2025, WinRM, appliance storage:** check with install of SCC 5.15 (87 seconds including the download), and a `MAC-1_Classified` scan of the Server 2025 STIG benchmark (about 13 minutes; 291 rules). The three files were stored on the appliance and the report opened from the tab.
 
 The resource tab and its parent job are not yet tested on an appliance.
 
-Not yet tested: Windows scans with SCC (all of the Windows section above); the S3 backend and its presigned URLs; the SSM and VMware Tools script channels; installs through `zypper`; RHEL (registered), Rocky, Alma, SLES and Debian; and scanning as a non-admin user.
+Not yet tested on Windows: Server 2016, 2019 and 2022; the SSM, Azure Run Command and VMware Tools channels; version `latest`; and a Windows server in a resource scan.
+
+Not yet tested: the S3 backend and its presigned URLs; the SSM and VMware Tools script channels; installs through `zypper`; RHEL (registered), Rocky, Alma, SLES and Debian; and scanning as a non-admin user.
