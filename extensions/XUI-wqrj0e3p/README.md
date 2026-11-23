@@ -26,7 +26,8 @@ Setup downloads about 300 MB, needs about 9 GB free while the database unpacks, 
 
 - A Linux server whose script execution works (the same channel Remote Scripts use), powered on.
 - `curl`, `tar`, `gzip` and `sha256sum`.
-- Outbound HTTPS access to the appliance, or to github.com (when **Let servers download the inventory tool from GitHub** is on). The upload URL comes from the default portal's site URL (Admin > Portals) and never from a request's host. If the server does not trust the appliance certificate, turn on **Allow servers to skip the certificate check**.
+- Outbound HTTPS access to the appliance, or to github.com (when **Let servers download the inventory tool from GitHub** is on). The upload URL comes from the default portal's site URL (Admin > Portals) and never from a request's host. The server must trust the appliance certificate. An appliance that serves its certificate without the issuing CA's intermediate works in a browser and still fails here (curl error 60): add the intermediate to the appliance's web server, install it on the servers, or turn on **Allow servers to skip the certificate check**.
+- A group that is not an Unassigned group. Servers in an Unassigned group are never scanned.
 - To scan: the `server.all_actions` permission on the server, or CB Admin. To view: the view permission on the server.
 
 ## Setup
@@ -53,4 +54,6 @@ Setup downloads about 300 MB, needs about 9 GB free while the database unpacks, 
 
 ## Tested
 
-Not yet tested on an appliance.
+Tested on CloudBolt 2026.3 with AWS servers over SSH: scanner setup, scans of Amazon Linux 2023 and Ubuntu 22.04, a repeat scan, the tab's search, filters and paging, and the certificate failure message.
+
+Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, a database update after the first one, and the Unassigned group rule on a live server.
