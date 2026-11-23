@@ -339,6 +339,8 @@ def _run_view(run, viewable):
     completed = int(run.get("servers_completed") or 0)
     view["failed_count"] = max(attempted - completed, 0)
     view["outcome"] = "completed" if completed and completed == attempted else ("partial" if completed else "failed")
+    if run.get("canceled"):
+        view["outcome"] = "canceled"
     items = [item for item in run.get("servers") or [] if item.get("status") != "completed"]
     seen = [item for item in items if item.get("server_id") in viewable]
     problems = ["{}: {}".format(item.get("hostname") or item.get("server_id"), item.get("reason") or item.get("status"))

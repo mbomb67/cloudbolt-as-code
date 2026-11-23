@@ -303,6 +303,7 @@
             <td class="num">{% if r.unique_failed is not None %}{{ r.unique_failed }}{% else %}&ndash;{% endif %}</td>
             <td>
               {% if r.outcome == "completed" %}<span class="oscap-pill oscap-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% trans "Ready" %}{% else %}{% trans "Completed" %}{% endif %}</span>
+              {% elif r.outcome == "canceled" %}<span class="oscap-pill"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-slash-circle" aria-hidden="true"></i> {% trans "Canceled" %}</span>
               {% elif r.outcome == "partial" %}<span class="oscap-pill oscap-pill-warn"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% blocktrans count n=r.failed_count %}{{ n }} server not ready{% plural %}{{ n }} servers not ready{% endblocktrans %}{% else %}{% blocktrans count n=r.failed_count %}{{ n }} server failed{% plural %}{{ n }} servers failed{% endblocktrans %}{% endif %}</span>
               {% else %}<span class="oscap-pill oscap-pill-bad"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% trans "Not ready" %}{% else %}{% trans "Failed" %}{% endif %}</span>{% endif %}
             </td>

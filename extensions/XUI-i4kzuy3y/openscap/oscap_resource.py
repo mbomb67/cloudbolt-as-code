@@ -430,15 +430,23 @@ def _snapshot(entries, mode):
 def _finish(job, resource, order, entries, mode, datastream, profile_id, run_id, started, requested_by, wall):
     """Clear the active marker and write the run record in one step."""
     try:
+        # The engine can end a canceled parent's thread before the loop sees the cancel, so ask here too.
+        canceled = _canceled(job)
         results = [
-            entries.get(server_id) or _entry(server_id, reason="The run stopped before this server was scanned.")
+            entries.get(server_id) or _entry(
+                server_id,
+                reason="The run was canceled before this server started." if canceled
+                else "The run stopped before this server was scanned.",
+            )
             for server_id in order
         ]
         for entry in results:
             if entry["status"] == "running":
                 entry["status"] = "failed"
                 entry["reason"] = oscap_jobs.clean(
-                    "The run stopped before this server finished; see job {}.".format(entry["job_id"]), REASON_LEN)
+                    "The run was canceled while this server was scanning." if canceled
+                    else "The run stopped before this server finished; see job {}.".format(entry["job_id"]),
+                    REASON_LEN)
         try:
             average, unique, found_id, found_title, mixed = _snapshot(results, mode)
         except Exception:
@@ -462,6 +470,7 @@ def _finish(job, resource, order, entries, mode, datastream, profile_id, run_id,
             "servers_attempted": len(results),
             "average_score": average,
             "unique_failed": unique,
+            "canceled": canceled,
         }
 
         def change(index):
