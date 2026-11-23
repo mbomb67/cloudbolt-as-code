@@ -1,11 +1,11 @@
 """
-OpenSCAP scans of the servers of one resource, as one CloudBolt job.
+Compliance scans of the servers of one resource, as one CloudBolt job.
 
 start() runs in the web request. It validates the request, takes the
 resource's start lock and starts the plugin from oscap_hooks.py (the parent
 job) with OrchestrationHook.run_as_job. One run per resource at a time.
 
-run_resource_scan() runs inside the parent job. It starts one OpenSCAP Scan
+run_resource_scan() runs inside the parent job. It starts one Compliance Scan
 job per server (oscap_jobs.start, the same call the server tab makes), a few at
 a time (MAX_ACTIVE), and polls them. Each child is the server's own scan or
 check job: it keeps its own result files and its own entry in the server's
@@ -40,7 +40,7 @@ REASON_LEN = 200
 QUEUE_CAP_MIN = 60
 
 RESOURCE_INDEX_ERROR = (
-    "The scan history for this resource cannot be read or written; ask an administrator to check the OpenSCAP folder."
+    "The scan history for this resource cannot be read or written; ask an administrator to check the compliance data folder."
 )
 
 
@@ -58,9 +58,8 @@ def live_servers(resource):
 
 
 def eligible(server, visibility):
-    """Whether the server is part of the resource tab: it would get the server
-    tab, and it is not Windows (the scan runs a shell script)."""
-    return oscap_jobs.shows_tab(server, visibility) and not server.is_windows()
+    """Whether the server is part of the resource tab: it would get the server tab."""
+    return oscap_jobs.shows_tab(server, visibility)
 
 
 def summary_input(server_id, hostname, scan):
@@ -148,7 +147,7 @@ def start(profile, resource, servers, mode, datastream, profile_id, install, bas
             return _queue(profile, resource, servers, mode, datastream, profile_id,
                           bool(install) and cfg["allow_install"], job_cfg, base_url)
     except store.StoreError:
-        logger.exception("OpenSCAP: index problem starting a run on resource %s", resource.id)
+        logger.exception("Compliance: index problem starting a run on resource %s", resource.id)
         return oscap_jobs.Refusal(RESOURCE_INDEX_ERROR, 500)
 
 
@@ -178,19 +177,19 @@ def _queue(profile, resource, servers, mode, datastream, profile_id, install, jo
     job = created[0]
     # From here the job is queued: nothing below may turn into an error.
     try:
-        job.label = "OpenSCAP {}: {}".format("scan" if mode == "scan" else "check", resource.name)
+        job.label = "Compliance {}: {}".format("scan" if mode == "scan" else "check", resource.name)
         job.save(update_fields=["label"])
         # So the job shows on the resource's own Jobs tab and its group can see it.
         resource.jobs.add(job)
     except Exception:
-        logger.exception("OpenSCAP: could not label or link job %s", job.id)
+        logger.exception("Compliance: could not label or link job %s", job.id)
     try:
         store.set_resource_active(
             resource.id,
             {"job_id": job.id, "kind": mode, "started": started, "run_id": run_id, "server_ids": server_ids, "done": []},
         )
     except Exception:
-        logger.exception("OpenSCAP: could not record job %s as active on resource %s", job.id, resource.id)
+        logger.exception("Compliance: could not record job %s as active on resource %s", job.id, resource.id)
     return job
 
 
@@ -228,8 +227,6 @@ def _start_child(job, resource, server_id, mode, datastream, profile_id, install
         return _entry(server_id, hostname, reason="The server is no longer part of this resource."), None
     if server.status == "HISTORICAL":
         return _entry(server_id, hostname, reason="The server is historical."), None
-    if server.is_windows():
-        return _entry(server_id, hostname, reason="OpenSCAP scans Linux servers only."), None
     if job is None or job.owner is None:
         return _entry(server_id, hostname, reason="The run has no owner to start the scan as."), None
     # The permissions are checked again as the user the run belongs to: they may have changed since the click.
@@ -261,7 +258,7 @@ def _settle(entry, child, mode):
             state = store.read_index(entry["server_id"])["state"]
             if not state.get("ready"):
                 entry["status"] = "not_ready"
-                reason = state.get("problem") or "OpenSCAP is not ready."
+                reason = state.get("problem") or "The scanner is not ready."
     except store.StoreError:
         pass
     if not reason and entry["status"] == "failed":
@@ -274,7 +271,7 @@ def _mark_done(resource_id, server_id, job_id):
         with store.resource_lock(resource_id):
             store.mark_resource_server_done(resource_id, server_id, job_id)
     except Exception:
-        logger.exception("OpenSCAP: could not mark server %s done on resource %s", server_id, resource_id)
+        logger.exception("Compliance: could not mark server %s done on resource %s", server_id, resource_id)
 
 
 def run_resource_scan(job, oscap_resource_id=None, oscap_mode="scan", oscap_datastream="", oscap_profile="",
@@ -293,8 +290,8 @@ def run_resource_scan(job, oscap_resource_id=None, oscap_mode="scan", oscap_data
             return _run(job, resource, order, entries, oscap_mode, oscap_datastream, oscap_profile,
                         bool(oscap_install), oscap_cfg or store.job_settings(store.DEFAULT_SETTINGS), oscap_base_url)
         except Exception as exc:
-            logger.exception("OpenSCAP resource job failed on resource %s", oscap_resource_id)
-            return "FAILURE", "", "OpenSCAP failed: {}".format(oscap_jobs.clean(str(exc), oscap_jobs.MESSAGE_LEN)), {}
+            logger.exception("Compliance resource job failed on resource %s", oscap_resource_id)
+            return "FAILURE", "", "Compliance scan failed: {}".format(oscap_jobs.clean(str(exc), oscap_jobs.MESSAGE_LEN)), {}
     finally:
         # Always clear the marker and write the record, so a failed run never blocks the next one.
         if oscap_resource_id and resource is not None:
@@ -310,7 +307,7 @@ def _cancel_child(child):
     try:
         JobCancelForm().save(child)
     except Exception:
-        logger.exception("OpenSCAP: could not cancel job %s", child.id)
+        logger.exception("Compliance: could not cancel job %s", child.id)
 
 
 def _run(job, resource, order, entries, mode, datastream, profile_id, install, cfg, base_url):
@@ -339,7 +336,7 @@ def _run(job, resource, order, entries, mode, datastream, profile_id, install, c
             try:
                 entry, child = _start_child(job, resource, server_id, mode, datastream, profile_id, install, base_url)
             except Exception:
-                logger.exception("OpenSCAP: could not start server %s in a run of resource %s", server_id, resource.id)
+                logger.exception("Compliance: could not start server %s in a run of resource %s", server_id, resource.id)
                 entry, child = _entry(server_id, reason="The scan could not be started; see the application log."), None
             entries[server_id] = entry
             if child is None:
@@ -450,7 +447,7 @@ def _finish(job, resource, order, entries, mode, datastream, profile_id, run_id,
         try:
             average, unique, found_id, found_title, mixed = _snapshot(results, mode)
         except Exception:
-            logger.exception("OpenSCAP: could not summarise run %s", run_id)
+            logger.exception("Compliance: could not summarise run %s", run_id)
             average, unique, found_id, found_title, mixed = None, None, "", "", False
         job_id = job.id if job is not None else None
         run = {
@@ -482,4 +479,4 @@ def _finish(job, resource, order, entries, mode, datastream, profile_id, run_id,
         with store.resource_lock(resource.id):
             store.update_resource_index(resource.id, change)
     except Exception:
-        logger.exception("OpenSCAP: could not clear the active marker or write the run of resource %s", resource.id)
+        logger.exception("Compliance: could not clear the active marker or write the run of resource %s", resource.id)
