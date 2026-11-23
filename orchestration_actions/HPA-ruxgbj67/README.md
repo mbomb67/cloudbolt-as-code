@@ -23,6 +23,6 @@ Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/RE
 - A server that is not powered on is not scanned.
 
 ## Tested
-The scan itself was tested with an earlier version of this action that waited for it: on CloudBolt 2026.3.131, AWS, one Windows Server 2025 server (t3.large) had SCC 5.15 downloaded and extracted in about a minute, and the `MAC-1_Classified` scan took about 17 minutes (42.5%) with the result files stored. Starting the scan as a sub-job without waiting has not been tested on an appliance yet.
+On CloudBolt 2026.3.131, AWS, one Windows Server 2025 server (t3.large) ordered from a blueprint: the action started the scan and ended in under a second. The provisioning job and the order ended Success while the scan sub-job was still running. The sub-job downloaded SCC 5.15, scanned with `MAC-1_Classified` (42.5%), stored the result files and ended Success about 17 minutes later.
 
-Not tested: other Windows Server versions, a job with more than one server, a server joined to a domain by the AD join action, and a Linux server being skipped.
+Not tested: other Windows Server versions, a job with more than one server, a server joined to a domain by the AD join action, a Linux server being skipped, and a scan that fails after provisioning has ended.

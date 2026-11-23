@@ -22,6 +22,8 @@ Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/RE
 - A server that is not powered on is not scanned.
 
 ## Tested
-The scan itself was tested with an earlier version of this action that waited for it: on CloudBolt 2026.3.131, AWS, Amazon Linux 2023 was installed and scanned with the `standard` profile (46.4%) in about 75 seconds; on Ubuntu 22.04 the scan failed (Ubuntu's repositories carry no guide content) and provisioning stayed Success. Starting the scan as a sub-job without waiting has not been tested on an appliance yet.
+On CloudBolt 2026.3.131, AWS, servers ordered from a blueprint:
+- **Amazon Linux 2023:** the action started the scan and ended in under a second. The provisioning job and the order ended Success while the scan sub-job was still running. The sub-job installed OpenSCAP, scanned with the `cis_server_l1` profile (89.4%), stored the result files and ended Success about 30 seconds later. The action's only progress message was the line that says the scan started.
+- **Ubuntu 22.04**, with an earlier version of this action that waited for the scan: the scan failed (Ubuntu's repositories carry no guide content) and provisioning stayed Success.
 
-Not tested: other Linux distributions, a job with more than one server, and a Windows server being skipped.
+Not tested: other Linux distributions, a job with more than one server, a Windows server being skipped, and a scan that fails after provisioning has ended.
