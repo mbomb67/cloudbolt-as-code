@@ -191,7 +191,7 @@
         </div>
       </div>
       <div class="table-responsive">
-        <table class="oscap-table" data-oscap-rules-table>
+        <table class="oscap-table" data-oscap-rules-table data-shown="25">
           <thead><tr><th scope="col">{% trans "Severity" %}</th><th scope="col">{% trans "Rule" %}</th></tr></thead>
           <tbody>
             {% for r in latest.failed_rules %}
@@ -204,6 +204,7 @@
           </tbody>
         </table>
       </div>
+      <div class="oscap-pager" data-oscap-rmore hidden><button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="more-rules">{% trans "Show more" %}</button></div>
       {% if latest.failed_rules_truncated %}
       <div class="oscap-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with n=latest.failed_rules|length %}Showing the first {{ n }}; the report has the full list.{% endblocktrans %}</div>
       {% endif %}

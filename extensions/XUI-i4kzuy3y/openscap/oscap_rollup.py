@@ -11,7 +11,7 @@ A server is a dict:
     score            the benchmark score, or None
     fail             the scan's count of failed rules
     failed_rules     [{"id": rule id, "severity": high|medium|low|unknown}]; the
-                     index keeps at most the first 100 of them
+                     index keeps at most the first 1000 of them, and only for a server's newest completed scan
     truncated        True when failed_rules is shorter than fail
 """
 import re

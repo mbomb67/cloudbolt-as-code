@@ -26,7 +26,7 @@
     var timer = null;
     var loading = false;
     var busy = false;
-    var ui = { formOpen: false, rulesOpen: false, q: "", sev: "", shown: PAGE, profile: "", install: false };
+    var ui = { formOpen: false, rulesOpen: false, q: "", sev: "", shown: PAGE, rshown: PAGE, profile: "", install: false };
 
     function alive() { return document.body.contains(rootEl) && rootEl.oscapToken === token; }
     function panel() { return $body.find(".oscap-panel")[0] || null; }
@@ -57,6 +57,8 @@
       if (sel) { ui.profile = sel.value; }
       if (inst) { ui.install = inst.checked; }
       if (table) { ui.shown = parseInt(table.getAttribute("data-shown"), 10) || PAGE; }
+      var rtable = one("[data-oscap-rules-table]");
+      if (rtable) { ui.rshown = parseInt(rtable.getAttribute("data-shown"), 10) || PAGE; }
     }
     function restore() {
       var form = one("[data-oscap-form]");
@@ -163,16 +165,27 @@
       var q = ((one("[data-oscap-filter-q]").value) || "").trim().toLowerCase();
       var sev = one("[data-oscap-filter-sev]").value;
       var rows = table.querySelectorAll("tr[data-oscap-rule]");
+      var matching = 0;
       var shown = 0;
       Array.prototype.forEach.call(rows, function (tr) {
         var ok = (!sev || tr.getAttribute("data-sev") === sev) && (!q || tr.getAttribute("data-id").indexOf(q) !== -1);
-        tr.hidden = !ok;
-        if (ok) { shown++; }
+        if (ok) { matching++; }
+        var visible = ok && matching <= ui.rshown;
+        tr.hidden = !visible;
+        if (visible) { shown++; }
       });
+      table.setAttribute("data-shown", String(ui.rshown));
       var none = table.querySelector("[data-oscap-nomatch]");
-      if (none) { none.hidden = shown !== 0; }
+      if (none) { none.hidden = matching !== 0; }
       var count = one("[data-oscap-filter-count]");
-      if (count) { count.textContent = shown + " of " + rows.length; }
+      if (count) { count.textContent = matching + " of " + rows.length; }
+      var more = one("[data-oscap-rmore]");
+      if (more) {
+        var left = matching - shown;
+        more.hidden = left <= 0;
+        var btn = more.querySelector("button");
+        if (btn && left > 0) { btn.textContent = "Show more (" + left + " more)"; }
+      }
     }
 
     function applyPaging() {
@@ -216,9 +229,10 @@
       } else if (act === "check") { start("check", false, "", ""); }
       else if (act === "install-check") { start("check", true, "", ""); }
       else if (act === "more") { ui.shown += PAGE; applyPaging(); }
+      else if (act === "more-rules") { ui.rshown += PAGE; applyFilter(); }
     });
-    $root.on("input", "[data-oscap-filter-q]", applyFilter);
-    $root.on("change", "[data-oscap-filter-sev]", applyFilter);
+    $root.on("input", "[data-oscap-filter-q]", function () { ui.rshown = PAGE; applyFilter(); });
+    $root.on("change", "[data-oscap-filter-sev]", function () { ui.rshown = PAGE; applyFilter(); });
     $root.on("submit", "form", function (e) { e.preventDefault(); });
 
     function onVisible() {

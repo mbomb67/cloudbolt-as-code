@@ -393,11 +393,30 @@ def set_state(server_id, state):
     update_index(server_id, lambda index: index.__setitem__("state", state))
 
 
+def trim_old_rules(scans):
+    """Keep the list of failed rules only on the newest completed scan (scans are
+    newest first). Older completed scans keep their counts and severities but get
+    an empty list marked failed_rules_dropped, so an emptied list is never read as
+    "nothing failed". A newer scan that failed leaves the previous completed one
+    as the newest completed, with its list."""
+    seen = False
+    for scan in scans:
+        if scan.get("status") != "completed":
+            continue
+        if seen and scan.get("failed_rules"):
+            scan["failed_rules"] = []
+            scan["failed_rules_dropped"] = True
+        seen = True
+    return scans
+
+
 def add_scan(server_id, summary):
-    """Put a scan summary first (newest first), replacing one with the same id."""
+    """Put a scan summary first (newest first), replacing one with the same id.
+    Only the newest completed scan keeps its failed rules (trim_old_rules): the
+    index is read on every panel poll."""
 
     def change(index):
-        index["scans"] = [summary] + [s for s in index["scans"] if s.get("id") != summary.get("id")]
+        index["scans"] = trim_old_rules([summary] + [s for s in index["scans"] if s.get("id") != summary.get("id")])
 
     update_index(server_id, change)
 

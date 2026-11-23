@@ -405,21 +405,26 @@ def _snapshot(entries, mode):
     if mode != "scan":
         return None, None, "", "", False
     servers, profiles = [], set()
+    dropped = False
     for entry in entries:
         if entry["status"] != "completed" or not entry["scan_id"]:
             continue
         scan = store.find_scan(entry["server_id"], entry["scan_id"])
         if scan is None or scan.get("status") != "completed":
             continue
+        if scan.get("failed_rules_dropped"):
+            # A newer scan of this server has already replaced the list: the rule count would be short.
+            dropped = True
         servers.append(summary_input(entry["server_id"], entry["hostname"], scan))
         profiles.add((scan.get("profile_id") or "", scan.get("profile_title") or ""))
     if not servers:
         return None, None, "", "", False
     rolled = oscap_rollup.rollup(servers)
+    unique = None if dropped else rolled["unique_failed"]
     if len(profiles) == 1:
         found = next(iter(profiles))
-        return rolled["average"], rolled["unique_failed"], found[0], found[1], False
-    return rolled["average"], rolled["unique_failed"], "", "", True
+        return rolled["average"], unique, found[0], found[1], False
+    return rolled["average"], unique, "", "", True
 
 
 def _finish(job, resource, order, entries, mode, datastream, profile_id, run_id, started, requested_by, wall):
