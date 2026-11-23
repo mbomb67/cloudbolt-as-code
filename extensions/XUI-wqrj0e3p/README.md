@@ -54,6 +54,6 @@ Setup downloads about 300 MB, needs about 9 GB free while the database unpacks, 
 
 ## Tested
 
-Tested on CloudBolt 2026.3 with AWS servers over SSH: scanner setup, scans of Amazon Linux 2023 and Ubuntu 22.04, a repeat scan, the tab's search, filters and paging, and the certificate failure message.
+Tested on CloudBolt 2026.3 with AWS servers over SSH: scanner setup, scans of Amazon Linux 2023 and Ubuntu 22.04, a repeat scan, the tab's search, filters and paging, the certificate failure message, and the refusal for a server in an Unassigned group.
 
-Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, a database update after the first one, and the Unassigned group rule on a live server.
+Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, and a database update after the first one.
