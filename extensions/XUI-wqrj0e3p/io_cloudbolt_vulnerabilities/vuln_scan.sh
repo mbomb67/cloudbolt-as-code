@@ -236,8 +236,8 @@ if [ -r /proc/mounts ]; then
         remote_mounts=$((remote_mounts + 1))
     done </proc/mounts
 fi
-[ "$remote_mounts" -gt 0 ] && emit note "Skipped $remote_mounts network mount(s)"
-[ "$skipped_escaped" -gt 0 ] && emit note "Could not skip $skipped_escaped network mount(s) whose path has a space or special character; they were scanned"
+[ "$remote_mounts" -gt 0 ] && emit note "Skipped $remote_mounts network or automounted folder(s)"
+[ "$skipped_escaped" -gt 0 ] && emit note "Could not skip $skipped_escaped network or automounted folder(s) whose path has a space or special character; they were scanned"
 
 # ---- build the software list ----------------------------------------------
 # SYFT_FILE_METADATA_SELECTION=none drops the per-file listing the matcher never
