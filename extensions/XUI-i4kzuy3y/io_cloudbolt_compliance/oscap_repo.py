@@ -1,5 +1,5 @@
 """
-OpenSCAP XUI: where the result files of a scan are kept.
+Compliance XUI: where the result files of a scan are kept.
 
 The full results (the HTML report, the XCCDF results and the ARF file) never
 go into the CloudBolt database. The target server uploads them itself, with
@@ -18,7 +18,7 @@ CloudBolt AWS resource handler; viewing redirects to a short-lived presigned
 GET URL. Nothing is pruned: use a bucket lifecycle rule.
 
 Local: files live under PROSERV_DIR/openscap/reports/<server id>/<scan id>/.
-The target PUTs them to the openscap_upload route with an HMAC-SHA256 token in
+The target PUTs them to the compliance_upload route with an HMAC-SHA256 token in
 the X-Oscap-Token header (never in the URL, so access logs do not hold it).
 The per-install random key is oscap_store.signing_key; the token binds the
 scan id, the server id, the allowed file names and an expiry. An upload is
@@ -80,7 +80,7 @@ ADMIN_TEXT = {
         "s3:ListBucket permission, or set the bucket region. The CloudBolt application log has the error."
     ),
     "bucket_region": "S3 did not report the region of bucket {bucket}; set it on the settings page.",
-    "s3_unconfigured": "S3 storage is not configured. An administrator must finish the OpenSCAP settings page.",
+    "s3_unconfigured": "S3 storage is not configured. An administrator must finish the Compliance settings page.",
     "no_site_url": "The default portal has no site URL.",
 }
 
@@ -297,7 +297,7 @@ def store_stream(server_id, scan_id, name, chunks):
                     reason = "the file is larger than {} MB".format(MAX_UPLOAD_BYTES // 1024 ** 2)
                     break
                 if total > room:
-                    reason = "the OpenSCAP storage on the appliance is full"
+                    reason = "the compliance storage on the appliance is full"
                     break
                 handle.write(chunk)
         if not reason and total == 0:
@@ -478,7 +478,7 @@ def _presign_client(lookup, region):
     try:
         frozen = lookup._get_credentials().get_frozen_credentials()
     except Exception:
-        logger.exception("OpenSCAP: using the handler's own S3 client for presigned URLs")
+        logger.exception("Compliance: using the handler's own S3 client for presigned URLs")
         return lookup
     return boto3.client(
         "s3",
@@ -541,7 +541,7 @@ def _s3_response(server, scan, kind):
     except RepoError:
         raise
     except Exception as exc:
-        logger.exception("OpenSCAP: could not presign a link for scan %s", scan.get("id"))
+        logger.exception("Compliance: could not presign a link for scan %s", scan.get("id"))
         raise RepoError(detail="Could not create a link to the stored file: {}".format(_short(exc)))
     response = HttpResponseRedirect(url)
     response["Cache-Control"] = "private, no-store"
@@ -570,7 +570,7 @@ def upload_targets(server, scan_id, base_url="", minutes=35):
     if cfg["backend"] == "s3":
         if not cfg["s3_bucket"] or not cfg["aws_handler_id"]:
             raise RepoError(
-                detail="S3 storage is not configured. An administrator must finish the OpenSCAP settings page.",
+                detail="S3 storage is not configured. An administrator must finish the Compliance settings page.",
                 code="s3_unconfigured",
             )
         urls, region = _s3_upload_targets(cfg, server, scan_id, minutes)
@@ -581,7 +581,7 @@ def upload_targets(server, scan_id, base_url="", minutes=35):
     token = make_token(scan_id, server.id, UPLOAD_NAMES, minutes)
     return {
         "urls": {
-            name: "{}{}".format(base_url.rstrip("/"), reverse("openscap_upload", args=[scan_id, name]))
+            name: "{}{}".format(base_url.rstrip("/"), reverse("compliance_upload", args=[scan_id, name]))
             for name in UPLOAD_NAMES
         },
         "token": token,

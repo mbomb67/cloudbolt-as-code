@@ -9,38 +9,38 @@ from . import views
 xui_urlpatterns = [
     # HTML fragment the tab loads
     path(
-        "openscap/servers/<int:server_id>/panel/",
-        views.openscap_panel,
-        name="openscap_panel",
+        "compliance/servers/<int:server_id>/panel/",
+        views.compliance_panel,
+        name="compliance_panel",
     ),
     # JSON: start a scan or a readiness check as a job
     path(
-        "openscap/servers/<int:server_id>/scan/",
-        views.openscap_start,
-        name="openscap_start",
+        "compliance/servers/<int:server_id>/scan/",
+        views.compliance_start,
+        name="compliance_start",
     ),
     # Stored result files: report, XCCDF results, ARF
     path(
-        "openscap/servers/<int:server_id>/scans/<str:scan_id>/<str:kind>/",
-        views.openscap_artifact,
-        name="openscap_artifact",
+        "compliance/servers/<int:server_id>/scans/<str:scan_id>/<str:kind>/",
+        views.compliance_artifact,
+        name="compliance_artifact",
     ),
     # HTML fragment the resource tab loads
     path(
-        "openscap/resources/<int:resource_id>/panel/",
-        views.openscap_resource_panel,
-        name="openscap_resource_panel",
+        "compliance/resources/<int:resource_id>/panel/",
+        views.compliance_resource_panel,
+        name="compliance_resource_panel",
     ),
     # JSON: start a scan or a readiness check on the chosen servers of a resource, as one job
     path(
-        "openscap/resources/<int:resource_id>/scan/",
-        views.openscap_resource_start,
-        name="openscap_resource_start",
+        "compliance/resources/<int:resource_id>/scan/",
+        views.compliance_resource_start,
+        name="compliance_resource_start",
     ),
     # Targets upload their files here with a signed token (local backend only)
     path(
-        "openscap/upload/<str:scan_id>/<str:name>",
-        views.openscap_upload,
-        name="openscap_upload",
+        "compliance/upload/<str:scan_id>/<str:name>",
+        views.compliance_upload,
+        name="compliance_upload",
     ),
 ]

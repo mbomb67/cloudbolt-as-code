@@ -1,8 +1,8 @@
 """Blueprint build item: scans a server tier with OpenSCAP and links the report on the resource.
 
-All of the OpenSCAP work belongs to the OpenSCAP UI extension (extensions/XUI-i4kzuy3y). This step
+All of the scan work belongs to the Compliance UI extension (extensions/XUI-i4kzuy3y). This step
 calls its oscap_api.scan_and_wait, which installs OpenSCAP when it is missing, runs the scan as its
-own job, stores the result files and adds the scan to the history on the server's OpenSCAP tab.
+own job, stores the result files and adds the scan to the history on the server's Compliance tab.
 The step waits for that job, so the order is not complete until the scan is. It then stores a link
 to the HTML report on the resource, one parameter per server (openscap_report_ plus the tier name).
 
@@ -19,7 +19,7 @@ TIER = tiers.clean("{{ tier }}")
 PROFILE = tiers.clean("{{ profile }}")
 
 NO_EXTENSION = (
-    "The OpenSCAP UI extension is not installed on this CloudBolt. Sync extensions/XUI-i4kzuy3y, "
+    "The Compliance UI extension is not installed on this CloudBolt. Sync extensions/XUI-i4kzuy3y, "
     "restart the web service, and run this step again."
 )
 
@@ -34,7 +34,7 @@ def report_parameter(server, position):
 
 def run(job, resource=None, **kwargs):
     try:
-        from xui.openscap import oscap_api
+        from xui.io_cloudbolt_compliance import oscap_api
     except ImportError:
         return "FAILURE", "", NO_EXTENSION
     if resource is None:
