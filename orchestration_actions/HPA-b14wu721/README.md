@@ -17,3 +17,10 @@ Prerequisites are in the [OpenSCAP extension](../../extensions/XUI-i4kzuy3y/READ
 - The scan picks the SCAP Security Guide datastream that matches the guest's `/etc/os-release`, then the first default profile from the settings page that the datastream offers (`cis_server_l1,cis,stig,standard` by default). The Profile input overrides this.
 - The servers of one job are scanned one after another, and provisioning waits. Maximum wait (minutes) covers the whole action (30 by default): a scan still running then is cancelled and the servers left are skipped.
 - A server that is not powered on is not scanned.
+
+## Tested
+On CloudBolt 2026.3.131, AWS, servers ordered from a blueprint:
+- **Amazon Linux 2023:** OpenSCAP installed and scanned with the `standard` profile (46.4%), the three result files stored and the report link written to the provisioning job. The action added about 100 seconds.
+- **Ubuntu 22.04:** the scan failed (Ubuntu's repositories carry no guide content). The scan job ended as Failure; the provisioning job, the deploy job and the order stayed Success with no error text. The action added about 15 seconds.
+
+Not tested: other Linux distributions, a job with more than one server, the Maximum wait cut-off, and a Windows server being skipped.
