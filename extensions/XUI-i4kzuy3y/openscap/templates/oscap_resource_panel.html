@@ -1,0 +1,327 @@
+{% load i18n %}
+{% comment %}
+  Panel fragment for the OpenSCAP resource tab, loaded and re-loaded by
+  oscap_resource_assets.html. The top element's data-active is "1" while the
+  resource run or any server's job runs, which keeps the script polling; the
+  header's Scan all servers and Check servers buttons are off while the
+  resource run is going. data-check-ids lists the servers Check servers runs on.
+  Everything is autoescaped; nothing is marked safe.
+{% endcomment %}
+<div class="oscap-panel" data-active="{% if oscap.active or oscap.any_scanning %}1{% else %}0{% endif %}" data-run="{% if oscap.active %}1{% else %}0{% endif %}" data-denied="{% if oscap.denied %}1{% else %}0{% endif %}" data-check-ids="{{ oscap.check_ids }}">
+{% if oscap.denied %}
+  <div class="oscap-banner oscap-banner-bad" role="alert">
+    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{% trans "You do not have access" %}</div>
+      <div class="oscap-banner-s">{% trans "You do not have permission to see OpenSCAP results for this resource. Ask a CloudBolt administrator for access." %}</div>
+    </div>
+  </div>
+{% else %}
+
+  {% if error %}
+  <div class="oscap-card oscap-card-flush">
+    <div class="oscap-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  </div>
+  {% else %}
+
+  <div class="oscap-meta">
+    <span>{% blocktrans with n=oscap.scanned_count total=oscap.server_count %}{{ n }} of {{ total }} servers scanned{% endblocktrans %}</span>
+    {% if oscap.os_name %}<span>{{ oscap.os_name }}</span>{% endif %}
+    {% if oscap.last_scan %}<span>{% blocktrans with when=oscap.last_scan %}Last scan {{ when }}{% endblocktrans %}</span>{% endif %}
+  </div>
+
+  <div class="oscap-card oscap-card-flush" data-oscap-alert hidden></div>
+
+  {% if oscap.can_scan %}
+  <form class="oscap-card oscap-form" id="oscap-form" data-oscap-form hidden>
+    <div class="oscap-form-row">
+      <div>
+        <label class="oscap-label" for="oscap-profile">{% trans "Profile" %}</label>
+        <select class="form-select form-select-sm" id="oscap-profile" data-oscap-profile>
+          <option value="" data-ds="" data-profile="">{% trans "Each server's default profile" %}</option>
+          {% if oscap.profile_options %}
+          <optgroup label="{% blocktrans with n=oscap.profile_server_count %}Available on all {{ n }} servers{% endblocktrans %}">
+            {% for p in oscap.profile_options %}<option value="{{ p.value }}" data-ds="{{ p.ds }}" data-profile="{{ p.profile }}">{{ p.title }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+        </select>
+      </div>
+      <div>
+        <span class="oscap-label" id="oscap-servers-l">{% trans "Servers" %}</span>
+        <div class="oscap-checks" role="group" aria-labelledby="oscap-servers-l">
+          {% for row in oscap.form_servers %}
+          <label{% if not row.powered %} class="oscap-off"{% endif %}><input type="checkbox" data-oscap-server value="{{ row.id }}" id="oscap-server-{{ row.id }}"{% if row.powered %} checked{% else %} disabled{% endif %}> {{ row.hostname }}{% if not row.powered %} ({% trans "powered off" %}){% endif %}</label>
+          {% endfor %}
+        </div>
+      </div>
+      {% if oscap.allow_install %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="oscap-install" data-oscap-install>
+        <label class="form-check-label" for="oscap-install">{% trans "Install OpenSCAP if it is missing" %}</label>
+      </div>
+      {% endif %}
+      <div class="oscap-form-actions">
+        <button type="button" class="btn btn-sm btn-primary" data-oscap-act="run"><i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Run" %}</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="cancel">{% trans "Cancel" %}</button>
+      </div>
+    </div>
+    <div class="oscap-hint">{% blocktrans with n=oscap.max_active %}One job starts a scan on every selected server, {{ n }} at a time. A server that fails does not stop the others.{% endblocktrans %}</div>
+    {% if not oscap.profile_options %}
+    <div class="oscap-hint">{% trans "Use Check servers to list the profiles available on these servers." %}</div>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {% if oscap.active %}
+  <div class="oscap-banner oscap-banner-info" role="status" aria-live="polite">
+    <i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{% if oscap.active.kind == "check" %}{% blocktrans count n=oscap.active.total %}Checking {{ n }} server{% plural %}Checking {{ n }} servers{% endblocktrans %}{% else %}{% blocktrans count n=oscap.active.total %}Scanning {{ n }} server{% plural %}Scanning {{ n }} servers{% endblocktrans %}{% endif %}</div>
+      <div class="oscap-banner-s">{% blocktrans with done=oscap.active.done total=oscap.active.total %}{{ done }} of {{ total }} complete{% endblocktrans %}{% if oscap.active.started %} &middot; {% blocktrans with when=oscap.active.started %}Started {{ when }}{% endblocktrans %}{% endif %}</div>
+      <div class="oscap-progress" aria-hidden="true"><i style="width: {{ oscap.active.percent }}%"></i></div>
+    </div>
+    {% if oscap.active.job_url %}<a class="btn btn-sm btn-outline-secondary oscap-banner-btn" href="{{ oscap.active.job_url }}">{% trans "View job" %}</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if not oscap.servers %}
+  <div class="oscap-empty">{% trans "This resource has no Linux servers you may view." %}</div>
+  {% else %}
+
+  {% if not oscap.summary and not oscap.history and not oscap.active %}
+  <div class="oscap-section">
+    <div class="oscap-card-h"><span class="oscap-card-t">{% trans "No scans yet" %}</span></div>
+    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label %}A scan checks each server against a security profile with OpenSCAP and reports which rules pass and fail. Each server keeps its own report in {{ label }}.{% endblocktrans %}</div>
+  </div>
+  {% endif %}
+
+  {% if oscap.summary %}
+  {% with sum=oscap.summary rolled=oscap.summary.rolled %}
+  <section class="oscap-section" aria-labelledby="oscap-latest-h">
+    <div class="oscap-card-h">
+      <span class="oscap-card-t" id="oscap-latest-h">{% trans "Latest result across servers" %}</span>
+    </div>
+
+    <div class="oscap-cards">
+      <div class="oscap-card">
+        <svg class="oscap-donut" viewBox="0 0 64 64" role="img" aria-label="{% trans 'Average score' %} {% if rolled.average is not None %}{{ rolled.average|floatformat:0 }}{% else %}-{% endif %}">
+          <circle class="oscap-donut-track" cx="32" cy="32" r="26"></circle>
+          {% if rolled.average is not None %}<circle class="oscap-donut-arc" cx="32" cy="32" r="26" stroke-dasharray="{% widthratio rolled.average 100 163 %} 164" transform="rotate(-90 32 32)"></circle>{% endif %}
+          <text x="32" y="37" text-anchor="middle">{% if rolled.average is not None %}{{ rolled.average|floatformat:0 }}%{% else %}&ndash;{% endif %}</text>
+        </svg>
+        <div>
+          <div class="oscap-card-k">{% trans "Average score" %}</div>
+          {% if sum.trend %}
+          <div class="oscap-muted" style="font-size: 12px;">{% if sum.trend.direction == "up" %}{% blocktrans with since=sum.trend.since count n=sum.trend.points %}Up {{ n }} point since {{ since }}{% plural %}Up {{ n }} points since {{ since }}{% endblocktrans %}{% elif sum.trend.direction == "down" %}{% blocktrans with since=sum.trend.since count n=sum.trend.points %}Down {{ n }} point since {{ since }}{% plural %}Down {{ n }} points since {{ since }}{% endblocktrans %}{% else %}{% blocktrans with since=sum.trend.since %}No change since {{ since }}{% endblocktrans %}{% endif %}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% if rolled.lowest %}
+      <div class="oscap-card"><div><div class="oscap-card-k">{% trans "Lowest score" %}</div><div class="oscap-big">{{ rolled.lowest.score|floatformat:0 }}%</div><div class="oscap-hint"><a class="oscap-link" href="{{ sum.lowest_url }}">{{ rolled.lowest.hostname }}</a></div></div></div>
+      {% endif %}
+      <div class="oscap-card"><div><div class="oscap-card-k">{% trans "Failed rules" %}</div><div class="oscap-big{% if rolled.unique_failed %} oscap-bad{% endif %}">{{ rolled.unique_failed }}</div><div class="oscap-hint">{% blocktrans with f=rolled.findings count n=rolled.scanned %}{{ f }} findings on {{ n }} server{% plural %}{{ f }} findings on {{ n }} servers{% endblocktrans %}</div></div></div>
+      <div class="oscap-card">
+        <div>
+          <div class="oscap-card-k">{% trans "Failed rules by severity" %}</div>
+          <div class="oscap-sev-figs">
+            <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.high }}</div><div class="l">{% trans "High" %}</div></div>
+            <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.medium }}</div><div class="l">{% trans "Medium" %}</div></div>
+            <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.low }}</div><div class="l">{% trans "Low" %}</div></div>
+            {% if rolled.by_severity.unknown %}<div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.unknown }}</div><div class="l">{% trans "Unknown" %}</div></div>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% if rolled.scanned > 1 %}
+      <div class="oscap-card"><div><div class="oscap-card-k">{% trans "Fail on every server" %}</div><div class="oscap-big">{{ rolled.on_every }}</div><div class="oscap-hint">{% trans "Fix once in the image or blueprint" %}</div></div></div>
+      {% endif %}
+      <div class="oscap-card">
+        <div class="oscap-kv">
+          <span class="l">{% trans "Profile" %}</span><span class="v">{% if sum.mixed %}{% trans "Mixed" %}{% elif sum.profile %}{{ sum.profile }}{% else %}{% trans "Default profile" %}{% endif %}</span>
+          <span class="l">{% trans "Started" %}</span><span class="v">{% if sum.started %}{{ sum.started }}{% else %}&ndash;{% endif %}</span>
+          <span class="l">{% trans "Duration" %}</span><span class="v">{% if sum.duration %}{{ sum.duration }}{% else %}&ndash;{% endif %}</span>
+          <span class="l">{% trans "Requested by" %}</span><span class="v">{% if sum.requested_by %}{{ sum.requested_by }}{% else %}&ndash;{% endif %}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if rolled.truncated %}
+    <div class="oscap-banner" role="status">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      <div class="oscap-banner-body">
+        <div class="oscap-banner-t">{% trans "The list of failed rules across servers is incomplete" %}</div>
+        <div class="oscap-banner-s">{% trans "A scan keeps only the first failed rules of each server, so the failed rule counts below and the list of rules are a lower bound. Each server's report has the full list." %}</div>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+  {% endwith %}
+  {% endif %}
+
+  <section class="oscap-section" aria-labelledby="oscap-servers-h">
+    <div class="oscap-card-h"><span class="oscap-card-t" id="oscap-servers-h">{% trans "Servers" %} &middot; {{ oscap.servers|length }}</span></div>
+    <div class="oscap-table-wrap">
+      <table class="oscap-table" style="min-width: 880px;">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Server" %}</th>
+            <th scope="col">{% trans "Tier" %}</th>
+            {% if oscap.summary.mixed %}<th scope="col">{% trans "Profile" %}</th>{% endif %}
+            <th scope="col">{% trans "Score" %}</th>
+            <th scope="col" class="num">{% trans "Passed" %}</th>
+            <th scope="col" class="num">{% trans "Failed" %}</th>
+            <th scope="col" class="num">{% trans "High" %}</th>
+            <th scope="col" class="num">{% trans "Medium" %}</th>
+            <th scope="col" class="num">{% trans "Low" %}</th>
+            {% if oscap.show_unknown %}<th scope="col" class="num">{% trans "Unknown" %}</th>{% endif %}
+            <th scope="col">{% trans "Scanned" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Links" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in oscap.servers %}
+          {% with latest=row.latest %}
+          <tr>
+            <td><a class="oscap-link oscap-host" href="{{ row.url }}">{{ row.hostname }}</a>{% if row.state.os_name %}<span class="oscap-os">{{ row.state.os_name }}</span>{% endif %}</td>
+            <td>{% if row.tier %}{{ row.tier }}{% else %}&ndash;{% endif %}</td>
+            {% if oscap.summary.mixed %}<td>{% if row.profile_label %}{{ row.profile_label }}{% else %}&ndash;{% endif %}</td>{% endif %}
+            <td>{% if latest and latest.score is not None %}<div class="oscap-scorecell"><span class="oscap-bar"><i style="width: {% widthratio latest.score 100 100 %}%"></i></span>{{ latest.score|floatformat:0 }}%</div>{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if latest %}{{ latest.counts.pass|default:0 }}{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if latest %}{{ latest.counts.fail|default:0 }}{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if latest %}{{ latest.fail_by_severity.high|default:0 }}{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if latest %}{{ latest.fail_by_severity.medium|default:0 }}{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if latest %}{{ latest.fail_by_severity.low|default:0 }}{% else %}&ndash;{% endif %}</td>
+            {% if oscap.show_unknown %}<td class="num">{% if latest %}{{ latest.fail_by_severity.unknown|default:0 }}{% else %}&ndash;{% endif %}</td>{% endif %}
+            <td style="white-space: nowrap;">{% if latest %}{{ latest.started }}{% else %}&ndash;{% endif %}</td>
+            <td>
+              {% if row.status == "scanning" %}<span class="oscap-pill oscap-pill-info"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Scanning" %}</span>
+              {% elif row.status == "checking" %}<span class="oscap-pill oscap-pill-info"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Checking" %}</span>
+              {% elif row.status == "queued" %}<span class="oscap-pill"><i class="bi bi-clock" aria-hidden="true"></i> {% trans "Queued" %}</span>
+              {% elif row.status == "off" %}<span class="oscap-pill"><i class="bi bi-power" aria-hidden="true"></i> {% trans "Powered off" %}</span>
+              {% elif row.status == "failed" %}<span class="oscap-pill oscap-pill-bad"{% if row.status_title %} title="{{ row.status_title }}"{% endif %}><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Failed" %}</span>
+              {% elif row.status == "notready" %}<span class="oscap-pill oscap-pill-warn"{% if row.status_title %} title="{{ row.status_title }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Not ready" %}</span>
+              {% elif row.status == "pruned" %}<span class="oscap-pill"><i class="bi bi-archive" aria-hidden="true"></i> {% trans "Report removed" %}</span>
+              {% elif row.status == "unstored" %}<span class="oscap-pill oscap-pill-warn"{% if row.status_title %} title="{{ row.status_title }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Report not stored" %}</span>
+              {% elif row.status == "unreadable" %}<span class="oscap-pill oscap-pill-bad"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Unreadable" %}</span>
+              {% elif row.status == "completed" %}<span class="oscap-pill oscap-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Completed" %}</span>
+              {% else %}<span class="oscap-pill">{% trans "Not scanned" %}</span>{% endif %}
+            </td>
+            <td class="oscap-links">
+              {% if latest and not latest.pruned %}
+              {% if latest.report_url %}<a class="oscap-link" href="{{ latest.report_url }}" target="_blank" rel="noopener">{% trans "Report" %}</a>{% endif %}
+              {% if latest.results_url %}<a class="oscap-link" href="{{ latest.results_url }}">XML</a>{% endif %}
+              {% if latest.arf_url %}<a class="oscap-link" href="{{ latest.arf_url }}">ARF</a>{% endif %}
+              {% endif %}
+              <a class="oscap-link" href="{{ row.url }}">{% trans "Server tab" %}</a>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if oscap.active %}<div class="oscap-note">{% trans "Servers still scanning show their previous result until the new one arrives." %}</div>{% endif %}
+  </section>
+
+  {% if oscap.summary.rolled.grid %}
+  {% with rolled=oscap.summary.rolled columns=oscap.summary.columns %}
+  <details class="oscap-fold oscap-section" data-oscap-rules open>
+    <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="oscap-card-t">{% blocktrans with n=rolled.unique_failed %}Failed rules across servers ({{ n }}){% endblocktrans %}</span></summary>
+    <div class="oscap-card-h">
+      <div class="oscap-card-tools" style="margin-left: 0;">
+        <label class="oscap-sr" for="oscap-rule-q">{% trans "Filter failed rules by id" %}</label>
+        <input type="search" class="form-control form-control-sm" id="oscap-rule-q" placeholder="{% trans 'Filter' %}" data-oscap-filter-q autocomplete="off">
+        <label class="oscap-sr" for="oscap-rule-sev">{% trans "Filter failed rules by severity" %}</label>
+        <select class="form-select form-select-sm" id="oscap-rule-sev" data-oscap-filter-sev>
+          <option value="">{% trans "All severities" %}</option>
+          <option value="high">{% trans "High" %}</option>
+          <option value="medium">{% trans "Medium" %}</option>
+          <option value="low">{% trans "Low" %}</option>
+        </select>
+        {% if rolled.scanned > 1 %}
+        <label class="oscap-sr" for="oscap-rule-scope">{% trans "Filter failed rules by how many servers fail" %}</label>
+        <select class="form-select form-select-sm" id="oscap-rule-scope" data-oscap-filter-scope>
+          <option value="">{% trans "Fails on any server" %}</option>
+          <option value="all">{% trans "Fails on every server" %}</option>
+          <option value="some">{% trans "Fails on some servers" %}</option>
+        </select>
+        {% endif %}
+        <span class="oscap-muted" style="font-size: 12.5px;" data-oscap-filter-count aria-live="polite"></span>
+      </div>
+      <div class="oscap-legend"><span><i class="oscap-dot on"></i> {% trans "Fails" %}</span><span><i class="oscap-dot"></i> {% trans "Passes" %}</span></div>
+    </div>
+    <div class="oscap-table-wrap">
+      <table class="oscap-table" data-oscap-rules-table data-shown="25" style="min-width: 860px;">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Severity" %}</th>
+            <th scope="col">{% trans "Rule" %}</th>
+            <th scope="col">{% trans "Fails on" %}</th>
+            {% for col in columns %}<th scope="col" class="oscap-dotcol" title="{{ col.hostname }}">{{ col.short }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in rolled.grid %}
+          <tr data-oscap-rule data-sev="{{ rule.severity }}" data-id="{{ rule.id|lower }}" data-scope="{% if rule.count == rolled.scanned %}all{% else %}some{% endif %}">
+            <td><span class="oscap-pill {% if rule.severity == 'high' %}oscap-pill-bad{% elif rule.severity == 'medium' %}oscap-pill-warn{% elif rule.severity == 'low' %}oscap-pill-info{% endif %}">{{ rule.severity|capfirst }}</span></td>
+            <td class="oscap-mono">{{ rule.id }}</td>
+            <td style="white-space: nowrap;">{% blocktrans with n=rule.count total=rolled.scanned %}{{ n }} of {{ total }}{% endblocktrans %}</td>
+            {% for col, fails in rule.cells %}<td class="oscap-dotcol"><i class="oscap-dot{% if fails %} on{% endif %}"></i><span class="oscap-sr">{{ col.hostname }} {% if fails %}{% trans "fails" %}{% else %}{% trans "passes" %}{% endif %}</span></td>{% endfor %}
+          </tr>
+          {% endfor %}
+          <tr class="oscap-nomatch" data-oscap-nomatch hidden><td colspan="{{ columns|length|add:3 }}">{% trans "No rules match the filter." %}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="oscap-pager" data-oscap-rmore hidden><button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="more-rules">{% trans "Show more" %}</button></div>
+    <div class="oscap-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {% trans "Each server's report has the detail and the remediation for a rule." %}{% if rolled.truncated %} {% trans "This list is incomplete: a server's scan keeps only the first failed rules." %}{% endif %}</div>
+  </details>
+  {% endwith %}
+  {% endif %}
+
+  {% if oscap.history %}
+  <section class="oscap-section" aria-labelledby="oscap-history-h" style="margin-bottom: 0;">
+    <div class="oscap-card-h"><span class="oscap-card-t" id="oscap-history-h">{% trans "History" %} &middot; {{ oscap.history|length }}</span></div>
+    <div class="oscap-table-wrap">
+      <table class="oscap-table" data-oscap-history data-shown="25" style="min-width: 820px;">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Started" %}</th>
+            <th scope="col">{% trans "Profile" %}</th>
+            <th scope="col">{% trans "Servers" %}</th>
+            <th scope="col">{% trans "Average score" %}</th>
+            <th scope="col" class="num">{% trans "Failed rules" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Requested by" %}</th>
+            <th scope="col">{% trans "Links" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in oscap.history %}
+          <tr data-oscap-hrow>
+            <td style="white-space: nowrap;">{{ r.started }}</td>
+            <td>{% if r.mode == "check" %}{% trans "Readiness check" %}{% elif r.profile_mixed %}{% trans "Mixed" %}{% elif r.profile_title %}{{ r.profile_title }}{% elif r.profile_id %}{{ r.profile_id }}{% else %}{% trans "Default profile" %}{% endif %}</td>
+            <td>{% if r.mode == "check" %}{% blocktrans with n=r.servers_completed total=r.servers_attempted %}{{ n }} of {{ total }} ready{% endblocktrans %}{% else %}{% blocktrans with n=r.servers_completed total=r.servers_attempted %}{{ n }} of {{ total }}{% endblocktrans %}{% endif %}</td>
+            <td>{% if r.average_score is not None %}{{ r.average_score|floatformat:0 }}%{% else %}&ndash;{% endif %}</td>
+            <td class="num">{% if r.unique_failed is not None %}{{ r.unique_failed }}{% else %}&ndash;{% endif %}</td>
+            <td>
+              {% if r.outcome == "completed" %}<span class="oscap-pill oscap-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% trans "Ready" %}{% else %}{% trans "Completed" %}{% endif %}</span>
+              {% elif r.outcome == "canceled" %}<span class="oscap-pill"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-slash-circle" aria-hidden="true"></i> {% trans "Canceled" %}</span>
+              {% elif r.outcome == "partial" %}<span class="oscap-pill oscap-pill-warn"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% blocktrans count n=r.failed_count %}{{ n }} server not ready{% plural %}{{ n }} servers not ready{% endblocktrans %}{% else %}{% blocktrans count n=r.failed_count %}{{ n }} server failed{% plural %}{{ n }} servers failed{% endblocktrans %}{% endif %}</span>
+              {% else %}<span class="oscap-pill oscap-pill-bad"{% if r.problems %} title="{{ r.problems }}"{% endif %}><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% if r.mode == "check" %}{% trans "Not ready" %}{% else %}{% trans "Failed" %}{% endif %}</span>{% endif %}
+            </td>
+            <td>{% if r.requested_by %}{{ r.requested_by }}{% else %}&ndash;{% endif %}</td>
+            <td class="oscap-links">{% if r.job_url %}<a class="oscap-link" href="{{ r.job_url }}">{% trans "Job" %}</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="oscap-pager" data-oscap-more hidden><button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="more">{% trans "Show more" %}</button></div>
+  </section>
+  {% endif %}
+
+  {% endif %}
+  {% endif %}
+{% endif %}
+</div>

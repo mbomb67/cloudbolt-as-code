@@ -4,6 +4,15 @@ Adds an **OpenSCAP** tab to Linux servers, and to any server labelled `OpenScap`
 
 Scans run `oscap xccdf eval` as root on the server through `Server.execute_script`, with the server's own credentials or its resource handler's agent channel. The server uploads its result files itself, so they never pass through the CloudBolt database.
 
+## Resource tab
+
+A resource that has at least one Linux server gets an **OpenSCAP** tab too (the same servers and the same "Show the tab on" setting as the server tab; Windows and historical servers are left out). It shows the latest completed result of every server in the resource: the average and lowest score, the failed rules (each rule counted once), the rules that fail on every server, a table of the servers with links to each server's report, and a rule-by-server grid. **Scan all servers** runs one scan job per server you choose, **Check servers** runs the readiness check on all powered-on servers. The profile list offers the profiles every powered-on server's last check found, or each server's default.
+
+- **How a run works:** one parent job ("OpenSCAP Resource Scan", created on first use) starts one ordinary OpenSCAP Scan job per server, at most 5 at a time, and waits for them together. A server that is powered off, already busy, fails or runs past the scan timeout plus 5 minutes is recorded with its reason and does not stop the others. One run per resource at a time. The result is Success when every server completed, Warning when some did, Failure when none did.
+- **No merged report:** each server scans itself and keeps its own report; the tab computes the roll-up from the servers' indexes. A resource run record (servers, scan ids, reasons, average score, failed rule count) is kept in `/var/opt/cloudbolt/proserv/openscap/resources/<resource id>.json`, newest 50, and feeds the History table and the "Up N points since" line (shown from the second run on).
+- **Failed-rule lists are capped:** a server's index keeps up to 1000 failed rules, and only for its newest completed scan (older scans keep their counts). For a scan with more, or a script channel that returns partial output (Azure Run Command), the cross-server list and counts are a lower bound; the tab says so, and each report has the full list.
+- **Permissions:** view on the resource, and the view permission on each server it lists. A server is offered for scanning only when you pass the same check as the server tab (`server.all_actions` or CB Admin); with none, the Scan all servers and Check servers buttons are hidden.
+
 Other content can run a scan too: `oscap_api.scan_and_wait(server, job.owner, profile_id, install=True)` starts the same job from a plug-in, waits for it, and returns the summary and a link to the report. The [Run OpenSCAP Scan](../../plugins/OHK-oqqmfoah/) blueprint step uses it to scan new servers before an order completes.
 
 ## How results are stored
@@ -23,7 +32,7 @@ Each scan produces `report.html`, `results.xml.gz` and `arf.xml.gz`. A small ind
 - For appliance storage, except on OpenShift Virtualization VMs: the default portal must have a domain (Admin > Portals): the upload URL is built from it and never from a request's host. Without it a scan still runs but its files are not stored. The server must reach CloudBolt at that domain over HTTPS. If the certificate is not trusted by the server, turn on **Skip certificate check** in settings.
 
 ## Setup
-1. Sync the repository, then restart the web service (`httpd`) so the new routes load, and confirm the extension is enabled under Admin > Extensions.
+1. Sync the repository, then restart the web service (`httpd`) so the new routes load (the resource tab adds two), and confirm the extension is enabled under Admin > Extensions.
 2. Open Admin > Custom Extensions > OpenSCAP Settings and choose where results are stored. For S3, pick the AWS handler and enter the bucket (and region, optionally).
 3. Open a Linux server's OpenSCAP tab and click **Check server**.
 
@@ -42,5 +51,7 @@ On CloudBolt 2026.3.131:
 - **vCenter, Oracle Linux 8.10, SSH:** check and `stig` scan (52 seconds); the three files were stored on the appliance. With tech-specific script execution on, the lab appliance could not reach its ESXi host and the check timed out before the script ran.
 - **Azure, Oracle Linux 8.10, Azure Run Command:** check with install (about three and a half minutes) and a `stig` scan (about two minutes). Run Command returns only part of the script output, so the tab listed the first 61 of 233 failed rules; the score and counts were complete. The VM could not resolve the appliance, so the files were not stored.
 - **AWS, Ubuntu 22.04:** `oscap` installs, but Ubuntu's repositories carry no guide content, so there is nothing to scan against. Canonical ships its profiles with Ubuntu Pro (`usg`); that route is not tested.
+
+The resource tab and its parent job are not yet tested on an appliance.
 
 Not yet tested: the S3 backend and its presigned URLs; the SSM and VMware Tools script channels; installs through `zypper`; RHEL (registered), Rocky, Alma, SLES and Debian; and scanning as a non-admin user.

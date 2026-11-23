@@ -62,11 +62,16 @@ COUNT_KEYS = (
 )
 SEVERITIES = ("high", "medium", "low", "unknown")
 
+# The OpenSCAP tab shows on servers whose OS family belongs to this root family,
+# or that carry this label (the settings page picks which).
+LINUX_FAMILY = "Linux"
+LABEL = "OpenScap"
+
 # Bounds on everything parsed from the server's output.
 MAX_OUTPUT = 256 * 1024
 MAX_DATASTREAMS = 3
 MAX_PROFILES = 60
-MAX_FAILED = 100
+MAX_FAILED = 1000
 ID_LEN = 200
 TITLE_LEN = 200
 MESSAGE_LEN = 300
@@ -393,6 +398,50 @@ def scan_summary(parsed, scan_id, started, job, requested_by, requested_profile,
     return summary
 
 
+# ---------------------------------------------------------------- permissions
+# Running a scan runs a script as root on the server, the same thing a Remote
+# Script server action does. CloudBolt lets a user run any server action on a
+# server when their role in the server's group (or a management group, or as
+# the server's owner) has server.all_actions; utilities/permissions.py
+# server_action_permitted checks that, and so does has_permission on a Server.
+SCAN_PERMISSION = "server.all_actions"
+
+
+def can_scan(profile, server):
+    """Whether the profile may run OpenSCAP on the server: a CB Admin, or the
+    server.all_actions permission on it."""
+    if getattr(profile, "is_cbadmin", False):
+        return True
+    try:
+        return bool(profile.has_permission(SCAN_PERMISSION, server))
+    except Exception:
+        logger.exception("Permission check '%s' failed for server %s", SCAN_PERMISSION, server.id)
+        return False
+
+
+def can_view(profile, server):
+    """Whether the profile may view the server (Server.objects_for_profile)."""
+    return Server.objects_for_profile(profile).filter(pk=server.id).exists()
+
+
+# ---------------------------------------------------------------- which servers
+def is_linux(server):
+    family = server.os_family
+    return bool(family and family.get_base_name() == LINUX_FAMILY)
+
+
+def shows_tab(server, visibility):
+    """Whether the server gets the OpenSCAP tab: not historical, and a Linux
+    server or one labelled OpenScap, as the settings' visibility says. Cheap: no
+    network, no remote call."""
+    if server.status == "HISTORICAL":
+        return False
+    if visibility == "linux" and is_linux(server):
+        return True
+    # Not server.labels: that is a new query per server; tags.all() reads a prefetch.
+    return LABEL in [tag.name for tag in server.tags.all()]
+
+
 # ---------------------------------------------------------------- active job
 def active_job(server_id, index=None):
     """(marker, Job) of the scan or check in progress, or None. A marker whose
@@ -409,9 +458,10 @@ def active_job(server_id, index=None):
 
 
 # ---------------------------------------------------------------- start
-def start(profile, server, mode, datastream, profile_id, install, base_url="", content_install=False):
+def start(profile, server, mode, datastream, profile_id, install, base_url="", content_install=False, parent_job=None):
     """Validate and start the job. base_url is the default portal's configured
-    site URL (never a request's Host). Returns the Job, or a Refusal.
+    site URL (never a request's Host). parent_job is the resource run's job
+    when this scan is one server of it. Returns the Job, or a Refusal.
 
     install is the tab's Install box and counts only while the Allow install
     setting is on. content_install is for oscap_api.py: content an
@@ -445,14 +495,15 @@ def start(profile, server, mode, datastream, profile_id, install, base_url="", c
                 return Refusal(
                     "Job {} is still running on this server; wait for it to finish.".format(running[1].id), 409
                 )
-            created = _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin)
+            created = _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin,
+                             parent_job)
     except store.StoreError:
         logger.exception("OpenSCAP: index problem starting a job on server %s", server.id)
         return Refusal(INDEX_ERROR, 500)
     return created
 
 
-def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin):
+def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin, parent_job=None):
     """The queued Job, or a Refusal."""
     scan_id = store.new_scan_id()
     urls, token, region = {}, "", ""
@@ -482,13 +533,18 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
             except oscap_repo.RepoError as exc:
                 logger.error("OpenSCAP: no upload targets for server %s: %s", server.id, exc.detail)
                 # Administrators get the sentence for the error code (a fixed table), others the generic one.
-                return Refusal(oscap_repo.admin_text(exc.code, cfg) if is_admin else oscap_repo.GENERIC_PUBLIC, 409)
+                # A resource run keeps its refusals in a record every viewer of the resource reads: public text only.
+                return Refusal(
+                    oscap_repo.admin_text(exc.code, cfg) if is_admin and parent_job is None else oscap_repo.GENERIC_PUBLIC,
+                    409,
+                )
             urls, token, region = targets["urls"], targets["token"], targets["region"]
             uploads = True
         where = oscap_repo.location(server, scan_id, region)
 
     created = oscap_hooks.scan_hook().run_as_job(
         owner=profile,
+        parent_job=parent_job,
         context={
             "oscap_server_id": server.id,
             "oscap_mode": mode,
@@ -510,6 +566,8 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
     if not created:
         return Refusal("CloudBolt did not start the job; see the application log.", 500)
     job = created[0]
+    # The resource run reads the scan id from here, not from the marker, which the job may clear first.
+    job.oscap_scan_id = scan_id
     # From here the job is queued: nothing below may turn into an error.
     try:
         job.label = "OpenSCAP {}: {}".format("scan" if mode == "scan" else "check", server.hostname)

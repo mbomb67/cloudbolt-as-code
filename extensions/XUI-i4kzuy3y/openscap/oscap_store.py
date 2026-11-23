@@ -9,6 +9,9 @@ File Archives shared module does):
     servers/<server id>.json one server's last discovery ("state") and the
                              summaries of its latest scans ("scans")
     servers/<server id>.lock lock a scan start holds
+    resources/<resource id>.json  one resource's scan in progress ("active")
+                             and its latest runs ("runs"), see "per-resource index"
+    resources/<resource id>.lock  lock a resource run's start and progress hold
     reports/<server id>/...  result files of the local backend (oscap_repo.py)
 
 The index holds summaries only; the full result files never go into the
@@ -46,10 +49,12 @@ except ImportError:  # not on a CloudBolt appliance; tests only
 ROOT = os.path.join(settings.PROSERV_DIR, "openscap")
 SETTINGS_FILE = os.path.join(ROOT, "settings.json")
 SERVERS_DIR = os.path.join(ROOT, "servers")
+RESOURCES_DIR = os.path.join(ROOT, "resources")
 REPORTS_DIR = os.path.join(ROOT, "reports")
 KEY_FILE = os.path.join(ROOT, ".signing_key")
 
 MAX_SCANS = 50
+MAX_RUNS = 50
 SCAN_ID_RE = re.compile(r"[A-Za-z0-9-]{8,64}")
 DATASTREAM_RE = re.compile(r"[A-Za-z0-9._-]+")
 PROFILE_RE = re.compile(r"[A-Za-z0-9._:-]*")
@@ -118,14 +123,26 @@ def ensure_dir(path):
         own(created, directory=True)
 
 
+def _contained(base, name):
+    """base joined with name, normalised, and only if it is strictly inside base
+    (StoreError otherwise); the returned value is the one to use. Every path
+    built from an id goes through here.
+    https://codeql.github.com/codeql-query-help/python/py-path-injection/"""
+    base = os.path.normpath(base)
+    path = os.path.normpath(os.path.join(base, name))
+    if not path.startswith(base + os.sep):
+        raise StoreError("The path is outside the OpenSCAP folder.")
+    return path
+
+
 @contextlib.contextmanager
-def server_lock(server_id):
-    """Exclusive lock for one server's scan starts, across processes."""
+def _lock(directory, name):
+    """Exclusive lock on directory/name, across processes."""
     if fcntl is None:
         yield
         return
-    ensure_dir(SERVERS_DIR)
-    path = os.path.join(SERVERS_DIR, "{}.lock".format(int(server_id)))
+    ensure_dir(directory)
+    path = _contained(directory, name)
     fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o664)
     try:
         try:
@@ -136,6 +153,16 @@ def server_lock(server_id):
         yield
     finally:
         os.close(fd)  # closing releases the lock
+
+
+def server_lock(server_id):
+    """Exclusive lock for one server's scan starts, across processes."""
+    return _lock(SERVERS_DIR, "{}.lock".format(int(server_id)))
+
+
+def resource_lock(resource_id):
+    """Exclusive lock for one resource run's start and its progress marks."""
+    return _lock(RESOURCES_DIR, "{}.lock".format(int(resource_id)))
 
 
 # ---------------------------------------------------------------- files
@@ -366,11 +393,30 @@ def set_state(server_id, state):
     update_index(server_id, lambda index: index.__setitem__("state", state))
 
 
+def trim_old_rules(scans):
+    """Keep the list of failed rules only on the newest completed scan (scans are
+    newest first). Older completed scans keep their counts and severities but get
+    an empty list marked failed_rules_dropped, so an emptied list is never read as
+    "nothing failed". A newer scan that failed leaves the previous completed one
+    as the newest completed, with its list."""
+    seen = False
+    for scan in scans:
+        if scan.get("status") != "completed":
+            continue
+        if seen and scan.get("failed_rules"):
+            scan["failed_rules"] = []
+            scan["failed_rules_dropped"] = True
+        seen = True
+    return scans
+
+
 def add_scan(server_id, summary):
-    """Put a scan summary first (newest first), replacing one with the same id."""
+    """Put a scan summary first (newest first), replacing one with the same id.
+    Only the newest completed scan keeps its failed rules (trim_old_rules): the
+    index is read on every panel poll."""
 
     def change(index):
-        index["scans"] = [summary] + [s for s in index["scans"] if s.get("id") != summary.get("id")]
+        index["scans"] = trim_old_rules([summary] + [s for s in index["scans"] if s.get("id") != summary.get("id")])
 
     update_index(server_id, change)
 
@@ -401,3 +447,66 @@ def drop_scans(server_id, scan_ids):
             # The files are gone either way; a server's index that cannot be
             # written is reported by its own panel.
             pass
+
+
+# ---------------------------------------------------------------- per-resource index
+def _resource_path(resource_id):
+    return _contained(RESOURCES_DIR, "{}.json".format(int(resource_id)))
+
+
+def _normalise_resource(data):
+    if not isinstance(data, dict):
+        data = {}
+    if not isinstance(data.get("runs"), list):
+        data["runs"] = []
+    return data
+
+
+def read_resource_index(resource_id):
+    """The resource's index: "active" (the run in progress, when there is one)
+    and "runs" (finished runs, newest first). Missing or damaged is empty; a
+    file that exists but cannot be read raises StoreError, as read_index does."""
+    return _normalise_resource(_read_json(_resource_path(resource_id), {}))
+
+
+def update_resource_index(resource_id, change):
+    """Read the index, let change(index) alter it, write it back atomically."""
+    index = read_resource_index(resource_id)
+    change(index)
+    index["runs"] = index["runs"][:MAX_RUNS]
+    _write_json(_resource_path(resource_id), index)
+    return index
+
+
+def set_resource_active(resource_id, active):
+    """Record (dict) or clear (None) the resource run in progress."""
+
+    def change(index):
+        if active:
+            index["active"] = active
+        else:
+            index.pop("active", None)
+
+    update_resource_index(resource_id, change)
+
+
+def mark_resource_server_done(resource_id, server_id, job_id):
+    """Note in the active marker that one server's part of the run is over. A
+    marker of another run (another parent job id) is left alone."""
+
+    def change(index):
+        marker = index.get("active")
+        if isinstance(marker, dict) and marker.get("job_id") == job_id:
+            done = [item for item in marker.get("done") or [] if item != int(server_id)]
+            marker["done"] = done + [int(server_id)]
+
+    update_resource_index(resource_id, change)
+
+
+def add_run(resource_id, run):
+    """Put a run record first (newest first), replacing one with the same run id."""
+
+    def change(index):
+        index["runs"] = [run] + [r for r in index["runs"] if r.get("run_id") != run.get("run_id")]
+
+    update_resource_index(resource_id, change)

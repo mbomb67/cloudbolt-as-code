@@ -336,7 +336,7 @@ if [ -s results.xml ]; then
         shown = 0
         for (o = 1; o <= m; o++)
             for (i = 1; i <= total && i <= 2000; i++)
-                if (fsev[i] == order[o] && shown < 100) { printf "%s %s\n", order[o], fid[i] > failfile; shown++ }
+                if (fsev[i] == order[o] && shown < 1000) { printf "%s %s\n", order[o], fid[i] > failfile; shown++ }
     }' "$WORK/tags.txt"
     S_SCORE=$(sed -n 's/^score=//p' "$WORK/kv.txt" | head -n 1)
     S_KV=$(grep -v '^score=' "$WORK/kv.txt" | tr '\n' '~' | sed 's/~$//')
