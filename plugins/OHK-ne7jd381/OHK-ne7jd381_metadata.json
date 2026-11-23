@@ -3,7 +3,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "OpenSCAP profile id or its ending. Empty lets the scan pick the first of the OpenSCAP settings page's default profiles that the server's own guide offers.",
+            "description": "OpenSCAP profile id or its ending. Empty lets the scan pick the first of the Compliance settings page's default profiles that the server's own guide offers.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -43,7 +43,7 @@
         "profile",
         "max_wait_minutes"
     ],
-    "description": "Installs OpenSCAP on each new Linux server and runs a first scan with the OpenSCAP UI extension, so a report is on the server's OpenSCAP tab when provisioning completes.",
+    "description": "Installs OpenSCAP on each new Linux server and runs a first scan with the Compliance UI extension, so a report is on the server's Compliance tab when provisioning completes.",
     "id": "OHK-ne7jd381",
     "max_retries": 0,
     "name": "Install OpenSCAP and Run First Scan (Linux)",

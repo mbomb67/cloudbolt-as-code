@@ -1,10 +1,10 @@
 {% comment %}
-  Script for the OpenSCAP resource tab. oscap_resource_tab.html includes this
+  Script for the Compliance resource tab. oscap_resource_tab.html includes this
   once per injection; the script initialises every root it finds that has not
   been initialised yet, so a tab injected twice never stacks timers. The styles
   are oscap_styles.html, shared with the server tab (oscap_assets.html).
 {% endcomment %}
-{% include "openscap/templates/oscap_styles.html" %}
+{% include "io_cloudbolt_compliance/templates/oscap_styles.html" %}
 <script>
 (function () {
   "use strict";

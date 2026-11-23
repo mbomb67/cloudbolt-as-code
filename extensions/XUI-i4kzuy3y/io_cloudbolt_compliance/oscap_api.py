@@ -1,17 +1,17 @@
 """
-OpenSCAP for other content: scan a server from a plug-in and wait for the result.
+Compliance scans for other content: scan a server from a plug-in and wait for the result.
 
-    from xui.openscap import oscap_api
+    from xui.io_cloudbolt_compliance import oscap_api
 
     result = oscap_api.scan_and_wait(server, job.owner, profile_id="cis_server_l1", install=True)
     result["status"]         "completed", "failed", "refused" or "timeout"
     result["message"]        one sentence for the job output
     result["report_url"]     link to the stored HTML report, or ""
     result["report_problem"] why there is no link, when there is none
-    result["scan"]           the scan summary the OpenSCAP tab shows (score, counts, failed rules), or None
+    result["scan"]           the scan summary the Compliance tab shows (score, counts, failed rules), or None
     result["job"]            the scan's own Job, or None
 
-The scan is the job the OpenSCAP tab starts (oscap_jobs.start), so it takes the
+The scan is the job the Compliance tab starts (oscap_jobs.start), so it takes the
 same lock, lands in the server's scan history and stores its files the same
 way. A blueprint build item uses this to scan the servers it built before the
 order finishes (plugins/OHK-oqqmfoah).
@@ -19,8 +19,8 @@ order finishes (plugins/OHK-oqqmfoah).
     ok, reason = eligible(server)   (True, "") or (False, one sentence why not)
 
 eligible says whether content may start a scan on a server at all: it is not
-historical, not Windows, has a VM, and gets the OpenSCAP tab under the "Show the
-tab on" setting. The Post-Provision action HPA-b14wu721 uses it.
+historical, has a VM, and gets the Compliance tab under the "Show the tab on"
+setting. The Post-Provision action HPA-b14wu721 uses it.
 
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.
@@ -58,9 +58,9 @@ def report_url(server, scan, base=None):
     if not base:
         return ""
     try:
-        return base + reverse("openscap_artifact", args=[server.id, scan["id"], "report"])
+        return base + reverse("compliance_artifact", args=[server.id, scan["id"], "report"])
     except NoReverseMatch:
-        logger.exception("OpenSCAP: the report route is not loaded")
+        logger.exception("Compliance: the report route is not loaded")
         return ""
 
 
@@ -75,12 +75,10 @@ def eligible(server):
     """(True, "") when content may start a scan on this server, else (False, reason)."""
     if server.status == "HISTORICAL":
         return False, "the server is historical."
-    if server.is_windows():
-        return False, "OpenSCAP scans Linux servers only."
     if not server.resource_handler_svr_id:
         return False, "the VM was not created."
     if not oscap_jobs.shows_tab(server, store.get_settings()["visibility"]):
-        return False, 'the OpenSCAP "Show the tab on" setting does not include this server.'
+        return False, 'the Compliance "Show the tab on" setting does not include this server.'
     return True, ""
 
 
@@ -89,8 +87,9 @@ def scan_and_wait(server, owner, profile_id="", datastream="", install=False, ti
 
     owner is the UserProfile the scan job belongs to (a plug-in passes
     job.owner). profile_id is a profile id or its ending, such as
-    cis_server_l1; empty tries the default profiles of the settings page.
-    install=True installs OpenSCAP and the SCAP Security Guide when they are
+    cis_server_l1; empty tries the default profiles of the settings page (a Windows
+    server uses the Windows default profile). datastream is the SCC benchmark on Windows.
+    install=True installs OpenSCAP and the SCAP Security Guide (SCC on Windows) when they are
     missing, whatever the Allow install setting says: that setting governs the
     tab's Install box. timeout is in seconds; the default is the scan timeout
     setting plus ten minutes.

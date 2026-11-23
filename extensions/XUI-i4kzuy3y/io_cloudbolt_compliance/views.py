@@ -1,32 +1,32 @@
 """
-OpenSCAP XUI
+Compliance XUI
 
-Adds an OpenSCAP tab to Linux servers (or to servers labelled OpenScap). The
-tab runs OpenSCAP scans on the server as CloudBolt jobs, shows the last scan's
+Adds a Compliance tab to Linux and Windows servers (or to servers labelled
+Compliance). The tab runs compliance scans (OpenSCAP on Linux, DISA SCC on Windows) on the server as CloudBolt jobs, shows the last scan's
 score, failed rules and history, and links to the stored reports. Resources
-that have such servers get an OpenSCAP tab too: it scans all of them in one
+that have such servers get a Compliance tab too: it scans all of them in one
 job and rolls up each server's latest result (oscap_resource.py,
 oscap_rollup.py), linking to each server's own report.
 
 - The tab itself renders a shell and loads its panel asynchronously; nothing
   on the tab render touches the network or the server.
-- The panel (openscap_panel) is one small JSON read plus at most one Job
+- The panel (compliance_panel) is one small JSON read plus at most one Job
   query: the server's last readiness check, its latest scans and the scan or
   check in progress. It answers with an inline message instead of raising.
-- Start (openscap_start) runs a readiness check or a scan as a job
+- Start (compliance_start) runs a readiness check or a scan as a job
   (oscap_jobs.py). The job runs oscap_scan.sh on the server as root through
   Server.execute_script; the server uploads its result files itself to the
   result repository (oscap_repo.py), an S3 bucket or the appliance, so the
   files never pass through the CloudBolt database.
-- Artifact (openscap_artifact) opens a stored file: a redirect to a
+- Artifact (compliance_artifact) opens a stored file: a redirect to a
   short-lived presigned S3 link, or the local file streamed.
-- Upload (openscap_upload) takes the local backend's uploads. It needs no
+- Upload (compliance_upload) takes the local backend's uploads. It needs no
   CloudBolt login; the signed token in its X-Oscap-Token header is the
   credential.
 - The resource tab follows the same pattern: a shell, a panel fragment
-  (openscap_resource_panel) and a start call (openscap_resource_start) that
+  (compliance_resource_panel) and a start call (compliance_resource_start) that
   queues one parent job, which starts the servers' own jobs.
-- Settings is an admin page (Admin > Custom Extensions > OpenSCAP Settings).
+- Settings is an admin page (Admin > Custom Extensions > Compliance Settings).
   Its title must differ from the tab's: CloudBolt indexes both by title.
 
 Viewing needs the view permission on the server (Server.objects_for_profile),
@@ -54,11 +54,11 @@ from .oscap_jobs import can_scan
 
 logger = ThreadLogger(__name__)
 
-TEMPLATES = "openscap/templates/"
+TEMPLATES = "io_cloudbolt_compliance/templates/"
 
 # Folder name of this XUI and the admin view's function name; together they
 # form the settings page URL /extensions/admin/<package>/<view>.
-XUI_PACKAGE = "openscap"
+XUI_PACKAGE = "io_cloudbolt_compliance"
 PAGE_VIEW = "settings"
 
 # The most servers one resource scan request may name.
@@ -82,8 +82,7 @@ def _viewable_resource(request, resource_id):
 
 def _resource_servers(request, resource, visibility):
     """The servers the resource tab lists for this viewer: the resource's live
-    servers that the viewer may view and that would get the server tab, never
-    Windows. Deploy order."""
+    servers that the viewer may view and that would get the server tab. Deploy order."""
     profile = request.get_user_profile()
     viewable = set(Server.objects_for_profile(profile).filter(resource=resource).values_list("id", flat=True))
     return [
@@ -110,8 +109,8 @@ def _settings_url():
 # ---------------------------------------------------------------------------
 # Tab
 # ---------------------------------------------------------------------------
-class OpenSCAPTabDelegate(TabExtensionDelegate):
-    """Linux servers, or servers labelled OpenScap. Cheap: no network, no remote call."""
+class ComplianceTabDelegate(TabExtensionDelegate):
+    """Linux and Windows servers, or servers labelled Compliance. Cheap: no network, no remote call."""
 
     def should_display(self):
         return oscap_jobs.shows_tab(self.instance, store.get_settings()["visibility"])
@@ -119,11 +118,11 @@ class OpenSCAPTabDelegate(TabExtensionDelegate):
 
 @tab_extension(
     model=Server,
-    title="OpenSCAP",
-    delegate=OpenSCAPTabDelegate,
-    description="OpenSCAP compliance scans of the server, with score, failed rules and stored reports",
+    title="Compliance",
+    delegate=ComplianceTabDelegate,
+    description="Compliance scans of the server, with score, failed rules and stored reports",
 )
-def openscap_tab(request, obj_id):
+def compliance_tab(request, obj_id):
     server = _viewable_server(request, obj_id)
     if server is None:
         raise Http404
@@ -131,12 +130,12 @@ def openscap_tab(request, obj_id):
     is_admin = bool(profile.is_cbadmin)
     return render(request, TEMPLATES + "oscap_tab.html", {
         "server": server,
-        "panel_url": reverse("openscap_panel", args=[server.id]),
+        "panel_url": reverse("compliance_panel", args=[server.id]),
         "shell": {
             "can_scan": can_scan(profile, server),
             "is_admin": is_admin,
             "settings_url": _settings_url() if is_admin else "",
-            "start_url": reverse("openscap_start", args=[server.id]),
+            "start_url": reverse("compliance_start", args=[server.id]),
             "repo_label": oscap_repo.describe()["label"],
         },
     })
@@ -151,7 +150,7 @@ def _scan_view(server, scan):
     files = scan.get("files") or {}
     for kind, name in oscap_repo.FILES.items():
         view[kind + "_url"] = (
-            reverse("openscap_artifact", args=[server.id, scan["id"], kind]) if files.get(name) else ""
+            reverse("compliance_artifact", args=[server.id, scan["id"], kind]) if files.get(name) else ""
         )
     return view
 
@@ -172,12 +171,14 @@ def _panel_context(server, profile, request):
         "denied": False,
         "can_scan": can_scan(profile, server),
         "is_admin": bool(profile.is_cbadmin),
-        "start_url": reverse("openscap_start", args=[server.id]),
-        "panel_url": reverse("openscap_panel", args=[server.id]),
+        "start_url": reverse("compliance_start", args=[server.id]),
+        "panel_url": reverse("compliance_panel", args=[server.id]),
         "repo": oscap_repo.describe(cfg),
         "state": state,
         "active": oscap_jobs.panel_active(server.id, index),
         "allow_install": cfg["allow_install"],
+        "windows": server.is_windows(),
+        "scanner": "DISA SCC" if server.is_windows() else "OpenSCAP",
         "latest": latest,
         "last_failed": scans[0] if scans and scans[0].get("status") == "failed" else None,
         "history": scans,
@@ -187,7 +188,7 @@ def _panel_context(server, profile, request):
     return {"oscap": oscap}
 
 
-def openscap_panel(request, server_id):
+def compliance_panel(request, server_id):
     server = _viewable_server(request, server_id)
     if server is None:
         context = {
@@ -200,10 +201,10 @@ def openscap_panel(request, server_id):
     try:
         context = _panel_context(server, profile, request)
     except store.StoreError:
-        logger.exception("OpenSCAP: the index of server %s cannot be read", server.id)
+        logger.exception("Compliance: the index of server %s cannot be read", server.id)
         context = {"oscap": {"denied": False}, "error": oscap_jobs.INDEX_ERROR}
     except Exception:
-        logger.exception("OpenSCAP panel failed for server %s", server.id)
+        logger.exception("Compliance panel failed for server %s", server.id)
         context = {
             "oscap": {"denied": False},
             "error": "Could not load this panel. The CloudBolt application log has the details.",
@@ -213,9 +214,9 @@ def openscap_panel(request, server_id):
 
 
 # ---------------------------------------------------------------------------
-# Resource tab: every Linux server of a resource, scanned in one job
+# Resource tab: every server of a resource, scanned in one job
 # ---------------------------------------------------------------------------
-class OpenSCAPResourceTabDelegate(TabExtensionDelegate):
+class ComplianceResourceTabDelegate(TabExtensionDelegate):
     """Resources with at least one live server that would get the server tab. Cheap:
     one query for the servers, no network, no remote call. Which servers the
     viewer may see is applied by the tab and the panel."""
@@ -227,12 +228,12 @@ class OpenSCAPResourceTabDelegate(TabExtensionDelegate):
 
 @tab_extension(
     model=Resource,
-    title="OpenSCAP",
-    delegate=OpenSCAPResourceTabDelegate,
-    description="OpenSCAP compliance scans of all the Linux servers of a resource at once, with each server's "
+    title="Compliance",
+    delegate=ComplianceResourceTabDelegate,
+    description="Compliance scans of all the servers of a resource at once, with each server's "
     "latest score, the failed rules across servers and links to each server's report",
 )
-def openscap_resource_tab(request, obj_id):
+def compliance_resource_tab(request, obj_id):
     resource = _viewable_resource(request, obj_id)
     if resource is None:
         raise Http404
@@ -241,12 +242,12 @@ def openscap_resource_tab(request, obj_id):
     servers = _resource_servers(request, resource, store.get_settings()["visibility"])
     return render(request, TEMPLATES + "oscap_resource_tab.html", {
         "resource": resource,
-        "panel_url": reverse("openscap_resource_panel", args=[resource.id]),
+        "panel_url": reverse("compliance_resource_panel", args=[resource.id]),
         "shell": {
             "can_scan": any(can_scan(profile, server) for server in servers),
             "is_admin": is_admin,
             "settings_url": _settings_url() if is_admin else "",
-            "start_url": reverse("openscap_resource_start", args=[resource.id]),
+            "start_url": reverse("compliance_resource_start", args=[resource.id]),
             "repo_label": oscap_repo.describe()["label"],
             "server_count": len(servers),
         },
@@ -265,7 +266,7 @@ def _server_row(server, profile, active):
         "id": server.id,
         "hostname": server.hostname,
         "tier": server.service_item.name if server.service_item else "",
-        "url": server.get_absolute_url() + "#tab-openscap",
+        "url": server.get_absolute_url() + "#tab-compliance",
         "scannable": can_scan(profile, server),
         "powered": server.power_status == "POWERON",
         "latest": None,
@@ -278,7 +279,7 @@ def _server_row(server, profile, active):
         index = store.read_index(server.id)
         running = oscap_jobs.active_job(server.id, index)
     except store.StoreError:
-        logger.exception("OpenSCAP: the index of server %s cannot be read", server.id)
+        logger.exception("Compliance: the index of server %s cannot be read", server.id)
         row["status"] = "unreadable"
         return row
     scans = [_scan_view(server, scan) for scan in index["scans"]]
@@ -418,12 +419,16 @@ def _resource_panel_context(request, resource, profile):
         "denied": False,
         "can_scan": bool(scannable),
         "is_admin": bool(profile.is_cbadmin),
-        "start_url": reverse("openscap_resource_start", args=[resource.id]),
-        "panel_url": reverse("openscap_resource_panel", args=[resource.id]),
+        "start_url": reverse("compliance_resource_start", args=[resource.id]),
+        "panel_url": reverse("compliance_resource_panel", args=[resource.id]),
         "repo": oscap_repo.describe(cfg),
         "active": active,
         "any_scanning": any(row["status"] in ("scanning", "checking") for row in rows),
         "allow_install": cfg["allow_install"],
+        "has_windows": any(server.is_windows() for server in servers),
+        "has_linux": any(not server.is_windows() for server in servers),
+        "scanner": "OpenSCAP or DISA SCC" if any(s.is_windows() for s in servers) and any(not s.is_windows() for s in servers)
+        else ("DISA SCC" if any(s.is_windows() for s in servers) else "OpenSCAP"),
         "servers": rows,
         "scanned_count": len(scanned),
         "show_unknown": any((row["latest"].get("fail_by_severity") or {}).get("unknown") for row in scanned),
@@ -443,7 +448,7 @@ def _resource_panel_context(request, resource, profile):
     return {"oscap": oscap}
 
 
-def openscap_resource_panel(request, resource_id):
+def compliance_resource_panel(request, resource_id):
     resource = _viewable_resource(request, resource_id)
     if resource is None:
         context = {
@@ -456,10 +461,10 @@ def openscap_resource_panel(request, resource_id):
     try:
         context = _resource_panel_context(request, resource, profile)
     except store.StoreError:
-        logger.exception("OpenSCAP: the index of resource %s cannot be read", resource.id)
+        logger.exception("Compliance: the index of resource %s cannot be read", resource.id)
         context = {"oscap": {"denied": False}, "error": oscap_resource.RESOURCE_INDEX_ERROR}
     except Exception:
-        logger.exception("OpenSCAP panel failed for resource %s", resource.id)
+        logger.exception("Compliance panel failed for resource %s", resource.id)
         context = {
             "oscap": {"denied": False},
             "error": "Could not load this panel. The CloudBolt application log has the details.",
@@ -480,11 +485,11 @@ def _api(view):
         try:
             return view(request, *args, **kwargs)
         except PermissionDenied:
-            return JsonResponse({"error": "You may not run OpenSCAP on this server."}, status=403)
+            return JsonResponse({"error": "You may not run compliance scans on this server."}, status=403)
         except Http404:
             return JsonResponse({"error": "This server was not found."}, status=404)
         except Exception:
-            logger.exception("OpenSCAP API call failed: %s %s", request.method, request.path)
+            logger.exception("Compliance API call failed: %s %s", request.method, request.path)
             return JsonResponse({"error": "Unexpected error; see the CloudBolt application log."}, status=500)
 
     return wrapper
@@ -500,7 +505,7 @@ def _body(request):
 
 
 @_api
-def openscap_start(request, server_id):
+def compliance_start(request, server_id):
     """POST {mode: scan|check, datastream, profile, install}: starts the job,
     answers 202 with {job_id, job_url}."""
     if request.method != "POST":
@@ -529,7 +534,7 @@ def openscap_start(request, server_id):
 
 
 @_api
-def openscap_resource_start(request, resource_id):
+def compliance_resource_start(request, resource_id):
     """POST {mode: scan|check, datastream, profile, install, servers: [ids]}:
     queues the resource's parent job, answers 202 with {job_id, job_url}. Only
     servers the requester may view and scan, among the servers the tab lists,
@@ -554,7 +559,7 @@ def openscap_resource_start(request, resource_id):
         if can_scan(profile, server)
     }
     if not scannable:
-        return JsonResponse({"error": "You may not run OpenSCAP on the servers of this resource."}, status=403)
+        return JsonResponse({"error": "You may not run compliance scans on the servers of this resource."}, status=403)
     chosen = [scannable[server_id] for server_id in dict.fromkeys(wanted) if server_id in scannable]
     if not chosen:
         return JsonResponse({"error": "Choose at least one server you may scan."}, status=400)
@@ -576,7 +581,7 @@ def openscap_resource_start(request, resource_id):
 # ---------------------------------------------------------------------------
 # Stored result files
 # ---------------------------------------------------------------------------
-def openscap_artifact(request, server_id, scan_id, kind):
+def compliance_artifact(request, server_id, scan_id, kind):
     """The report, the XCCDF results or the ARF file of one scan."""
     server = _viewable_server(request, server_id)
     if server is None:
@@ -585,7 +590,7 @@ def openscap_artifact(request, server_id, scan_id, kind):
     try:
         scan = store.find_scan(server.id, scan_id)
     except store.StoreError:
-        logger.exception("OpenSCAP: the index of server %s cannot be read", server.id)
+        logger.exception("Compliance: the index of server %s cannot be read", server.id)
         raise Http404
     if scan is None:
         raise Http404
@@ -593,19 +598,19 @@ def openscap_artifact(request, server_id, scan_id, kind):
         return oscap_repo.link_or_response(server, scan, kind, request)
     except oscap_repo.RepoError as exc:
         # The detail stays in the log; everyone, administrators included, gets one fixed sentence.
-        logger.error("OpenSCAP: cannot open %s of scan %s: %s", kind, scan_id, exc.detail)
+        logger.error("Compliance: cannot open %s of scan %s: %s", kind, scan_id, exc.detail)
     return HttpResponse(oscap_repo.GENERIC_PUBLIC, status=502, content_type="text/plain")
 
 
 @login_not_required
 @csrf_exempt
-def openscap_upload(request, scan_id, name):
+def compliance_upload(request, scan_id, name):
     """Local backend: a server PUTs one result file here. No login; the signed
     token is the credential, and every refusal is a plain 404."""
     try:
         oscap_repo.receive_upload(request, scan_id, name)
     except Http404:
-        logger.info("OpenSCAP: refused an upload from %s", request.META.get("REMOTE_ADDR", "unknown address"))
+        logger.info("Compliance: refused an upload from %s", request.META.get("REMOTE_ADDR", "unknown address"))
         raise
     return HttpResponse(status=200)
 
@@ -620,9 +625,9 @@ def _handlers():
 
 
 @admin_extension(
-    title="OpenSCAP Settings",
-    description="Choose where OpenSCAP scan reports are stored (S3 or this appliance), which profiles scans "
-    "try, how long they may run, and which servers show the OpenSCAP tab.",
+    title="Compliance Settings",
+    description="Choose where compliance scan reports are stored (S3 or this appliance), which profiles scans "
+    "try, how long they may run, how Windows servers are scanned, and which servers show the Compliance tab.",
 )
 @cbadmin_required
 def settings(request):
