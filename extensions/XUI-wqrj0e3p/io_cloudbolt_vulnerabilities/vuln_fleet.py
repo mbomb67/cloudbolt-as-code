@@ -590,6 +590,7 @@ def _inventory(job):
     started_at = _clock()
     running = {}
     _progress(job, "Scanning {}".format(_plural(total, "server")))
+    reported = 0  # the count last written to the job, so a long wait does not repeat one line
 
     while queue or running:
         if _cancelled(job):
@@ -643,7 +644,9 @@ def _inventory(job):
             elif state is None:
                 failed += 1
                 del running[job_id]
-        _progress(job, "Scanned {} of {}".format(scanned + failed, total), scanned + failed, max(total, 1))
+        if scanned + failed != reported:
+            reported = scanned + failed
+            _progress(job, "Scanned {} of {}".format(reported, total), reported, max(total, 1))
 
     skipped = {code: counts[code] for code in counts if counts[code]}
     parts = ["Scanned {}".format(_plural(scanned, "server"))]
