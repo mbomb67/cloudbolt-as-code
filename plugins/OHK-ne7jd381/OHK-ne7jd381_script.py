@@ -13,7 +13,11 @@ Inputs: profile (a profile id or its ending, such as cis_server_l1; empty picks 
 profile of the Compliance settings page that the server's guide offers).
 """
 
+import importlib
+
 from common.methods import set_progress
+
+PACKAGE = "xui.io_cloudbolt_compliance"
 
 
 def _clean(value):
@@ -23,6 +27,16 @@ def _clean(value):
 
 
 PROFILE = _clean("{{ profile }}")
+
+
+def _load_api():
+    """The extension's oscap_api, freshly loaded. The job engine keeps modules in memory, so the
+    extension's modules are reloaded the way its own scan job does it (oscap_job.py): a synced
+    extension update then counts without a restart."""
+    entry = importlib.reload(importlib.import_module(PACKAGE + ".oscap_job"))
+    for name in tuple(entry.MODULES) + (PACKAGE + ".oscap_api",):
+        importlib.reload(importlib.import_module(name))
+    return importlib.import_module(PACKAGE + ".oscap_api")
 
 
 def _one(oscap_api, server, job):
@@ -49,14 +63,13 @@ def run(job, *args, **kwargs):
         if job.status == "FAILURE":
             return "SUCCESS", "Provisioning failed, so no server was scanned.", ""
         try:
-            from xui.io_cloudbolt_compliance import oscap_api
-
+            oscap_api = _load_api()
             oscap_api.start_scan
         except ImportError:
             set_progress("The Compliance extension (extensions/XUI-i4kzuy3y) is not installed, so no server was scanned.")
             return "SUCCESS", "", ""
         except AttributeError:
-            set_progress("The installed Compliance extension is too old to offer start_scan(); sync extensions/XUI-i4kzuy3y and restart the web service.")
+            set_progress("The installed Compliance extension is too old to offer start_scan(); sync extensions/XUI-i4kzuy3y.")
             return "SUCCESS", "", ""
         lines = []
         for server in kwargs.get("servers") or list(job.server_set.all()):
