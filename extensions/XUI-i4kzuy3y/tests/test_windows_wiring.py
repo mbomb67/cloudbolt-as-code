@@ -1,5 +1,5 @@
 """
-Checks for the Windows engine wiring of the OpenSCAP XUI, without CloudBolt:
+Checks for the Windows engine wiring of the Compliance XUI, without CloudBolt:
 CloudBolt's modules and oscap_windows are stubs.
 
     python -m unittest discover -s extensions/XUI-i4kzuy3y/tests -p "test_windows_wiring.py"
@@ -61,12 +61,12 @@ _install_stubs()
 import importlib  # noqa: E402
 
 # A stand-in for the real engine, which another file provides.
-windows_stub = _module("xui.openscap.oscap_windows", run=lambda *a, **k: "")
-store = importlib.import_module("xui.openscap.oscap_store")
-sys.modules["xui.openscap"].oscap_windows = windows_stub
-jobs = importlib.import_module("xui.openscap.oscap_jobs")
-oscap_resource = importlib.import_module("xui.openscap.oscap_resource")
-rollup = importlib.import_module("xui.openscap.oscap_rollup")
+windows_stub = _module("xui.io_cloudbolt_compliance.oscap_windows", run=lambda *a, **k: "")
+store = importlib.import_module("xui.io_cloudbolt_compliance.oscap_store")
+sys.modules["xui.io_cloudbolt_compliance"].oscap_windows = windows_stub
+jobs = importlib.import_module("xui.io_cloudbolt_compliance.oscap_jobs")
+oscap_resource = importlib.import_module("xui.io_cloudbolt_compliance.oscap_resource")
+rollup = importlib.import_module("xui.io_cloudbolt_compliance.oscap_rollup")
 
 SHA = "a537a0f9a39ccc2231818709f8bb5f8f9b9cbfc2ec0d44dbbfabbe35d4f558ba"
 
@@ -95,6 +95,63 @@ def server(windows=False, linux=False, status="ACTIVE", tags=(), power="POWERON"
         is_windows=lambda: windows,
         tags=types.SimpleNamespace(all=lambda: [types.SimpleNamespace(name=t) for t in tags]),
     )
+
+
+class FakeHooks:
+    """A stand-in for CloudBoltHook: rows in a list, the way objects.filter(name=...).first() reads them."""
+
+    rows = []
+
+    class objects:
+        @staticmethod
+        def filter(name):
+            found = [r for r in FakeHooks.rows if r.name == name]
+            return types.SimpleNamespace(first=lambda: found[0] if found else None)
+
+    def __init__(self, name="", description="", shared=False):
+        self.name, self.description, self.shared, self.module_file = name, description, shared, ""
+
+    def save(self):
+        if self not in FakeHooks.rows:
+            FakeHooks.rows.append(self)
+
+
+class HookNameTests(unittest.TestCase):
+    def setUp(self):
+        FakeHooks.rows = []
+        self.hooks = importlib.import_module("xui.io_cloudbolt_compliance.oscap_hooks")
+        self.saved = self.hooks.CloudBoltHook
+        self.hooks.CloudBoltHook = FakeHooks
+
+    def tearDown(self):
+        self.hooks.CloudBoltHook = self.saved
+
+    def test_new_appliance_creates_the_new_name(self):
+        hook = self.hooks.scan_hook()
+        self.assertEqual(hook.name, "Compliance Scan")
+        self.assertEqual(len(FakeHooks.rows), 1)
+
+    def test_old_row_is_renamed_not_duplicated(self):
+        old = FakeHooks("OpenSCAP Scan")
+        old.module_file = "/old/place/oscap_job.py"
+        FakeHooks.rows.append(old)
+        hook = self.hooks.scan_hook()
+        self.assertIs(hook, old)
+        self.assertEqual(old.name, "Compliance Scan")
+        self.assertTrue(old.module_file.endswith("oscap_job.py"))
+        self.assertNotIn("old/place", old.module_file.replace("\\", "/"))
+        self.assertEqual(len(FakeHooks.rows), 1)
+
+    def test_resource_old_row_is_renamed(self):
+        old = FakeHooks("OpenSCAP Resource Scan")
+        FakeHooks.rows.append(old)
+        self.assertEqual(self.hooks.resource_scan_hook().name, "Compliance Resource Scan")
+        self.assertEqual(len(FakeHooks.rows), 1)
+
+    def test_new_row_wins_over_old(self):
+        new, old = FakeHooks("Compliance Scan"), FakeHooks("OpenSCAP Scan")
+        FakeHooks.rows.extend([new, old])
+        self.assertIs(self.hooks.scan_hook(), new)
 
 
 class SettingsTests(unittest.TestCase):
@@ -187,7 +244,9 @@ class TabTests(unittest.TestCase):
 
     def test_label_visibility(self):
         self.assertFalse(jobs.shows_tab(server(windows=True), "label"))
+        self.assertTrue(jobs.shows_tab(server(windows=True, tags=("Compliance",)), "label"))
         self.assertTrue(jobs.shows_tab(server(windows=True, tags=("OpenScap",)), "label"))
+        self.assertFalse(jobs.shows_tab(server(windows=True, tags=("Other",)), "label"))
 
     def test_historical_hidden(self):
         self.assertFalse(jobs.shows_tab(server(windows=True, status="HISTORICAL"), "linux"))

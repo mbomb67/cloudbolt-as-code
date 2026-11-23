@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-  Panel fragment for the OpenSCAP tab, loaded and re-loaded by oscap_assets.html.
+  Panel fragment for the Compliance tab, loaded and re-loaded by oscap_assets.html.
   The top element's data-active is "1" while a job runs, which keeps the
   script polling and the header's Run scan and Check server buttons off.
   Everything is autoescaped; nothing is marked safe.
@@ -11,7 +11,7 @@
     <i class="bi bi-lock-fill" aria-hidden="true"></i>
     <div class="oscap-banner-body">
       <div class="oscap-banner-t">{% trans "You do not have access" %}</div>
-      <div class="oscap-banner-s">{% trans "You do not have permission to see OpenSCAP results for this server. Ask a CloudBolt administrator for access." %}</div>
+      <div class="oscap-banner-s">{% trans "You do not have permission to see compliance results for this server. Ask a CloudBolt administrator for access." %}</div>
     </div>
   </div>
 {% else %}
@@ -82,7 +82,7 @@
     <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
     <div class="oscap-banner-body">
       <div class="oscap-banner-t">{{ oscap.state.problem }}</div>
-      {% if not oscap.allow_install %}<div class="oscap-banner-s">{% trans "An administrator can allow installs in the OpenSCAP settings, or you can install the packages named above on the server." %}</div>{% endif %}
+      {% if not oscap.allow_install %}<div class="oscap-banner-s">{% trans "An administrator can allow installs in the Compliance settings, or you can install the packages named above on the server." %}</div>{% endif %}
     </div>
     {% if oscap.can_scan and oscap.allow_install %}<button type="button" class="btn btn-sm btn-primary oscap-banner-btn" data-oscap-act="install-check"{% if oscap.active %} disabled{% endif %}><i class="bi bi-download" aria-hidden="true"></i> {% trans "Install and check" %}</button>{% endif %}
   </div>

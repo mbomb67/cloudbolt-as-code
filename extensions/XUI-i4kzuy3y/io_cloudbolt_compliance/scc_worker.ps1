@@ -6,7 +6,7 @@ $U8 = New-Object Text.UTF8Encoding($false)
 $T0 = Get-Date
 $PFiles = $env:ProgramW6432
 if (!$PFiles) { $PFiles = $env:ProgramFiles }
-$Root = Join-Path $PFiles 'CloudBolt\OpenSCAP\scc'
+$Root = Join-Path $PFiles 'CloudBolt\Compliance\scc'
 $Acl = @('/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
 $St = @{ ready = 0; ver = ''; os = ''; exit = ''; score = ''; ds = ''; prof = ''; title = ''; problem = ''; up = @{}; kv = '' }
 
@@ -247,7 +247,7 @@ function Up($n, $u) {
       E stored "$n|yes|"
     } catch {
       $m = $_.Exception.Message
-      if ($m -match 'trust') { $m = 'the server does not trust the certificate of the upload address; turn on Skip certificate check in the OpenSCAP settings' }
+      if ($m -match 'trust') { $m = 'the server does not trust the certificate of the upload address; turn on Skip certificate check in the Compliance settings' }
       E stored "$n|no|$(N $m 200)"
     }
   }

@@ -1,17 +1,17 @@
 """
-OpenSCAP for other content: scan a server from a plug-in and wait for the result.
+Compliance scans for other content: scan a server from a plug-in and wait for the result.
 
-    from xui.openscap import oscap_api
+    from xui.io_cloudbolt_compliance import oscap_api
 
     result = oscap_api.scan_and_wait(server, job.owner, profile_id="cis_server_l1", install=True)
     result["status"]         "completed", "failed", "refused" or "timeout"
     result["message"]        one sentence for the job output
     result["report_url"]     link to the stored HTML report, or ""
     result["report_problem"] why there is no link, when there is none
-    result["scan"]           the scan summary the OpenSCAP tab shows (score, counts, failed rules), or None
+    result["scan"]           the scan summary the Compliance tab shows (score, counts, failed rules), or None
     result["job"]            the scan's own Job, or None
 
-The scan is the job the OpenSCAP tab starts (oscap_jobs.start), so it takes the
+The scan is the job the Compliance tab starts (oscap_jobs.start), so it takes the
 same lock, lands in the server's scan history and stores its files the same
 way. A blueprint build item uses this to scan the servers it built before the
 order finishes (plugins/OHK-oqqmfoah).
@@ -52,9 +52,9 @@ def report_url(server, scan, base=None):
     if not base:
         return ""
     try:
-        return base + reverse("openscap_artifact", args=[server.id, scan["id"], "report"])
+        return base + reverse("compliance_artifact", args=[server.id, scan["id"], "report"])
     except NoReverseMatch:
-        logger.exception("OpenSCAP: the report route is not loaded")
+        logger.exception("Compliance: the report route is not loaded")
         return ""
 
 

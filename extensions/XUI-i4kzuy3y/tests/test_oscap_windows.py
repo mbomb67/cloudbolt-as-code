@@ -1,5 +1,5 @@
-"""Local tests for openscap/oscap_windows.py. Run: python -m unittest discover -s extensions/XUI-i4kzuy3y/tests
-The module is loaded by path: the openscap package imports CloudBolt, which is not needed here."""
+"""Local tests for io_cloudbolt_compliance/oscap_windows.py. Run: python -m unittest discover -s extensions/XUI-i4kzuy3y/tests
+The module is loaded by path: the io_cloudbolt_compliance package imports CloudBolt, which is not needed here."""
 import importlib.util
 import os
 import re
@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "openscap", "oscap_windows.py")
+SRC = os.path.join(HERE, "..", "io_cloudbolt_compliance", "oscap_windows.py")
 spec = importlib.util.spec_from_file_location("oscap_windows", SRC)
 ow = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ow)
@@ -150,8 +150,8 @@ class LengthTests(unittest.TestCase):
         prep = ow.prep_script(ID)
         for word in ("icacls", "AddDays(-1)", "ReparsePoint", "Unregister-ScheduledTask", "S-1-5-18", "S-1-5-32-544"):
             self.assertIn(word, prep)
-        self.assertIn("Substring(19)", prep)
-        self.assertEqual(len("CloudBolt-OpenSCAP-"), 19)
+        self.assertIn("Substring(21)", prep)
+        self.assertEqual(len("CloudBolt-Compliance-"), 21)
         for script, _ in ow.stage_scripts(ID, "A" * 10000):
             self.assertNotIn("icacls", script)
 
@@ -174,7 +174,7 @@ class ParseFunctionTests(unittest.TestCase):
     """Dot-sources only the pure XCCDF parsing function of the worker against a synthetic results file."""
 
     def run_px(self, xml):
-        worker = os.path.abspath(os.path.join(HERE, "..", "openscap", "scc_worker.ps1"))
+        worker = os.path.abspath(os.path.join(HERE, "..", "io_cloudbolt_compliance", "scc_worker.ps1"))
         with tempfile.TemporaryDirectory() as tmp:
             res = os.path.join(tmp, "r.xml")
             with open(res, "w", encoding="utf-8") as handle:

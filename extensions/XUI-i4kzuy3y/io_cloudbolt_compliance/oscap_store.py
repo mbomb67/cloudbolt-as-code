@@ -1,5 +1,5 @@
 """
-OpenSCAP XUI: settings and the per-server index.
+Compliance XUI: settings and the per-server index.
 
 Everything lives under PROSERV_DIR/openscap/ (the shared proserv disk, as the
 File Archives shared module does):
@@ -141,7 +141,7 @@ def _contained(base, name):
     base = os.path.normpath(base)
     path = os.path.normpath(os.path.join(base, name))
     if not path.startswith(base + os.sep):
-        raise StoreError("The path is outside the OpenSCAP folder.")
+        raise StoreError("The path is outside the compliance data folder.")
     return path
 
 
@@ -361,7 +361,7 @@ def validate_settings(data):
 
     visibility = str(data.get("visibility", "linux")).strip()
     if visibility not in VISIBILITIES:
-        errors.append("Show the tab on must be Linux and Windows servers or servers labelled OpenScap.")
+        errors.append("Show the tab on must be Linux and Windows servers or servers labelled Compliance.")
         visibility = "linux"
     clean["visibility"] = visibility
 

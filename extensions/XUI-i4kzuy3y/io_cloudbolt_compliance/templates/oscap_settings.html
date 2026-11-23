@@ -1,7 +1,7 @@
 {% extends "v5/default/body.html" %}
-{% block title %}OpenSCAP settings{% endblock %}
+{% block title %}Compliance settings{% endblock %}
 {% block topnav %}admin{% endblock %}
-{% block breadcrumb-item %}<h1>OpenSCAP settings</h1>{% endblock breadcrumb-item %}
+{% block breadcrumb-item %}<h1>Compliance settings</h1>{% endblock breadcrumb-item %}
 
 {% block content %}
 <style>
@@ -46,7 +46,7 @@
 
 <div id="oscap-settings">
   <div class="oscap-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Compliance</div>
-  <div class="oscap-lede">Where OpenSCAP scan reports are stored, and who can run scans.</div>
+  <div class="oscap-lede">Where compliance scan reports are stored, and who can run scans.</div>
 
   {% if saved %}
   <div class="oscap-notice oscap-notice-ok" role="status">
@@ -159,7 +159,7 @@
       <div class="oscap-field">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="oscap-allow-install" name="allow_install" value="1"{% if settings.allow_install %} checked{% endif %}>
-          <label class="form-check-label" for="oscap-allow-install">Let users install OpenSCAP on a server</label>
+          <label class="form-check-label" for="oscap-allow-install">Let users install the scanner on a server</label>
         </div>
         <div class="oscap-help">Adds the install option to scans: OpenSCAP on Linux servers, SCC on Windows servers.</div>
       </div>
@@ -167,9 +167,9 @@
         <label class="oscap-label" for="oscap-visibility">Show the tab on</label>
         <select class="form-select form-select-sm" id="oscap-visibility" name="visibility">
           <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux and Windows server</option>
-          <option value="label"{% if settings.visibility == "label" %} selected{% endif %}>Only servers labelled OpenScap</option>
+          <option value="label"{% if settings.visibility == "label" %} selected{% endif %}>Only servers labelled Compliance</option>
         </select>
-        <div class="oscap-help">Choose who sees the OpenSCAP tab on a server page.</div>
+        <div class="oscap-help">Choose who sees the Compliance tab on a server page.</div>
       </div>
     </div>
 

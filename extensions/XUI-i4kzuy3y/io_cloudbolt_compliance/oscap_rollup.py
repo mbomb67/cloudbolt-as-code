@@ -1,5 +1,5 @@
 """
-OpenSCAP XUI: the roll-up of several servers' latest scans.
+Compliance XUI: the roll-up of several servers' latest scans.
 
 Pure Python, no Django: the resource tab and the resource run both call it, and
 it can be checked with plain Python. Everything it reads is a server's scan

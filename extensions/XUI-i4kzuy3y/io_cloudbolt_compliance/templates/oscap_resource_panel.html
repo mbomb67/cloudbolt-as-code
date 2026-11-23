@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-  Panel fragment for the OpenSCAP resource tab, loaded and re-loaded by
+  Panel fragment for the Compliance resource tab, loaded and re-loaded by
   oscap_resource_assets.html. The top element's data-active is "1" while the
   resource run or any server's job runs, which keeps the script polling; the
   header's Scan all servers and Check servers buttons are off while the
@@ -13,7 +13,7 @@
     <i class="bi bi-lock-fill" aria-hidden="true"></i>
     <div class="oscap-banner-body">
       <div class="oscap-banner-t">{% trans "You do not have access" %}</div>
-      <div class="oscap-banner-s">{% trans "You do not have permission to see OpenSCAP results for this resource. Ask a CloudBolt administrator for access." %}</div>
+      <div class="oscap-banner-s">{% trans "You do not have permission to see compliance results for this resource. Ask a CloudBolt administrator for access." %}</div>
     </div>
   </div>
 {% else %}

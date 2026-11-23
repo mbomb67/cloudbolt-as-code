@@ -1,13 +1,13 @@
 {
-    "description": "Adds an OpenSCAP tab to Linux and Windows servers and to resources that have them, running compliance scans as jobs (OpenSCAP on Linux, DISA SCC on Windows) and keeping the reports in S3 or on the appliance.",
+    "description": "Adds a Compliance tab to Linux and Windows servers and to resources that have them, running compliance scans as jobs (OpenSCAP on Linux, DISA SCC on Windows) and keeping the reports in S3 or on the appliance.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-i4kzuy3y",
-    "label": "OpenSCAP",
+    "label": "Compliance",
     "last_updated": "2026-11-23",
     "maximum_version_required": "",
     "minimum_version_required": "8.6",
-    "name": "openscap",
+    "name": "io_cloudbolt_compliance",
     "package_contents": [
         "__init__.py",
         "views.py",

@@ -751,8 +751,8 @@
   {
     "id": "XUI-i4kzuy3y",
     "type": "extensions",
-    "name": "OpenSCAP",
-    "description": "Adds an OpenSCAP tab to Linux and Windows servers and to resources that have them, running compliance scans as jobs (OpenSCAP on Linux, DISA SCC on Windows) and keeping the reports in S3 or on the appliance.",
+    "name": "Compliance",
+    "description": "Adds a Compliance tab to Linux and Windows servers and to resources that have them, running compliance scans as jobs (OpenSCAP on Linux, DISA SCC on Windows) and keeping the reports in S3 or on the appliance.",
     "path": "extensions/XUI-i4kzuy3y",
     "readme": "extensions/XUI-i4kzuy3y/README.md",
     "uses": [],
@@ -1714,7 +1714,7 @@
     "id": "PKG-57ltvnbl",
     "type": "packages",
     "name": "OpenShift",
-    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring tab on VMs and on the resources that hold them, the OpenSCAP tab that the blueprint's scan steps use, and the Run Script server action that reaches VMs through the cluster API.",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring tab on VMs and on the resources that hold them, the Compliance tab that the blueprint's scan steps use, and the Run Script server action that reaches VMs through the cluster API.",
     "path": "packages/PKG-57ltvnbl",
     "readme": "packages/PKG-57ltvnbl/README.md",
     "uses": [],
@@ -4188,7 +4188,7 @@
     "id": "OHK-oqqmfoah",
     "type": "plugins",
     "name": "Run OpenSCAP Scan",
-    "description": "Scans a blueprint's server tier with the OpenSCAP UI extension, waits for the scan, and stores a link to the report on the resource.",
+    "description": "Scans a blueprint's server tier with the Compliance UI extension, waits for the scan, and stores a link to the report on the resource.",
     "path": "plugins/OHK-oqqmfoah",
     "readme": null,
     "uses": [

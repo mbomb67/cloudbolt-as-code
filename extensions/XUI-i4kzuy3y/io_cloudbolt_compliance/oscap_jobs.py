@@ -1,5 +1,5 @@
 """
-The OpenSCAP scan and readiness check as a CloudBolt job.
+The compliance scan and readiness check as a CloudBolt job.
 
 start() runs in the web request. It validates the request, takes the
 server's start lock, makes the scan id and the upload targets
@@ -66,10 +66,12 @@ COUNT_KEYS = (
 )
 SEVERITIES = ("high", "medium", "low", "unknown")
 
-# The OpenSCAP tab shows on servers whose OS family belongs to this root family,
+# The Compliance tab shows on servers whose OS family belongs to this root family,
 # or that carry this label (the settings page picks which).
 LINUX_FAMILY = "Linux"
-LABEL = "OpenScap"
+LABEL = "Compliance"
+# The tag OpenScap, from before the rename, still shows the tab.
+LABELS = (LABEL, "OpenScap")
 
 # Bounds on everything parsed from the server's output.
 MAX_OUTPUT = 256 * 1024
@@ -95,9 +97,9 @@ CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
 NO_TARGETS_PROBLEM = (
     "The result files were not stored: the default portal has no site URL, so servers cannot be told where to "
-    "upload. Set the portal's domain, or switch the OpenSCAP storage to S3."
+    "upload. Set the portal's domain, or switch the compliance storage to S3."
 )
-INDEX_ERROR = "The scan history for this server cannot be read or written; ask an administrator to check the OpenSCAP folder."
+INDEX_ERROR = "The scan history for this server cannot be read or written; ask an administrator to check the compliance data folder."
 
 
 class ScanError(Exception):
@@ -420,7 +422,7 @@ SCAN_PERMISSION = "server.all_actions"
 
 
 def can_scan(profile, server):
-    """Whether the profile may run OpenSCAP on the server: a CB Admin, or the
+    """Whether the profile may run a compliance scan on the server: a CB Admin, or the
     server.all_actions permission on it."""
     if getattr(profile, "is_cbadmin", False):
         return True
@@ -443,15 +445,15 @@ def is_linux(server):
 
 
 def shows_tab(server, visibility):
-    """Whether the server gets the OpenSCAP tab: not historical, and a Linux or
-    Windows server or one labelled OpenScap, as the settings' visibility says (the
+    """Whether the server gets the Compliance tab: not historical, and a Linux or
+    Windows server or one labelled Compliance, as the settings' visibility says (the
     stored value "linux" covers both). Cheap: no network, no remote call."""
     if server.status == "HISTORICAL":
         return False
     if visibility == "linux" and (is_linux(server) or server.is_windows()):
         return True
     # Not server.labels: that is a new query per server; tags.all() reads a prefetch.
-    return LABEL in [tag.name for tag in server.tags.all()]
+    return any(tag.name in LABELS for tag in server.tags.all())
 
 
 # ---------------------------------------------------------------- active job
@@ -508,7 +510,7 @@ def start(profile, server, mode, datastream, profile_id, install, base_url="", c
             created = _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url, is_admin,
                              parent_job)
     except store.StoreError:
-        logger.exception("OpenSCAP: index problem starting a job on server %s", server.id)
+        logger.exception("Compliance: index problem starting a job on server %s", server.id)
         return Refusal(INDEX_ERROR, 500)
     return created
 
@@ -526,7 +528,7 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
             try:
                 oscap_repo.prune(server, cfg, reserve=1)
             except Exception:
-                logger.exception("OpenSCAP: pruning before a scan failed for server %s", server.id)
+                logger.exception("Compliance: pruning before a scan failed for server %s", server.id)
         if cfg["backend"] == "local" and _is_openshift_vm(server):
             # CloudBolt reaches these guests through the cluster API and they usually cannot reach
             # CloudBolt, so the job collects the files itself: no upload URLs and no token.
@@ -541,7 +543,7 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
                     server, scan_id, base_url=base_url, minutes=cfg["scan_timeout_min"] + 5
                 )
             except oscap_repo.RepoError as exc:
-                logger.error("OpenSCAP: no upload targets for server %s: %s", server.id, exc.detail)
+                logger.error("Compliance: no upload targets for server %s: %s", server.id, exc.detail)
                 # Administrators get the sentence for the error code (a fixed table), others the generic one.
                 # A resource run keeps its refusals in a record every viewer of the resource reads: public text only.
                 return Refusal(
@@ -580,17 +582,17 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
     job.oscap_scan_id = scan_id
     # From here the job is queued: nothing below may turn into an error.
     try:
-        job.label = "OpenSCAP {}: {}".format("scan" if mode == "scan" else "check", server.hostname)
+        job.label = "Compliance {}: {}".format("scan" if mode == "scan" else "check", server.hostname)
         job.save(update_fields=["label"])
         # The same link run_as_job makes for the servers it is given, so the
         # job shows on the server's own Jobs tab and its group can see it.
         server.jobs.add(job)
     except Exception:
-        logger.exception("OpenSCAP: could not label or link job %s", job.id)
+        logger.exception("Compliance: could not label or link job %s", job.id)
     try:
         store.set_active(server.id, {"job_id": job.id, "kind": mode, "started": store.stamp(), "scan_id": scan_id})
     except Exception:
-        logger.exception("OpenSCAP: could not record job %s as active on server %s", job.id, server.id)
+        logger.exception("Compliance: could not record job %s as active on server %s", job.id, server.id)
     return job
 
 
@@ -653,15 +655,15 @@ def run_scan(job, oscap_server_id=None, oscap_mode="scan", oscap_datastream="", 
                         oscap_store_problem, oscap_upload_urls or {}, oscap_upload_token or "",
                         oscap_location or {}, oscap_started, oscap_requested_by, bool(oscap_pull))
         except Exception as exc:
-            logger.exception("OpenSCAP job failed on server %s", oscap_server_id)
-            return "FAILURE", "", "OpenSCAP failed: {}".format(clean(str(exc), MESSAGE_LEN)), {}
+            logger.exception("Compliance job failed on server %s", oscap_server_id)
+            return "FAILURE", "", "Compliance scan failed: {}".format(clean(str(exc), MESSAGE_LEN)), {}
     finally:
         # Always clear the marker, so a failed job never blocks the next scan.
         if oscap_server_id:
             try:
                 store.set_active(oscap_server_id, None)
             except Exception:
-                logger.exception("OpenSCAP: could not clear the active marker for server %s", oscap_server_id)
+                logger.exception("Compliance: could not clear the active marker for server %s", oscap_server_id)
         _clear_secrets(job)
 
 
@@ -795,7 +797,7 @@ def _collect(server, scan_id):
         channel.exec_command("sudo -n rm -rf " + shlex.quote(remote))
         channel.recv_exit_status()
     except (kubevirt_api_tunnel.TunnelError, paramiko.SSHException, EOFError, OSError) as exc:
-        logger.exception("OpenSCAP: collecting the files of scan %s from server %s failed", scan_id, server.id)
+        logger.exception("Compliance: collecting the files of scan %s from server %s failed", scan_id, server.id)
         reason = "the file could not be read over the API tunnel: {}".format(
             clean(str(exc), 150) or type(exc).__name__
         )
@@ -848,7 +850,7 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     if uploads and not urls and not pull:
         return "FAILURE", "", (
             "This job's upload links were cleared when it first ran, so it cannot run again. "
-            "Start a new scan from the OpenSCAP tab."
+            "Start a new scan from the Compliance tab."
         ), {}
     if server.power_status != "POWERON":
         return "FAILURE", "", "{} is not powered on.".format(server.hostname), {}
@@ -886,7 +888,7 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
             # A timeout or a non-zero exit: the exception carries the script output, and its message is ours.
             error = clean(str(exc), MESSAGE_LEN)
         else:
-            logger.exception("OpenSCAP: running the script on server %s failed", server.id)
+            logger.exception("Compliance: running the script on server %s failed", server.id)
             error = "The script could not be run on the server. The CloudBolt job log has the details."
     wall = int((store.now_utc() - began).total_seconds())
 
@@ -910,7 +912,7 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
     if mode == "check":
         add_server_event(
             "MODIFICATION", server,
-            "OpenSCAP check: {}.".format("ready" if parsed["ready"] else parsed["problem"] or "not ready"),
+            "Compliance check: {}.".format("ready" if parsed["ready"] else parsed["problem"] or "not ready"),
             job=job,
         )
         if parsed["ready"]:
@@ -918,7 +920,7 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
                 "SCC" if windows else "OpenSCAP", parsed["oscap_version"] or "", server.hostname,
                 parsed["os_name"]), "", outputs
         # The check itself ran; the server is just not ready to scan.
-        return "WARNING", "", parsed["problem"] or "OpenSCAP is not ready.", outputs
+        return "WARNING", "", parsed["problem"] or "The scanner is not ready.", outputs
 
     if pull:
         if parsed["held"]:
@@ -938,16 +940,16 @@ def _run(job, server, mode, datastream, profile_id, scan_id, cfg, uploads, store
         try:
             oscap_repo.prune(server, cfg)
         except Exception:
-            logger.exception("OpenSCAP: pruning failed for server %s", server.id)
+            logger.exception("Compliance: pruning failed for server %s", server.id)
     if summary["status"] != "completed":
-        add_server_event("MODIFICATION", server, "OpenSCAP scan failed: {}".format(summary["error"]), job=job)
+        add_server_event("MODIFICATION", server, "Compliance scan failed: {}".format(summary["error"]), job=job)
         return "FAILURE", "", summary["error"], outputs
     score = "{:.1f}%".format(summary["score"]) if summary["score"] is not None else "no score"
     message = "Scan of {} with {} finished: {}, {} failed, {} passed.".format(
         server.hostname, summary["profile_id"] or "the default profile", score,
         summary["counts"]["fail"], summary["counts"]["pass"],
     )
-    add_server_event("MODIFICATION", server, "OpenSCAP scan finished: " + message, job=job)
+    add_server_event("MODIFICATION", server, "Compliance scan finished: " + message, job=job)
     missing = [name for name in oscap_repo.UPLOAD_NAMES if not summary["files"].get(name)]
     if missing:
         return "WARNING", message, "The scan completed, but these files could not be stored: {}. {}".format(

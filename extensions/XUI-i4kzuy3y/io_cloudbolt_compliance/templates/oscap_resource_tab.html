@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-  Shell of the OpenSCAP resource tab. The page header is static here, as in the
+  Shell of the Compliance resource tab. The page header is static here, as in the
   server tab; oscap_resource_assets.html loads the panel fragment (panel_url)
   into the body div and keeps it fresh while a run is going. Scan all servers
   and Check servers are enabled or disabled from the panel's state after each
@@ -11,7 +11,7 @@
     <div>
       <div class="oscap-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> {% trans "Compliance" %}</div>
       <div class="oscap-title">{{ resource.name }}</div>
-      <div class="oscap-sub">{% blocktrans with label=shell.repo_label count n=shell.server_count %}OpenSCAP security scans for the {{ n }} server in this resource. Each server scans itself and keeps its own report in {{ label }}.{% plural %}OpenSCAP security scans for the {{ n }} servers in this resource. Each server scans itself and keeps its own report in {{ label }}.{% endblocktrans %}</div>
+      <div class="oscap-sub">{% blocktrans with label=shell.repo_label count n=shell.server_count %}Compliance scans for the {{ n }} server in this resource. Each server scans itself and keeps its own report in {{ label }}.{% plural %}Compliance scans for the {{ n }} servers in this resource. Each server scans itself and keeps its own report in {{ label }}.{% endblocktrans %}</div>
     </div>
     <div class="oscap-tools">
       {% if shell.can_scan %}
@@ -36,4 +36,4 @@
     <div class="oscap-loading-note"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Loading from CloudBolt…" %}</div>
   </div>
 </div>
-{% include "openscap/templates/oscap_resource_assets.html" %}
+{% include "io_cloudbolt_compliance/templates/oscap_resource_assets.html" %}

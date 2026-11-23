@@ -1,5 +1,5 @@
 """
-The Windows engine of the OpenSCAP extension: scans a Windows guest with DISA SCC
+The Windows engine of the Compliance extension: scans a Windows guest with DISA SCC
 (cscc.exe) and returns the same OSCAP|key|value text oscap_scan.sh prints, so
 oscap_jobs.parse_output reads it unchanged.
 
@@ -34,7 +34,7 @@ import time
 
 SCRIPT_FILE = "scc_worker.ps1"
 # Resolved on the guest in every script (ProgramW6432 keeps a 32-bit PowerShell on the 64-bit Program Files).
-BASEDEF = "$base=Join-Path $(if($env:ProgramW6432){$env:ProgramW6432}else{$env:ProgramFiles}) 'CloudBolt\\OpenSCAP'\n"
+BASEDEF = "$base=Join-Path $(if($env:ProgramW6432){$env:ProgramW6432}else{$env:ProgramFiles}) 'CloudBolt\\Compliance'\n"
 MODES = ("check", "scan")
 SCAN_ID_RE = re.compile(r"[A-Za-z0-9-]{8,64}")
 SHA_RE = re.compile(r"[0-9A-Fa-f]{64}")
@@ -168,7 +168,7 @@ PREP = (
     + "if($LASTEXITCODE -ne 0){throw 'icacls failed'}\n"
     + "Remove-Item \"$d\\p.b64\" -Force -EA 0\n"
     + "Get-ChildItem $r -Directory|?{$_.LastWriteTime -lt (Get-Date).AddDays(-1)}|Remove-Item -Recurse -Force -EA 0\n"
-    + "Get-ScheduledTask -TaskName 'CloudBolt-OpenSCAP-*' -EA 0|?{$i=$_.TaskName.Substring(19);$i -ne '@@ID@@' -and !(Test-Path \"$r\\$i\")}|Unregister-ScheduledTask -Confirm:$false -EA 0\n"
+    + "Get-ScheduledTask -TaskName 'CloudBolt-Compliance-*' -EA 0|?{$i=$_.TaskName.Substring(21);$i -ne '@@ID@@' -and !(Test-Path \"$r\\$i\")}|Unregister-ScheduledTask -Confirm:$false -EA 0\n"
     + "'OSCAP|prepared|1'\n"
     + "}catch{'OSCAP|terr|prepare: '+$_.Exception.Message}\n"
     + "exit 0\n"
@@ -200,7 +200,7 @@ LAUNCH = (
     + "$g.CopyTo($o)\n"
     + "[IO.File]::WriteAllBytes(\"$d\\worker.ps1\",$o.ToArray())\n"
     + "Remove-Item \"$d\\p.b64\" -Force}\n"
-    + "$n='CloudBolt-OpenSCAP-@@ID@@'\n"
+    + "$n='CloudBolt-Compliance-@@ID@@'\n"
     + "$a=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument \"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `\"$d\\worker.ps1`\"\"\n"
     + "$p=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest\n"
     + "$s=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes @@MIN@@) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries\n"
@@ -224,7 +224,7 @@ POLL = (
     + "$l;$t+=$l.Length+1;$k++}\n"
     + "'OSCAP|next|'+($n+$k)\n"
     + "'OSCAP|more|'+$m\n"
-    + "$s=(Get-ScheduledTask -TaskName 'CloudBolt-OpenSCAP-@@ID@@' -EA 0).State\n"
+    + "$s=(Get-ScheduledTask -TaskName 'CloudBolt-Compliance-@@ID@@' -EA 0).State\n"
     + "'OSCAP|alive|'+$(if($s -eq 'Running' -or $s -eq 'Queued'){1}else{0})\n"
     + "}catch{'OSCAP|terr|poll: '+$_.Exception.Message}\n"
     + "exit 0\n"
@@ -233,7 +233,7 @@ POLL = (
 CLEANUP = (
     PRELUDE
     + BASEDEF
-    + "$n='CloudBolt-OpenSCAP-@@ID@@'\n"
+    + "$n='CloudBolt-Compliance-@@ID@@'\n"
     + "try{Stop-ScheduledTask -TaskName $n -EA 0}catch{}\n"
     + "try{Unregister-ScheduledTask -TaskName $n -Confirm:$false -EA 0}catch{}\n"
     + "try{Get-Process cscc -EA 0|?{$_.Path -like \"$base\\*\"}|Stop-Process -Force -EA 0}catch{}\n"
