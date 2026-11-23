@@ -13,7 +13,7 @@ A resource that has at least one Linux server gets an **OpenSCAP** tab too (the 
 - **Failed-rule lists are capped:** a server's index keeps up to 1000 failed rules, and only for its newest completed scan (older scans keep their counts). For a scan with more, or a script channel that returns partial output (Azure Run Command), the cross-server list and counts are a lower bound; the tab says so, and each report has the full list.
 - **Permissions:** view on the resource, and the view permission on each server it lists. A server is offered for scanning only when you pass the same check as the server tab (`server.all_actions` or CB Admin); with none, the Scan all servers and Check servers buttons are hidden.
 
-Other content can run a scan too: `oscap_api.scan_and_wait(server, job.owner, profile_id, install=True)` starts the same job from a plug-in, waits for it, and returns the summary and a link to the report. The [Run OpenSCAP Scan](../../plugins/OHK-oqqmfoah/) blueprint step uses it to scan new servers before an order completes.
+Other content can run a scan too: `oscap_api.scan_and_wait(server, job.owner, profile_id, install=True)` starts the same job from a plug-in, waits for it, and returns the summary and a link to the report. The [Run OpenSCAP Scan](../../plugins/OHK-oqqmfoah/) blueprint step uses it to scan new servers before an order completes. The [Install OpenSCAP and Run First Scan (Linux)](../../orchestration_actions/HPA-b14wu721/) Post-Provision action does the same for any provisioning job, using `oscap_api.eligible(server)` to skip servers that may not be scanned.
 
 ## How results are stored
 

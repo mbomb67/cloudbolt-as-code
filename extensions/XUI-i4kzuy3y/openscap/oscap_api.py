@@ -16,6 +16,12 @@ same lock, lands in the server's scan history and stores its files the same
 way. A blueprint build item uses this to scan the servers it built before the
 order finishes (plugins/OHK-oqqmfoah).
 
+    ok, reason = eligible(server)   (True, "") or (False, one sentence why not)
+
+eligible says whether content may start a scan on a server at all: it is not
+historical, not Windows, has a VM, and gets the OpenSCAP tab under the "Show the
+tab on" setting. The Post-Provision action HPA-b14wu721 uses it.
+
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.
 """
@@ -63,6 +69,19 @@ def _result(status, message, job=None, scan=None, url="", problem=""):
         "status": status, "message": message, "job": job, "scan": scan,
         "report_url": url, "report_problem": problem,
     }
+
+
+def eligible(server):
+    """(True, "") when content may start a scan on this server, else (False, reason)."""
+    if server.status == "HISTORICAL":
+        return False, "the server is historical."
+    if server.is_windows():
+        return False, "OpenSCAP scans Linux servers only."
+    if not server.resource_handler_svr_id:
+        return False, "the VM was not created."
+    if not oscap_jobs.shows_tab(server, store.get_settings()["visibility"]):
+        return False, 'the OpenSCAP "Show the tab on" setting does not include this server.'
+    return True, ""
 
 
 def scan_and_wait(server, owner, profile_id="", datastream="", install=False, timeout=None):

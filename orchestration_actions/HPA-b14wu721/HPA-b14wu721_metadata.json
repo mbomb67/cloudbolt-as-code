@@ -1,0 +1,26 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "Profile",
+            "name": "profile_a1",
+            "value": ""
+        },
+        {
+            "label": "Maximum wait (minutes)",
+            "name": "max_wait_minutes_a1",
+            "value": ""
+        }
+    ],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-ne7jd381"
+    },
+    "description": "Installs OpenSCAP on each new Linux server at Post-Provision and runs a first scan, without ever failing or warning the provisioning job.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-b14wu721",
+    "last_updated": null,
+    "name": "Install OpenSCAP and Run First Scan (Linux)",
+    "run_on_statuses": "",
+    "run_seq": 200
+}
