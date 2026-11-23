@@ -76,7 +76,7 @@ On CloudBolt 2026.3.131:
 
 The resource tab and its parent job are not yet tested on an appliance.
 
-The rename to `io_cloudbolt_compliance` is not yet tested on an appliance.
+The rename to `io_cloudbolt_compliance` was tested on an appliance that had the OpenSCAP extension: after the upgrade steps above, the settings and scan history were kept, the scan action was renamed, and a check and a scan of the Windows Server 2025 server passed. The rename of the resource scan action is not yet tested.
 
 Not yet tested on Windows: Server 2016, 2019 and 2022; the SSM, Azure Run Command and VMware Tools channels; version `latest`; and a Windows server in a resource scan.
 
