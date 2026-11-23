@@ -330,11 +330,17 @@ def _profile_options(rows):
     ]
 
 
-def _run_view(run, viewable):
+def _run_view(run, viewable, titles=None):
     """A run record as the History table shows it. The record names every server
     of the run, so its per-server detail is cut to the servers the viewer may see
-    (viewable is the set of their ids); the figures that are counts stay whole."""
+    (viewable is the set of their ids); the figures that are counts stay whole.
+    titles maps (datastream, profile id) and ("", profile id) to a profile title, so
+    a run that completed no scan (its record has no title) still shows one."""
     view = dict(run)
+    if run.get("profile_id") and not run.get("profile_title") and titles:
+        view["profile_title"] = (
+            titles.get((run.get("datastream") or "", run["profile_id"])) or titles.get(("", run["profile_id"])) or ""
+        )
     attempted = int(run.get("servers_attempted") or 0)
     completed = int(run.get("servers_completed") or 0)
     view["failed_count"] = max(attempted - completed, 0)
@@ -374,7 +380,14 @@ def _resource_panel_context(request, resource, profile):
         Server.objects_for_profile(profile).filter(id__in=[i for i in run_servers if isinstance(i, int)])
         .values_list("id", flat=True)
     )
-    runs = [_run_view(run, viewable) for run in index["runs"]]
+    titles = {}
+    for row in rows:
+        for ds in row["state"].get("datastreams") or []:
+            for item in ds.get("profiles") or []:
+                if item.get("id") and item.get("title"):
+                    titles.setdefault((ds.get("file") or "", item["id"]), item["title"])
+                    titles.setdefault(("", item["id"]), item["title"])
+    runs = [_run_view(run, viewable, titles) for run in index["runs"]]
     scan_runs = [run for run in runs if run.get("mode") == "scan" and run.get("servers_completed")]
     scored = [run for run in scan_runs if run.get("average_score") is not None]
     trend = None
