@@ -127,6 +127,7 @@
             <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.high }}</div><div class="l">{% trans "High" %}</div></div>
             <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.medium }}</div><div class="l">{% trans "Medium" %}</div></div>
             <div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.low }}</div><div class="l">{% trans "Low" %}</div></div>
+            {% if rolled.by_severity.unknown %}<div class="oscap-sev-fig"><div class="n">{{ rolled.by_severity.unknown }}</div><div class="l">{% trans "Unknown" %}</div></div>{% endif %}
           </div>
         </div>
       </div>
@@ -171,6 +172,7 @@
             <th scope="col" class="num">{% trans "High" %}</th>
             <th scope="col" class="num">{% trans "Medium" %}</th>
             <th scope="col" class="num">{% trans "Low" %}</th>
+            {% if oscap.show_unknown %}<th scope="col" class="num">{% trans "Unknown" %}</th>{% endif %}
             <th scope="col">{% trans "Scanned" %}</th>
             <th scope="col">{% trans "Status" %}</th>
             <th scope="col">{% trans "Links" %}</th>
@@ -189,6 +191,7 @@
             <td class="num">{% if latest %}{{ latest.fail_by_severity.high|default:0 }}{% else %}&ndash;{% endif %}</td>
             <td class="num">{% if latest %}{{ latest.fail_by_severity.medium|default:0 }}{% else %}&ndash;{% endif %}</td>
             <td class="num">{% if latest %}{{ latest.fail_by_severity.low|default:0 }}{% else %}&ndash;{% endif %}</td>
+            {% if oscap.show_unknown %}<td class="num">{% if latest %}{{ latest.fail_by_severity.unknown|default:0 }}{% else %}&ndash;{% endif %}</td>{% endif %}
             <td style="white-space: nowrap;">{% if latest %}{{ latest.started }}{% else %}&ndash;{% endif %}</td>
             <td>
               {% if row.status == "scanning" %}<span class="oscap-pill oscap-pill-info"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Scanning" %}</span>

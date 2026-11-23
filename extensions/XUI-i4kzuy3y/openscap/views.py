@@ -413,6 +413,7 @@ def _resource_panel_context(request, resource, profile):
         "allow_install": cfg["allow_install"],
         "servers": rows,
         "scanned_count": len(scanned),
+        "show_unknown": any((row["latest"].get("fail_by_severity") or {}).get("unknown") for row in scanned),
         "server_count": len(rows),
         "os_name": next(iter(os_names)) if len(os_names) == 1 else "",
         "last_scan": last_scan,

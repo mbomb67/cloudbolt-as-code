@@ -151,6 +151,7 @@
             <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.high|default:0 }}</div><div class="l">{% trans "High" %}</div></div>
             <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.medium|default:0 }}</div><div class="l">{% trans "Medium" %}</div></div>
             <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.low|default:0 }}</div><div class="l">{% trans "Low" %}</div></div>
+            {% if latest.fail_by_severity.unknown %}<div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.unknown }}</div><div class="l">{% trans "Unknown" %}</div></div>{% endif %}
           </div>
         </div>
       </div>
