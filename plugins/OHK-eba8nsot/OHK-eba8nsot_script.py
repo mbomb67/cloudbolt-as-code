@@ -128,6 +128,14 @@ def run(job, server=None, alert=None, **kwargs):
         return "SUCCESS", f"{unit} restarted on {server.hostname}; health check passed{passed}.", ""
 
     message = f"Apache is still unhealthy on {server.hostname} after the restart."
+    if transport_error and MARKER not in raw:
+        # The script never reported back, so nothing is known about Apache itself.
+        message = f"CloudBolt could not run the restart on {server.hostname}."
+        output = (
+            f"{output}\nThe script did not run to the end on {server.hostname}. Check that the server is up "
+            "and that CloudBolt has working credentials for it."
+        )
+        set_progress(message)
     if isinstance(alert, dict) and alert:
         result = alert_escalation.escalate(server, alert, output, job=job, action=ACTION_NAME)
         output = output + "\n\n" + "\n".join(result["notes"])
