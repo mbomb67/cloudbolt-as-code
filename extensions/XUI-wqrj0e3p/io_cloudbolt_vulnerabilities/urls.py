@@ -31,6 +31,27 @@ xui_urlpatterns = [
         views.vuln_setup,
         name="vuln_setup",
     ),
+    # JSON for the Vulnerabilities admin page (CloudBolt admins only), one page at a time
+    path(
+        "vulnerabilities/fleet/summary/",
+        views.vuln_fleet_summary,
+        name="vuln_fleet_summary",
+    ),
+    path(
+        "vulnerabilities/fleet/cves/",
+        views.vuln_fleet_cves,
+        name="vuln_fleet_cves",
+    ),
+    path(
+        "vulnerabilities/fleet/cve-servers/",
+        views.vuln_fleet_cve_servers,
+        name="vuln_fleet_cve_servers",
+    ),
+    path(
+        "vulnerabilities/fleet/servers/",
+        views.vuln_fleet_servers,
+        name="vuln_fleet_servers",
+    ),
     # Servers send their software list here with a signed token
     path(
         "vulnerabilities/upload/<str:scan_id>/<str:name>",

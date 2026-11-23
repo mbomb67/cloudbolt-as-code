@@ -58,6 +58,8 @@ MAX_EXCLUDES = 20
 SCAN_ID_RE = re.compile(r"[A-Za-z0-9-]{8,64}")
 EXCLUDE_RE = re.compile(r"/[A-Za-z0-9._/@+-]{0,200}")
 VISIBILITIES = ("linux", "label")
+# The three files a server keeps in servers/: its state, the lock for state writes and the scan-start lock.
+STATE_SUFFIXES = ("json", "lock", "start")
 
 DEFAULT_SETTINGS = {
     "scan_timeout_min": 20,
@@ -65,7 +67,14 @@ DEFAULT_SETTINGS = {
     "guest_internet_download": True,
     "visibility": "linux",
     "extra_excludes": "",
+    # Scan a server as its own job after a build finishes (vuln_hooks.apply_provision_setting).
+    "scan_on_provision": False,
+    # Threads the nightly re-match runs matches on, and scans the weekly inventory keeps running at once.
+    "rematch_workers": 2,
+    "inventory_parallel": 4,
 }
+REMATCH_WORKERS_RANGE = (1, 4)
+INVENTORY_PARALLEL_RANGE = (1, 10)
 
 
 class StoreError(Exception):
@@ -267,6 +276,19 @@ def _clamp(value, low, high, default):
     return max(low, min(high, number))
 
 
+def _whole(raw, low, high):
+    """The int in raw when it is ASCII digits only and within low..high, else None. str.isdigit() is
+    True for characters such as a superscript two that int() refuses, so it is not used here."""
+    raw = str(raw).strip()
+    if not (raw.isascii() and raw.isdigit()):
+        return None
+    try:
+        number = int(raw)
+    except ValueError:
+        return None
+    return number if low <= number <= high else None
+
+
 def _flag(value):
     return str(value).strip().lower() in ("1", "true", "on", "yes")
 
@@ -305,8 +327,12 @@ def get_settings():
     result["scan_timeout_min"] = _clamp(result["scan_timeout_min"], 5, 120, DEFAULT_SETTINGS["scan_timeout_min"])
     if result["visibility"] not in VISIBILITIES:
         result["visibility"] = "linux"
-    for key in ("insecure_upload", "guest_internet_download"):
+    for key in ("insecure_upload", "guest_internet_download", "scan_on_provision"):
         result[key] = bool(result[key])
+    result["rematch_workers"] = _clamp(
+        result["rematch_workers"], *REMATCH_WORKERS_RANGE, DEFAULT_SETTINGS["rematch_workers"])
+    result["inventory_parallel"] = _clamp(
+        result["inventory_parallel"], *INVENTORY_PARALLEL_RANGE, DEFAULT_SETTINGS["inventory_parallel"])
     if not isinstance(result["extra_excludes"], str):
         result["extra_excludes"] = ""
     return result
@@ -319,7 +345,7 @@ def validate_settings(data):
     clean = dict(DEFAULT_SETTINGS)
 
     raw = str(data.get("scan_timeout_min", DEFAULT_SETTINGS["scan_timeout_min"])).strip()
-    if not raw.isdigit() or not 5 <= int(raw) <= 120:
+    if _whole(raw, 5, 120) is None:
         errors["scan_timeout_min"] = "Scan time limit must be a whole number of minutes from 5 to 120."
     clean["scan_timeout_min"] = _clamp(raw, 5, 120, DEFAULT_SETTINGS["scan_timeout_min"])
 
@@ -331,6 +357,17 @@ def validate_settings(data):
         errors["visibility"] = "Show the tab on must be Linux servers or servers labelled {}.".format("Vulnerabilities")
         visibility = "linux"
     clean["visibility"] = visibility
+
+    clean["scan_on_provision"] = _flag(data.get("scan_on_provision", ""))
+
+    for key, (low, high), label in (
+        ("rematch_workers", REMATCH_WORKERS_RANGE, "Servers re-matched at once"),
+        ("inventory_parallel", INVENTORY_PARALLEL_RANGE, "Servers scanned at once by the weekly inventory"),
+    ):
+        raw = str(data.get(key, DEFAULT_SETTINGS[key])).strip()
+        if _whole(raw, low, high) is None:
+            errors[key] = "{} must be a whole number from {} to {}.".format(label, low, high)
+        clean[key] = _clamp(raw, low, high, DEFAULT_SETTINGS[key])
 
     paths, problem = _excludes(data.get("extra_excludes", ""))
     if problem:
@@ -416,3 +453,37 @@ def record_scan(server_id, entry):
         state["history"] = [entry] + [item for item in state["history"] if item.get("scan_id") != entry.get("scan_id")]
 
     _update(server_id, change)
+
+
+def forget_state(server_id):
+    """Remove the per-server state file and its two lock files (a deleted server's
+    leftovers). Returns True when any of them existed. The caller makes sure no scan is
+    running on the server."""
+    found = False
+    for suffix in STATE_SUFFIXES:
+        path = contained(SERVERS_DIR, "{}.{}".format(int(server_id), suffix))
+        try:
+            os.unlink(path)
+            found = True
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            raise StoreError("The scan history of server {} cannot be removed: {}".format(int(server_id),
+                                                                                        exc.strerror or exc))
+    return found
+
+
+def known_state_ids():
+    """The ids of every server that has a state file or a lock file, as a sorted list."""
+    try:
+        names = os.listdir(SERVERS_DIR)
+    except FileNotFoundError:
+        return []
+    except OSError as exc:
+        raise StoreError("The scan history folder cannot be read: {}".format(exc.strerror or exc))
+    ids = set()
+    for name in names:
+        number, _, suffix = name.partition(".")
+        if number.isascii() and number.isdigit() and suffix in STATE_SUFFIXES:
+            ids.add(int(number))
+    return sorted(ids)

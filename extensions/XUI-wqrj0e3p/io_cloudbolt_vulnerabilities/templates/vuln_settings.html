@@ -40,8 +40,11 @@
   #vuln-settings .vuln-notice-ok > .bi { color: var(--vuln-ok); }
   #vuln-settings .vuln-notice-bad { border-color: color-mix(in srgb, var(--vuln-bad) 50%, transparent); background: color-mix(in srgb, var(--vuln-bad) 9%, transparent); }
   #vuln-settings .vuln-notice-bad > .bi { color: var(--vuln-bad); }
+  #vuln-settings .vuln-notice-warn { border-color: color-mix(in srgb, var(--vuln-warn-text) 50%, transparent); background: color-mix(in srgb, var(--vuln-warn-text) 9%, transparent); }
+  #vuln-settings .vuln-notice-warn > .bi { color: var(--vuln-warn-text); }
   #vuln-settings .vuln-notice-info { border-color: color-mix(in srgb, var(--vuln-primary) 45%, transparent); background: color-mix(in srgb, var(--vuln-primary) 10%, transparent); }
   #vuln-settings .vuln-notice-info > .bi { color: var(--vuln-primary); }
+  #vuln-settings .vuln-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
   #vuln-settings .vuln-usage { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 16px; }
   #vuln-settings .vuln-usage .n { font-size: 20px; font-weight: 800; line-height: 1.15; }
   #vuln-settings .vuln-usage .l { font-size: 11.5px; font-weight: 600; color: var(--vuln-muted); }
@@ -53,7 +56,7 @@
 
 <div id="vuln-settings" data-vuln-start-url="{{ start_url }}" data-csrf="{{ csrf_token }}">
   <div class="vuln-eyebrow"><i class="bi bi-bug" aria-hidden="true"></i> Vulnerabilities</div>
-  <div class="vuln-lede">The scanner that finds known vulnerabilities on servers, and which servers show the Vulnerabilities tab.</div>
+  <div class="vuln-lede">The scanner that finds known vulnerabilities on servers, and which servers show the Vulnerabilities tab.{% if fleet_url %} <a href="{{ fleet_url }}">Search all servers</a>.{% endif %}</div>
 
   {% if saved %}
   <div class="vuln-notice vuln-notice-ok" role="status">
@@ -61,6 +64,12 @@
     <div>Settings saved.</div>
   </div>
   {% endif %}
+  {% for w in warnings %}
+  <div class="vuln-notice vuln-notice-warn" role="alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div>{{ w }}</div>
+  </div>
+  {% endfor %}
   {% if errors %}
   <div class="vuln-notice vuln-notice-bad" role="alert">
     <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
@@ -122,6 +131,28 @@
     {% if tools and tools.free_bytes < 9663676416 %}<div class="vuln-help vuln-caution">The database update needs at least 9 GB of free disk space while it unpacks.</div>{% endif %}
   </div>
 
+  <div class="vuln-card" id="vuln-schedules">
+    <h2 class="vuln-h">Schedules</h2>
+    <div class="vuln-help" style="margin: -8px 0 14px;">Both schedules are created off. Open a job to run it now or to turn its schedule on.</div>
+    {% if schedules_error %}
+    <div class="vuln-notice vuln-notice-bad" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>{{ schedules_error }}</div>
+    </div>
+    {% endif %}
+    {% for s in schedules %}
+    <div class="vuln-field vuln-sched">
+      <div class="vuln-label">{{ s.name }}</div>
+      {% if s.error %}
+      <div class="vuln-help vuln-bad">{{ s.error }}</div>
+      {% else %}
+      <div class="vuln-help" style="margin-top: 0;">{{ s.what }}</div>
+      <div class="vuln-help">{{ s.words }} (<span class="vuln-mono">{{ s.cron }}</span>) &middot; {% if s.enabled %}On{% else %}Off{% endif %} &middot; Last run {% if s.last_run %}{{ s.last_run|date:"j M Y H:i" }}{% else %}never{% endif %}{% if s.url %} &middot; <a href="{{ s.url }}">Open job</a>{% endif %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
   <form method="post" autocomplete="off">
     {% csrf_token %}
 
@@ -163,6 +194,30 @@
         </select>
         <div class="vuln-help">Choose who sees the Vulnerabilities tab on a server page.</div>
         {% if field_errors.visibility %}<div class="vuln-help vuln-bad">{{ field_errors.visibility }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="vuln-card">
+      <h2 class="vuln-h">Automatic scans</h2>
+      <div class="vuln-field">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="vuln-provision" name="scan_on_provision" value="1"{% if settings.scan_on_provision %} checked{% endif %}>
+          <label class="form-check-label" for="vuln-provision">Scan new servers after they are built</label>
+        </div>
+        <div class="vuln-help">The scan runs as its own job after the build finishes. The build does not wait for it and does not fail because of it. Servers in an Unassigned group are never scanned.</div>
+        {% if field_errors.scan_on_provision %}<div class="vuln-help vuln-bad">{{ field_errors.scan_on_provision }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-rematch">Servers re-matched at once</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-rematch" name="rematch_workers" min="1" max="4" value="{{ settings.rematch_workers }}">
+        <div class="vuln-help">How many stored software lists the nightly re-match checks at the same time, from 1 to 4.</div>
+        {% if field_errors.rematch_workers %}<div class="vuln-help vuln-bad">{{ field_errors.rematch_workers }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-parallel">Servers scanned at once by the weekly inventory</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-parallel" name="inventory_parallel" min="1" max="10" value="{{ settings.inventory_parallel }}">
+        <div class="vuln-help">How many servers the weekly inventory collects from at the same time, from 1 to 10.</div>
+        {% if field_errors.inventory_parallel %}<div class="vuln-help vuln-bad">{{ field_errors.inventory_parallel }}</div>{% endif %}
       </div>
     </div>
 

@@ -430,7 +430,9 @@ def _in_cooldown(last):
 
 def start(profile, server, base_url, parent_job=None):
     """Validate and start the scan. base_url is the default portal's configured
-    site URL (never a request's Host). Returns the Job, or a Refusal."""
+    site URL (never a request's Host). profile is the requesting UserProfile, or
+    None for a scan started by a recurring job (the job's owner is empty then). Returns
+    the Job, or a Refusal."""
     if server.status == "HISTORICAL":
         return Refusal("This server is historical.")
     if in_unassigned_group(server):
@@ -470,6 +472,9 @@ def _is_openshift_vm(server):
 
 
 def _requested_by(profile):
+    """Who asked, as text. A scan started by a schedule or by the build trigger has no profile."""
+    if profile is None:
+        return "schedule"
     return str(profile.user.username) if getattr(profile, "user", None) else str(profile)
 
 
@@ -968,17 +973,13 @@ def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, star
     # 5. Replace the server's findings. This is the only step that changes them.
     _progress(job, "Saving the findings")
     now = store.now_utc()
-    if not parsed_grype["db_built"]:
-        # This Grype version keeps no build time in its report; the setup recorded the database's.
-        parsed_grype["db_built"] = tools.status()["db"]["built"]
+    # The database date recorded at setup is the one the nightly re-match compares against, so it
+    # is the one stored; the date in the report is used only when the setup recorded none.
+    parsed_grype["db_built"] = tools.status()["db"]["built"] or parsed_grype["db_built"]
     row = vuln_db.replace_server(
         _snapshot(server, parsed, scan_id, inventory_at, facts["packages"], store.stamp(now)), parsed_grype
     )
-    try:
-        # Matches no server references any more would otherwise pile up.
-        vuln_db.prune_orphans()
-    except Exception:
-        logger.exception("Vulnerabilities: pruning the findings store failed")
+    # Matches no server references any more are removed by the nightly re-match job (vuln_fleet.py), not here.
 
     # 6. Housekeeping and the record.
     try:
