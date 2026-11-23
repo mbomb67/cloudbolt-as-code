@@ -1,11 +1,14 @@
 """Server action: makes OpenShift raise an ApacheDown alert when Apache stops answering inside a VM.
 
-Three objects on the cluster, all created through the handler's own credential:
+Objects on the cluster, all created through the handler's own credential:
   1. a readiness probe on the VirtualMachine (TCP port 443), so the virt-launcher pod goes not-ready
      when nothing listens on the port;
   2. a restart of the VM, only when the probe was just added or changed, so the template change takes effect;
   3. a PrometheusRule named apache-down-<vm> in the VM's namespace, evaluated by Thanos Ruler, that fires
-     ApacheDown with the labels the Monitoring Alerts webhook (webhooks/IWH-i7b44zvs) maps back to this server.
+     ApacheDown with the labels the Monitoring Alerts webhook (webhooks/IWH-i7b44zvs) maps back to this server;
+  4. delivery: a Secret holding the webhook's URL and an AlertmanagerConfig that routes the alert to it, so the
+     cluster's own Alertmanager posts the alert to CloudBolt. Cluster-wide monitoring settings are never changed;
+     the status block says whether user-defined alert routing is switched on.
 
 Every run ends with a status block that shows what the cluster sees. Safe to run again.
 """
@@ -20,6 +23,11 @@ PORT = 443
 ALERT_NAME = "ApacheDown"
 FOR = "1m"
 PROBE_TIMINGS = {"initialDelaySeconds": 120, "periodSeconds": 10, "timeoutSeconds": 5, "failureThreshold": 3}
+BOOT_GRACE_SECONDS = 300
+WEBHOOK_URI_PATH = "monitoring-alerts"
+WEBHOOK_RUN_PATH = "/api/v3/cmp/inboundWebHooks/monitoring-alerts/run/"
+SECRET_NAME = "cloudbolt-alert-webhook"
+ALERTMANAGER_CONFIG_NAME = "cloudbolt-alerts"
 POLL_SECONDS = 10
 WAIT_SECONDS = 600
 
@@ -31,11 +39,29 @@ RESTART_PATH = "/apis/subresources.kubevirt.io/v1/namespaces/%s/virtualmachines/
 PODS_PATH = "/api/v1/namespaces/%s/pods"
 # https://prometheus-operator.dev/docs/api-reference/api/
 RULES_PATH = "/apis/monitoring.coreos.com/v1/namespaces/%s/prometheusrules"
+SECRETS_PATH = "/api/v1/namespaces/%s/secrets"
+MONITORING_GROUP_PATH = "/apis/monitoring.coreos.com"
+# https://prometheus-operator.dev/docs/api-reference/api/ (AlertmanagerConfig, v1beta1 and v1alpha1)
+ALERTMANAGER_CONFIGS_PATH = "/apis/monitoring.coreos.com/%s/namespaces/%s/alertmanagerconfigs"
+CONFIGMAP_PATH = "/api/v1/namespaces/%s/configmaps/%s"
+USER_WORKLOAD_NAMESPACE = "openshift-user-workload-monitoring"
 
 RULE_PERMISSION = (
     "The resource handler's account is not allowed to manage PrometheusRules in this namespace. "
     "Grant it the monitoring-rules-edit role in the namespace: "
     "oc adm policy add-role-to-user monitoring-rules-edit <account> -n <namespace>. "
+    "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/managing-alerts"
+)
+ROUTING_PERMISSION = (
+    "The resource handler's account is not allowed to manage this object in the namespace. "
+    "Grant it the alert-routing-edit role in the namespace: "
+    "oc adm policy add-role-to-user alert-routing-edit <account> -n <namespace>. "
+    "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/managing-alerts"
+)
+ROUTING_FIX = (
+    "A cluster admin turns user-defined alert routing on in the ConfigMap user-workload-monitoring-config "
+    "(namespace openshift-user-workload-monitoring), under config.yaml:\n"
+    "alertmanager:\n  enabled: true\n  enableAlertmanagerConfig: true\n"
     "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/managing-alerts"
 )
 
@@ -65,8 +91,21 @@ def ready_series(namespace, vm_name):
     )
 
 
+def pod_age(namespace, vm_name):
+    """Seconds since the VM's pod started. kube_pod_start_time carries the same namespace and pod labels, see
+    https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/workload/pod-metrics.md"""
+    return (
+        'time() - kube_pod_start_time{namespace="' + promql_string(namespace)
+        + '", pod=~"' + promql_string(pod_pattern(vm_name)) + '"}'
+    )
+
+
 def rule_expression(namespace, vm_name):
-    return ready_series(namespace, vm_name) + " == 0"
+    """Pod not ready, and older than the boot grace period so a VM that is still starting does not alert."""
+    return (
+        "(" + ready_series(namespace, vm_name) + " == 0) and on (namespace, pod) ("
+        + pod_age(namespace, vm_name) + " > %d)" % BOOT_GRACE_SECONDS
+    )
 
 
 def condition(obj, kind):
@@ -201,6 +240,175 @@ def apply_rule(cluster, namespace, vm_name, server):
     return "updated" if existed else "created"
 
 
+def webhook_url():
+    """(url with token, url without query string, problem). The token is read from the Monitoring Alerts webhook."""
+    from cbhooks.models import InboundWebHook
+    from shared_modules import alert_escalation
+
+    hook = InboundWebHook.objects.filter(uri_path=WEBHOOK_URI_PATH).first()
+    token = (getattr(hook, "token", "") or "").strip()
+    if not token:
+        return None, None, "Delivery not configured: set a token on the Monitoring Alerts webhook, then run this action again"
+    base = alert_escalation.absolute_url(WEBHOOK_RUN_PATH)
+    if "://" not in base:
+        return None, None, "Delivery not configured: CloudBolt has no site URL (Admin > Portals), so the webhook address is unknown"
+    return base + "?token=" + token, base, None
+
+
+def alertmanager_version(cluster):
+    """The AlertmanagerConfig API version the cluster serves: v1beta1, else v1alpha1."""
+    group = cluster.request("GET", MONITORING_GROUP_PATH)
+    served = [item.get("version") for item in group.get("versions", [])]
+    for version in ("v1beta1", "v1alpha1"):
+        if version in served:
+            return version
+    return None
+
+
+def alertmanager_config(version, namespace):
+    """Both versions use the same field names for what is set here: route with matchers (name, value,
+    matchType) and receivers with webhookConfigs (urlSecret, sendResolved).
+    https://prometheus-operator.dev/docs/api-reference/api/"""
+    return {
+        "apiVersion": "monitoring.coreos.com/" + version,
+        "kind": "AlertmanagerConfig",
+        "metadata": {
+            "name": ALERTMANAGER_CONFIG_NAME,
+            "namespace": namespace,
+            "labels": {vmnet.MANAGED_BY_LABEL: vmnet.MANAGED_BY},
+        },
+        "spec": {
+            "route": {
+                "receiver": "cloudbolt",
+                "groupBy": ["alertname", "cloudbolt_server"],
+                "groupWait": "10s",
+                "groupInterval": "1m",
+                "repeatInterval": "1h",
+                "matchers": [{"name": "cloudbolt_server", "value": ".+", "matchType": "=~"}],
+            },
+            "receivers": [{
+                "name": "cloudbolt",
+                "webhookConfigs": [{
+                    "urlSecret": {"name": SECRET_NAME, "key": "url"},
+                    "sendResolved": False,
+                }],
+            }],
+        },
+    }
+
+
+def configmap_text(cluster, namespace, name):
+    """config.yaml of a ConfigMap; None when it does not exist, False when it cannot be read."""
+    try:
+        item = cluster.request("GET", CONFIGMAP_PATH % (namespace, name), allow_404=True)
+    except vmnet.OpenShiftApiError:
+        return False
+    if item is None:
+        return None
+    return (item.get("data") or {}).get("config.yaml", "")
+
+
+def routing_state(cluster):
+    """(on, off or unknown, detail lines). User-defined alert routing needs the user-workload Alertmanager.
+    https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/managing-alerts"""
+    details = []
+    pods = None
+    try:
+        listing = cluster.request(
+            "GET", "/api/v1/namespaces/%s/pods" % USER_WORKLOAD_NAMESPACE,
+            params={"labelSelector": "app.kubernetes.io/name=alertmanager"})
+        pods = [item["metadata"]["name"] for item in listing.get("items", [])]
+        details.append("alertmanager-user-workload pods: %s" % (", ".join(pods) if pods else "none"))
+    except vmnet.OpenShiftApiError:
+        details.append("alertmanager-user-workload pods: not readable with this account")
+    user_text = configmap_text(cluster, USER_WORKLOAD_NAMESPACE, "user-workload-monitoring-config")
+    platform_text = configmap_text(cluster, "openshift-monitoring", "cluster-monitoring-config")
+    for label, text in (("user-workload-monitoring-config", user_text), ("cluster-monitoring-config", platform_text)):
+        if text is False:
+            details.append("%s: not readable with this account" % label)
+        elif text is None:
+            details.append("%s: not present" % label)
+        else:
+            flags = [key for key in ("alertmanager", "enableAlertmanagerConfig", "enableUserAlertmanagerConfig")
+                     if re.search(key + ":", text)]
+            enabled = re.search(r"(enableAlertmanagerConfig|enableUserAlertmanagerConfig):\s*true", text)
+            details.append("%s: %s%s" % (label, ", ".join(flags) if flags else "no routing settings",
+                                          " (routing enabled)" if enabled else ""))
+    if pods:
+        return "on", details
+    if pods is not None and user_text is not False:
+        return "off", details
+    return "unknown", details
+
+
+def deliver(cluster, namespace):
+    """Create the Secret and AlertmanagerConfig; never raises. Returns a short outcome for the summary."""
+    try:
+        url, shown, problem = webhook_url()
+    except Exception as error:
+        url, shown, problem = None, None, "Delivery not configured: the Monitoring Alerts webhook could not be read (%s)" % error
+    if problem:
+        set_progress(problem)
+        return "not configured"
+    try:
+        set_progress("Creating or replacing the Secret %s holding the webhook URL (%s)" % (SECRET_NAME, shown))
+        cluster.apply(SECRETS_PATH % namespace, {
+            "apiVersion": "v1", "kind": "Secret",
+            "metadata": {"name": SECRET_NAME, "namespace": namespace, "labels": {vmnet.MANAGED_BY_LABEL: vmnet.MANAGED_BY}},
+            "type": "Opaque",
+            "stringData": {"url": url},
+        })
+        version = alertmanager_version(cluster)
+        if version is None:
+            set_progress("Delivery not set up: the cluster serves no AlertmanagerConfig API (monitoring.coreos.com v1beta1 or v1alpha1)")
+            return "no AlertmanagerConfig API"
+        set_progress("Creating or replacing the AlertmanagerConfig %s (%s)" % (ALERTMANAGER_CONFIG_NAME, version))
+        cluster.apply(ALERTMANAGER_CONFIGS_PATH % (version, namespace), alertmanager_config(version, namespace))
+    except Exception as error:
+        text = str(error)
+        if "(403)" in text:
+            text += " " + ROUTING_PERMISSION
+        set_progress("Delivery not set up: " + text)
+        return "refused"
+    set_progress("Delivery set up: Alertmanager will post ApacheDown to %s" % shown)
+    return "configured"
+
+
+def report_delivery(cluster, namespace):
+    """The Delivery part of the status block; best effort."""
+    set_progress("Delivery:")
+    try:
+        found = cluster.request("GET", SECRETS_PATH % namespace + "/" + SECRET_NAME, allow_404=True)
+        set_progress("  Secret %s: %s" % (SECRET_NAME, "present" if found is not None else "missing"))
+    except Exception as error:
+        set_progress("  Secret %s: not readable (%s)" % (SECRET_NAME, error))
+    try:
+        version = alertmanager_version(cluster)
+        found = None
+        if version:
+            found = cluster.request(
+                "GET", ALERTMANAGER_CONFIGS_PATH % (version, namespace) + "/" + ALERTMANAGER_CONFIG_NAME, allow_404=True)
+        set_progress("  AlertmanagerConfig %s: %s" % (ALERTMANAGER_CONFIG_NAME, "present" if found is not None else "missing"))
+    except Exception as error:
+        set_progress("  AlertmanagerConfig %s: not readable (%s)" % (ALERTMANAGER_CONFIG_NAME, error))
+    try:
+        from urllib.parse import urlparse
+
+        _, shown, _ = webhook_url()
+        set_progress("  Webhook host the cluster posts to: %s" % (urlparse(shown).netloc if shown else "not configured"))
+    except Exception as error:
+        set_progress("  Webhook host: unknown (%s)" % error)
+    try:
+        state, details = routing_state(cluster)
+    except Exception as error:
+        state, details = "unknown", ["could not be checked (%s)" % error]
+    set_progress("  User-defined alert routing: %s" % state)
+    for line in details:
+        set_progress("    " + line)
+    if state != "on":
+        set_progress(ROUTING_FIX)
+
+
 def report_status(cluster, server, namespace, vm_name):
     """Print what the cluster sees. Every part is best effort and never fails the job."""
     set_progress("---- Status ----")
@@ -219,6 +427,7 @@ def report_status(cluster, server, namespace, vm_name):
     except Exception as error:
         set_progress("virt-launcher pod: could not be read (%s)" % error)
 
+    report_delivery(cluster, namespace)
     try:
         from xui.io_cloudbolt_prometheus import kubevirt_metrics
     except ImportError:
@@ -233,7 +442,10 @@ def report_status(cluster, server, namespace, vm_name):
         else:
             set_progress("kube_pod_status_ready: no series (the pod is gone or metrics are not available)")
         firing = thanos.instant(rule_expression(namespace, vm_name))
-        set_progress("Rule expression: " + ("true, the pod is not ready" if firing else "false or no data, the pod is ready"))
+        set_progress("Rule expression: " + ("true, the pod is not ready" if firing else "false or no data, the pod is ready or still booting"))
+        age = thanos.instant_value(pod_age(namespace, vm_name))
+        set_progress("Pod age (the rule waits for %ds): %s" % (
+            BOOT_GRACE_SECONDS, "no data" if age is None else "%ds" % float(age)))
         data = thanos.get_data("/alerts")
         if data is not None:
             alerts = [
@@ -278,7 +490,8 @@ def run(job, server=None, **kwargs):
     except vmnet.OpenShiftApiError as error:
         return failure(error)
 
+    delivery = deliver(cluster, namespace)
     report_status(cluster, server, namespace, vm_name)
-    summary = "Probe: %s. Rule: %s.\nRestarted: %s." % (
-        "added" if probe_changed else "already set", rule, "yes" if restarted else "no")
+    summary = "Probe: %s. Rule: %s. Delivery: %s.\nRestarted: %s." % (
+        "added" if probe_changed else "already set", rule, delivery, "yes" if restarted else "no")
     return "SUCCESS", summary, ""

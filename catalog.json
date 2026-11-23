@@ -4813,11 +4813,12 @@
     "id": "OHK-ut5c0igl",
     "type": "plugins",
     "name": "Enable Apache Down Alert",
-    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once) and creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready.",
+    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",
     "path": "plugins/OHK-ut5c0igl",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-5t7bom9y"
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-qlvol7k8"
     ],
     "used_by": [
       "server_actions/SVA-t1z9yt6d"
@@ -6551,7 +6552,7 @@
     "id": "SVA-t1z9yt6d",
     "type": "server_actions",
     "name": "Enable Apache Down Alert",
-    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once) and creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready.",
+    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",
     "path": "server_actions/SVA-t1z9yt6d",
     "readme": "server_actions/SVA-t1z9yt6d/README.md",
     "uses": [
@@ -6972,6 +6973,7 @@
       "shared_modules/SHM-ww6b1uwj"
     ],
     "used_by": [
+      "plugins/OHK-ut5c0igl",
       "plugins/OHK-ogu8lqt2",
       "plugins/OHK-eba8nsot"
     ]
