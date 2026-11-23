@@ -1,0 +1,32 @@
+{
+    "description": "Adds a Vulnerabilities tab to Linux servers that lists the known CVEs in their installed software, found by matching a software list against a vulnerability database on the appliance.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-wqrj0e3p",
+    "label": "Vulnerabilities",
+    "last_updated": "2026-11-23",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "io_cloudbolt_vulnerabilities",
+    "package_contents": [
+        "__init__.py",
+        "views.py",
+        "urls.py",
+        "vuln_store.py",
+        "vuln_db.py",
+        "vuln_match.py",
+        "vuln_tools.py",
+        "vuln_repo.py",
+        "vuln_hooks.py",
+        "vuln_job.py",
+        "vuln_setup_job.py",
+        "vuln_jobs.py",
+        "vuln_scan.sh",
+        "templates/vuln_styles.html",
+        "templates/vuln_assets.html",
+        "templates/vuln_tab.html",
+        "templates/vuln_panel.html",
+        "templates/vuln_settings.html"
+    ],
+    "version": ""
+}

@@ -1,0 +1,142 @@
+{% load i18n %}
+{% comment %}
+  Panel fragment for the Vulnerabilities tab, loaded and re-loaded by vuln_assets.html.
+  The top element carries: data-active ("1" while a job runs, which keeps the script
+  polling and the scan button off), data-denied, data-results ("1" when there is a
+  stored result to show) and data-key (changes when the table must be fetched again).
+  The cards, banners and toolbar are rendered here; the table and the pager are
+  drawn by the script into the two empty divs. Everything is autoescaped; nothing
+  is marked safe. Times are written as ISO values and shown in the browser's
+  local time by the script.
+{% endcomment %}
+<div class="vuln-panel" data-active="{% if vuln.active %}1{% else %}0{% endif %}" data-denied="{% if vuln.denied %}1{% else %}0{% endif %}" data-results="{% if vuln.summary %}1{% else %}0{% endif %}" data-ready="{% if vuln.ready %}1{% else %}0{% endif %}" data-key="{{ vuln.key }}">
+{% if vuln.denied %}
+  <div class="vuln-banner vuln-banner-bad" role="alert">
+    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+    <div class="vuln-banner-body">
+      <div class="vuln-banner-t">{% trans "You do not have access" %}</div>
+      <div class="vuln-banner-s">{% trans "You do not have permission to see vulnerabilities for this server. Ask a CloudBolt administrator for access." %}</div>
+    </div>
+  </div>
+{% elif error %}
+  <div class="vuln-card vuln-card-flush">
+    <div class="vuln-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  </div>
+{% else %}
+
+  <div class="vuln-card vuln-card-flush" data-vuln-alert hidden></div>
+
+  {% if not vuln.ready %}
+  <div class="vuln-banner" role="status">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div class="vuln-banner-body">
+      <div class="vuln-banner-t">{% trans "The scanner is not set up yet" %}</div>
+      <div class="vuln-banner-s">{% if vuln.is_admin %}{% trans "Set it up once on the Vulnerability Settings page, then collect a software list from this server." %}{% else %}{% trans "A CloudBolt administrator needs to set it up before this server can be scanned." %}{% endif %}</div>
+    </div>
+    {% if vuln.settings_url %}<a class="btn btn-sm btn-primary vuln-banner-btn" href="{{ vuln.settings_url }}">{% trans "Open Vulnerability Settings" %}</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if vuln.active %}
+  <div class="vuln-banner vuln-banner-info" role="status" aria-live="polite">
+    <i class="bi bi-arrow-repeat vuln-spin" aria-hidden="true"></i>
+    <div class="vuln-banner-body">
+      <div class="vuln-banner-t">{% trans "Scan running" %}</div>
+      <div class="vuln-banner-s">{% if vuln.active.started %}{% trans "Started" %} <span data-vuln-time="{{ vuln.active.started }}" data-vuln-fmt="when">{{ vuln.active.started }}</span>{% endif %}{% if vuln.active.message %}{% if vuln.active.started %} &middot; {% endif %}{{ vuln.active.message }}{% endif %}</div>
+    </div>
+    {% if vuln.active.job_url %}<a class="btn btn-sm btn-outline-secondary vuln-banner-btn" href="{{ vuln.active.job_url }}">{% trans "View job" %}</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if vuln.last_failed %}
+  <div class="vuln-banner vuln-banner-bad" role="alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div class="vuln-banner-body">
+      <div class="vuln-banner-t">{% trans "The latest scan failed" %}</div>
+      <div class="vuln-banner-s">{% if vuln.last_failed.error %}{{ vuln.last_failed.error }}{% endif %}{% if vuln.last_failed.started %}{% if vuln.last_failed.error %} &middot; {% endif %}{% trans "Started" %} <span data-vuln-time="{{ vuln.last_failed.started }}" data-vuln-fmt="when">{{ vuln.last_failed.started }}</span>{% endif %}{% if vuln.summary %} &middot; {% trans "The results below are from the last good scan." %}{% endif %}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# No results and nothing running: always offer the scan button, so a failed first scan can be repeated. #}
+  {% if not vuln.summary and not vuln.active %}
+  <section class="vuln-section">
+    {% if vuln.last_failed %}
+    <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No results yet" %}</span></div>
+    <div class="vuln-empty">{% trans "The last scan did not finish. You can collect the software list again. Nothing is changed on the server." %}</div>
+    {% else %}
+    <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No scan yet" %}</span></div>
+    <div class="vuln-empty">{% trans "A scan collects a list of the software installed on this server, then matches it against a database of known vulnerabilities. Nothing is changed on the server." %}</div>
+    {% endif %}
+    {% if vuln.can_scan %}
+    <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if not vuln.ready %} disabled{% endif %}><i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Collect software list" %}</button>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if vuln.summary %}
+  {% with s=vuln.summary %}
+  <div class="vuln-cards">
+    <div class="vuln-card">
+      <span class="vuln-eyebrow">{% trans "Open findings" %}</span>
+      <div class="vuln-sev-figs">
+        <div class="vuln-sev-fig"><b class="n{% if s.critical %} vuln-c-crit{% endif %}">{{ s.critical|default:0 }}</b><small>{% trans "Critical" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n{% if s.high %} vuln-c-high{% endif %}">{{ s.high|default:0 }}</b><small>{% trans "High" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n">{{ s.medium|default:0 }}</b><small>{% trans "Medium" %}</small></div>
+        <div class="vuln-sev-fig"><b class="n">{{ s.low|default:0 }}</b><small>{% trans "Low" %}</small></div>
+        {% if s.unknown %}<div class="vuln-sev-fig"><b class="n">{{ s.unknown }}</b><small>{% trans "Unknown" %}</small></div>{% endif %}
+      </div>
+    </div>
+    <div class="vuln-card">
+      <span class="vuln-eyebrow">{% trans "Known exploited" %}</span>
+      <span class="vuln-big{% if s.kev %} vuln-c-crit{% endif %}">{{ s.kev|default:0 }}</span>
+      <span class="vuln-card-sub">{% trans "on the CISA exploited list" %}</span>
+    </div>
+    <div class="vuln-card">
+      <span class="vuln-eyebrow">{% trans "Software list" %}</span>
+      <span class="vuln-big">{% if s.packages is not None %}{{ s.packages }}{% else %}&ndash;{% endif %}</span>
+      <span class="vuln-card-sub">{% trans "packages" %}{% if s.inventory_at %} &middot; {% trans "collected" %} <span data-vuln-time="{{ s.inventory_at }}" data-vuln-fmt="when">{{ s.inventory_at }}</span>{% endif %}</span>
+    </div>
+    <div class="vuln-card">
+      <span class="vuln-eyebrow">{% trans "Database" %}</span>
+      <span class="vuln-big">{% if s.db_built %}<span data-vuln-time="{{ s.db_built }}" data-vuln-fmt="day">{{ s.db_built }}</span>{% else %}&ndash;{% endif %}</span>
+      <span class="vuln-card-sub">{% if s.matched_at %}{% trans "matched" %} <span data-vuln-time="{{ s.matched_at }}" data-vuln-fmt="when">{{ s.matched_at }}</span>{% else %}&nbsp;{% endif %}</span>
+    </div>
+  </div>
+
+  <div class="vuln-bar">
+    <div class="vuln-seg" role="group" aria-label="{% trans 'View' %}">
+      <button type="button" data-vuln-act="view" data-vuln-view="packages" data-vuln-focus="view-packages" aria-pressed="true">{% trans "Packages" %}</button>
+      <button type="button" data-vuln-act="view" data-vuln-view="cves" data-vuln-focus="view-cves" aria-pressed="false">{% trans "CVEs" %}</button>
+    </div>
+    <label class="vuln-sr" for="vuln-q">{% trans "Search package, CVE or advisory" %}</label>
+    <input type="search" class="form-control form-control-sm vuln-q" id="vuln-q" placeholder="{% trans 'Search package or CVE' %}" maxlength="100" autocomplete="off" data-vuln-q data-vuln-focus="q">
+    <label class="vuln-sr" for="vuln-sev">{% trans "Severity" %}</label>
+    <select class="form-select form-select-sm vuln-sev" id="vuln-sev" data-vuln-sev data-vuln-focus="sev">
+      <option value="">{% trans "Severity: all" %}</option>
+      <option value="Critical">{% trans "Critical" %}</option>
+      <option value="High">{% trans "High" %}</option>
+      <option value="Medium">{% trans "Medium" %}</option>
+      <option value="Low">{% trans "Low" %}</option>
+      <option value="Unknown">{% trans "Unknown" %}</option>
+    </select>
+    <div class="form-check vuln-kev-check">
+      <input class="form-check-input" type="checkbox" id="vuln-kev" data-vuln-kev data-vuln-focus="kev">
+      <label class="form-check-label" for="vuln-kev">{% trans "Exploited only" %}</label>
+    </div>
+    <span class="vuln-spacer"></span>
+    {% if vuln.can_scan %}
+    <button type="button" class="btn btn-sm btn-outline-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if vuln.active or not vuln.ready %} disabled{% endif %}><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Refresh software list" %}</button>
+    {% endif %}
+  </div>
+
+  <div data-vuln-results>
+    <div class="vuln-table-wrap" data-vuln-table></div>
+    <div class="vuln-pager" data-vuln-pager></div>
+    <div class="vuln-note" data-vuln-status aria-live="polite"></div>
+  </div>
+  {% endwith %}
+  {% endif %}
+
+{% endif %}
+</div>
