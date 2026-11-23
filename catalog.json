@@ -552,7 +552,7 @@
     "id": "BP-sy5pb325",
     "type": "blueprints",
     "name": "3-Tier Web App on OpenShift Virtualization",
-    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then scans each VM with OpenSCAP.",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
     "path": "blueprints/BP-sy5pb325",
     "readme": "blueprints/BP-sy5pb325/README.md",
     "uses": [
@@ -564,7 +564,6 @@
       "plugins/OHK-lwhuaezv",
       "plugins/OHK-mfcauahq",
       "plugins/OHK-njnsxqbf",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-ulnznmqb",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-yf2kpzkx",
@@ -1714,12 +1713,12 @@
     "id": "PKG-57ltvnbl",
     "type": "packages",
     "name": "OpenShift",
-    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring tab on VMs and on the resources that hold them, the OpenSCAP tab that the blueprint's scan steps use, and the Run Script server action that reaches VMs through the cluster API.",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring and OpenSCAP tabs on VMs and on the resources that hold them, and the Run Script server action that reaches VMs through the cluster API.",
     "path": "packages/PKG-57ltvnbl",
     "readme": "packages/PKG-57ltvnbl/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.3.0",
+    "version": "1.3.1",
     "contents": [
       "extensions/XUI-y9bdnzxt",
       "extensions/XUI-60382c9x",
@@ -4181,22 +4180,6 @@
     ],
     "used_by": [
       "resource_actions/RSA-gp2aywcz"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
-    "id": "OHK-oqqmfoah",
-    "type": "plugins",
-    "name": "Run OpenSCAP Scan",
-    "description": "Scans a blueprint's server tier with the OpenSCAP UI extension, waits for the scan, and stores a link to the report on the resource.",
-    "path": "plugins/OHK-oqqmfoah",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-eanos2e0",
-      "shared_modules/SHM-wkubiao7"
-    ],
-    "used_by": [
-      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -6691,7 +6674,6 @@
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-njnsxqbf",
       "plugins/OHK-yf2kpzkx",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-jru4jomd"
     ]
   },
@@ -7009,7 +6991,6 @@
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-njnsxqbf",
       "plugins/OHK-yf2kpzkx",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-yqrralqk",
       "plugins/OHK-jru4jomd",
       "shared_modules/SHM-eanos2e0"

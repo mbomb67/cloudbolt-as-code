@@ -522,97 +522,10 @@
             "run_on_scale_up": false,
             "show_on_order_form": false,
             "tier_type": "plugin"
-        },
-        {
-            "action_name": "Run OpenSCAP Scan",
-            "continue_on_failure": true,
-            "dependencies": {
-                "hook": "plugins/OHK-oqqmfoah"
-            },
-            "deploy_seq": 19,
-            "description": "Installs OpenSCAP on the database VM, scans it, and stores a link to the report on the resource.",
-            "enabled": true,
-            "execute_in_parallel": true,
-            "id": "BDI-1vei83a3",
-            "name": "OpenSCAP Scan: Database",
-            "parameter_defaults": [
-                {
-                    "label": "Tier",
-                    "name": "tier_a1",
-                    "value": "DB"
-                },
-                {
-                    "label": "Profile",
-                    "name": "profile_a1",
-                    "value": "cis_server_l1"
-                }
-            ],
-            "rate": null,
-            "run_on_scale_up": false,
-            "show_on_order_form": false,
-            "tier_type": "plugin"
-        },
-        {
-            "action_name": "Run OpenSCAP Scan",
-            "continue_on_failure": true,
-            "dependencies": {
-                "hook": "plugins/OHK-oqqmfoah"
-            },
-            "deploy_seq": 20,
-            "description": "Installs OpenSCAP on the app VM, scans it, and stores a link to the report on the resource.",
-            "enabled": true,
-            "execute_in_parallel": true,
-            "id": "BDI-e83jsmk8",
-            "name": "OpenSCAP Scan: App",
-            "parameter_defaults": [
-                {
-                    "label": "Tier",
-                    "name": "tier_a1",
-                    "value": "App"
-                },
-                {
-                    "label": "Profile",
-                    "name": "profile_a1",
-                    "value": "cis_server_l1"
-                }
-            ],
-            "rate": null,
-            "run_on_scale_up": false,
-            "show_on_order_form": false,
-            "tier_type": "plugin"
-        },
-        {
-            "action_name": "Run OpenSCAP Scan",
-            "continue_on_failure": true,
-            "dependencies": {
-                "hook": "plugins/OHK-oqqmfoah"
-            },
-            "deploy_seq": 21,
-            "description": "Installs OpenSCAP on the web VM, scans it, and stores a link to the report on the resource.",
-            "enabled": true,
-            "execute_in_parallel": false,
-            "id": "BDI-wgx1jdl8",
-            "name": "OpenSCAP Scan: Web",
-            "parameter_defaults": [
-                {
-                    "label": "Tier",
-                    "name": "tier_a1",
-                    "value": "Web"
-                },
-                {
-                    "label": "Profile",
-                    "name": "profile_a1",
-                    "value": "cis_server_l1"
-                }
-            ],
-            "rate": null,
-            "run_on_scale_up": false,
-            "show_on_order_form": false,
-            "tier_type": "plugin"
         }
     ],
     "deployment_permissions": [],
-    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then scans each VM with OpenSCAP.",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
     "favorited": false,
     "icon": "OpenShift_Logo_a0RM62N.png",
     "id": "BP-sy5pb325",

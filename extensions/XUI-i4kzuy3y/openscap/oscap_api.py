@@ -13,8 +13,7 @@ OpenSCAP for other content: scan a server from a plug-in and wait for the result
 
 The scan is the job the OpenSCAP tab starts (oscap_jobs.start), so it takes the
 same lock, lands in the server's scan history and stores its files the same
-way. A blueprint build item uses this to scan the servers it built before the
-order finishes (plugins/OHK-oqqmfoah).
+way.
 
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.
