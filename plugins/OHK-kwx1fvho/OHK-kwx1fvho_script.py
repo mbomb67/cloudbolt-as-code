@@ -14,6 +14,8 @@ of the Compliance settings page).
 """
 
 import importlib
+import os
+import time
 
 from common.methods import set_progress
 
@@ -33,10 +35,27 @@ def _load_api():
     """The extension's oscap_api, freshly loaded. The job engine keeps modules in memory, so the
     extension's modules are reloaded the way its own scan job does it (oscap_job.py): a synced
     extension update then counts without a restart."""
-    entry = importlib.reload(importlib.import_module(PACKAGE + ".oscap_job"))
-    for name in tuple(entry.MODULES) + (PACKAGE + ".oscap_api",):
-        importlib.reload(importlib.import_module(name))
+    try:
+        entry = importlib.reload(importlib.import_module(PACKAGE + ".oscap_job"))
+        for name in tuple(entry.MODULES) + (PACKAGE + ".oscap_api",):
+            importlib.reload(importlib.import_module(name))
+    except ImportError:
+        raise
+    except Exception as err:
+        set_progress(f"The Compliance extension could not be reloaded ({type(err).__name__}: {err}); using the copy in memory.")
     return importlib.import_module(PACKAGE + ".oscap_api")
+
+
+def _installed(module):
+    """Where the module was loaded from and when that file last changed, for the too-old message."""
+    path = getattr(module, "__file__", "") or ""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            on_disk = "def start_scan" in handle.read()
+        changed = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(path)))
+    except OSError as err:
+        return f"{path or 'no file'}: {err}"
+    return f"{path}, changed {changed}, start_scan {'is' if on_disk else 'is not'} in that file"
 
 
 def _one(oscap_api, server, job):
@@ -64,12 +83,14 @@ def run(job, *args, **kwargs):
             return "SUCCESS", "Provisioning failed, so no server was scanned.", ""
         try:
             oscap_api = _load_api()
-            oscap_api.start_scan
         except ImportError:
             set_progress("The Compliance extension (extensions/XUI-i4kzuy3y) is not installed, so no server was scanned.")
             return "SUCCESS", "", ""
-        except AttributeError:
-            set_progress("The installed Compliance extension is too old to offer start_scan(); sync extensions/XUI-i4kzuy3y.")
+        if not hasattr(oscap_api, "start_scan"):
+            set_progress(
+                "The installed Compliance extension is too old to offer start_scan(); sync extensions/XUI-i4kzuy3y. "
+                f"Loaded from {_installed(oscap_api)}."
+            )
             return "SUCCESS", "", ""
         lines = []
         for server in kwargs.get("servers") or list(job.server_set.all()):
