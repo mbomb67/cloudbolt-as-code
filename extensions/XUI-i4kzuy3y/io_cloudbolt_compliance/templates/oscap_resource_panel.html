@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-  Panel fragment for the OpenSCAP resource tab, loaded and re-loaded by
+  Panel fragment for the Compliance resource tab, loaded and re-loaded by
   oscap_resource_assets.html. The top element's data-active is "1" while the
   resource run or any server's job runs, which keeps the script polling; the
   header's Scan all servers and Check servers buttons are off while the
@@ -13,7 +13,7 @@
     <i class="bi bi-lock-fill" aria-hidden="true"></i>
     <div class="oscap-banner-body">
       <div class="oscap-banner-t">{% trans "You do not have access" %}</div>
-      <div class="oscap-banner-s">{% trans "You do not have permission to see OpenSCAP results for this resource. Ask a CloudBolt administrator for access." %}</div>
+      <div class="oscap-banner-s">{% trans "You do not have permission to see compliance results for this resource. Ask a CloudBolt administrator for access." %}</div>
     </div>
   </div>
 {% else %}
@@ -57,7 +57,7 @@
       {% if oscap.allow_install %}
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="oscap-install" data-oscap-install>
-        <label class="form-check-label" for="oscap-install">{% trans "Install OpenSCAP if it is missing" %}</label>
+        <label class="form-check-label" for="oscap-install">{% if oscap.has_windows and oscap.has_linux %}{% trans "Install OpenSCAP or SCC if it is missing (SCC downloads about 108 MB from DISA)" %}{% elif oscap.has_windows %}{% trans "Install SCC if it is missing (downloads about 108 MB from DISA)" %}{% else %}{% trans "Install OpenSCAP if it is missing" %}{% endif %}</label>
       </div>
       {% endif %}
       <div class="oscap-form-actions">
@@ -85,13 +85,13 @@
   {% endif %}
 
   {% if not oscap.servers %}
-  <div class="oscap-empty">{% trans "This resource has no Linux servers you may view." %}</div>
+  <div class="oscap-empty">{% trans "This resource has no servers you may view." %}</div>
   {% else %}
 
   {% if not oscap.summary and not oscap.history and not oscap.active %}
   <div class="oscap-section">
     <div class="oscap-card-h"><span class="oscap-card-t">{% trans "No scans yet" %}</span></div>
-    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label %}A scan checks each server against a security profile with OpenSCAP and reports which rules pass and fail. Each server keeps its own report in {{ label }}.{% endblocktrans %}</div>
+    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label scanner=oscap.scanner %}A scan checks each server against a security profile with {{ scanner }} and reports which rules pass and fail. Each server keeps its own report in {{ label }}.{% endblocktrans %}</div>
   </div>
   {% endif %}
 

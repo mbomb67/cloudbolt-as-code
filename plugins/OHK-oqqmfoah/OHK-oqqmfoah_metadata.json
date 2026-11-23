@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "OpenSCAP profile id or its ending. Empty tries the default profiles of the OpenSCAP settings page.",
+            "description": "OpenSCAP profile id or its ending. Empty tries the default profiles of the Compliance settings page.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -49,7 +49,7 @@
             "shared_modules/SHM-wkubiao7"
         ]
     },
-    "description": "Scans a blueprint's server tier with the OpenSCAP UI extension, waits for the scan, and stores a link to the report on the resource.",
+    "description": "Scans a blueprint's server tier with the Compliance UI extension, waits for the scan, and stores a link to the report on the resource.",
     "id": "OHK-oqqmfoah",
     "max_retries": 0,
     "name": "Run OpenSCAP Scan",

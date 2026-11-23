@@ -1,6 +1,6 @@
 {% load i18n %}
 {% comment %}
-  Shell of the OpenSCAP tab. The page header is static here, as in the EKS and
+  Shell of the Compliance tab. The page header is static here, as in the EKS and
   Monitoring tabs; oscap_assets.html loads the panel fragment (panel_url) into
   the body div and keeps it fresh while a job is running. Run scan and Check
   server are enabled or disabled from the panel's state after each load.
@@ -10,7 +10,7 @@
     <div>
       <div class="oscap-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> {% trans "Compliance" %}</div>
       <div class="oscap-title">{{ server.hostname }}</div>
-      <div class="oscap-sub">{% blocktrans with label=shell.repo_label %}OpenSCAP security scans. Reports are stored in {{ label }}.{% endblocktrans %}</div>
+      <div class="oscap-sub">{% blocktrans with label=shell.repo_label %}Compliance scans. Reports are stored in {{ label }}.{% endblocktrans %}</div>
     </div>
     <div class="oscap-tools">
       {% if shell.can_scan %}
@@ -35,4 +35,4 @@
     <div class="oscap-loading-note"><i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i> {% trans "Loading from CloudBolt…" %}</div>
   </div>
 </div>
-{% include "openscap/templates/oscap_assets.html" %}
+{% include "io_cloudbolt_compliance/templates/oscap_assets.html" %}
