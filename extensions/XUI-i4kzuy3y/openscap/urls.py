@@ -2,8 +2,8 @@ from django.urls import path
 
 from . import views
 
-# The tab loads its panel asynchronously and every route that takes a server
-# id re-checks the viewer's permission on it. The upload route is the one
+# The tabs load their panels asynchronously and every route that takes a server
+# or resource id re-checks the viewer's permission on it. The upload route is the one
 # route without a CloudBolt login: the signed token in its X-Oscap-Token header is the
 # credential, and it is used only by the local result repository.
 xui_urlpatterns = [
@@ -24,6 +24,18 @@ xui_urlpatterns = [
         "openscap/servers/<int:server_id>/scans/<str:scan_id>/<str:kind>/",
         views.openscap_artifact,
         name="openscap_artifact",
+    ),
+    # HTML fragment the resource tab loads
+    path(
+        "openscap/resources/<int:resource_id>/panel/",
+        views.openscap_resource_panel,
+        name="openscap_resource_panel",
+    ),
+    # JSON: start a scan or a readiness check on the chosen servers of a resource, as one job
+    path(
+        "openscap/resources/<int:resource_id>/scan/",
+        views.openscap_resource_start,
+        name="openscap_resource_start",
     ),
     # Targets upload their files here with a signed token (local backend only)
     path(

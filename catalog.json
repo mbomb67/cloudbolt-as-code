@@ -751,7 +751,7 @@
     "id": "XUI-i4kzuy3y",
     "type": "extensions",
     "name": "OpenSCAP",
-    "description": "Adds an OpenSCAP tab to Linux servers that runs profile scans as jobs, shows the score, failed rules and history, and keeps the HTML, XCCDF and ARF results in an S3 bucket or on the appliance instead of the database.",
+    "description": "Adds an OpenSCAP tab to Linux servers and to resources that have them, running compliance scans as jobs and keeping the reports in S3 or on the appliance.",
     "path": "extensions/XUI-i4kzuy3y",
     "readme": "extensions/XUI-i4kzuy3y/README.md",
     "uses": [],
