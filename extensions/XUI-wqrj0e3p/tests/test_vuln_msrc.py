@@ -23,6 +23,7 @@ import tempfile
 import types
 import unittest
 from unittest import mock
+from urllib.parse import urlsplit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG_DIR = os.path.join(os.path.dirname(HERE), "io_cloudbolt_vulnerabilities")
@@ -544,7 +545,7 @@ class FakeWeb:
                     raise action
                 raise msrc.MsrcError("The Microsoft security data service answered with HTTP {}.".format(action),
                                      "HTTP {}".format(action))
-        if "cisa.gov" in url:
+        if urlsplit(url).hostname == "www.cisa.gov":
             if (headers or {}).get("If-None-Match") == self.kev_etag:
                 return 304, b"", {}
             return 200, json.dumps(SAMPLE["kev"]).encode(), {"ETag": self.kev_etag}
