@@ -53,6 +53,14 @@ INVENTORY_DESCRIPTION = (
 )
 INVENTORY_FILE = "vuln_inventory_job.py"
 
+RESOURCE_SCAN_NAME = "Vulnerability Resource Scan"
+RESOURCE_SCAN_DESCRIPTION = (
+    "Scans every server of one resource as its own job, for the Vulnerabilities UI extension, when someone "
+    "chooses Scan all servers on the resource's Vulnerabilities tab. Created by the extension; its code is the "
+    "extension's vuln_resource_job.py, so do not edit or delete it here."
+)
+RESOURCE_SCAN_FILE = "vuln_resource_job.py"
+
 PROVISION_NAME = "Vulnerability Scan After Provisioning"
 PROVISION_DESCRIPTION = (
     "Starts a vulnerability scan of each new server as its own job when a build finishes, for the "
@@ -118,6 +126,11 @@ def rematch_hook():
 def inventory_hook():
     """The weekly inventory plugin, created on first use and kept pointing at vuln_inventory_job.py."""
     return _hook(INVENTORY_NAME, INVENTORY_DESCRIPTION, INVENTORY_FILE)
+
+
+def resource_scan_hook():
+    """The resource scan plugin, created on first use and kept pointing at vuln_resource_job.py."""
+    return _hook(RESOURCE_SCAN_NAME, RESOURCE_SCAN_DESCRIPTION, RESOURCE_SCAN_FILE)
 
 
 def provision_hook():

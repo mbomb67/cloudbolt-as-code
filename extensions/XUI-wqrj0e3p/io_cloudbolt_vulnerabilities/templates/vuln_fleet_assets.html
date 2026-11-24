@@ -5,12 +5,32 @@
   screen, and every control change goes back to page 1 and asks the server again. Server values
   are placed with textContent and DOM methods only; no HTML string is ever built from them.
   The open view and vulnerability live in the URL hash: #view=servers, or #cve=<id>.
+
+  The resource tab (vuln_resource_tab.html) uses the same script. Everything it needs is opt-in
+  per root element, so a root without these attributes behaves as the admin page always has:
+    data-vuln-nohash="1"   view and vulnerability are kept in memory; location.hash is never read
+                           or written (CloudBolt's own tabs keep their state in it), and the row
+                           links and the way back are buttons, not links.
+    data-vuln-scan-url     a "Scan all servers" button (data-vuln-act="scan-all", hidden until the
+                           summary says can_scan) posts here, and the summary's run object draws a
+                           banner into [data-vuln-run]; while a run is in progress a light request
+                           (summary?run=1) runs every 5 s and the summary and the open pane reload
+                           only when the run's progress changes or the run ends. When a run goes
+                           from absent to live (the button was just used) the visible pane is also
+                           reloaded once, quietly, on the next light poll, because the rows were
+                           fetched before the scans' jobs existed and must now read "Scanning".
+    summary.servers_total > 0  with summary.servers = 0 (a resource whose servers are all unscanned)
+                           keeps the explanation and shows the Servers list instead of the cards,
+                           the view switch ([data-vuln-switch]) and the Vulnerabilities view.
+  A root is initialised once (data-vuln-init), at once when the document has already loaded (the
+  tab HTML is injected after the page), and its timers stop when it leaves the document.
 {% endcomment %}
 <script>
 (function () {
   "use strict";
   var PAGE_SIZE = 25;
   var RETRY_MS = 5000;
+  var RUN_MS = 5000;
   var DEBOUNCE_MS = 300;
   var CVE_RE = /^CVE-\d{4}-\d+$/i;
   var CVE_LIKE = /CVE-\d{4}-\d{3,}/i;
@@ -121,14 +141,24 @@
     return fixable + " of " + servers + " servers";
   }
 
-  function buildCves(rows) {
+  // With nohash the row opens its vulnerability from memory: a button, never a link that
+  // would change the address (CloudBolt's tabs own the hash).
+  function buildCves(rows, nohash) {
     var body = document.createElement("tbody");
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       var td = cell();
       var box = el("div", "vuln-name");
-      var a = el("a", "vuln-link vuln-mono", r.cve || "");
-      a.setAttribute("href", "#cve=" + encodeURIComponent(r.cve || ""));
+      var a;
+      if (nohash) {
+        a = el("button", "vuln-link vuln-mono vuln-linkbtn", r.cve || "");
+        a.setAttribute("type", "button");
+        a.setAttribute("data-vuln-act", "open-cve");
+        a.setAttribute("data-vuln-cve", r.cve || "");
+      } else {
+        a = el("a", "vuln-link vuln-mono", r.cve || "");
+        a.setAttribute("href", "#cve=" + encodeURIComponent(r.cve || ""));
+      }
       a.vulnCve = r.cve || "";
       box.appendChild(a);
       td.appendChild(box);
@@ -165,24 +195,41 @@
     return finishTable(headRow(["Hostname", "Group", "Environment", "OS", "Package", "Installed", "Fixed in", "Last matched"]), body);
   }
 
+  // Rows that carry state_text (the resource tab's) have no group or environment column, and a
+  // server that has no findings to count shows its state ("Not scanned yet", "Powered off",
+  // "Scanning") across the three count columns instead of zeros.
   function buildServers(rows) {
+    var withState = rows.length > 0 && rows[0].state_text !== undefined;
     var body = document.createElement("tbody");
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.appendChild(hostCell(r));
-      tr.appendChild(textCell(r.group_name));
-      tr.appendChild(textCell(r.environment));
+      if (!withState) {
+        tr.appendChild(textCell(r.group_name));
+        tr.appendChild(textCell(r.environment));
+      }
       tr.appendChild(textCell(r.os_name));
-      tr.appendChild(numCell(r.vuln_critical, r.vuln_critical ? "vuln-c-crit" : ""));
-      tr.appendChild(numCell(r.vuln_high, r.vuln_high ? "vuln-c-high" : ""));
-      tr.appendChild(numCell(r.kev, r.kev ? "vuln-kev" : ""));
+      var note = withState ? (r.scanning ? "Scanning" : (r.state_text || "")) : "";
+      if (note) {
+        var span = cell(r.scanning ? "" : "vuln-dim");
+        span.setAttribute("colspan", "3");
+        span.textContent = note;
+        tr.appendChild(span);
+      } else {
+        tr.appendChild(numCell(r.vuln_critical, r.vuln_critical ? "vuln-c-crit" : ""));
+        tr.appendChild(numCell(r.vuln_high, r.vuln_high ? "vuln-c-high" : ""));
+        tr.appendChild(numCell(r.kev, r.kev ? "vuln-kev" : ""));
+      }
       var when = cell("vuln-ver");
       when.textContent = r.inventory_at ? fmtTime(r.inventory_at, "when") : "–";
       if (r.inventory_at) { when.setAttribute("title", r.inventory_at); }
       tr.appendChild(when);
       body.appendChild(tr);
     });
-    return finishTable(headRow(["Hostname", "Group", "Environment", "OS", { t: "Critical" }, { t: "High" }, { t: "Exploited" }, "Software list"]), body);
+    var cols = withState
+      ? ["Hostname", "OS", { t: "Critical" }, { t: "High" }, { t: "Exploited" }, "Software list"]
+      : ["Hostname", "Group", "Environment", "OS", { t: "Critical" }, { t: "High" }, { t: "Exploited" }, "Software list"];
+    return finishTable(headRow(cols), body);
   }
 
   function pageButton(label, to, ariaLabel, disabled, current) {
@@ -225,7 +272,21 @@
     var sumXhr = null;
     var sumRetry = null;
     var panes = {};
+    // Opt-in per root (see the comment at the top of this file).
+    var nohash = rootEl.getAttribute("data-vuln-nohash") === "1";
+    var scanUrl = rootEl.getAttribute("data-vuln-scan-url") || "";
+    var csrf = rootEl.getAttribute("data-csrf") || "";
+    var memRoute = { view: "cves" };   // nohash: where the view is, since the hash is not used
+    var run = null;             // the summary's run object while a scan of the resource is in progress
+    var runTimer = null;
+    var runXhr = null;          // the light poll (summary?run=1) in flight
+    var runWaiting = false;     // a visibilitychange listener is waiting to resume the refresh
+    var scanBusy = false;       // the scan request is in flight
+    var listOnly = false;       // resource mode, servers visible but none scanned: the explanation and the Servers list
+    var refreshOnPoll = false;  // a run just became live: the next light poll reloads the visible pane once
+    var canScan = null;         // true shows the scan button, false hides it; null (a run is live) leaves it as it is
 
+    function alive() { return document.body.contains(rootEl); }
     function one(sel) { return rootEl.querySelector(sel); }
     function paneNode(name) { return rootEl.querySelector('[data-vuln-pane="' + name + '"]'); }
     function announce(message) {
@@ -234,13 +295,14 @@
       live.textContent = "";
       live.textContent = message || "";
     }
-    function showAlert(message) {
+    // plain: a refusal the user can act on (a scan already running), shown as muted text, not as an error.
+    function showAlert(message, plain) {
       var box = one("[data-vuln-alert]");
       if (!box) { return; }
       while (box.firstChild) { box.removeChild(box.firstChild); }
       if (!message) { box.hidden = true; return; }
       var card = el("div", "vuln-card vuln-card-flush vuln-state");
-      card.appendChild(el("div", "vuln-alert", message));
+      card.appendChild(el("div", plain ? "vuln-nomatch vuln-plain" : "vuln-alert", message));
       box.appendChild(card);
       box.hidden = false;
     }
@@ -273,7 +335,7 @@
       fresh: function () { return { q: "", sev: "", kev: false, page: 1 }; },
       url: function () { return urls.cves; },
       params: function (st) { var q = { q: st.q, severity: st.sev, page: st.page, page_size: PAGE_SIZE }; if (st.kev) { q.kev = 1; } return q; },
-      build: buildCves,
+      build: function (rows) { return buildCves(rows, nohash); },
       noun: "vulnerabilities",
       empty: function (st) {
         if (st.q && looksLikeCve(st.q) && !st.sev && !st.kev) { return notAffected(st.q.trim()); }
@@ -316,7 +378,7 @@
       p.wrap.setAttribute("aria-busy", on ? "true" : "false");
     }
 
-    function draw(p, data) {
+    function draw(p, data, quiet) {
       $(p.wrap).empty();
       $(p.pager).empty();
       setStatus(p, "");
@@ -347,7 +409,7 @@
         p.pager.appendChild(nav);
       }
       if (p.after) { p.after(data); }
-      announce(line + (pages > 1 ? ", page " + page + " of " + pages : ""));
+      if (!quiet) { announce(line + (pages > 1 ? ", page " + page + " of " + pages : "")); }
       // Focus: back on the page button that was used, or on the row the way back came from.
       if (p.pagerFocus) {
         p.pagerFocus = false;
@@ -355,7 +417,7 @@
         if (current) { current.focus(); }
       } else if (p.name === "cves" && lastCve && p.focusRow) {
         p.focusRow = false;
-        var links = p.wrap.querySelectorAll("a.vuln-link");
+        var links = p.wrap.querySelectorAll(nohash ? "button.vuln-link" : "a.vuln-link");
         for (var i = 0; i < links.length; i++) {
           if (links[i].vulnCve === lastCve) { links[i].focus(); break; }
         }
@@ -374,7 +436,8 @@
       p.retry = setTimeout(function () { p.retry = null; if (document.body.contains(rootEl) && !paneNode(p.name).hidden) { fetchPane(p); } }, RETRY_MS);
     }
 
-    function fetchPane(p) {
+    // quiet (a refetch the poll caused): the page and filters stay, and nothing is announced.
+    function fetchPane(p, quiet) {
       if (p.deb) { clearTimeout(p.deb); p.deb = null; }
       if (p.retry) { clearTimeout(p.retry); p.retry = null; }
       if (!document.body.contains(rootEl) || !p.url()) { return; }
@@ -388,7 +451,7 @@
         if (data && data.unavailable) { showUnavailable(p); return; }
         if (data && typeof data.page === "number") { p.st.page = data.page; }   // the server clamps to the last page
         p.loaded = true;
-        draw(p, data);
+        draw(p, data, quiet);
       }).fail(function (x, status) {
         if (mine !== p.req || status === "abort") { return; }
         var err = x && x.responseJSON && x.responseJSON.error;
@@ -446,30 +509,50 @@
       one("[data-vuln-dtitle]").focus();
     }
 
-    function applyHash() {
-      if (!ready) { return; }
-      var h = window.location.hash || "";
-      var m = /^#cve=(.+)$/.exec(h);
+    // Shows a place: { cve: id } is one vulnerability's servers; { view: "cves" | "servers", bad: true }
+    // is a list, with a notice that the address named an invalid id. The admin page reaches this
+    // through the hash (applyHash); with nohash the clicks call it directly.
+    function route(r) {
       var wasDetail = !panes.detail.node.hidden;
-      if (m) {
-        var id = "";
-        try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-        if (ID_RE.test(id)) { showAlert(""); openDetail(id); return; }
-        showAlert("That CVE or advisory id in the address is not valid.");
-      } else {
+      if (r.cve) {
+        memRoute = { cve: r.cve };
         showAlert("");
+        openDetail(r.cve);
+        return;
       }
-      var name = h === "#view=servers" ? "servers" : "cves";
+      showAlert(r.bad ? "That CVE or advisory id in the address is not valid." : "");
+      var name = r.view;
+      memRoute = { view: name };
       show(name);
       var p = panes[name];
       if (!p.loaded) { fetchPane(p); }
       if (wasDetail && name === "cves" && lastCve) {
         p.focusRow = true;
-        var links = p.wrap.querySelectorAll("a.vuln-link");
+        var links = p.wrap.querySelectorAll(nohash ? "button.vuln-link" : "a.vuln-link");
         for (var i = 0; i < links.length; i++) {
           if (links[i].vulnCve === lastCve) { p.focusRow = false; links[i].focus(); break; }
         }
       }
+    }
+
+    function applyHash() {
+      if (!ready) { return; }
+      var h = window.location.hash || "";
+      var m = /^#cve=(.+)$/.exec(h);
+      var name = h === "#view=servers" ? "servers" : "cves";
+      if (m) {
+        var id = "";
+        try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
+        if (ID_RE.test(id)) { route({ cve: id }); return; }
+        route({ view: name, bad: true });
+        return;
+      }
+      route({ view: name, bad: false });
+    }
+
+    // Where the page is when the summary first arrives, or arrives again after being empty.
+    function applyPlace() {
+      if (nohash) { route(memRoute); } else { applyHash(); }
     }
 
     // ---- summary ----
@@ -489,8 +572,16 @@
     function drawCards(s) {
       var box = one("[data-vuln-cards]");
       while (box.firstChild) { box.removeChild(box.firstChild); }
-      box.appendChild(card("Servers with a software list", num(s.servers), "",
-        s.newest_matched ? "last matched " + fmtTime(s.newest_matched, "when") : ""));
+      var matched = s.newest_matched ? "last matched " + fmtTime(s.newest_matched, "when") : "";
+      if (s.servers_total !== undefined && s.servers_total !== null) {
+        // The resource tab: how many of the servers the viewer can see have a software list.
+        if (s.truncated) {
+          matched = (matched ? matched + " · " : "") + "totals cover the first " + (s.servers_limit ? s.servers_limit + " " : "") + "servers";
+        }
+        box.appendChild(card("Servers scanned", num(s.servers) + " of " + num(s.servers_total), "", matched));
+      } else {
+        box.appendChild(card("Servers with a software list", num(s.servers), "", matched));
+      }
       var vulns = el("div", "vuln-card");
       vulns.appendChild(el("span", "vuln-eyebrow", "Known vulnerabilities"));
       var figs = el("div", "vuln-sev-figs");
@@ -513,7 +604,9 @@
       one("[data-vuln-empty]").hidden = state !== "empty";
       one("[data-vuln-updating]").hidden = state !== "updating";
       one("[data-vuln-cards]").hidden = state !== "ready";
-      one("[data-vuln-main]").hidden = state !== "ready";
+      one("[data-vuln-main]").hidden = !(state === "ready" || (state === "empty" && listOnly));
+      var sw = one("[data-vuln-switch]");
+      if (sw) { sw.hidden = listOnly; }
     }
 
     // A retry that fell due while the tab was hidden runs when it is shown again.
@@ -525,51 +618,196 @@
       document.addEventListener("visibilitychange", again);
     }
 
-    function loadSummary() {
+    // ---- scan of a whole resource (only with data-vuln-scan-url) ----
+    var runKey = "";
+    function drawRun() {
+      var box = one("[data-vuln-run]");
+      if (!box) { return; }
+      var key = run ? [run.job_id, run.done, run.total, run.started].join("|") : "";
+      if (key === runKey && (run ? !box.hidden : true)) { return; }   // unchanged: do not redraw a live region
+      runKey = key;
+      while (box.firstChild) { box.removeChild(box.firstChild); }
+      if (!run) { box.hidden = true; return; }
+      var banner = el("div", "vuln-banner vuln-banner-info");
+      banner.setAttribute("role", "status");
+      var body = el("div", "vuln-banner-body");
+      body.appendChild(el("div", "vuln-banner-t", "Scan in progress"));
+      var total = Number(run.total) || 0;
+      var done = Math.min(Number(run.done) || 0, total);
+      var parts = [];
+      if (total > 0) { parts.push(done + " of " + total + " servers done"); }
+      if (run.started) { parts.push("started " + fmtTime(run.started, "when")); }
+      body.appendChild(el("div", "vuln-banner-s", parts.join(" · ")));
+      banner.appendChild(body);
+      if (run.job_url && String(run.job_url).charAt(0) === "/") {
+        var link = el("a", "btn btn-sm btn-outline-secondary vuln-banner-btn", "View job");
+        link.setAttribute("href", run.job_url);
+        banner.appendChild(link);
+      }
+      box.appendChild(banner);
+      box.hidden = false;
+    }
+
+    // The scan button is off while a run is in progress or its request is in flight, and gone
+    // when the server says nothing here may be scanned by this viewer.
+    function syncScan() {
+      var btns = rootEl.querySelectorAll('[data-vuln-act="scan-all"]');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = scanBusy || !!run;
+        btns[i].hidden = canScan !== true && !run;
+      }
+    }
+
+    function applyRun(data) {
+      var was = run;
+      run = (data && data.run) || null;
+      // Resource mode only (scanUrl): the admin page never has a run, and its behaviour is unchanged.
+      refreshOnPoll = !!scanUrl && !!run && (!was || refreshOnPoll);
+      canScan = data && data.can_scan === true ? true : (data && data.can_scan === false ? false : null);
+      drawRun();
+      syncScan();
+    }
+
+    // While a run is in progress a light request (summary?run=1, only the run) is made every 5
+    // seconds. The full summary, and with it the open pane, is reloaded only when the run's progress
+    // changes and once more when it ends. Nothing is scheduled for a root that has left the
+    // document; a tick is skipped while the document is hidden (it resumes when shown) and, re-armed,
+    // while the root is not rendered (another CloudBolt tab of the page is open).
+    function scheduleRun() {
+      if (runTimer) { clearTimeout(runTimer); runTimer = null; }
+      if (!run || !alive() || sumRetry || sumXhr || runXhr) { return; }
+      runTimer = setTimeout(function () {
+        runTimer = null;
+        if (!alive() || !run) { return; }
+        if (document.hidden) { waitRun(); return; }
+        if (rootEl.offsetParent === null) { scheduleRun(); return; }
+        pollRun();
+      }, RUN_MS);
+    }
+    function pollRun() {
+      if (!alive() || !run || runXhr || sumXhr) { return; }
+      var req = $.ajax({ url: urls.summary, data: { run: 1 }, dataType: "json", cache: false });
+      runXhr = req;
+      req.done(function (data) {
+        if (runXhr !== req || !alive()) { return; }
+        var next = data && data.run;
+        if (!next || !run || next.job_id !== run.job_id || next.done !== run.done || refreshOnPoll) {
+          refreshOnPoll = false;
+          loadSummary({ quiet: true });
+        }
+      }).always(function () { if (runXhr === req) { runXhr = null; scheduleRun(); } });
+    }
+    function waitRun() {
+      if (runWaiting) { return; }
+      runWaiting = true;
+      function again() {
+        document.removeEventListener("visibilitychange", again);
+        runWaiting = false;
+        if (document.hidden || !alive() || !run) { return; }
+        if (rootEl.offsetParent === null) { scheduleRun(); } else { pollRun(); }
+      }
+      document.addEventListener("visibilitychange", again);
+    }
+
+    function scanAll() {
+      if (!scanUrl || scanBusy || run) { return; }
+      scanBusy = true;
+      showAlert("");
+      syncScan();
+      $.ajax({
+        url: scanUrl,
+        method: "POST",
+        contentType: "application/json",
+        dataType: "json",
+        headers: { "Accept": "application/json", "X-CSRFToken": csrf },
+        data: JSON.stringify({})
+      }).done(function () {
+        scanBusy = false;
+        if (!alive()) { return; }
+        announce("The scan has started.");
+        loadSummary();
+      }).fail(function (x) {
+        scanBusy = false;
+        if (!alive()) { return; }
+        syncScan();
+        var err = x && x.responseJSON && x.responseJSON.error;
+        var code = (x && x.status) || 0;
+        // A refusal the server explains (400 to 499) is shown as plain text; anything else as an error.
+        showAlert(err || ("Could not start the scan (HTTP " + code + ")."), !!err && code >= 400 && code < 500);
+        loadSummary({ keepAlert: true });   // a refusal often means a run exists: show its banner
+      });
+    }
+
+    // opts.quiet: the poll caused it (the open pane reloads without announcing); opts.keepAlert: the
+    // message on screen (a refused scan) stays.
+    function loadSummary(opts) {
+      if (!alive()) { return; }
+      var quiet = !!(opts && opts.quiet);
+      var keepAlert = !!(opts && opts.keepAlert);
       if (sumRetry) { clearTimeout(sumRetry); sumRetry = null; }
       if (sumXhr) { sumXhr.abort(); sumXhr = null; }
+      if (runXhr) { var light = runXhr; runXhr = null; light.abort(); }
+      if (runTimer) { clearTimeout(runTimer); runTimer = null; }
       if (!urls.summary) { showState("empty"); return; }
       var req = $.ajax({ url: urls.summary, dataType: "json", cache: false });
       sumXhr = req;
       req.done(function (data) {
         if (sumXhr !== req) { return; }
-        showAlert("");
+        if (!keepAlert) { showAlert(""); }
         dbBuilt = (data && data.db_built) || "";
+        applyRun(data);
         var s = data && data.summary;
         if (data && data.state === "unavailable" && !s) {
           // The store is being updated: keep what is shown and ask again.
-          if (!ready) { showState("updating"); }
+          if (!ready && !listOnly) { showState("updating"); }
           sumRetry = setTimeout(function () {
             sumRetry = null;
-            if (document.body.contains(rootEl) && !document.hidden) { loadSummary(); }
-            else if (document.body.contains(rootEl)) { waitVisible(); }
+            if (alive() && !document.hidden) { loadSummary(); }
+            else if (alive()) { waitVisible(); }
           }, RETRY_MS);
+          return;
+        }
+        if (s && !s.servers && Number(s.servers_total) > 0) {
+          // Resource mode, nothing scanned yet: keep the explanation, no cards, and show the Servers
+          // list, which says why each server is not scanned.
+          var entering = !listOnly;
+          ready = false;
+          listOnly = true;
+          showState("empty");
+          Object.keys(panes).forEach(function (n) { panes[n].loaded = false; });
+          memRoute = { view: "servers" };
+          show("servers");
+          fetchPane(panes.servers, quiet && !entering);
           return;
         }
         if (!s || !s.servers) {
           ready = false;
+          listOnly = false;
           showState("empty");
           return;
         }
         var first = !ready;
+        if (listOnly) { listOnly = false; memRoute = { view: "cves" }; Object.keys(panes).forEach(function (n) { panes[n].loaded = false; }); }
         ready = true;
         drawCards(s);
         showState("ready");
         if (first) {
-          applyHash();
+          applyPlace();
         } else {
           Object.keys(panes).forEach(function (n) { panes[n].loaded = false; });
           var shown = ["cves", "detail", "servers"].filter(function (n) { return !panes[n].node.hidden; })[0];
-          if (shown) { fetchPane(panes[shown]); }
+          if (shown) { fetchPane(panes[shown], quiet); }
         }
       }).fail(function (x, status) {
         if (sumXhr !== req || status === "abort") { return; }
-        showState(ready ? "ready" : "empty");
-        one("[data-vuln-empty]").hidden = true;
+        if (!listOnly) {
+          showState(ready ? "ready" : "empty");
+          one("[data-vuln-empty]").hidden = true;
+        }
         var err = x && x.responseJSON && x.responseJSON.error;
         showAlert(err || ("Could not load the summary (HTTP " + (x && x.status) + ")."));
-        if (!ready) { sumRetry = setTimeout(loadSummary, RETRY_MS); }
-      }).always(function () { if (sumXhr === req) { sumXhr = null; } });
+        if (!ready && alive()) { sumRetry = setTimeout(function () { sumRetry = null; if (alive()) { loadSummary(); } }, RETRY_MS); }
+      }).always(function () { if (sumXhr === req) { sumXhr = null; scheduleRun(); } });
     }
 
     // ---- events ----
@@ -585,8 +823,16 @@
       if (act === "reload") { loadSummary(); }
       else if (act === "view") {
         var v = node.getAttribute("data-vuln-view") === "servers" ? "servers" : "cves";
+        if (nohash) { route({ view: v }); return; }
         var target = "#view=" + v;
         if (window.location.hash === target) { applyHash(); } else { window.location.hash = target; }
+      } else if (act === "scan-all") {
+        scanAll();
+      } else if (act === "open-cve") {
+        var id = node.getAttribute("data-vuln-cve") || "";
+        if (nohash && ID_RE.test(id)) { route({ cve: id }); }
+      } else if (act === "back") {
+        if (nohash) { route({ view: "cves" }); }
       } else if (act === "page") {
         var p = paneOf(node);
         var to = parseInt(node.getAttribute("data-vuln-to"), 10);
@@ -617,10 +863,12 @@
       p.st.page = 1;
       fetchPane(p);
     });
-    window.addEventListener("hashchange", function () {
-      if (!document.body.contains(rootEl)) { return; }
-      applyHash();
-    });
+    if (!nohash) {
+      window.addEventListener("hashchange", function () {
+        if (!document.body.contains(rootEl)) { return; }
+        applyHash();
+      });
+    }
 
     showState("loading");
     loadSummary();

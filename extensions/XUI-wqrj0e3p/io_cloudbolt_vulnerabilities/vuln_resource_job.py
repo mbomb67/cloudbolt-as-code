@@ -1,0 +1,29 @@
+"""
+Vulnerability Resource Scan
+
+The Vulnerabilities UI extension registers this file as a CloudBolt plugin the first time someone chooses
+Scan all servers on a resource's Vulnerabilities tab, then runs it as a job. The work itself lives in the
+extension (vuln_fleet.py). This file reloads the extension's modules, so a job picks up an extension update
+without a job engine restart, and hands over. Syncing the extension replaces this file; do not edit it on
+the appliance.
+"""
+import importlib
+
+# Reloaded in dependency order: each module imports the ones before it.
+MODULES = (
+    "xui.io_cloudbolt_vulnerabilities.vuln_store",
+    "xui.io_cloudbolt_vulnerabilities.vuln_match",
+    "xui.io_cloudbolt_vulnerabilities.vuln_db",
+    "xui.io_cloudbolt_vulnerabilities.vuln_tools",
+    "xui.io_cloudbolt_vulnerabilities.vuln_repo",
+    "xui.io_cloudbolt_vulnerabilities.vuln_hooks",
+    "xui.io_cloudbolt_vulnerabilities.vuln_jobs",
+    "xui.io_cloudbolt_vulnerabilities.vuln_fleet",
+)
+
+
+def run(job, *args, **kwargs):
+    for name in MODULES:
+        importlib.reload(importlib.import_module(name))
+    fleet = importlib.import_module("xui.io_cloudbolt_vulnerabilities.vuln_fleet")
+    return fleet.run_resource_scan(job, **kwargs)

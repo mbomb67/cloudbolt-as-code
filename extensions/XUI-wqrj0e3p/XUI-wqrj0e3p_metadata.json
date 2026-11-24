@@ -1,5 +1,5 @@
 {
-    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab per server, a search across all servers, and a nightly re-match.",
+    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab on servers and on resources, a search across all servers, and a nightly re-match.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-wqrj0e3p",
@@ -25,6 +25,7 @@
         "vuln_rematch_job.py",
         "vuln_inventory_job.py",
         "vuln_provision_job.py",
+        "vuln_resource_job.py",
         "vuln_scan.sh",
         "templates/vuln_styles.html",
         "templates/vuln_assets.html",
@@ -32,7 +33,8 @@
         "templates/vuln_panel.html",
         "templates/vuln_settings.html",
         "templates/vuln_fleet.html",
-        "templates/vuln_fleet_assets.html"
+        "templates/vuln_fleet_assets.html",
+        "templates/vuln_resource_tab.html"
     ],
     "version": ""
 }

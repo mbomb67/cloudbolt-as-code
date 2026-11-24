@@ -7,6 +7,7 @@ Everything lives under PROSERV_DIR/vulnerabilities/ (the shared proserv disk):
     .signing_key               random key for upload tokens (mode 0600)
     scanner.lock               shared while a match runs, exclusive while the
                                scanner or its database is installed or updated
+    match-slot-<n>.lock        one per match allowed at once (match_slot): the scanner run and the load of its report
     tools/                     scanner binary, guest tarballs, status files
     grype-db/                  the scanner's vulnerability database cache
     inventories/<server>/...   the stored software list of each server
@@ -14,6 +15,7 @@ Everything lives under PROSERV_DIR/vulnerabilities/ (the shared proserv disk):
     findings.db                SQLite findings store (vuln_db.py)
     servers/<server id>.json   one server's scan in progress and recent scans
     servers/<server id>.lock   lock the per-server state writes hold
+    resources/<resource id>.json   the scan run in progress on a resource (a marker only)
 
 Two processes write here: the web process (apache, as the CloudBolt service
 user) and the job engine, which can run jobs as root. So every directory and
@@ -32,6 +34,7 @@ import re
 import secrets
 import shutil
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -50,8 +53,13 @@ INVENTORY_DIR = os.path.join(ROOT, "inventories")
 WORK_DIR = os.path.join(ROOT, "work")
 FINDINGS_DB = os.path.join(ROOT, "findings.db")
 SERVERS_DIR = os.path.join(ROOT, "servers")
+RESOURCES_DIR = os.path.join(ROOT, "resources")
 KEY_FILE = os.path.join(ROOT, ".signing_key")
 SCANNER_LOCK_FILE = "scanner.lock"
+MATCH_SLOT_FILE = "match-slot-{}.lock"
+# How long a match waits for a free slot before it gives up, and how often it looks.
+MATCH_SLOT_WAIT_S = 90 * 60
+MATCH_SLOT_POLL_S = 2
 
 MAX_HISTORY = 20
 MAX_EXCLUDES = 20
@@ -69,8 +77,9 @@ DEFAULT_SETTINGS = {
     "extra_excludes": "",
     # Scan a server as its own job after a build finishes (vuln_hooks.apply_provision_setting).
     "scan_on_provision": False,
-    # Threads the nightly re-match runs matches on, and scans the weekly inventory keeps running at once.
-    "rematch_workers": 2,
+    # Vulnerability matches at once on the appliance, for scans and the nightly re-match alike (match_slot),
+    # and scans the weekly inventory keeps running at once.
+    "rematch_workers": 1,
     "inventory_parallel": 4,
 }
 REMATCH_WORKERS_RANGE = (1, 4)
@@ -192,6 +201,64 @@ def scanner_lock(exclusive, wait_s=None):
     if wait_s is None:
         wait_s = 30 * 60 if exclusive else 45 * 60
     return _lock(ROOT, SCANNER_LOCK_FILE, mode, wait_s)
+
+
+_slot_state = threading.local()
+
+
+@contextlib.contextmanager
+def match_slot(slots, wait_s=None, on_wait=None):
+    """One of `slots` numbered slots for heavy matching work (running the scanner and loading its
+    report), across every process on the appliance: slot files match-slot-0.lock ... under ROOT, each
+    taken with a non-blocking flock, polled every MATCH_SLOT_POLL_S seconds. Gives up with StoreError
+    ("The scanner is busy") after wait_s seconds (default MATCH_SLOT_WAIT_S). on_wait is called once, the
+    first time no slot is free. A no-op without fcntl.
+
+    Take it once per unit of work and never nested: flock on a second file descriptor of the same
+    process conflicts with the first, so a thread that held a slot and asked for another would wait for
+    itself (a nested attempt raises StoreError at once). Take the slot first and the shared scanner lock
+    after it (tools.match does); a database update takes only the exclusive scanner lock."""
+    if fcntl is None:
+        yield
+        return
+    if getattr(_slot_state, "held", False):
+        raise StoreError("A match slot is already held by this thread.")
+    ensure_dir(ROOT)
+    slots = max(1, int(slots))
+    deadline = time.monotonic() + (MATCH_SLOT_WAIT_S if wait_s is None else wait_s)
+    fd = None
+    called = False
+    while fd is None:
+        for number in range(slots):
+            path = contained(ROOT, MATCH_SLOT_FILE.format(number))
+            candidate = os.open(path, os.O_RDWR | os.O_CREAT, 0o664)
+            try:
+                try:
+                    own(path)
+                except OSError:
+                    pass
+                fcntl.flock(candidate, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fd = candidate
+                break
+            except BlockingIOError:  # held by another process or thread
+                os.close(candidate)
+            except BaseException:
+                os.close(candidate)
+                raise
+        if fd is not None:
+            break
+        if time.monotonic() >= deadline:
+            raise StoreError("The scanner is busy. Try again later.")
+        if not called and on_wait is not None:
+            called = True
+            on_wait()
+        time.sleep(MATCH_SLOT_POLL_S)
+    _slot_state.held = True
+    try:
+        yield
+    finally:
+        _slot_state.held = False
+        os.close(fd)  # closing releases the lock
 
 
 # ---------------------------------------------------------------- files
@@ -361,7 +428,7 @@ def validate_settings(data):
     clean["scan_on_provision"] = _flag(data.get("scan_on_provision", ""))
 
     for key, (low, high), label in (
-        ("rematch_workers", REMATCH_WORKERS_RANGE, "Servers re-matched at once"),
+        ("rematch_workers", REMATCH_WORKERS_RANGE, "Vulnerability matches at once"),
         ("inventory_parallel", INVENTORY_PARALLEL_RANGE, "Servers scanned at once by the weekly inventory"),
     ):
         raw = str(data.get(key, DEFAULT_SETTINGS[key])).strip()
@@ -487,3 +554,51 @@ def known_state_ids():
         if number.isascii() and number.isdigit() and suffix in STATE_SUFFIXES:
             ids.add(int(number))
     return sorted(ids)
+
+
+# ---------------------------------------------------------------- per-resource scan run
+# One small marker per resource: the "scan all servers" job in progress. No history is kept.
+def resource_lock(resource_id):
+    """Exclusive lock for the check-then-queue step of a resource scan start (the same split as
+    start_lock: the marker writes take their own lock, so a start cannot hold this one and call them)."""
+    return _lock(RESOURCES_DIR, "{}.start".format(int(resource_id)))
+
+
+def _resource_data_lock(resource_id):
+    return _lock(RESOURCES_DIR, "{}.lock".format(int(resource_id)))
+
+
+def _resource_path(resource_id):
+    return contained(RESOURCES_DIR, "{}.json".format(int(resource_id)))
+
+
+def read_resource_run(resource_id):
+    """The marker {"job_id","started","requested_by","server_ids"} or None when there is none or it is
+    damaged. A file that exists but cannot be read raises StoreError."""
+    found = _read_json(_resource_path(resource_id), None)
+    return found if isinstance(found, dict) else None
+
+
+def set_resource_run(resource_id, marker):
+    """Record the scan run in progress (atomic write)."""
+    with _resource_data_lock(resource_id):
+        _write_json(_resource_path(resource_id), marker)
+
+
+def clear_resource_run(resource_id, job_id=None):
+    """Remove the marker. With job_id, only when the marker is that job's: a rerun of an old job must
+    not clear the marker of a newer run. Returns True when a marker was removed."""
+    path = _resource_path(resource_id)
+    with _resource_data_lock(resource_id):
+        if job_id is not None:
+            found = _read_json(path, None)
+            if not isinstance(found, dict) or found.get("job_id") != job_id:
+                return False
+        try:
+            os.unlink(path)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise StoreError("The scan run of resource {} cannot be cleared: {}".format(
+                int(resource_id), exc.strerror or exc))

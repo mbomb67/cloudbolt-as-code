@@ -9,26 +9,28 @@ cleanup of servers that are gone, and the three jobs that run without a person.
                     scanned without a person.
     run_provision   after a build, when the setting is on. Starts a scan of each new server
                     as its own job; the build never waits for it and never fails because of it.
+    run_resource_scan   when someone chooses Scan all servers on a resource. Starts a scan of
+                    each of the resource's servers that the person may scan, as that person.
 
 Rules that hold everywhere here:
   * A server in an Unassigned group is never scanned and never re-matched, and what is stored
     for it is removed (forget_stale).
   * A server that cannot be scanned unattended is skipped and counted, never failed.
+  * A resource scan runs as the person who started it: each server is checked against that person's
+    permissions immediately before its scan starts, so a change made after the request is honoured.
   * A job's worker threads never use the Django ORM (a thread has its own database connection
     that nothing closes): every ORM call runs in the job's own thread. The worker threads of the
     re-match only run the scanner and parse its report; the main thread saves the results.
 """
-import json
-import os
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
-from accounts.models import Group
+from accounts.models import Group, UserProfile
 from infrastructure.models import Server
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
-from . import vuln_db, vuln_jobs, vuln_match, vuln_repo, vuln_store as store, vuln_tools as tools
+from . import vuln_db, vuln_hooks, vuln_jobs, vuln_repo, vuln_store as store, vuln_tools as tools
 
 logger = ThreadLogger(__name__)
 
@@ -63,6 +65,8 @@ REASONS = {
     "no_list": "no stored software list",
     "scanning": "scan in progress",
     "changed": "scanned again while it ran",
+    "left_resource": "no longer in the resource",
+    "no_permission": "without permission to scan",
 }
 
 
@@ -148,12 +152,14 @@ def _plural(count, noun):
 
 # ---------------------------------------------------------------- which servers
 def eligibility(server, visibility):
-    """"" when an unattended job may scan the server, else a short reason code: historical, unassigned,
-    not_linux, hidden, powered_off, no_script_channel, no_address, no_credentials (or unknown when a
+    """"" when an unattended job may scan the server, else a short reason code: historical, not_active (any
+    other status than ACTIVE, such as a failed build), unassigned, not_linux, hidden, powered_off, no_script_channel, no_address, no_credentials (or unknown when a
     check itself failed). No network call; the resource handler may be None."""
     try:
         if server.status == "HISTORICAL":
             return "historical"
+        if server.status != "ACTIVE":
+            return "not_active"
         if vuln_jobs.in_unassigned_group(server):
             return "unassigned"
         if not vuln_jobs.is_linux(server):
@@ -263,27 +269,13 @@ def forget_stale(progress=None):
 
 
 # ---------------------------------------------------------------- nightly re-match
-class _ReportTooLarge(Exception):
-    pass
-
-
 def _match_worker(item):
     """Match one stored software list and parse the report. Runs in a worker thread: scanner, files
-    and parsing only, no Django ORM. Returns what vuln_match.parse_grype returns."""
+    and parsing only, no Django ORM. The pool may be larger than the match limit; a thread waits in
+    vuln_jobs.match_and_parse for a slot. Returns what vuln_match.parse_grype returns."""
     out_json = store.contained(store.WORK_DIR, "rematch-{}-{}.grype.json".format(item["server_id"], item["scan_id"]))
     store.ensure_dir(store.WORK_DIR)
-    try:
-        tools.match(item["path"], out_json)
-        if os.path.getsize(out_json) > vuln_jobs.MAX_REPORT_BYTES:
-            raise _ReportTooLarge("The scanner's report is larger than the limit.")
-        with open(out_json, encoding="utf-8") as handle:
-            document = json.load(handle)
-    finally:
-        try:
-            os.unlink(out_json)
-        except OSError:
-            pass
-    return vuln_match.parse_grype(document)
+    return vuln_jobs.match_and_parse(item["path"], out_json)
 
 
 def _rematch_items(known, built, counts):
@@ -549,6 +541,85 @@ def _fetch_for_scan(server_id):
             .prefetch_related("tags").first())
 
 
+def _run_queue(job, queue, base_url, parallel, profile, check, counts, what, owner_of=None):
+    """The bounded-parallel loop of the weekly inventory and of the resource scan: starts a scan (vuln_jobs.start,
+    as a child of job, owned by profile or by nobody when profile is None) for each server id of queue in order,
+    at most parallel at once, and waits for them. Just before a start the server is read fresh
+    (_fetch_for_scan) and check(server) must return "" or a reason code; a reason, a server that is gone, a
+    refusal from start and a check that raises are counted in counts (the caller's dict, keyed by REASONS) and
+    never end the run; a start that raises counts as failed. Stops starting on a cancel request (_cancelled) and
+    at JOB_BUDGET_S, waits for the scans in flight, and writes the job's progress only when the count changes.
+    Every ORM call here runs in the job's own thread. what names the caller in the log lines. owner_of, when
+    given, is called just before each start (after check passed) and returns the profile to own that scan.
+    Returns {"scanned", "failed", "left" (never started because of the budget), "stopped", "out_of_time"}."""
+    total = len(queue)
+    queue = list(queue)
+    scanned = failed = left = skipped = 0
+    stopped = out_of_time = False
+    started_at = _clock()
+    running = {}
+    reported = 0  # the count last written to the job, so a long wait does not repeat one line
+
+    while queue or running:
+        if _cancelled(job):
+            stopped = True
+            break
+        if not out_of_time and _clock() - started_at >= JOB_BUDGET_S:
+            # No new scan; the ones running are waited for, so the job ends before the engine's own limit.
+            out_of_time = True
+            left = len(queue)
+            queue = []
+        while queue and len(running) < parallel:
+            server_id = queue.pop(0)
+            try:
+                server = _fetch_for_scan(server_id)
+                reason = "gone" if server is None else check(server)
+            except Exception:
+                logger.exception("Vulnerabilities: could not read server %s again", server_id)
+                reason = "unknown"
+            if reason:
+                counts[reason] += 1
+                skipped += 1
+                continue
+            try:
+                started = vuln_jobs.start(owner_of() if owner_of else profile, server, base_url, parent_job=job)
+            except Exception:
+                # One server that cannot be started (for example an upload link that cannot be made) must not
+                # end the weekly run.
+                logger.exception("Vulnerabilities: %s could not start a scan of server %s", what, server_id)
+                failed += 1
+                continue
+            started_id = _started_id(started)
+            if started_id is None:
+                counts["refused"] += 1
+                skipped += 1
+                logger.info("Vulnerabilities: %s skipped server %s: %s", what, server_id, getattr(started, "message", ""))
+            else:
+                running[started_id] = server
+        if skipped + scanned + failed != reported:
+            reported = skipped + scanned + failed
+            _progress(job, "{} of {} servers done".format(reported, total), reported, max(total, 1))
+        if not running:
+            continue
+        time.sleep(POLL_S)
+        # One query for the status of every scan in flight (the same table jobs.models.get_jobs_status_counts
+        # reads, line 79), since a free slot needs to know which one ended and how.
+        states = dict(Job.objects.filter(id__in=list(running)).values_list("id", "status"))
+        for job_id in list(running):
+            state = states.get(job_id)
+            if state in Job.COMPLETED_STATUSES:
+                scanned += state in ("SUCCESS", "WARNING")
+                failed += state not in ("SUCCESS", "WARNING")
+                del running[job_id]
+            elif state is None:
+                failed += 1
+                del running[job_id]
+        if scanned + failed + skipped != reported:
+            reported = scanned + failed + skipped
+            _progress(job, "{} of {} servers done".format(reported, total), reported, max(total, 1))
+    return {"scanned": scanned, "failed": failed, "left": left, "stopped": stopped, "out_of_time": out_of_time}
+
+
 def _inventory(job):
     try:
         vuln_db.upgrade()   # also the one-time upgrade of a store the previous release left
@@ -585,68 +656,14 @@ def _inventory(job):
     # each run carries on where the one before stopped. The sort is stable: ties stay in id order.
     queue.sort(key=lambda server_id: last_list.get(server_id) or "")
     total = len(queue)
-    scanned = failed = left = 0
-    stopped = out_of_time = False
-    started_at = _clock()
-    running = {}
     _progress(job, "Scanning {}".format(_plural(total, "server")))
-    reported = 0  # the count last written to the job, so a long wait does not repeat one line
 
-    while queue or running:
-        if _cancelled(job):
-            stopped = True
-            break
-        if not out_of_time and _clock() - started_at >= JOB_BUDGET_S:
-            # No new scan; the ones running are waited for, so the job ends before the engine's own limit.
-            out_of_time = True
-            left = len(queue)
-            queue = []
-        while queue and len(running) < parallel:
-            server_id = queue.pop(0)
-            try:
-                server = _fetch_for_scan(server_id)
-                reason = "gone" if server is None else eligibility(server, visibility)
-                if not reason and server.status != "ACTIVE":
-                    reason = "not_active"
-            except Exception:
-                logger.exception("Vulnerabilities: could not read server %s again", server_id)
-                reason = "unknown"
-            if reason:
-                counts[reason] += 1
-                continue
-            try:
-                started = vuln_jobs.start(None, server, base_url, parent_job=job)
-            except Exception:
-                # One server that cannot be started (for example an upload link that cannot be made) must not
-                # end the weekly run.
-                logger.exception("Vulnerabilities: the weekly inventory could not start a scan of server %s", server_id)
-                failed += 1
-                continue
-            started_id = _started_id(started)
-            if started_id is None:
-                counts["refused"] += 1
-                logger.info("Vulnerabilities: the weekly inventory skipped server %s: %s", server_id,
-                            getattr(started, "message", ""))
-            else:
-                running[started_id] = server
-        if not running:
-            continue
-        time.sleep(POLL_S)
-        # One query for the status of every scan in flight (the same table jobs.models.get_jobs_status_counts
-        # reads, line 79), since a free slot needs to know which one ended and how.
-        states = dict(Job.objects.filter(id__in=list(running)).values_list("id", "status"))
-        for job_id in list(running):
-            state = states.get(job_id)
-            if state in Job.COMPLETED_STATUSES:
-                scanned += state in ("SUCCESS", "WARNING")
-                failed += state not in ("SUCCESS", "WARNING")
-                del running[job_id]
-            elif state is None:
-                failed += 1
-                del running[job_id]
-        if scanned + failed != reported:
-            reported = scanned + failed
-            _progress(job, "Scanned {} of {}".format(reported, total), reported, max(total, 1))
+    def check(server):
+        return eligibility(server, visibility)
+
+    ran = _run_queue(job, queue, base_url, parallel, None, check, counts, "the weekly inventory")
+    scanned, failed, left = ran["scanned"], ran["failed"], ran["left"]
+    stopped, out_of_time = ran["stopped"], ran["out_of_time"]
 
     skipped = {code: counts[code] for code in counts if counts[code]}
     parts = ["Scanned {}".format(_plural(scanned, "server"))]
@@ -665,7 +682,246 @@ def _inventory(job):
     outputs = {"scanned": scanned, "failed": failed, "skipped": skipped, "forgotten": forgotten, "left": left}
     if total and scanned == 0 and (failed or counts["refused"]) and not stopped:
         return "FAILURE", message, "No server could be scanned.", outputs
-    return ("WARNING" if stopped or out_of_time else "SUCCESS"), message, "", outputs
+    # Something to tell the reader: a stop, the time limit, or a server that failed among those that were scanned.
+    return ("WARNING" if stopped or out_of_time or failed else "SUCCESS"), message, "", outputs
+
+
+# ---------------------------------------------------------------- scan all servers of a resource
+RESOURCE_STATE_ERROR = ("The scan state for this resource cannot be read or written; ask an administrator to check "
+                        "the Vulnerabilities folder.")
+
+
+def resource_servers(resource):
+    """The resource's own servers that are not historical (sub-resources are not included), with what
+    eligibility() reads loaded ahead, ordered by hostname then id."""
+    # resources/models.py Resource.server_set: Server.resource is a ForeignKey (infrastructure/models.py line 3377).
+    return (resource.server_set.exclude(status="HISTORICAL")
+            .select_related("group", "os_family", "resource_handler").prefetch_related("tags")
+            .order_by("hostname", "id"))
+
+
+def scannable_ids(profile, resource, visibility):
+    """The ids, in resource_servers() order, of the resource's servers that profile may view and scan and
+    that pass eligibility(). One query decides who may view; can_scan is asked for each server."""
+    # infrastructure/models.py Server.objects_for_profile (line 3579) returns a plain queryset: never
+    # .distinct() on it, and the ids are put in a set instead.
+    viewable = set(Server.objects_for_profile(profile).filter(resource=resource).values_list("id", flat=True))
+    found = []
+    for server in resource_servers(resource):
+        if server.id in viewable and vuln_jobs.can_scan(profile, server) and not eligibility(server, visibility):
+            found.append(server.id)
+    return found
+
+
+def any_scannable(profile, resource, visibility):
+    """True as soon as ONE of the resource's servers is viewable and scannable by profile and passes
+    eligibility(); False when none, and on any error. The same rules and the same single
+    objects_for_profile query as scannable_ids, but it stops at the first hit."""
+    try:
+        viewable = set(Server.objects_for_profile(profile).filter(resource=resource).values_list("id", flat=True))
+        for server in resource_servers(resource):
+            if server.id in viewable and vuln_jobs.can_scan(profile, server) and not eligibility(server, visibility):
+                return True
+    except Exception:
+        logger.exception("Vulnerabilities: could not tell whether resource %s has a scannable server",
+                         getattr(resource, "id", None))
+    return False
+
+
+def _live_run(resource_id):
+    """(marker, Job) of the scan run in progress on the resource, else None. A marker whose Job is gone or no
+    longer active is stale and reads as no run (vuln_jobs._active). Raises store.StoreError when the marker
+    file cannot be read."""
+    return vuln_jobs._active(store.read_resource_run(resource_id))
+
+
+def resource_run(resource_id):
+    """The scan run in progress on the resource: {"job_id", "job_url", "started", "done", "total"}, or None
+    when there is none (a stale marker, or one that cannot be read, is no run). Never raises."""
+    try:
+        found = _live_run(resource_id)
+        if found is None:
+            return None
+        marker, job = found
+        # jobs/models.py Job.tasks_done / total_tasks (lines 1034-1035, written by set_progress, line 1192),
+        # Job.get_absolute_url (line 1679).
+        total = job.total_tasks or len(marker.get("server_ids") or [])
+        return {"job_id": job.id, "job_url": job.get_absolute_url(), "started": marker.get("started") or "",
+                "done": job.tasks_done or 0, "total": total}
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the scan run of resource %s", resource_id)
+        return None
+
+
+def _int_ids(values):
+    """The distinct positive ints among values, in order."""
+    found = []
+    for value in values or ():
+        if isinstance(value, bool):
+            continue
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            continue
+        if number > 0 and number not in found:
+            found.append(number)
+    return found
+
+
+def start_resource_scan(profile, resource, server_ids, base_url):
+    """Start ONE job (run as profile) that scans server_ids of the resource, and record it as the resource's
+    run in progress. Returns the Job, or a vuln_jobs.Refusal: 400 when there is nothing to scan, 409 when a run
+    is already in progress, the scanner is not set up or base_url is empty, 500 when the state cannot be
+    written. The job checks every server again, as profile, just before it starts it."""
+    ids = _int_ids(server_ids)
+    if not ids:
+        return vuln_jobs.Refusal("There is no server to scan.", 400)
+    try:
+        with store.resource_lock(resource.id):
+            running = _live_run(resource.id)
+            if running is not None:
+                return vuln_jobs.Refusal(
+                    "Job {} is already scanning the servers of this resource.".format(running[1].id), 409)
+            if not tools.status()["ready"]:
+                return vuln_jobs.Refusal(vuln_jobs.NOT_SET_UP, 409)
+            if not base_url:
+                return vuln_jobs.Refusal(vuln_jobs.NO_SITE_URL, 409)
+            requested_by = vuln_jobs._requested_by(profile)
+            created = vuln_hooks.resource_scan_hook().run_as_job(
+                owner=profile,
+                parent_job=None,
+                context={"vuln_resource_id": resource.id, "vuln_server_ids": ids, "vuln_requested_by": requested_by},
+            )
+            if not created:
+                return vuln_jobs.Refusal("CloudBolt did not start the job; see the application log.", 500)
+            job = created[0]
+            # From here the job is queued: nothing below may turn into an error.
+            try:
+                job.label = "Vulnerability scan: {}".format(resource.name)
+                job.save(update_fields=["label"])
+                # resources/models.py Resource.jobs (line 194): the job shows on the resource's own Jobs tab.
+                resource.jobs.add(job)
+            except Exception:
+                logger.exception("Vulnerabilities: could not label or link job %s", job.id)
+            try:
+                store.set_resource_run(resource.id, {"job_id": job.id, "started": store.stamp(),
+                                                     "requested_by": requested_by, "server_ids": ids})
+            except Exception:
+                logger.exception("Vulnerabilities: could not record job %s as the run on resource %s", job.id,
+                                 resource.id)
+            return job
+    except store.StoreError:
+        logger.exception("Vulnerabilities: state problem starting a scan of resource %s", resource.id)
+        return vuln_jobs.Refusal(RESOURCE_STATE_ERROR, 500)
+
+
+def run_resource_scan(job, vuln_resource_id=None, vuln_server_ids=None, vuln_requested_by="", **kwargs):
+    """Plugin entry point (via vuln_resource_job.py). Returns (status, output, errors, outputs). The job's
+    marker is written again here and always cleared at the end, for this job only, whatever way it ends."""
+    try:
+        resource_id = int(vuln_resource_id)
+    except (TypeError, ValueError):
+        return "FAILURE", "", "This job was not given a resource to scan.", {}
+    try:
+        _record_run(job, resource_id, vuln_server_ids, vuln_requested_by)
+        return _resource_scan(job, resource_id, vuln_server_ids)
+    except Exception as exc:
+        logger.exception("Vulnerabilities: the scan of resource %s failed", resource_id)
+        return "FAILURE", "", "The scan of the resource's servers failed: {}".format(
+            vuln_jobs.clean(str(exc), 300)), {}
+    finally:
+        # Runs for a cancel too (a BaseException passes the except above untouched).
+        try:
+            store.clear_resource_run(resource_id, job_id=job.id)
+        except Exception:
+            logger.exception("Vulnerabilities: could not clear the scan run of resource %s", resource_id)
+
+
+def _record_run(job, resource_id, server_ids, requested_by):
+    """Write the marker, unless another job that is still active holds it (a rerun of an old job must not
+    hide the newer run). Never raises: the marker is advisory."""
+    try:
+        with store.resource_lock(resource_id):
+            found = _live_run(resource_id)
+            if found is not None and found[1].id != job.id:
+                return
+            store.set_resource_run(resource_id, {"job_id": job.id, "started": store.stamp(),
+                                                 "requested_by": requested_by, "server_ids": _int_ids(server_ids)})
+    except Exception:
+        logger.exception("Vulnerabilities: could not record job %s as the run on resource %s", job.id, resource_id)
+
+
+def _resource_scan(job, resource_id, server_ids):
+    owner = getattr(job, "owner", None)
+    if owner is None:
+        # A job that is rerun or cloned can lose its owner. Nobody's permissions can be checked then, so
+        # nothing may be scanned.
+        message = ("This scan has no owner, so nothing was scanned. Start it again from the resource's "
+                   "Vulnerabilities tab.")
+        return "FAILURE", message, message, {}
+    queue = _int_ids(server_ids)
+    if not queue:
+        return "FAILURE", "", "This job was given no server to scan.", {}
+    if not tools.status()["ready"]:
+        return "FAILURE", "", vuln_jobs.NOT_SET_UP, {}
+    base_url = default_base_url()
+    if not base_url:
+        return "FAILURE", "", vuln_jobs.NO_SITE_URL, {}
+    cfg = store.get_settings()
+    visibility = cfg["visibility"]
+    parallel = max(1, min(10, int(cfg["inventory_parallel"])))
+    counts = {key: 0 for key in REASONS}
+    # The owner as last read; replaced before every permission check, because the job may run for hours.
+    state = {"profile": owner, "revoked": False}
+
+    def check(server):
+        # Read fresh just now: the request that started the job may be hours old.
+        if getattr(server, "resource_id", None) != resource_id:
+            return "left_resource"
+        if server.status == "HISTORICAL":
+            return "historical"
+        if vuln_jobs.in_unassigned_group(server):
+            return "unassigned"
+        # The owner's roles are read off the loaded profile (accounts/models.py UserProfile.is_cbadmin, line 1380),
+        # and User.is_active is never consulted by them, so read both again here: one query by primary key
+        # (accounts/models.py UserProfile.user, line 558; jobs/models.py Job.owner, line 1012). A profile that is
+        # gone or a user that is no longer active has no permission, for this and every remaining server.
+        if state["revoked"]:
+            return "no_permission"
+        fresh = UserProfile.objects.select_related("user").filter(id=owner.id).first()
+        user = getattr(fresh, "user", None)
+        if fresh is None or user is None or not user.is_active:
+            state["revoked"] = True
+            return "no_permission"
+        state["profile"] = fresh
+        # As the person who started the scan: view (Server.objects_for_profile) and scan (server.all_actions).
+        if not (vuln_jobs.can_view(fresh, server) and vuln_jobs.can_scan(fresh, server)):
+            return "no_permission"
+        return eligibility(server, visibility)
+
+    total = len(queue)
+    _progress(job, "Scanning {}".format(_plural(total, "server")), 0, total)
+    ran = _run_queue(job, queue, base_url, parallel, owner, check, counts, "the resource scan",
+                     owner_of=lambda: state["profile"])
+    scanned, failed, left = ran["scanned"], ran["failed"], ran["left"]
+    stopped, out_of_time = ran["stopped"], ran["out_of_time"]
+
+    skipped = {code: counts[code] for code in counts if counts[code]}
+    parts = ["Scanned {}".format(_plural(scanned, "server"))]
+    if failed:
+        parts.append("{} failed".format(failed))
+    if skipped:
+        parts.append("skipped {}".format(_words(skipped)))
+    if stopped:
+        parts.append("stopped early because the job was canceled")
+    if out_of_time:
+        parts.append("stopped at the time limit of {} hours, {} not started".format(
+            JOB_BUDGET_S // 3600, _plural(left, "server")))
+    message = "; ".join(parts) + "."
+    outputs = {"scanned": scanned, "failed": failed, "skipped": skipped, "left": left}
+    if scanned == 0 and not stopped:
+        return "FAILURE", message, "No server could be scanned.", outputs
+    return ("WARNING" if stopped or out_of_time or failed else "SUCCESS"), message, "", outputs
 
 
 # ---------------------------------------------------------------- scan after provisioning
@@ -700,8 +956,7 @@ def _provision(job, kwargs):
         return "No scan was started: the build made no server."
     started, skipped = [], {}
     for server in servers:
-        reason = "" if server.status == "ACTIVE" else "not_active"
-        reason = reason or eligibility(server, cfg["visibility"])
+        reason = eligibility(server, cfg["visibility"])
         if reason:
             skipped[reason] = skipped.get(reason, 0) + 1
             continue

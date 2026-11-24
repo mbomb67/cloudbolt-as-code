@@ -34,6 +34,16 @@ Setup downloads about 300 MB, needs about 9 GB free while the database unpacks, 
 
 Admin > Custom Extensions > Vulnerability Search (CB Admins) searches every scanned server at once. The **Vulnerabilities** view lists each known vulnerability with its severity, whether it is on the CISA exploited list, how many servers it affects and whether a fix exists; search by CVE or advisory id, filter by severity or exploited only, and choose a row to see the servers it affects (group, environment, OS, package, installed and fixed versions, last match). The **Servers** view lists each scanned server with its critical, high and exploited counts. The open view and vulnerability are in the page address, so a link opens the same place. Both views are paged on the server. A search for a CVE id that finds nothing means no server with a stored software list is affected: the server is not affected, has not been scanned yet, or the vulnerability is not in the database yet. The server tab has an **All servers** link to this page for CB Admins. New vulnerabilities appear here and on the server tabs without rescanning servers only when the nightly re-match job has run, so run it by hand or turn its schedule on (see Scheduled jobs).
 
+## Resource tab
+
+A resource whose servers include a Linux server (or, when the tab is limited to labelled servers, a labelled one) gets its own **Vulnerabilities** tab. It rolls up the known vulnerabilities of the resource's own servers: a card with how many of the servers you can see have a software list (for example 4 of 6), the totals, and the same two views as the Vulnerability search page. **Vulnerabilities** lists each one with its severity, whether it is on the CISA exploited list and how many of the resource's servers it affects; choose one to see which servers. **Servers** lists each server with its critical, high and exploited counts, or why it has none ("Not scanned yet", "Powered off", "In an Unassigned group", "Scanning"). Both views are paged on the server.
+
+- The tab covers the servers of the resource itself. Servers of sub-resources are not included; they have their own tab.
+- You see only the servers you may view. If you may view none of them, the tab says so.
+- **Scan all servers** starts one job that collects a software list from every server of the resource that you may scan and that can be scanned without anyone present (Linux, powered on, not in an Unassigned group, with a working script channel and credentials). Others are skipped and counted in the job output. It needs the server.all_actions permission on a server, or CB Admin, and it never scans a server you cannot scan. The button shows only when at least one server qualifies. Servers are scanned a few at a time (the same setting as the weekly inventory). While it runs the tab shows how many servers are done and a link to the job, and refreshes itself every 5 seconds; only one such scan runs per resource at a time.
+- The roll-up covers the first 500 servers of a resource. A larger resource shows the totals of those 500 and says so; the Servers view still lists every server you can see. For a resource with many servers the roll-up takes longer to load (about a second at 200 servers in testing).
+- The totals come from stored software lists, so a new vulnerability appears without a rescan once the nightly re-match has run.
+
 ## Scheduled jobs
 
 Two recurring jobs are created the first time the Vulnerability Settings page opens. Both are created **off**; the extension never changes a job's schedule or on/off state afterwards. Open a job from the Schedules card on the settings page to run it now or to turn its schedule on.
@@ -59,17 +69,16 @@ Turn on **Scan new servers after they are built** on the settings page. The exte
 - Extra folders the software list skips, one absolute path per line, at most 20. System, container and network folders are always skipped.
 - Whether the tab shows on every Linux server or only on servers labelled `Vulnerabilities`.
 - Scan new servers after they are built (off by default).
-- Servers re-matched at once by the nightly job (1 to 4, default 2).
-- Servers scanned at once by the weekly inventory (1 to 10, default 4).
+- Vulnerability matches at once on the appliance, for scans and the nightly re-match (1 to 4, default 1). Each can use more than a gigabyte of memory; further scans wait for a free slot.
+- Servers scanned at once by the weekly inventory and by Scan all servers on a resource (1 to 10, default 4).
 
 An Unassigned group is never scanned or re-matched by any job. The nightly job removes the stored results of deleted servers and of servers moved to an Unassigned group; with that job off they stay in the results until it is run by hand.
 
 ## Not in this version
 
-- A roll-up tab on resources.
 - Windows servers.
 - Storing software lists in S3.
-- A lookup of whether a CVE is in the vulnerability database itself (the Vulnerability search page only shows what affects scanned servers).
+- A lookup of whether a CVE is in the vulnerability database itself (the Vulnerability search page and the resource tab only show what affects scanned servers).
 
 ## Tested
 
@@ -77,6 +86,8 @@ Tested on CloudBolt 2026.3 with AWS servers over SSH: scanner setup, scans of Am
 
 Also tested there: the upgrade of an existing findings store, the Vulnerability search page (lists, one vulnerability's servers, search by CVE and by advisory), both scheduled jobs run by hand (cleanup of a deleted server, a weekly inventory limited to labelled servers that scanned one server and skipped two scanned recently), and the scan after provisioning starting as its own job while the build finished.
 
-Not tested: Red Hat Enterprise Linux, Oracle Linux, arm64 servers, OpenShift virtual machines, a user who is not a CB Admin, a database update after the first one, the nightly job re-matching a server against a newer database, either job running on its schedule, and more than a few servers at once.
+Also tested: a database update after the first one and the nightly job re-matching a stored software list against it; the resource tab on a three-server resource on OpenShift Virtualization (Red Hat Enterprise Linux 9 virtual machines) before and after Scan all servers, with one server whose build failed shown as not active and skipped; and two large matches queued one after the other by the matches-at-once limit.
+
+Not tested: Oracle Linux, arm64 servers, a user who is not a CB Admin, either job running on its schedule, and more than a few servers at once.
 
 `extensions/XUI-wqrj0e3p/tests` holds unit tests that run without CloudBolt: `python -B -m unittest discover -s extensions/XUI-wqrj0e3p/tests -p "test_*.py"`.
