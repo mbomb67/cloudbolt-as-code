@@ -16,9 +16,10 @@ Steps in a group run in parallel; the groups run in order.
 | 5 | Key Vault Certificate | A certificate is issued in Azure Key Vault, installed on the web VM with its private key, and given to the Route. |
 | 6 | NetworkPolicy: Database, App, Web | The database accepts 3306 from the app VM only, the app accepts 8080 from the web VM only, the web VM accepts 443 from the cluster's routers only. |
 | 7 | Verify App | An entry is added through the app and read back, the web VM is shown to be blocked from the database, and the public URL is opened. |
-| 8 | OpenSCAP Scan: Database, App, Web | OpenSCAP is installed on each VM and the VM is scanned with the `cis_server_l1` profile. The order is complete when the three scans are. |
+| 8 | Enable Apache Down Alert | Adds a readiness probe on port 443 to the web VM, restarts that VM once, and creates the `ApacheDown` alert rule and the routing that posts it to the [Monitoring Alerts](../../webhooks/IWH-i7b44zvs/) webhook. A failure here does not fail the order. The alert reaches CloudBolt only when the cluster has user-defined alert routing on, the webhook has a token and the cluster can reach CloudBolt's URL; see [Enable Apache Down Alert](../../server_actions/SVA-t1z9yt6d/). |
+| 9 | Scan All Servers for Compliance | A compliance scan of each VM is started with the `cis_server_l1` profile. The order does not wait for the scans. |
 
-Deleting the resource removes the Route, Services, NetworkPolicies and the Key Vault certificate, then the VMs.
+Deleting the resource removes the Route, Services, NetworkPolicies, the web VM's alert rule and the Key Vault certificate, then the VMs.
 
 ## Order form
 
@@ -38,14 +39,13 @@ Open the build item on the blueprint's Build tab and edit its inputs: tier names
 1. The OpenShift environment needs a pod network and whatever your VMs need to boot with SSH access for the server's CloudBolt credentials (cloud-init user data, SSH key, size). The credentials on the image (the resource handler's Images tab) must be a login the guest accepts: when the environment's user data installs an SSH public key and turns password logins off, the image needs that user and the matching SSH key, not a password. A step that reports **the guest accepts only publickey logins** means the two do not match.
 2. The guests need package repositories. A RHEL guest that is not registered with Red Hat gets CentOS Stream 9 BaseOS and AppStream added, which suits a lab; register the guests for anything else. The guests need outbound HTTPS to reach the repositories.
 3. Grant the Azure resource handler's service principal **Key Vault Certificates Officer** and **Key Vault Secrets User** on the vault. A vault that uses access policies needs certificate Get, Create and Delete, and secret Get.
-4. Sync the [Compliance extension](../../extensions/XUI-i4kzuy3y/) (`extensions/XUI-i4kzuy3y`) and restart the web service. The scan steps call it; without it they fail and the rest of the deployment stays in place. The report links need a domain on the default portal (Admin > Portals).
+4. Sync the [Compliance extension](../../extensions/XUI-i4kzuy3y/) (`extensions/XUI-i4kzuy3y`) and restart the web service. The last step calls it; without it that step fails and the rest of the deployment stays in place.
 5. After the first import, open each of the three server build items on the blueprint's Build tab and enable your OpenShift Virtualization environment, with the CPU, memory and disk you want for that tier. The repository enables no environment, because environments differ on every CloudBolt, so the blueprint cannot be ordered until you do. With one environment enabled the order form does not ask for it. A later sync keeps what you enabled.
 
 ## What you get
 
 - The resource's **Application URL** parameter is a link to the app.
-- The resource's **OpenSCAP Report: DB**, **App** and **Web** parameters are links to each VM's first scan report. Each VM's **Compliance** tab shows its score and failed rules, and runs later scans.
-- A scan step that fails does not fail the order: the app is already deployed and verified, and the scan can be run again from the VM's Compliance tab.
+- Each VM's **Compliance** tab, and the resource's, show the score and failed rules of the scan the last step started, a few minutes after the order completes. A scan that fails does not change the order; a scan that cannot be started ends the order with a warning.
 - The page shows the resource's name next to its heading and in the browser tab, so each deployment's page can be told apart.
 - The page footer shows the hostname of the app VM that answered and its PHP version. The app VM runs the distribution's own PHP (8.0 on Enterprise Linux 9) because the PHP Stream input of **Install Apache and PHP** is `default`; set it to a stream, such as 8.3, when you want to move it later.
 - Browsers see the cluster router's certificate. The Key Vault certificate secures the connection from the router to the web VM, and the Route trusts only that certificate.
@@ -69,10 +69,12 @@ CloudBolt imports an OpenShift handler's **Pod networking** network under the na
 | Build | OHK-ca90z6g2 | Issue Key Vault Certificate for Web Server |
 | Build | OHK-yf2kpzkx | Restrict VM Ingress |
 | Build | OHK-jru4jomd | Verify 3-Tier Web App |
-| Build | OHK-oqqmfoah | Run OpenSCAP Scan |
+| Build | OHK-jjltp87s | Enable Apache Down Alert for Tier |
+| Build | OHK-icnbjok5 | Scan All Servers for Compliance |
 | Teardown | OHK-mfcauahq | Teardown 3-Tier Web App Networking |
 | Shared module | SHM-5t7bom9y | openshift_vm_network: Services, Routes, NetworkPolicies |
 | Shared module | SHM-eanos2e0 | vm_tier_scripts: find a tier's VM and run a script on it |
+| Shared module | SHM-sud926fb | openshift_vm_alerts: the readiness probe, alert rule and delivery |
 | Shared module | SHM-ny8h0nx0 | azure_key_vault_certificates |
 | Shared module | SHM-wkubiao7 | kubevirt_api_tunnel |
 
@@ -83,4 +85,4 @@ Each step names the server build item it works on in its **Tier** input, so any 
 - **Expose VM Port as Service**: Tier and Port.
 - **Restrict VM Ingress**: Tier, Port, and Allowed From (another tier's name, or `router`). It always keeps SSH from the KubeVirt API pods open, which the API tunnel needs.
 - **Publish VM HTTPS Route**: Tier and Port. Add a Service for the same port first.
-- **Run OpenSCAP Scan**: Tier and Profile. An empty Tier scans every server of the resource; an empty Profile uses the default profiles of the Compliance settings page. All of the scanning is the Compliance extension's.
+- **Scan All Servers for Compliance**: Linux Profile and Windows Profile, both optional. It works on any blueprint with servers, on any resource handler: add it as the last build item, and turn on **Run on scale up** so servers added later are scanned too.

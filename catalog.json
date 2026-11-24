@@ -552,7 +552,7 @@
     "id": "BP-sy5pb325",
     "type": "blueprints",
     "name": "3-Tier Web App on OpenShift Virtualization",
-    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then scans each VM with OpenSCAP.",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then starts a compliance scan of each VM.",
     "path": "blueprints/BP-sy5pb325",
     "readme": "blueprints/BP-sy5pb325/README.md",
     "uses": [
@@ -560,11 +560,12 @@
       "plugins/OHK-92i4lt1y",
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-d9ujne9z",
+      "plugins/OHK-icnbjok5",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-jru4jomd",
       "plugins/OHK-lwhuaezv",
       "plugins/OHK-mfcauahq",
       "plugins/OHK-njnsxqbf",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-ulnznmqb",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-yf2kpzkx",
@@ -1433,6 +1434,20 @@
     "enabled": true
   },
   {
+    "id": "HPA-b14wu721",
+    "type": "orchestration_actions",
+    "name": "Install OpenSCAP and Run First Scan (Linux)",
+    "description": "Installs OpenSCAP on each new Linux server at Post-Provision and starts a first scan as a sub-job, without waiting for it and without ever failing or warning the provisioning job.",
+    "path": "orchestration_actions/HPA-b14wu721",
+    "readme": "orchestration_actions/HPA-b14wu721/README.md",
+    "uses": [
+      "plugins/OHK-ne7jd381"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true
+  },
+  {
     "id": "HPA-dnscrt01",
     "type": "orchestration_actions",
     "name": "AD DNS - Create A Record",
@@ -1628,6 +1643,20 @@
     "enabled": true
   },
   {
+    "id": "HPA-ruxgbj67",
+    "type": "orchestration_actions",
+    "name": "Install SCC and Run First Scan (Windows)",
+    "description": "Installs DISA SCC on each new Windows server at Post-Provision and starts a first scan as a sub-job, without waiting for it and without ever failing or warning the provisioning job.",
+    "path": "orchestration_actions/HPA-ruxgbj67",
+    "readme": "orchestration_actions/HPA-ruxgbj67/README.md",
+    "uses": [
+      "plugins/OHK-kwx1fvho"
+    ],
+    "used_by": [],
+    "hook_point": "Post-Provision",
+    "enabled": true
+  },
+  {
     "id": "HPA-smbwmzj0",
     "type": "orchestration_actions",
     "name": "ServiceNow Request: Open on Approval",
@@ -1725,12 +1754,12 @@
     "id": "PKG-57ltvnbl",
     "type": "packages",
     "name": "OpenShift",
-    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring tab on VMs and on the resources that hold them, the Compliance tab that the blueprint's scan steps use, and the Run Script server action that reaches VMs through the cluster API.",
+    "description": "All OpenShift content: the project landing zone blueprint with its day-2 actions, the Connect and Workloads tabs on each project, the 3-tier web app blueprint on OpenShift Virtualization, the Monitoring and Compliance tabs on VMs and on the resources that hold them, and the Run Script server action that reaches VMs through the cluster API.",
     "path": "packages/PKG-57ltvnbl",
     "readme": "packages/PKG-57ltvnbl/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.3.0",
+    "version": "1.3.2",
     "contents": [
       "extensions/XUI-y9bdnzxt",
       "extensions/XUI-60382c9x",
@@ -1885,6 +1914,22 @@
       "blueprints/BP-c9ca1i3z",
       "extensions/XUI-8egdz3e9",
       "extensions/XUI-wyauaxbl"
+    ]
+  },
+  {
+    "id": "PKG-yo8vupwq",
+    "type": "packages",
+    "name": "Alert Remediation",
+    "description": "Maps monitoring alerts posted to an inbound webhook to a Restart Apache server action that health-checks the server and escalates to ServiceNow and Microsoft Teams when it is still unhealthy. It also enables an ApacheDown alert on OpenShift Virtualization VMs.",
+    "path": "packages/PKG-yo8vupwq",
+    "readme": "packages/PKG-yo8vupwq/README.md",
+    "uses": [],
+    "used_by": [],
+    "version": "1.1.0",
+    "contents": [
+      "server_actions/SVA-5bg39wkr",
+      "server_actions/SVA-t1z9yt6d",
+      "webhooks/IWH-i7b44zvs"
     ]
   },
   {
@@ -3443,6 +3488,22 @@
     "plugin_type": "Remote Script"
   },
   {
+    "id": "OHK-eba8nsot",
+    "type": "plugins",
+    "name": "Restart Apache",
+    "description": "Restarts Apache on a Linux server, health-checks it, and opens a ServiceNow incident and posts to Microsoft Teams when an alert started the job and Apache is still unhealthy.",
+    "path": "plugins/OHK-eba8nsot",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qlvol7k8",
+      "shared_modules/SHM-wkubiao7"
+    ],
+    "used_by": [
+      "server_actions/SVA-5bg39wkr"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-egyf9q28",
     "type": "plugins",
     "name": "GKE Namespace Connection Details",
@@ -3645,6 +3706,19 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-icnbjok5",
+    "type": "plugins",
+    "name": "Scan All Servers for Compliance",
+    "description": "Starts a compliance scan of every server of a deployment with the Compliance UI extension, as sub-jobs the order does not wait for, when added as a blueprint's last build item.",
+    "path": "plugins/OHK-icnbjok5",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-ieb4qio7",
     "type": "plugins",
     "name": "Run CIT Tests",
@@ -3710,6 +3784,24 @@
     ],
     "used_by": [
       "resource_actions/RSA-7wdigcpr"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-jjltp87s",
+    "type": "plugins",
+    "name": "Enable Apache Down Alert for Tier",
+    "description": "Sets up the ApacheDown alert for one tier's OpenShift Virtualization VM: a readiness probe, one restart, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+    "path": "plugins/OHK-jjltp87s",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-qlvol7k8",
+      "shared_modules/SHM-sud926fb"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -3814,6 +3906,19 @@
       "blueprints/BP-qo1stxre"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-kwx1fvho",
+    "type": "plugins",
+    "name": "Install SCC and Run First Scan (Windows)",
+    "description": "Installs DISA SCC on each new Windows server and starts a first scan with the Compliance UI extension as a sub-job, so provisioning does not wait and the report appears on the server's Compliance tab when the scan ends.",
+    "path": "plugins/OHK-kwx1fvho",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-ruxgbj67"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-kxxla7cn",
@@ -3978,7 +4083,9 @@
     "readme": null,
     "uses": [
       "shared_modules/SHM-5t7bom9y",
-      "shared_modules/SHM-ny8h0nx0"
+      "shared_modules/SHM-ny8h0nx0",
+      "shared_modules/SHM-qlvol7k8",
+      "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
       "blueprints/BP-sy5pb325"
@@ -4041,6 +4148,19 @@
     ],
     "used_by": [
       "resource_actions/RSA-8zwsrcbv"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-ne7jd381",
+    "type": "plugins",
+    "name": "Install OpenSCAP and Run First Scan (Linux)",
+    "description": "Installs OpenSCAP on each new Linux server and starts a first scan with the Compliance UI extension as a sub-job, so provisioning does not wait and the report appears on the server's Compliance tab when the scan ends.",
+    "path": "plugins/OHK-ne7jd381",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "orchestration_actions/HPA-b14wu721"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4166,6 +4286,21 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-ogu8lqt2",
+    "type": "plugins",
+    "name": "Monitoring Alerts",
+    "description": "Serves the Monitoring Alerts webhook: maps each firing Alertmanager alert to a server and starts the remediation server action for it as a job.",
+    "path": "plugins/OHK-ogu8lqt2",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-qlvol7k8"
+    ],
+    "used_by": [
+      "webhooks/IWH-i7b44zvs"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-oguk4oad",
     "type": "plugins",
     "name": "Create AWS EKS Namespace",
@@ -4192,22 +4327,6 @@
     ],
     "used_by": [
       "resource_actions/RSA-gp2aywcz"
-    ],
-    "plugin_type": "CloudBolt Plug-in"
-  },
-  {
-    "id": "OHK-oqqmfoah",
-    "type": "plugins",
-    "name": "Run OpenSCAP Scan",
-    "description": "Scans a blueprint's server tier with the Compliance UI extension, waits for the scan, and stores a link to the report on the resource.",
-    "path": "plugins/OHK-oqqmfoah",
-    "readme": null,
-    "uses": [
-      "shared_modules/SHM-eanos2e0",
-      "shared_modules/SHM-wkubiao7"
-    ],
-    "used_by": [
-      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },
@@ -4772,6 +4891,23 @@
       "blueprints/BP-psw7rclb"
     ],
     "plugin_type": "Remote Script"
+  },
+  {
+    "id": "OHK-ut5c0igl",
+    "type": "plugins",
+    "name": "Enable Apache Down Alert",
+    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",
+    "path": "plugins/OHK-ut5c0igl",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-qlvol7k8",
+      "shared_modules/SHM-sud926fb"
+    ],
+    "used_by": [
+      "server_actions/SVA-t1z9yt6d"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
   },
   {
     "id": "OHK-vdhjpyg2",
@@ -6435,6 +6571,22 @@
     ]
   },
   {
+    "id": "SVA-5bg39wkr",
+    "type": "server_actions",
+    "name": "Restart Apache",
+    "description": "Restarts Apache on a Linux server, health-checks it, and opens a ServiceNow incident and posts to Microsoft Teams when an alert started the job and Apache is still unhealthy.",
+    "path": "server_actions/SVA-5bg39wkr",
+    "readme": "server_actions/SVA-5bg39wkr/README.md",
+    "uses": [
+      "plugins/OHK-eba8nsot"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-yo8vupwq"
+    ]
+  },
+  {
     "id": "SVA-5vsp0tv6",
     "type": "server_actions",
     "name": "Run Script (OpenShift API tunnel)",
@@ -6479,6 +6631,22 @@
     ],
     "used_by": [],
     "enabled": true
+  },
+  {
+    "id": "SVA-t1z9yt6d",
+    "type": "server_actions",
+    "name": "Enable Apache Down Alert",
+    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",
+    "path": "server_actions/SVA-t1z9yt6d",
+    "readme": "server_actions/SVA-t1z9yt6d/README.md",
+    "uses": [
+      "plugins/OHK-ut5c0igl"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-yo8vupwq"
+    ]
   },
   {
     "id": "SHM-2fd3bhsz",
@@ -6576,8 +6744,11 @@
     "used_by": [
       "plugins/OHK-0q5dbdq6",
       "plugins/OHK-ulnznmqb",
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-ca90z6g2",
+      "shared_modules/SHM-sud926fb",
       "plugins/OHK-njnsxqbf",
       "plugins/OHK-yf2kpzkx",
       "plugins/OHK-mfcauahq",
@@ -6695,6 +6866,7 @@
     "used_by": [
       "plugins/OHK-0q5dbdq6",
       "plugins/OHK-ulnznmqb",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-d9ujne9z",
       "plugins/OHK-lwhuaezv",
@@ -6702,7 +6874,6 @@
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-njnsxqbf",
       "plugins/OHK-yf2kpzkx",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-jru4jomd"
     ]
   },
@@ -6878,6 +7049,25 @@
     ]
   },
   {
+    "id": "SHM-qlvol7k8",
+    "type": "shared_modules",
+    "name": "alert_escalation",
+    "description": "Opens a ServiceNow incident and posts an Adaptive Card to Microsoft Teams when an automatic alert remediation fails, each half best effort.",
+    "path": "shared_modules/SHM-qlvol7k8",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-ww6b1uwj"
+    ],
+    "used_by": [
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
+      "plugins/OHK-ogu8lqt2",
+      "shared_modules/SHM-sud926fb",
+      "plugins/OHK-eba8nsot",
+      "plugins/OHK-mfcauahq"
+    ]
+  },
+  {
     "id": "SHM-qmiweowv",
     "type": "shared_modules",
     "name": "openshift_landing_zone",
@@ -6950,6 +7140,23 @@
     ]
   },
   {
+    "id": "SHM-sud926fb",
+    "type": "shared_modules",
+    "name": "openshift_vm_alerts",
+    "description": "Enables or removes an ApacheDown alert for an OpenShift Virtualization VM: a readiness probe, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+    "path": "shared_modules/SHM-sud926fb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-qlvol7k8"
+    ],
+    "used_by": [
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
+      "plugins/OHK-mfcauahq"
+    ]
+  },
+  {
     "id": "SHM-u2s2d40p",
     "type": "shared_modules",
     "name": "aria_connection",
@@ -7019,8 +7226,8 @@
       "plugins/OHK-92i4lt1y",
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-njnsxqbf",
+      "plugins/OHK-eba8nsot",
       "plugins/OHK-yf2kpzkx",
-      "plugins/OHK-oqqmfoah",
       "plugins/OHK-yqrralqk",
       "plugins/OHK-jru4jomd",
       "shared_modules/SHM-eanos2e0"
@@ -7035,6 +7242,7 @@
     "readme": null,
     "uses": [],
     "used_by": [
+      "shared_modules/SHM-qlvol7k8",
       "plugins/OHK-bsqictlo",
       "plugins/OHK-htrxkps2",
       "plugins/OHK-w8exctx7",
@@ -7055,6 +7263,22 @@
     "enabled": true,
     "packages": [
       "packages/PKG-v20qv308"
+    ]
+  },
+  {
+    "id": "IWH-i7b44zvs",
+    "type": "webhooks",
+    "name": "Monitoring Alerts",
+    "description": "Endpoint a monitoring system posts Alertmanager alerts to; each firing alert starts the mapped remediation server action on the server it names.",
+    "path": "webhooks/IWH-i7b44zvs",
+    "readme": "webhooks/IWH-i7b44zvs/README.md",
+    "uses": [
+      "plugins/OHK-ogu8lqt2"
+    ],
+    "used_by": [],
+    "enabled": true,
+    "packages": [
+      "packages/PKG-yo8vupwq"
     ]
   },
   {
