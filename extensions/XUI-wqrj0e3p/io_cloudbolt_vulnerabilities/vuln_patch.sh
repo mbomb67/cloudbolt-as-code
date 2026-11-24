@@ -509,7 +509,7 @@ old_kernels_deb() {
     local -a list
     names=$(installed_debs | select_old_debs "$(uname -r)")
     if [ -z "$names" ]; then
-        emit note "no old kernels are installed"
+        :
         return 0
     fi
     mapfile -t list <<<"$names"
@@ -542,7 +542,7 @@ old_kernels_rpm() {
         && grep -qiE 'No old installonly packages|No packages marked for removal|Nothing to do' "$RUN/kernels.log" 2>/dev/null; then
         # Nothing old to remove is not a failure, whatever status dnf gives it.
         OLD_RC=0
-        emit note "no old kernels are installed"
+        :
     elif [ "$OLD_RC" -ne 0 ]; then
         emit note "dnf could not remove the old kernels (exit code $OLD_RC)"
         OLD_RC=0

@@ -243,7 +243,7 @@ DISTRO=ubuntu
 
     def test_nothing_old_installed_reports_zero(self):
         text = self.run_mode("6.8.0-1070-aws", UBUNTU_NEW + UBUNTU_OTHER)
-        self.assertIn("no old kernels are installed", text)
+        self.assertNotIn("CBVULN|note|", text)
         self.assertIn("CBVULN|removed|0", text)
         self.assertIn("CBVULN|exit|0", text)
         self.assertEqual(self.read("calls"), [])
@@ -303,7 +303,7 @@ DISTRO=rhel
         text = self.run_mode("5.14.0-1.el9.x86_64", self.FOUR[:1], rc=1,
                              message="Error: No old installonly packages found for removal.")
         self.assertEqual(self.read("calls"), ["DNF", "-y", "remove", "--oldinstallonly"])
-        self.assertIn("no old kernels are installed", text)
+        self.assertNotIn("CBVULN|note|", text)
         self.assertIn("CBVULN|removed|0", text)
         self.assertIn("CBVULN|exit|0", text)
         self.assertNotIn("CBVULN|failure|", text)
