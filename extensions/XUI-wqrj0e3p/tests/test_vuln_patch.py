@@ -138,7 +138,14 @@ def make_server(**over):
 
 
 def windows_server(**over):
-    return make_server(os_family=types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows"), **over)
+    data = dict(os_family=types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows"),
+                is_windows=lambda: True)
+    data.update(over)
+    return make_server(**data)
+
+
+def solaris_server(**over):
+    return make_server(os_family=types.SimpleNamespace(get_base_name=lambda: "Solaris", name="Solaris"), **over)
 
 
 def out(**fields):
@@ -181,6 +188,7 @@ def happy_guest():
     guest.answers("start", out(state="running", os="Rocky", distro="rhel"))
     guest.answers("poll", out(state="running", phase="Updating packages"),
                   out(state="done", updated=7, failed=0, exit=0, restart=0, kernel_running="k1", kernel_newest="k1"))
+    guest.answers("oldkernels", out(removed=0, exit=0, kernel_running="k1", kernel_newest="k1"))
     guest.answers("cleanup", out())
     return guest
 
@@ -320,7 +328,7 @@ class ScriptTests(unittest.TestCase):
 
     def test_header_quotes_every_value(self):
         script = patch._linux_build_script("reboot", RUN, BOOT_1)
-        for line in ("MODE=reboot\n", "RUN_ID=" + RUN + "\n", "BOOT_ID=" + BOOT_1 + "\n", "REBOOT_DELAY_S=5\n"):
+        for line in ("MODE=reboot\n", "RUN_ID=" + RUN + "\n", "BOOT_ID=" + BOOT_1 + "\n", "REBOOT_DELAY_S=20\n"):
             self.assertIn("\n" + line, script)
         self.assertIn("BOOT_ID=''\n", patch._linux_build_script("poll", RUN))
 
@@ -433,10 +441,14 @@ class EligibilityTests(Base):
     def test_a_linux_server_is_eligible(self):
         self.assertEqual(patch.eligibility(make_server()), "")
 
-    def test_windows_is_unsupported(self):
-        self.assertEqual(patch.eligibility(windows_server()), "unsupported_os")
-        server = windows_server(is_windows=lambda: True)
-        self.assertEqual(patch.eligibility(server), "unsupported_os")
+    def test_windows_needs_the_microsoft_data_for_the_rescan(self):
+        with mock.patch.object(jobs, "msrc_ready", return_value=True):
+            self.assertEqual(patch.eligibility(windows_server()), "")
+        with mock.patch.object(jobs, "msrc_ready", return_value=False):
+            self.assertEqual(patch.eligibility(windows_server()), "no_windows_data")
+
+    def test_another_operating_system_is_unsupported(self):
+        self.assertEqual(patch.eligibility(solaris_server()), "unsupported_os")
 
     def test_unassigned_and_powered_off(self):
         unassigned = make_server(group=types.SimpleNamespace(is_unassigned=True, name="Unassigned"))
@@ -489,7 +501,8 @@ class StartJobTests(Base):
 
     def test_the_first_server_that_cannot_be_updated_refuses_the_whole_start(self):
         servers = [make_server(id=1), windows_server(id=2, hostname="win-01")]
-        refusal = patch.start_job("owner", servers=servers)
+        with mock.patch.object(jobs, "msrc_ready", return_value=False):
+            refusal = patch.start_job("owner", servers=servers)
         self.assertEqual(refusal.status, 409)
         self.assertIn("win-01", refusal.message)
         self.assertEqual(self.hook.calls, [])
@@ -512,20 +525,21 @@ class FlowTests(Base):
         job, result = self.go()
         status, output, errors, outputs = result
         self.assertEqual((status, errors), ("SUCCESS", ""))
-        self.assertEqual(self.guest.calls, ["probe", "start", "poll", "poll", "cleanup"])
-        self.assertEqual(outputs["counts"], {"updated": 1, "restart_pending": 0, "failed": 0, "skipped": 0})
+        # No restart was needed, so none is pending: the old kernels go, without a restart.
+        self.assertEqual(self.guest.calls, ["probe", "start", "poll", "poll", "oldkernels", "cleanup"])
+        self.assertEqual(outputs["counts"], {"updated": 1, "no_updates": 0, "restart_pending": 0, "failed": 0, "skipped": 0})
         record = self.state["patch"]
         self.assertEqual(set(record), {"at", "by", "job_id", "status", "before", "after", "updated", "failed",
-                                       "restarted", "restart_needed", "kernels_removed", "duration_s", "message"})
+                                       "restarted", "restart_needed", "kernels_removed", "duration_s", "message", "family"})
         self.assertEqual((record["status"], record["by"], record["job_id"]), ("updated", "alice", 11))
         self.assertEqual((record["before"], record["after"]), ({"vulns": 10, "vuln_fixable": 8},
                                                                {"vulns": 2, "vuln_fixable": 0}))
         self.assertEqual((record["updated"], record["failed"], record["restarted"], record["restart_needed"],
-                          record["kernels_removed"]), (7, 0, False, False, None))
+                          record["kernels_removed"]), (7, 0, False, False, 0))
         self.assertEqual(record["duration_s"], 30)
         self.assertEqual(outputs["servers"]["7"]["hostname"], "web-01")
         self.assertEqual(outputs["servers"]["7"]["status"], "updated")
-        self.assertIn("10 to 2", output)
+        self.assertEqual(output, "web-01: 7 packages updated, known vulnerabilities 10 to 2, with a fix 8 to 0.")
 
     def test_the_marker_is_written_with_kind_patch_and_cleared(self):
         seen = []
@@ -682,7 +696,7 @@ class FlowTests(Base):
         self.assertEqual((record["status"], record["after"]), ("updated", None))
         self.assertEqual(record["before"], {"vulns": 10, "vuln_fixable": 8})
         self.assertIn("installed and the rescan failed", record["message"])
-        self.assertEqual(outputs["counts"], {"updated": 1, "restart_pending": 0, "failed": 0, "skipped": 0})
+        self.assertEqual(outputs["counts"], {"updated": 1, "no_updates": 0, "restart_pending": 0, "failed": 0, "skipped": 0})
         self.assertIsNone(self.state["active"])
 
     def test_a_rescan_that_fails_or_times_out_is_a_warning_too(self):
@@ -737,10 +751,10 @@ class FlowTests(Base):
             patch._patch_one(make_job(12), make_server(), True, {})
         self.assertEqual(self.state["active"]["job_id"], 11)
 
-    def test_a_non_linux_server_raises_before_anything_is_touched(self):
+    def test_a_server_of_another_family_raises_before_anything_is_touched(self):
         with self.assertRaises(patch.PatchFailed) as caught:
-            patch._patch_one(make_job(), windows_server(), True, {})
-        self.assertEqual(str(caught.exception), patch.ONLY_LINUX)
+            patch._patch_one(make_job(), solaris_server(), True, {})
+        self.assertEqual(str(caught.exception), patch.ONLY_SUPPORTED)
         self.assertEqual((self.guest.calls, self.markers), ([], []))
 
     def test_a_linux_server_is_dispatched_to_the_linux_runner(self):
@@ -779,7 +793,7 @@ class BulkTests(Base):
             self.summaries[:] = [{"vulns": 5, "vuln_fixable": 5}] * 6
             job, (status, output, errors, outputs) = self.go(servers=self.servers())
         self.assertEqual(status, "WARNING")
-        self.assertEqual(outputs["counts"], {"updated": 2, "restart_pending": 0, "failed": 1, "skipped": 0})
+        self.assertEqual(outputs["counts"], {"updated": 2, "no_updates": 0, "restart_pending": 0, "failed": 1, "skipped": 0})
         self.assertEqual(sorted(outputs["servers"]), ["1", "2", "3"])
         self.assertEqual(outputs["servers"]["2"]["status"], "failed")
         self.assertEqual(len(self.rescan_calls), 2)
@@ -797,7 +811,7 @@ class BulkTests(Base):
         with mock.patch.object(patch, "JOB_LIMIT_S", 9020):
             job, (status, output, errors, outputs) = self.go(servers=self.servers())
         self.assertEqual(status, "WARNING")
-        self.assertEqual(outputs["counts"], {"updated": 1, "restart_pending": 0, "failed": 0, "skipped": 2})
+        self.assertEqual(outputs["counts"], {"updated": 1, "no_updates": 0, "restart_pending": 0, "failed": 0, "skipped": 2})
         self.assertEqual(list(outputs["servers"]), ["1"])
         self.assertIn("2 servers were not started", output)
         self.assertIn("8 hour limit", output)
@@ -814,7 +828,7 @@ class BulkTests(Base):
         self.guest.on_call = after_first
         job, (status, output, errors, outputs) = self.go(servers=servers)
         self.assertEqual(status, "WARNING")
-        self.assertEqual(outputs["counts"], {"updated": 1, "restart_pending": 0, "failed": 0, "skipped": 2})
+        self.assertEqual(outputs["counts"], {"updated": 1, "no_updates": 0, "restart_pending": 0, "failed": 0, "skipped": 2})
         self.assertIn("keeps running", output)
         self.assertEqual(results, [])
 
@@ -822,7 +836,7 @@ class BulkTests(Base):
         self.guest.answers("poll", out(state="done", updated=1, failed=0, exit=0, restart=1))
         self.summaries[:] = [{"vulns": 5, "vuln_fixable": 5}] * 4
         job, (status, output, errors, outputs) = self.go(servers=self.servers()[:2], restart=False)
-        self.assertEqual(outputs["counts"], {"updated": 0, "restart_pending": 2, "failed": 0, "skipped": 0})
+        self.assertEqual(outputs["counts"], {"updated": 0, "no_updates": 0, "restart_pending": 2, "failed": 0, "skipped": 0})
         self.assertEqual(status, "WARNING")
 
     def test_no_server_is_a_failure(self):
@@ -957,10 +971,17 @@ class ApiTests(Base):
         self.waited = []
 
     def test_refused(self):
-        result = api.install_updates(windows_server(hostname="win-01"), "owner")
+        with mock.patch.object(jobs, "msrc_ready", return_value=False):
+            result = api.install_updates(windows_server(hostname="win-01"), "owner")
         self.assertEqual(result["status"], "refused")
         self.assertIn("win-01", result["message"])
         self.assertIsNone(result["job"])
+
+    def test_no_updates_is_completed_with_that_message(self):
+        self.state["patch"] = {"job_id": 11, "status": "no_updates", "restarted": False, "message": ""}
+        result = api.install_updates(make_server(hostname="web-01"), "owner")
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["message"], "No updates were available on web-01.")
 
     def test_timeout(self):
         def never(timeout):
@@ -1134,8 +1155,173 @@ def shell(snippet):
 
 
 @unittest.skipUnless(shutil.which("bash"), "bash is not installed")
+# ---------------------------------------------------------------- the fix round
+class OutcomeWordingTests(Base):
+    def test_the_line_gives_every_fact_that_happened(self):
+        self.guest.answers("poll", out(state="done", updated=1, failed=0, exit=0, restart=1))
+        self.guest.answers("reboot", out(boot_id=BOOT_1))
+        self.guest.answers("probe", out(boot_id=BOOT_1), out(boot_id=BOOT_2))
+        self.guest.answers("oldkernels", out(removed=2, exit=0, kernel_running="k2", kernel_newest="k2"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(output, "web-01: 1 package updated, restarted, 2 old kernel packages removed, known "
+                                 "vulnerabilities 10 to 2, with a fix 8 to 0.")
+
+    def test_parts_that_did_not_happen_are_left_out(self):
+        self.summaries[:] = [{"vulns": 4, "vuln_fixable": None}, {"vulns": 1, "vuln_fixable": None}]
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(output, "web-01: 7 packages updated, known vulnerabilities 4 to 1.")
+
+    def test_a_pending_restart_is_said(self):
+        self.guest.answers("poll", out(state="done", updated=3, failed=0, exit=0, restart=1))
+        job, (status, output, errors, outputs) = self.go(restart=False)
+        self.assertTrue(output.startswith("web-01: 3 packages updated, a restart is still needed, known "))
+
+
+class NoUpdatesTests(Base):
+    def test_nothing_installed_nothing_pending_is_no_updates_and_still_rescans(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual((status, errors), ("SUCCESS", ""))
+        self.assertEqual(output, "web-01: no updates were available.")
+        record = self.state["patch"]
+        self.assertEqual((record["status"], record["updated"], record["restarted"], record["message"]),
+                         ("no_updates", 0, False, ""))
+        self.assertEqual(len(self.rescan_calls), 1)
+        self.assertEqual(record["after"], {"vulns": 2, "vuln_fixable": 0})
+        self.assertEqual(outputs["counts"]["no_updates"], 1)
+        self.assertEqual(outputs["counts"]["updated"], 0)
+        self.assertIn("no updates were available", EVENTS[0][0][2])
+
+    def test_a_failed_rescan_is_still_a_warning(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
+        self.start_result = Refused("busy")
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(status, "WARNING")
+        self.assertEqual(self.state["patch"]["status"], "no_updates")
+
+    def test_a_run_that_only_removed_old_kernels_is_updated(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
+        self.guest.answers("oldkernels", out(removed=3, exit=0, kernel_running="k1", kernel_newest="k1"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(self.state["patch"]["status"], "updated")
+        self.assertEqual(self.state["patch"]["kernels_removed"], 3)
+        self.assertEqual(output, "web-01: 0 packages updated, 3 old kernel packages removed, known vulnerabilities "
+                                 "10 to 2, with a fix 8 to 0.")
+
+    def test_a_run_that_only_restarted_is_updated(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=1))
+        self.guest.answers("reboot", out(boot_id=BOOT_1))
+        self.guest.answers("probe", out(boot_id=BOOT_1), out(boot_id=BOOT_2))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual((status, self.state["patch"]["status"], self.state["patch"]["restarted"]),
+                         ("SUCCESS", "updated", True))
+
+    def test_a_pending_restart_is_not_no_updates(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=1))
+        job, (status, output, errors, outputs) = self.go(restart=False)
+        self.assertEqual(self.state["patch"]["status"], "restart_pending")
+
+    def test_failures_are_not_no_updates(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=2, exit=0, restart=0))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(self.state["patch"]["status"], "updated")
+
+    def test_every_server_without_updates_keeps_the_job_successful(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
+        self.summaries[:] = [{"vulns": 1, "vuln_fixable": 0}] * 4
+        job, (status, output, errors, outputs) = self.go(servers=[make_server(id=1, hostname="a"),
+                                                                  make_server(id=2, hostname="b")])
+        self.assertEqual(status, "SUCCESS")
+        self.assertEqual(output, "a: no updates were available.\nb: no updates were available.")
+
+    def test_a_failed_server_next_to_one_without_updates_is_a_warning(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
+        self.guest.answers("start", out(state="running"), out(reason="no"))
+        job, (status, output, errors, outputs) = self.go(servers=[make_server(id=1, hostname="a"),
+                                                                  make_server(id=2, hostname="b")])
+        self.assertEqual(status, "WARNING")
+
+
+class OldKernelStepTests(Base):
+    def test_it_runs_without_a_restart_when_none_was_needed(self):
+        self.guest.answers("oldkernels", out(removed=2, exit=0, kernel_running="k1", kernel_newest="k1"))
+        self.go()
+        self.assertIn("oldkernels", self.guest.calls)
+        self.assertNotIn("reboot", self.guest.calls)
+        self.assertEqual(self.state["patch"]["kernels_removed"], 2)
+        self.assertLess(self.guest.calls.index("poll"), self.guest.calls.index("oldkernels"))
+
+    def test_it_never_runs_while_a_restart_is_pending(self):
+        self.guest.answers("poll", out(state="done", updated=3, failed=0, exit=0, restart=1))
+        self.go(restart=False)
+        self.assertNotIn("oldkernels", self.guest.calls)
+
+    def test_it_runs_after_a_confirmed_restart(self):
+        self.guest.answers("poll", out(state="done", updated=3, failed=0, exit=0, restart=1))
+        self.guest.answers("reboot", out(boot_id=BOOT_1))
+        self.guest.answers("probe", out(boot_id=BOOT_1), out(boot_id=BOOT_2))
+        self.go()
+        self.assertGreater(self.guest.calls.index("oldkernels"), self.guest.calls.index("reboot"))
+
+    def test_the_setting_turns_the_step_off(self):
+        self.settings["remove_old_kernels"] = False
+        job, (status, output, errors, outputs) = self.go()
+        self.assertNotIn("oldkernels", self.guest.calls)
+        self.assertEqual(status, "SUCCESS")
+        self.assertIsNone(self.state["patch"]["kernels_removed"])
+
+    def test_the_setting_off_is_said_after_a_restart_and_is_not_a_warning(self):
+        self.settings["remove_old_kernels"] = False
+        self.guest.answers("poll", out(state="done", updated=3, failed=0, exit=0, restart=1))
+        self.guest.answers("reboot", out(boot_id=BOOT_1))
+        self.guest.answers("probe", out(boot_id=BOOT_1), out(boot_id=BOOT_2))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertNotIn("oldkernels", self.guest.calls)
+        self.assertEqual(status, "SUCCESS")
+        self.assertIn("Old kernels were kept.", self.state["patch"]["message"])
+
+    def test_the_setting_defaults_to_on_when_it_is_missing_or_unreadable(self):
+        for value in (None, "", "maybe"):
+            self.settings["remove_old_kernels"] = value
+            self.guest.calls[:] = []
+            self.state["patch"] = None
+            self.guest.queues["probe"] = [out(boot_id=BOOT_1)]
+            self.guest.queues["poll"] = [out(state="done", updated=1, failed=0, exit=0, restart=0)]
+            self.go()
+            self.assertIn("oldkernels", self.guest.calls, repr(value))
+        del self.settings["remove_old_kernels"]
+        self.guest.calls[:] = []
+        self.guest.queues["poll"] = [out(state="done", updated=1, failed=0, exit=0, restart=0)]
+        self.go()
+        self.assertIn("oldkernels", self.guest.calls)
+        self.assertTrue(patch._flag({}, "remove_old_kernels", True))
+        self.assertFalse(patch._flag({"remove_old_kernels": "false"}, "remove_old_kernels", True))
+
+    def test_a_guest_note_about_a_skipped_cleanup_is_a_note_not_a_warning(self):
+        self.guest.answers("oldkernels", out(removed=0, exit=0, kernel_running="k1", kernel_newest="k1",
+                                             note="purging them would also remove other packages"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(status, "SUCCESS")
+        self.assertIn("purging them would also remove other packages", self.state["patch"]["message"])
+        self.assertEqual(self.state["patch"]["kernels_removed"], 0)
+
+    def test_not_running_the_newest_kernel_is_a_warning(self):
+        self.guest.answers("oldkernels", out(removed=0, exit=0, kernel_running="k1", kernel_newest="k2",
+                                             note="the server is not running its newest kernel"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(status, "WARNING")
+        message = self.state["patch"]["message"]
+        self.assertIn(patch.OLDER_KERNEL, message)
+        self.assertNotIn("the server is not running its newest kernel", message)
+
+    def test_the_removed_count_is_the_guests(self):
+        self.guest.answers("oldkernels", out(removed=5, exit=0, kernel_running="k1", kernel_newest="k1"))
+        self.go()
+        self.assertEqual(self.state["patch"]["kernels_removed"], 5)
+
+
 class ShellTests(unittest.TestCase):
-    RPM = "rpm() { printf '%s\\n' 5.14.0-2.x86_64 5.14.0-1.x86_64; }\n"
+    RPM = "rpm() { printf '%s\\n' 'kernel 5.14.0-2.x86_64' 'kernel 5.14.0-1.x86_64'; }\n"
 
     def restart(self, dnf_body, kernel="5.14.0-1.x86_64", rpm=None):
         snippet = ("DISTRO=rhel\ndnf() { " + dnf_body + " }\n" + (rpm or self.RPM)
@@ -1218,29 +1404,6 @@ class ShellTests(unittest.TestCase):
                 text = shell(("RUN={r}/none\n{m}\n").replace("{r}", root).replace("{m}", mode))
                 self.assertIn(expect, text)
                 self.assertNotIn("reason", text)
-
-    def test_the_ubuntu_kernel_name_filter(self):
-        names = ["linux-image-6.8.0-45-generic", "linux-headers-6.8.0-45", "linux-headers-6.8.0-45-generic",
-                 "linux-modules-6.8.0-45-generic", "linux-modules-extra-6.8.0-45-generic",
-                 "linux-tools-6.8.0-45-generic", "linux-image-unsigned-6.8.0-45-generic"]
-        bad = ["linux-image-generic", "linux-generic", "linux-libc-dev", "libfoo", "linux-image-6.8.0-45;rm",
-               "linux-image-", "xlinux-image-6.8.0-45", "linux-image-6.8.0-45 extra", "grub-pc"]
-        snippet = "for n in " + " ".join("'{}'".format(n) for n in names + bad) + "; do " \
-                  "if printf '%s\\n' \"$n\" | grep -Eq \"$KERNEL_RE\"; then echo \"OK|$n\"; else echo \"NO|$n\"; fi; done"
-        result = shell(snippet).splitlines()
-        for name in names[:-1]:
-            self.assertIn("OK|" + name, result)
-        for name in bad + names[-1:]:
-            self.assertIn("NO|" + name, result)
-
-    def test_a_purge_that_would_remove_anything_else_is_detected(self):
-        simulation = ("Remv linux-image-6.8.0-45-generic [6.8.0-45.45]\\nPurg linux-modules-6.8.0-45-generic [x]\\n"
-                      "Remv libfoo1 [1.0]\\nInst linux-image-generic [2]\\n")
-        snippet = ("printf '" + simulation + "' | removals | grep -Ev \"$KERNEL_RE\"\n"
-                   "echo ---\nprintf 'Remv linux-image-6.8.0-45-generic [1]\\n' | removals | grep -Ev \"$KERNEL_RE\"\n")
-        out_text = shell(snippet)
-        self.assertEqual(out_text.split("---")[0].split(), ["libfoo1"])
-        self.assertEqual(out_text.split("---")[1].split(), [])
 
 
 if __name__ == "__main__":

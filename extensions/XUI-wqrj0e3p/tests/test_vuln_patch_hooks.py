@@ -477,16 +477,33 @@ class PatchButtonTests(unittest.TestCase):
 class PatchSettingsTests(unittest.TestCase):
     def test_defaults(self):
         self.assertIs(store.DEFAULT_SETTINGS["patching"], False)
-        self.assertEqual(store.DEFAULT_SETTINGS["restart_wait_min"], 30)
+        self.assertEqual(store.DEFAULT_SETTINGS["restart_wait_min"], 60)
         self.assertEqual(store.DEFAULT_SETTINGS["patch_timeout_min"], 90)
         clean, errors = store.validate_settings({})
         self.assertEqual(errors, {})
         self.assertEqual((clean["patching"], clean["restart_wait_min"], clean["patch_timeout_min"]),
-                         (False, 30, 90))
+                         (False, 60, 90))
         with mock.patch.object(store, "_read_json", return_value={}):
             result = store.get_settings()
         self.assertEqual((result["patching"], result["restart_wait_min"], result["patch_timeout_min"]),
-                         (False, 30, 90))
+                         (False, 60, 90))
+
+    def test_remove_old_kernels_setting(self):
+        self.assertIs(store.DEFAULT_SETTINGS["remove_old_kernels"], True)
+        with mock.patch.object(store, "_read_json", return_value={"patching": True}):
+            self.assertIs(store.get_settings()["remove_old_kernels"], True)
+        with mock.patch.object(store, "_read_json", return_value={"remove_old_kernels": False}):
+            self.assertIs(store.get_settings()["remove_old_kernels"], False)
+        self.assertIs(store.validate_settings({"remove_old_kernels": "1"})[0]["remove_old_kernels"], True)
+        self.assertIs(store.validate_settings({})[0]["remove_old_kernels"], False)
+        self.assertIs(store.validate_settings({"remove_old_kernels": "0"})[0]["remove_old_kernels"], False)
+
+    def test_the_settings_page_has_the_checkbox(self):
+        path = os.path.join(SOURCE, "templates", "vuln_settings.html")
+        with open(path, encoding="ascii") as handle:
+            html = handle.read()
+        self.assertIn('name="remove_old_kernels"', html)
+        self.assertIn("Remove old kernels after a restart", html)
 
     def test_patching_flag_parsing(self):
         for value, expect in (("1", True), ("on", True), ("true", True), ("", False), ("0", False), ("off", False)):
@@ -502,7 +519,7 @@ class PatchSettingsTests(unittest.TestCase):
 
     def test_bad_ints_are_errors_and_clamped(self):
         for key, bad, expect in (("restart_wait_min", "4", 5), ("restart_wait_min", "121", 120),
-                                 ("restart_wait_min", "soon", 30), ("restart_wait_min", "", 30),
+                                 ("restart_wait_min", "soon", 60), ("restart_wait_min", "", 60),
                                  ("patch_timeout_min", "9", 10), ("patch_timeout_min", "241", 240),
                                  ("patch_timeout_min", "-1", 10), ("patch_timeout_min", "\u00b2", 90)):
             clean, errors = store.validate_settings({key: bad})
@@ -537,7 +554,7 @@ class ConditionTests(unittest.TestCase):
     def setUp(self):
         self.source, self.should_display = _load_condition()
         fake = _module(PACKAGE + ".vuln_jobs", in_unassigned_group=jobs.in_unassigned_group,
-                       is_linux=jobs.is_linux)
+                       is_linux=jobs.is_linux, is_windows=jobs.is_windows)
         patcher = mock.patch.dict(sys.modules, {PACKAGE: _module(PACKAGE), PACKAGE + ".vuln_jobs": fake,
                                                 "xui": _module("xui"),
                                                 "xui.io_cloudbolt_vulnerabilities": _module(
@@ -549,9 +566,28 @@ class ConditionTests(unittest.TestCase):
         self.assertIs(self.should_display(server()), True)
         self.assertIs(self.should_display(server(), None), True)
 
-    def test_windows_is_hidden(self):
+    def test_windows_is_shown(self):
         windows = types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows")
-        self.assertIs(self.should_display(server(os_family=windows)), False)
+        self.assertIs(self.should_display(server(os_family=windows, is_windows=lambda: True)), True)
+
+    def test_windows_in_an_unassigned_group_is_hidden(self):
+        windows = types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows")
+        self.assertIs(self.should_display(server(os_family=windows, is_windows=lambda: True,
+                                    group=types.SimpleNamespace(is_unassigned=True))), False)
+
+    def test_an_error_in_the_windows_check_hides_it(self):
+        def boom(server):
+            raise RuntimeError("no family")
+        fake = _module(PACKAGE + ".vuln_jobs", in_unassigned_group=jobs.in_unassigned_group,
+                       is_linux=lambda s: False, is_windows=boom)
+        with mock.patch.dict(sys.modules, {"xui.io_cloudbolt_vulnerabilities": _module(
+                "xui.io_cloudbolt_vulnerabilities", vuln_jobs=fake)}):
+            self.assertIs(self.should_display(server()), False)
+
+    def test_the_texts_say_linux_and_windows(self):
+        self.assertIn("Windows Server 2022 or 2025", hooks.PATCH_DESCRIPTION)
+        self.assertNotIn("not Windows", hooks.CONDITION_DESCRIPTION)
+        self.assertIn("Linux and Windows", hooks.CONDITION_DESCRIPTION)
 
     def test_no_or_other_os_family_is_hidden(self):
         self.assertIs(self.should_display(server(os_family=None)), False)
@@ -568,7 +604,7 @@ class ConditionTests(unittest.TestCase):
             self.assertIs(self.should_display(server()), False)
 
     def test_the_file_is_small_ascii_and_has_no_double_braces(self):
-        self.assertLess(len(self.source), 1200)
+        self.assertLess(len(self.source), 1400)
         self.assertTrue(self.source.isascii())
         self.assertNotIn("{{", self.source)
         self.assertNotIn("}}", self.source)

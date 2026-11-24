@@ -136,15 +136,50 @@ need_distro() {
     fi
 }
 
-# The newest installed kernel, in the form uname -r prints, or empty.
+# Names of the installed kernel packages on the dnf family, with their version in the form uname -r prints
+# (version-release.arch), one "name version" pair per line. The names: kernel and kernel-core (Red Hat, Oracle
+# Linux RHCK), kernel-uek and kernel-uek-core (Oracle Linux UEK), and kernel<major>.<minor> (Amazon Linux 2023
+# names its kernel package after the series: kernel6.18 was observed on mb-dev, where `rpm -q kernel` finds
+# nothing). The subpackages (-modules, -devel, ...) have longer names and are not listed.
+rpm_kernels() {
+    rpm -qa --qf '%{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null \
+        | awk '$1 ~ /^(kernel|kernel-core|kernel-uek|kernel-uek-core|kernel[0-9]+(\.[0-9]+)*)$/ {print $1, $2}'
+}
+
+# Names of the installed packages (state ii) on Ubuntu, one per line.
+installed_debs() {
+    dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 2>/dev/null | awk '$1 == "ii" {print $2}'
+}
+
+# The ABI versions (6.8.0-1070-aws) of the kernel images in a package list on stdin, one per line.
+deb_abis() {
+    sed -nE 's/^linux-image-(unsigned-)?([0-9][A-Za-z0-9.+-]*)$/\2/p' | sort -u
+}
+
+# The newest installed kernel, in the form uname -r prints, or empty when it cannot be told (never a guess).
+# The newest is the highest version of any kernel package; with two flavours installed (RHCK and UEK) it may
+# not be the running flavour, which only makes the callers do less.
 newest_kernel() {
     if is_rpm; then
-        rpm -q kernel --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | grep -E '^[0-9]' | sort -V | tail -n 1
+        rpm_kernels | awk '{print $2}' | sort -V | tail -n 1
     else
-        dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'linux-image-[0-9]*' 2>/dev/null \
-            | awk '$1 == "ii" {print $2}' | sed 's/^linux-image-//' | sort -V | tail -n 1
+        installed_debs | deb_abis | sort -V | tail -n 1
     fi
 }
+
+# Every installed package and its version, sorted, into the file $1 (a snapshot to count changes against).
+# The dnf family: rpm name and epoch:version-release.arch; Ubuntu: dpkg binary package and version.
+snapshot() {
+    if is_rpm; then
+        rpm -qa --qf '%{NAME} %{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | sort >"$1"
+    else
+        dpkg-query -W -f='${binary:Package} ${Version}\n' 2>/dev/null | sort >"$1"
+    fi
+}
+
+# Lines only in the second snapshot (new or changed packages), and lines only in the first (gone ones).
+count_new() { comm -13 "$1" "$2" | wc -l | tr -d ' '; }
+count_gone() { comm -23 "$1" "$2" | wc -l | tr -d ' '; }
 
 # ---- the run folder --------------------------------------------------------
 # /var/tmp is writable by every local user, so a folder is trusted only when it is a real directory (not a
@@ -272,6 +307,8 @@ mode_start() {
 # ---- mode: worker ---------------------------------------------------------
 LOG=""
 run_update() {
+    # The count of what changed is taken from package lists before and after, not from the console text.
+    snapshot "$RUN/before.pkgs"
     if is_rpm; then
         if [ "$DISTRO" = amzn2023 ]; then
             # Amazon Linux 2023 moves to the newest release with --releasever=latest:
@@ -284,7 +321,6 @@ run_update() {
             dnf -y --refresh upgrade >"$LOG" 2>&1
         fi
         EXITCODE=$?
-        UPDATED=$(rpm -qa --qf '%{INSTALLTIME}\n' 2>/dev/null | awk -v s="$START_TS" '$1 >= s' | wc -l | tr -d ' ')
     else
         # Non-interactive: no prompts about configuration files (keep the server's own), and services that
         # need a restart are restarted automatically. DPkg::Lock::Timeout waits for another package tool.
@@ -299,8 +335,9 @@ run_update() {
                 -o DPkg::Lock::Timeout=600 dist-upgrade >>"$LOG" 2>&1
             EXITCODE=$?
         fi
-        UPDATED=$(grep -c '^Setting up ' "$LOG" 2>/dev/null)
     fi
+    snapshot "$RUN/after.pkgs"
+    UPDATED=$(count_new "$RUN/before.pkgs" "$RUN/after.pkgs")
     [ -n "$UPDATED" ] || UPDATED=0
 }
 
@@ -345,7 +382,6 @@ check_restart() {
 
 mode_worker() {
     safe_dir "$RUN" || exit 0
-    START_TS=$(date +%s)
     LOG="$RUN/update.log"
     echo $$ >"$RUN/pid"
     detect || true
@@ -422,61 +458,127 @@ mode_reboot() {
 }
 
 # ---- mode: oldkernels -----------------------------------------------------
-# The kernel packages the Ubuntu cleanup may purge: image, headers, modules, modules-extra and tools of a numbered
-# release, nothing else. Used to filter apt's own list and to check apt's simulation of the purge.
-KERNEL_RE='^linux-(image|headers|modules|modules-extra|tools)-[0-9][A-Za-z0-9.+-]*$'
-
 # Names of the packages a simulated apt run (on stdin) would remove, one per line.
 removals() {
     awk '$1 == "Remv" || $1 == "Purg" {print $2}' | sort -u
 }
 
-mode_oldkernels() {
-    local before after rc names count extras
+# The release part of a kernel ABI version without the flavour: 6.8.0-1035-aws -> 6.8.0-1035.
+kernel_base() {
+    printf '%s' "$1" | sed -nE 's/^([0-9]+\.[0-9]+\.[0-9]+-[0-9]+).*/\1/p'
+}
+
+# The packages of the old kernels, one per line. $1 is the running kernel, stdin the installed package names.
+# An old kernel is an installed linux-image (or linux-image-unsigned) whose ABI differs from the running one. Its
+# packages are the installed ones whose name starts with linux- and holds -<base> followed by the end of the name
+# or a dash (image, modules, modules-extra, headers, tools, cloud-tools, and the flavour-prefixed forms such as
+# linux-aws-6.8-tools-6.8.0-1035). A name that holds the running kernel's base is never selected, and a
+# metapackage (linux-image-aws, no version in its name) never matches.
+select_old_debs() {
+    local names abi base runbase bases=""
+    names=$(cat)
+    runbase=$(kernel_base "$1")
+    [ -n "$runbase" ] || return 0
+    for abi in $(printf '%s\n' "$names" | deb_abis); do
+        [ "$abi" = "$1" ] && continue
+        base=$(kernel_base "$abi")
+        # The same release in another flavour is left alone.
+        [ -n "$base" ] && [ "$base" != "$runbase" ] && bases="$bases $base"
+    done
+    [ -n "$bases" ] || return 0
+    printf '%s\n' "$names" | awk -v bases="$bases" -v run="$runbase" '
+        function has(name, base,   pat, rest, pos, nxt) {
+            pat = "-" base
+            rest = name
+            while ((pos = index(rest, pat)) > 0) {
+                nxt = substr(rest, pos + length(pat), 1)
+                if (nxt == "" || nxt == "-") return 1
+                rest = substr(rest, pos + 1)
+            }
+            return 0
+        }
+        BEGIN { n = split(bases, list, " ") }
+        index($0, "linux-") == 1 && !has($0, run) {
+            for (i = 1; i <= n; i++) if (has($0, list[i])) { print $0; break }
+        }' | sort -u
+}
+
+# Ubuntu: purge the packages of the old kernels, after the checks. Sets OLD_COUNT and OLD_RC.
+old_kernels_deb() {
+    local names extra
     local -a list
+    names=$(installed_debs | select_old_debs "$(uname -r)")
+    if [ -z "$names" ]; then
+        emit note "no old kernels are installed"
+        return 0
+    fi
+    mapfile -t list <<<"$names"
+    # apt-get -s only simulates. Anything it would remove besides the selected packages stops the cleanup.
+    # https://manpages.ubuntu.com/manpages/noble/man8/apt-get.8.html
+    extra=$(comm -13 <(printf '%s\n' "${list[@]}" | sort -u) <(apt-get -s purge "${list[@]}" 2>/dev/null | removals) | head -n 1)
+    if [ -n "$extra" ]; then
+        emit note "old kernels were left in place: purging them would also remove $(san "$extra" 100)"
+        return 0
+    fi
+    snapshot "$RUN/kernels-before.pkgs"
+    export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+    apt-get -y -o DPkg::Lock::Timeout=600 purge "${list[@]}" >"$RUN/kernels.log" 2>&1
+    OLD_RC=$?
+    snapshot "$RUN/kernels-after.pkgs"
+    OLD_COUNT=$(count_gone "$RUN/kernels-before.pkgs" "$RUN/kernels-after.pkgs")
+}
+
+# The dnf family. remove --oldinstallonly removes old installonly packages (kernels), keeping only the latest
+# versions and the running kernel, whatever installonly_limit says; with nothing old it stops with "No old
+# installonly packages found for removal" and a non-zero status. Sets OLD_COUNT and OLD_RC.
+# https://dnf.readthedocs.io/en/latest/command_ref.html (remove --oldinstallonly)
+old_kernels_rpm() {
+    snapshot "$RUN/kernels-before.pkgs"
+    dnf -y remove --oldinstallonly >"$RUN/kernels.log" 2>&1
+    OLD_RC=$?
+    snapshot "$RUN/kernels-after.pkgs"
+    OLD_COUNT=$(count_gone "$RUN/kernels-before.pkgs" "$RUN/kernels-after.pkgs")
+    if [ "$OLD_RC" -ne 0 ] && [ "$OLD_COUNT" = 0 ] \
+        && grep -qiE 'No old installonly packages|No packages marked for removal|Nothing to do' "$RUN/kernels.log" 2>/dev/null; then
+        # Nothing old to remove is not a failure, whatever status dnf gives it.
+        OLD_RC=0
+        emit note "no old kernels are installed"
+    elif [ "$OLD_RC" -ne 0 ]; then
+        emit note "dnf could not remove the old kernels (exit code $OLD_RC)"
+        OLD_RC=0
+    fi
+}
+
+mode_oldkernels() {
+    local running newest
     need_distro
     need_safe_run
     if [ ! -e "$RUN" ]; then
         mkdir -m 700 "$RUN" 2>/dev/null || stop_with "the run folder could not be made in /var/tmp"
         safe_dir "$RUN" || stop_with "the run folder on the server is not safe to use"
     fi
-    EXITCODE=0
-    if is_rpm; then
-        # Removes installonly packages (kernels) beyond installonly_limit (default 3), never the running kernel.
-        # https://dnf.readthedocs.io/en/latest/command_ref.html
-        # https://dnf.readthedocs.io/en/latest/conf_ref.html
-        before=$(rpm -qa 2>/dev/null | wc -l | tr -d ' ')
-        dnf -y remove --oldinstallonly >"$RUN/kernels.log" 2>&1
-        rc=$?
-        after=$(rpm -qa 2>/dev/null | wc -l | tr -d ' ')
-        count=$((before - after))
-        [ "$count" -ge 0 ] || count=0
+    OLD_COUNT=0
+    OLD_RC=0
+    running=$(uname -r)
+    newest=$(newest_kernel)
+    # Only a server running its newest kernel is cleaned: the running kernel and the one before it are what
+    # a failed boot would fall back to.
+    if [ -z "$newest" ]; then
+        emit note "old kernels were left in place: the newest installed kernel could not be told"
+    elif [ "$running" != "$newest" ]; then
+        emit note "old kernels were left in place: the server is not running its newest kernel"
+    elif is_rpm; then
+        old_kernels_rpm
     else
-        # Not a blanket autoremove: simulate it, keep only the kernel packages it would remove, purge those.
-        # https://manpages.ubuntu.com/manpages/noble/man8/apt-get.8.html
-        export DEBIAN_FRONTEND=noninteractive
-        names=$(apt-get -s autoremove --purge 2>/dev/null | removals | grep -E "$KERNEL_RE")
-        rc=0
-        count=0
-        if [ -n "$names" ]; then
-            mapfile -t list <<<"$names"
-            # Purging a kernel can pull other packages with it; if the simulation shows anything that is not a
-            # kernel package, nothing is removed.
-            extras=$(apt-get -s purge "${list[@]}" 2>/dev/null | removals | grep -Ev "$KERNEL_RE")
-            if [ -n "$extras" ]; then
-                emit note "old kernels were left in place: purging them would also remove other packages"
-            else
-                apt-get -y -o DPkg::Lock::Timeout=600 purge "${list[@]}" >"$RUN/kernels.log" 2>&1
-                rc=$?
-                [ "$rc" -eq 0 ] && count=${#list[@]}
-            fi
-        fi
+        old_kernels_deb
     fi
-    emit removed "$count"
-    emit exit "$rc"
-    if [ "$rc" -ne 0 ]; then
+    emit removed "$OLD_COUNT"
+    emit exit "$OLD_RC"
+    if [ "$OLD_RC" -ne 0 ]; then
         emit failure "$(san "$(grep -E '^(Error|E:|Failed)' "$RUN/kernels.log" 2>/dev/null | tail -n 2 | tr '\n' ' ')" 300)"
     fi
+    emit kernel_running "$(san "$running" 100)"
+    emit kernel_newest "$(san "$(newest_kernel)" 100)"
     finish
 }
 

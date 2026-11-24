@@ -34,6 +34,8 @@
         "vuln_scan.sh",
         "vuln_msrc.py",
         "vuln_scan_windows.ps1",
+        "vuln_wintask.py",
+        "vuln_patch_windows.ps1",
         "templates/vuln_styles.html",
         "templates/vuln_assets.html",
         "templates/vuln_tab.html",

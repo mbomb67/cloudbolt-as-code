@@ -3,7 +3,7 @@ Vulnerability Install Updates
 
 The Vulnerabilities UI extension registers this file as a CloudBolt plugin and shows it as the Install Updates
 server action when an administrator turns on the patching setting. It installs the updates a Linux server's package
-manager offers, restarts the server when that is needed and allowed, and scans it again. The work itself lives in the
+manager or Windows Update offers (Linux, and Windows Server 2022 and 2025), restarts the server when that is needed and allowed, and scans it again. The work itself lives in the
 extension (vuln_patch.py). This file reloads the extension's modules, so a job picks up an extension update without a
 job engine restart, and hands over. Syncing the extension replaces this file; do not edit it on the appliance.
 
@@ -26,6 +26,7 @@ MODULES = (
     "xui.io_cloudbolt_vulnerabilities.vuln_hooks",
     "xui.io_cloudbolt_vulnerabilities.vuln_jobs",
     "xui.io_cloudbolt_vulnerabilities.vuln_fleet",
+    "xui.io_cloudbolt_vulnerabilities.vuln_wintask",
     "xui.io_cloudbolt_vulnerabilities.vuln_patch",
 )
 

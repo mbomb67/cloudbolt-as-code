@@ -147,8 +147,18 @@ class PanelContextTests(unittest.TestCase):
         self.assertFalse(ctx["vuln"]["patch"]["offer"])
         button.assert_not_called()
 
-    def test_no_offer_for_windows(self):
+    def test_offer_for_an_eligible_windows_server(self):
         ctx, button = context(windows=True)
+        self.assertEqual(ctx["vuln"]["patch"], {"offer": True, "url": BUTTON["url"], "label": "Install Updates"})
+        button.assert_called_once()
+
+    def test_no_offer_for_a_windows_server_that_is_not_eligible(self):
+        ctx, button = context(windows=True, eligibility="unsupported_windows")
+        self.assertFalse(ctx["vuln"]["patch"]["offer"])
+        button.assert_not_called()
+
+    def test_no_offer_for_windows_while_a_job_is_active(self):
+        ctx, button = context(windows=True, active={"job_id": 5, "kind": "patch", "title": "Installing updates"})
         self.assertFalse(ctx["vuln"]["patch"]["offer"])
         button.assert_not_called()
 
@@ -239,6 +249,28 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("View job", self.note(html))
         html = render({"patch_last": dict(record(after=None), job_url="")})
         self.assertIn("Known vulnerabilities 12 &rarr; &ndash;.", html)
+
+    def test_no_updates_line_in_both_copies(self):
+        for extra in ({}, {"summary": None}):
+            html = render(dict({"patch_last": dict(record(status="no_updates"), job_url="/job_detail/41/")}, **extra))
+            self.assertIn('Checked <span data-vuln-time="%s" data-vuln-fmt="when">' % AT, html)
+            self.assertIn("by alice.", html)
+            self.assertIn("No updates were available.", html)
+            self.assertIn("Known vulnerabilities 12 &rarr; 3.", html)
+            self.assertIn('<a class="vuln-link" href="/job_detail/41/">View job</a>', html)
+            self.assertNotIn("Updated <span", html)
+
+    def test_updated_line_says_restarted_and_kernels_removed(self):
+        html = self.note(render({"patch_last": dict(record(restarted=True, kernels_removed=2), job_url="")}))
+        self.assertIn("The server was restarted. 2 old kernel packages were removed.", html)
+        html = self.note(render({"patch_last": dict(record(restarted=False, kernels_removed=0), job_url="")}))
+        self.assertNotIn("restarted", html)
+        self.assertNotIn("kernel", html)
+        html = self.note(render({"patch_last": dict(record(restarted=True, kernels_removed=None), job_url="")}))
+        self.assertIn("The server was restarted.", html)
+        self.assertNotIn("kernel", html)
+        html = render({"summary": None, "patch_last": dict(record(restarted=True, kernels_removed=1), job_url="")})
+        self.assertIn("The server was restarted. 1 old kernel packages were removed.", html)
 
     def test_restart_pending_line(self):
         html = render({"patch_last": dict(record(status="restart_pending"), job_url="")})

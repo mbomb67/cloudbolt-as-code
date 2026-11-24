@@ -84,8 +84,10 @@ DEFAULT_SETTINGS = {
     # Offer the Install Updates server action (vuln_hooks.apply_patching_setting), and how long one server
     # may take: minutes to wait for it to come back after a restart, minutes allowed for the install itself.
     "patching": False,
-    "restart_wait_min": 30,
+    "restart_wait_min": 60,
     "patch_timeout_min": 90,
+    # After a Linux server restarts onto a new kernel, remove the older kernel packages.
+    "remove_old_kernels": True,
 }
 REMATCH_WORKERS_RANGE = (1, 4)
 INVENTORY_PARALLEL_RANGE = (1, 10)
@@ -401,7 +403,8 @@ def get_settings():
     result["scan_timeout_min"] = _clamp(result["scan_timeout_min"], 5, 120, DEFAULT_SETTINGS["scan_timeout_min"])
     if result["visibility"] not in VISIBILITIES:
         result["visibility"] = "linux"
-    for key in ("insecure_upload", "guest_internet_download", "scan_on_provision", "patching"):
+    for key in ("insecure_upload", "guest_internet_download", "scan_on_provision", "patching",
+                "remove_old_kernels"):
         result[key] = bool(result[key])
     result["restart_wait_min"] = _clamp(
         result["restart_wait_min"], *RESTART_WAIT_RANGE, DEFAULT_SETTINGS["restart_wait_min"])
@@ -438,6 +441,7 @@ def validate_settings(data):
 
     clean["scan_on_provision"] = _flag(data.get("scan_on_provision", ""))
     clean["patching"] = _flag(data.get("patching", ""))
+    clean["remove_old_kernels"] = _flag(data.get("remove_old_kernels", ""))
 
     for key, (low, high), label in (
         ("rematch_workers", REMATCH_WORKERS_RANGE, "Vulnerability matches at once"),

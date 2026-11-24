@@ -13,7 +13,8 @@ Vulnerability scans and updates for other content: start them from a plug-in, an
     result["patch"]     the server's last update record (install_updates), or None
 
 Both start the same jobs the Vulnerabilities tab starts, so they take the same lock and land in the server's
-history. install_updates installs the updates the server's package manager offers on a Linux server, restarts it
+history. install_updates installs the updates the server's package manager (Linux) or Windows Update (Windows Server
+2022 and 2025) offers, restarts it
 when that is needed and restart_if_needed is true, and scans it again.
 
     result = vuln_api.start_scan(server, job.owner, parent_job=job)
@@ -111,7 +112,7 @@ def _count(server_id):
 
 
 def install_updates(server, owner, restart_if_needed=True, timeout=None, parent_job=None):
-    """Install the updates a Linux server offers, restart it when needed (restart_if_needed), scan it again, and
+    """Install the updates a Linux or Windows Server 2022/2025 server offers, restart it when needed (restart_if_needed), scan it again, and
     wait for the job to end. timeout is in seconds; the default covers the update, the restart wait and the rescan
     time limits of the settings."""
     started = vuln_patch.start_job(owner, server=server, restart_if_needed=restart_if_needed, parent_job=parent_job)
@@ -137,5 +138,7 @@ def install_updates(server, owner, restart_if_needed=True, timeout=None, parent_
     if status == "restart_pending":
         return _result("restart_pending", "Updates were installed on {}; a restart is still needed.".format(
             server.hostname), job=job, patch=patch)
+    if status == "no_updates":
+        return _result("completed", "No updates were available on {}.".format(server.hostname), job=job, patch=patch)
     return _result("completed", "Updates were installed on {}{}.".format(
         server.hostname, "; it restarted" if patch.get("restarted") else ""), job=job, patch=patch)

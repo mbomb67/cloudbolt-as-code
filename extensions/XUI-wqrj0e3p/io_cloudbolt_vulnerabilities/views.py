@@ -293,7 +293,7 @@ def _panel_context(server, profile, request=None):
         # The Windows "software list" is the build and the installed updates; its OS name ends in "build <number>".
         found = re.search(r"build\s+(\S+)\s*$", str(summary.get("os_name") or ""))
         summary = dict(summary, windows_build=found.group(1) if found else (summary.get("os_name") or ""))
-    if active or windows:
+    if active:
         patch = {"offer": False, "url": "", "label": ""}
     else:
         patch = _patch_offer(server, profile, request)

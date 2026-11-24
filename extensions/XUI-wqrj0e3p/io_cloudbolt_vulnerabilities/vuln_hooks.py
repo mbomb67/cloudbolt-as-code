@@ -80,7 +80,7 @@ PROVISION_ACTION_DESCRIPTION = (
 
 PATCH_NAME = "Vulnerability Install Updates"
 PATCH_DESCRIPTION = (
-    "Installs the available updates on a Linux server and scans it again, for the Vulnerabilities UI "
+    "Installs the available updates on a Linux or Windows Server 2022 or 2025 server and scans it again, for the Vulnerabilities UI "
     "extension. Created by the extension when the setting Offer Install updates is turned on; its code is the "
     "extension's vuln_patch_job.py, so do not edit or delete it here."
 )
@@ -88,7 +88,7 @@ PATCH_FILE = "vuln_patch_job.py"
 
 CONDITION_NAME = "Vulnerability Install Updates Display Condition"
 CONDITION_DESCRIPTION = (
-    "Decides which servers show the Install Updates action: not Windows servers and not servers in an "
+    "Decides which servers show the Install Updates action: Linux and Windows servers that are not in an "
     "Unassigned group. Created by the extension; its code is the extension's vuln_patch_condition.py, so do "
     "not edit or delete it here."
 )
