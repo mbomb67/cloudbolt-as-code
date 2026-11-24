@@ -16,6 +16,9 @@
                            banner into [data-vuln-run]; while a run is in progress a light request
                            (summary?run=1) runs every 5 s and the summary and the open pane reload
                            only when the run's progress changes or the run ends.
+    summary.servers_total > 0  with summary.servers = 0 (a resource whose servers are all unscanned)
+                           keeps the explanation and shows the Servers list instead of the cards,
+                           the view switch ([data-vuln-switch]) and the Vulnerabilities view.
   A root is initialised once (data-vuln-init), at once when the document has already loaded (the
   tab HTML is injected after the page), and its timers stop when it leaves the document.
 {% endcomment %}
@@ -276,6 +279,7 @@
     var runXhr = null;          // the light poll (summary?run=1) in flight
     var runWaiting = false;     // a visibilitychange listener is waiting to resume the refresh
     var scanBusy = false;       // the scan request is in flight
+    var listOnly = false;       // resource mode, servers visible but none scanned: the explanation and the Servers list
     var canScan = null;         // true shows the scan button, false hides it; null (a run is live) leaves it as it is
 
     function alive() { return document.body.contains(rootEl); }
@@ -596,7 +600,9 @@
       one("[data-vuln-empty]").hidden = state !== "empty";
       one("[data-vuln-updating]").hidden = state !== "updating";
       one("[data-vuln-cards]").hidden = state !== "ready";
-      one("[data-vuln-main]").hidden = state !== "ready";
+      one("[data-vuln-main]").hidden = !(state === "ready" || (state === "empty" && listOnly));
+      var sw = one("[data-vuln-switch]");
+      if (sw) { sw.hidden = listOnly; }
     }
 
     // A retry that fell due while the tab was hidden runs when it is shown again.
@@ -743,7 +749,7 @@
         var s = data && data.summary;
         if (data && data.state === "unavailable" && !s) {
           // The store is being updated: keep what is shown and ask again.
-          if (!ready) { showState("updating"); }
+          if (!ready && !listOnly) { showState("updating"); }
           sumRetry = setTimeout(function () {
             sumRetry = null;
             if (alive() && !document.hidden) { loadSummary(); }
@@ -751,12 +757,27 @@
           }, RETRY_MS);
           return;
         }
+        if (s && !s.servers && Number(s.servers_total) > 0) {
+          // Resource mode, nothing scanned yet: keep the explanation, no cards, and show the Servers
+          // list, which says why each server is not scanned.
+          var entering = !listOnly;
+          ready = false;
+          listOnly = true;
+          showState("empty");
+          Object.keys(panes).forEach(function (n) { panes[n].loaded = false; });
+          memRoute = { view: "servers" };
+          show("servers");
+          fetchPane(panes.servers, quiet && !entering);
+          return;
+        }
         if (!s || !s.servers) {
           ready = false;
+          listOnly = false;
           showState("empty");
           return;
         }
         var first = !ready;
+        if (listOnly) { listOnly = false; memRoute = { view: "cves" }; Object.keys(panes).forEach(function (n) { panes[n].loaded = false; }); }
         ready = true;
         drawCards(s);
         showState("ready");
@@ -769,8 +790,10 @@
         }
       }).fail(function (x, status) {
         if (sumXhr !== req || status === "abort") { return; }
-        showState(ready ? "ready" : "empty");
-        one("[data-vuln-empty]").hidden = true;
+        if (!listOnly) {
+          showState(ready ? "ready" : "empty");
+          one("[data-vuln-empty]").hidden = true;
+        }
         var err = x && x.responseJSON && x.responseJSON.error;
         showAlert(err || ("Could not load the summary (HTTP " + (x && x.status) + ")."));
         if (!ready && alive()) { sumRetry = setTimeout(function () { sumRetry = null; if (alive()) { loadSummary(); } }, RETRY_MS); }
