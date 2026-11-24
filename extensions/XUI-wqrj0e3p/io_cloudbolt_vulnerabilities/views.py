@@ -69,8 +69,8 @@ from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.permissions import cbadmin_required
 
-from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_msrc, vuln_repo, vuln_store as store,
-               vuln_tools)
+from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_msrc, vuln_patch, vuln_repo,
+               vuln_store as store, vuln_tools)
 
 logger = ThreadLogger(__name__)
 
@@ -237,13 +237,45 @@ def vulnerabilities_tab(request, obj_id):
 # ---------------------------------------------------------------------------
 # Panel (HTML fragment loaded asynchronously by the tab)
 # ---------------------------------------------------------------------------
-def _panel_context(server, profile):
+def _patch_offer(server, profile, request):
+    """The Install updates button for this server as {"offer", "url", "label"}. Any failure, a missing patch module
+    included, means no button: the panel never breaks because of it."""
+    none = {"offer": False, "url": "", "label": ""}
+    try:
+        if vuln_patch.eligibility(server):
+            return none
+        button = vuln_hooks.patch_button(server, profile, request)
+    except Exception:
+        logger.exception("Vulnerabilities: cannot work out the Install updates button for server %s",
+                         getattr(server, "id", ""))
+        return none
+    if not button or not button.get("url"):
+        return none
+    return {"offer": True, "url": button["url"], "label": button.get("label") or ""}
+
+
+def _patch_last(state):
+    """The stored record of the last update run, with the link to its job; None when there is none."""
+    record = state.get("patch")
+    if not isinstance(record, dict) or not record.get("status"):
+        return None
+    record = dict(record, job_url="")
+    try:
+        if record.get("job_id"):
+            record["job_url"] = reverse("job_detail", args=[record["job_id"]])
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the job link of an update run")
+    return record
+
+
+def _panel_context(server, profile, request=None):
     _upgrade_store()  # readers never upgrade, and the summary selects the newest columns
     summary = vuln_db.server_summary(server.id)
     state = store.read_state(server.id)
     active = vuln_jobs.panel_active(server.id)
     last = state.get("last") or None
     last_failed = last if last and last.get("status") == "failed" else None
+    patch_last = _patch_last(state)
     # The script re-fetches the table only when this changes, so it holds everything that
     # changes what the table shows: the match time, a scan starting or ending, the newest scan.
     key = "|".join([
@@ -251,6 +283,7 @@ def _panel_context(server, profile):
         "1" if active else "0",
         str((last or {}).get("scan_id") or ""),
         str((last or {}).get("status") or ""),
+        str((patch_last or {}).get("job_id") or ""),
     ])
     tools = vuln_tools.status()
     windows = _is_windows(server)
@@ -260,6 +293,10 @@ def _panel_context(server, profile):
         # The Windows "software list" is the build and the installed updates; its OS name ends in "build <number>".
         found = re.search(r"build\s+(\S+)\s*$", str(summary.get("os_name") or ""))
         summary = dict(summary, windows_build=found.group(1) if found else (summary.get("os_name") or ""))
+    if active or windows:
+        patch = {"offer": False, "url": "", "label": ""}
+    else:
+        patch = _patch_offer(server, profile, request)
     vuln = {
         "denied": False,
         "windows": windows,
@@ -274,6 +311,8 @@ def _panel_context(server, profile):
         "last_failed": last_failed,
         "ever_scanned": bool(summary or last),
         "active": active,
+        "patch": patch,
+        "patch_last": patch_last,
         "key": key,
     }
     if vuln["is_admin"]:
@@ -292,7 +331,7 @@ def vuln_panel(request, server_id):
         return render(request, TEMPLATES + "vuln_panel.html", context)
     profile = request.get_user_profile()
     try:
-        context = _panel_context(server, profile)
+        context = _panel_context(server, profile, request)
     except store.StoreError:
         logger.exception("Vulnerabilities: the state of server %s cannot be read", server.id)
         context = {"vuln": {"denied": False}, "error": STORE_ERROR}
@@ -470,6 +509,17 @@ def _msrc_tile(tools):
 
 PROVISION_ERROR = ("The settings were saved, but the scan after provisioning could not be switched. "
                    "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
+def _patch_action_state():
+    """The Install Updates action's state for the settings page; never raises."""
+    try:
+        return vuln_hooks.patch_action_state()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the Install Updates action")
+        return {"exists": False, "enabled": False, "action_id": None}
+
+
+PATCHING_ERROR = ("The settings were saved, but the Install Updates action could not be switched. "
+                  "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
 SCHEDULES_ERROR = "The schedules cannot be read. The CloudBolt application log has the details."
 
 # What each schedule does, in one sentence, by the key ensure_schedules returns.
@@ -557,6 +607,7 @@ def settings(request):
                 if key in request.POST:
                     current[key] = request.POST.get(key)
         else:
+            was_patching = bool(current.get("patching"))
             store.save_settings(clean)
             current = store.get_settings()
             saved = True
@@ -566,7 +617,16 @@ def settings(request):
             except Exception:
                 logger.exception("Vulnerabilities: cannot update the scan after provisioning action")
                 post_warnings.append(PROVISION_ERROR)
+            try:
+                patching = bool(clean["patching"])
+                # An unchanged setting must not re-enable an action the admin switched off in the action editor.
+                if patching != was_patching or (patching and not _patch_action_state()["exists"]):
+                    vuln_hooks.apply_patching_setting(patching)
+            except Exception:
+                logger.exception("Vulnerabilities: cannot update the Install Updates action")
+                post_warnings.append(PATCHING_ERROR)
     context = {
+        "patch_action": _patch_action_state(),
         "settings": current,
         "saved": saved,
         "errors": list(errors.values()),

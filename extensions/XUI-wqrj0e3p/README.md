@@ -2,7 +2,7 @@
 
 Adds a **Vulnerabilities** tab to Linux and Windows servers, and to any server labelled `Vulnerabilities`. On Linux the tab collects a list of the software installed on the server, matches it against a database of known vulnerabilities, and shows the findings: how many are critical, high, medium and low, how many are on the CISA known-exploited list, and for each package the installed version, the version that fixes it and the advisory. Users can switch between a Packages view (what to update) and a CVEs view (one row per CVE), search, filter by severity and show only exploited findings or only those with a fix. The Known vulnerabilities card also says how many vulnerabilities have a fix; a vulnerability has one when any package it affects has a fixed version, and a Windows finding always has one.
 
-Nothing is changed on the server. The tab does not contact the server when it opens; it shows the last result. Windows servers are covered in [Windows servers](#windows-servers).
+Scanning changes nothing on the server (installing updates is a separate action, see [Install updates](#install-updates)). The tab does not contact the server when it opens; it shows the last result. Windows servers are covered in [Windows servers](#windows-servers).
 
 ## How it works
 
@@ -63,6 +63,20 @@ Two recurring jobs are created the first time the Vulnerability Settings page op
 ## Scan after provisioning
 
 Turn on **Scan new servers after they are built** on the settings page. The extension then adds an action to the post-provisioning hook point. After a successful build, each new server that can be scanned is scanned as its own job: the build never waits for it and never fails because of it. Turning the setting off switches the action off; it is never created while the setting is off.
+
+## Install updates
+
+Turn on **Install updates** on the settings page and the extension creates a server action, **Install Updates**, which installs every available update on one Linux server from the repositories it is already configured with. The button of the same name then shows on the server's Vulnerabilities tab next to the scan button, and the action also appears in the server's Actions menu. Turning the setting off disables the action; its role grants and its Requires approval choice are kept. The action is offered on Linux servers only; Windows support comes in a later step. A server in an Unassigned group is never offered it.
+
+- **Who can run it.** CB Admins, and users whose role has `server.all_actions` on the server. For any other role, an admin adds **Install Updates** to the role's server actions. A new action is granted to no role.
+- **Requires approval.** The action is created without it. An admin can switch it on in the action's settings; the run then waits for an approval like any other server action, and the setting is never changed again by the extension.
+- **What it runs.** Red Hat Enterprise Linux and Oracle Linux 8 to 10: `dnf -y --refresh upgrade`. Amazon Linux 2023: `dnf -y --refresh upgrade --releasever=latest`. Ubuntu 22.04 and 24.04: `apt-get update`, then a non-interactive `apt-get -y dist-upgrade` that keeps the existing configuration files. Any other distribution is refused with a message and nothing is installed. The server needs its repositories reachable.
+- **Restart.** The dialog has a **Restart if needed** box, on by default. When an update needs a restart and the box is on, the server is restarted and the job waits for it to come back (up to the restart wait in the settings, 5 to 120 minutes, default 30); a server that is not back by then fails the job. With the box off the updates are installed, the panel says a restart is pending, and the scan afterwards still runs. The update itself is limited by the update timeout in the settings (10 to 240 minutes, default 90).
+- **Old kernels.** Only after a restart that was confirmed, old kernels are removed: on the Red Hat family `dnf -y remove --oldinstallonly` (dnf keeps the number of kernels set by `installonly_limit`, 3 by default); on Ubuntu only the kernel packages that `apt-get autoremove --purge` would remove, nothing else.
+- **After the update** the server is scanned again and the panel shows the vulnerabilities before and after, and a link to the job. If the scan fails the updates stay installed and the line shows the missing number as a dash.
+- **Cancelling.** Cancelling the job does not stop the update on the server: a package transaction is never stopped halfway, so it runs to its end there. Run the action again to see the result.
+- **After the dialog** CloudBolt returns to the server's default tab, not to Vulnerabilities, because the browser drops the tab from the address. Open the tab to follow the run; it refreshes every 5 seconds.
+- **Not covered.** Windows servers and any distribution other than those above.
 
 ## Setup
 

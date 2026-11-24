@@ -235,6 +235,31 @@
       </div>
     </div>
 
+    <div class="vuln-card">
+      <h2 class="vuln-h">Installing updates</h2>
+      <div class="vuln-field">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="vuln-patching" name="patching" value="1"{% if settings.patching %} checked{% endif %}>
+          <label class="form-check-label" for="vuln-patching">Offer Install updates</label>
+        </div>
+        <div class="vuln-help">Turning this on creates the Install Updates server action, and turning it off hides it. CB admins and roles with all server actions can run it at once. Other roles must be granted it. Requires approval can be set on the action. Servers in an Unassigned group are never updated.</div>
+        {% if field_errors.patching %}<div class="vuln-help vuln-bad">{{ field_errors.patching }}</div>{% endif %}
+        {% if settings.patching and patch_action %}{% if not patch_action.exists %}<div class="vuln-help vuln-caution">The Install Updates action is missing. Save the settings to create it again.</div>{% elif not patch_action.enabled %}<div class="vuln-help vuln-caution">The Install Updates action is switched off in CloudBolt's actions. Enable it there to offer it again.</div>{% endif %}{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-restart-wait">Minutes to wait for a server to come back after a restart</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-restart-wait" name="restart_wait_min" min="5" max="120" value="{{ settings.restart_wait_min }}">
+        <div class="vuln-help">How long an update waits for a restarted server to answer again before it reports a failure, from 5 to 120.</div>
+        {% if field_errors.restart_wait_min %}<div class="vuln-help vuln-bad">{{ field_errors.restart_wait_min }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-patch-timeout">Minutes allowed for installing updates</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-patch-timeout" name="patch_timeout_min" min="10" max="240" value="{{ settings.patch_timeout_min }}">
+        <div class="vuln-help">How long the install itself may run on one server before it is reported as failed, from 10 to 240.</div>
+        {% if field_errors.patch_timeout_min %}<div class="vuln-help vuln-bad">{{ field_errors.patch_timeout_min }}</div>{% endif %}
+      </div>
+    </div>
+
     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save settings</button>
   </form>
 </div>

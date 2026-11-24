@@ -2385,6 +2385,11 @@ class JobFileTests(unittest.TestCase):
             if filename.endswith(".py"):
                 with open(os.path.join(package, filename), encoding="utf-8") as handle:
                     text = handle.read()
+                if filename == "vuln_patch_job.py":
+                    # The one declared plugin input: CloudBolt creates the action's input from this line.
+                    token = 'RESTART_TOKEN = """' + "{" * 2 + " restart_if_needed " + "}" * 2 + '"""'
+                    self.assertEqual(text.count(token), 1, filename)
+                    text = text.replace(token, "")
                 self.assertNotIn("{" + "{", text, filename)
                 self.assertNotIn("}" + "}", text, filename)
 
