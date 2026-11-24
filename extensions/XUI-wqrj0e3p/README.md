@@ -97,8 +97,8 @@ Also tested there: the upgrade of an existing findings store, the Vulnerability 
 
 Also tested: a database update after the first one and the nightly job re-matching a stored software list against it; the resource tab on a three-server resource on OpenShift Virtualization (Red Hat Enterprise Linux 9 virtual machines) before and after Scan all servers, with one server whose build failed shown as not active and skipped; and two large matches queued one after the other by the matches-at-once limit.
 
-Windows is not yet tested on an appliance; the Windows build check, the Microsoft data download and the Windows tab are covered by unit tests only.
+Windows tested on the same appliance: the Microsoft data download, a check of a Windows Server 2025 on AWS through Systems Manager (standard track), the Windows tab, the search page with Linux and Windows servers together, and the nightly job with both data sources.
 
-Not tested: Oracle Linux, arm64 servers, a user who is not a CB Admin, either job running on its schedule, and more than a few servers at once.
+Not tested: Windows Server 2022, Windows over WinRM, a server on the hotpatch track, Oracle Linux, arm64 servers, a user who is not a CB Admin, either job running on its schedule, and more than a few servers at once.
 
 `extensions/XUI-wqrj0e3p/tests` holds unit tests that run without CloudBolt: `python -B -m unittest discover -s extensions/XUI-wqrj0e3p/tests -p "test_*.py"`.
