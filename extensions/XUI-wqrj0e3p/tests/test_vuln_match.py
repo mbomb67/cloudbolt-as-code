@@ -52,6 +52,9 @@ def reference_summarize(matches):
     counts["kev"] = len(exploited)
     counts["cves"] = len(cves)
     counts["vulns"] = len(worst)
+    # Added in the third version: a vulnerability has a fix when any of its matches has one.
+    counts["vuln_fixable"] = len({entry for item in matches if item.get("fix_version")
+                                  for entry in [c["cve"] for c in item.get("cves") or []] or [item.get("vuln_id")]})
     for name in vuln_match.SEVERITIES:
         counts["vuln_" + name.lower()] = sum(1 for rank in worst.values() if rank == vuln_match._RANKS[name])
     return counts
@@ -71,9 +74,34 @@ class SummarizeTests(unittest.TestCase):
     def test_fixed_input_numbers(self):
         self.assertEqual(vuln_match.summarize(FIXED), {
             "critical": 1, "high": 1, "medium": 1, "low": 2, "unknown": 1,
-            "findings": 6, "kev": 1, "cves": 4, "vulns": 5,
+            "findings": 6, "kev": 1, "cves": 4, "vulns": 5, "vuln_fixable": 3,
             "vuln_critical": 1, "vuln_high": 1, "vuln_medium": 1, "vuln_low": 1, "vuln_unknown": 1,
         })
+
+    def test_a_vulnerability_has_a_fix_when_any_of_its_matches_has_one(self):
+        # The package that sorts first has no fix; the other one does. The vulnerability counts once, with a fix.
+        both = [match("aaa", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, ""),
+                match("zzz", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, "2.0"),
+                match("zzz", "1", "ALAS-2", "High", [("CVE-2024-0100", False)], False, "2.5")]
+        row = vuln_match.vuln_rows(both)[0]
+        self.assertEqual((row["pkg_name"], row["fix_version"], row["pkg_count"]), ("zzz", "2.0", 2))  # one match
+        self.assertEqual((vuln_match.summarize(both)["vulns"], vuln_match.summarize(both)["vuln_fixable"]), (1, 1))
+        # A representative that has a fix keeps it; a vulnerability with no fix anywhere does not count.
+        self.assertEqual(vuln_match.vuln_rows(list(reversed(both[:2])))[0]["fix_version"], "2.0")
+        # The package and the fix come from one match; severity, exploited and the package count do not follow it.
+        low_fixed = [match("aaa", "1", "ALAS-1", "Critical", [("CVE-2024-0100", True)], True, ""),
+                     match("zzz", "1", "ALAS-2", "Low", [("CVE-2024-0100", False)], False, "2.0")]
+        row = vuln_match.vuln_rows(low_fixed)[0]
+        self.assertEqual((row["pkg_name"], row["pkg_version"], row["fix_version"]), ("zzz", "1", "2.0"))
+        self.assertEqual((row["sev_rank"], row["kev"], row["pkg_count"]), (4, True, 2))
+        # Two fixes: the package that sorts first supplies the row, whatever the fix versions compare as.
+        tens = [match("bbb", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, "10"),
+                match("aaa", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, "9")]
+        self.assertEqual(vuln_match.vuln_rows(tens)[0]["fix_version"], "9")
+        nofix = [match("aaa", "1", "ALAS-1", "High", [("CVE-2024-0100", False)]),
+                 match("bbb", "1", "ALAS-3", "Low", [("CVE-2024-0101", False)])]
+        self.assertEqual(vuln_match.summarize(nofix)["vuln_fixable"], 0)
+        self.assertEqual(vuln_match.summarize([])["vuln_fixable"], 0)
 
     def test_rows_argument_changes_nothing(self):
         self.assertEqual(vuln_match.summarize(FIXED), vuln_match.summarize(FIXED, vuln_match.vuln_rows(FIXED)))

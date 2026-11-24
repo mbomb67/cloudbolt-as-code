@@ -164,17 +164,17 @@ def sample_matches():
 
 # ---------------------------------------------------------------- schema
 class FreshSchemaTests(StoreTestCase):
-    def test_new_file_is_version_2(self):
+    def test_new_file_is_version_3(self):
         save(1, sample_matches()[1])
         conn = self.raw()
-        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         for name in ("servers", "matches", "match_cves", "server_matches", "server_packages", "server_cves",
                      "fleet_cves", "server_cves_cve", "fleet_cves_order", "matches_vuln", "servers_fleet",
                      "match_cves_cve", "server_matches_match"):
             self.assertIn(name, names)
         columns = {row[1] for row in conn.execute("PRAGMA table_info(servers)")}
-        self.assertTrue({"match_hash", "vulns", "vuln_unknown"} <= columns)
+        self.assertTrue({"match_hash", "vulns", "vuln_unknown", "vuln_fixable"} <= columns)
 
     def test_returned_row_has_the_server_columns_not_the_hash(self):
         row = save(1, sample_matches()[1])
@@ -278,12 +278,12 @@ class UpgradeTests(V1Builder, StoreTestCase):
             with self.subTest(with_added=with_added, user_version=user_version):
                 self.reset()
                 data = self.populated_v1(with_added, user_version)
-                self.assertEqual(vuln_db.upgrade(), 2)
+                self.assertEqual(vuln_db.upgrade(), 3)
                 conn = self.raw()
-                self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 2)
+                self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
                 columns = [row[1] for row in conn.execute("PRAGMA table_info(servers)")]
                 self.assertEqual(columns.count("match_hash"), 1)
-                self.assertEqual(len(columns), 25)
+                self.assertEqual(len(columns), 26)
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM servers WHERE match_hash IS NOT NULL").fetchone()[0], 0)
                 for server_id, matches in data.items():
                     self.assertEqual(self.server_cve_rows(server_id), self.expected_server_cves(matches), server_id)
@@ -296,7 +296,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
                 self.assertEqual(vuln_db.cve_servers("CVE-2024-0001")["total"], 3)
                 self.assertTrue(vuln_db.server_cves(1)["total"] > 0)
                 # Idempotent, and the first save of each server takes the full path, the second the fast one.
-                self.assertEqual(vuln_db.upgrade(), 2)
+                self.assertEqual(vuln_db.upgrade(), 3)
                 before = self.dump("server_cves", "fleet_cves")
                 save(1, data[1])
                 self.assertIsNotNone(self.raw().execute("SELECT match_hash FROM servers WHERE server_id = 1").fetchone()[0])
@@ -323,7 +323,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         with mock.patch.object(vuln_db, "_version", version), \
                 mock.patch.object(vuln_db, "_upgrade", side_effect=AssertionError("upgraded twice")):
             vuln_db.ensure_schema(loser)  # would raise "duplicate column name" if it tried again
-        self.assertEqual(real(loser), 2)
+        self.assertEqual(real(loser), 3)
 
     def test_two_threads_upgrading_at_once(self):
         self.populated_v1(False)
@@ -344,7 +344,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         self.assertEqual(errors, [])
         columns = [row[1] for row in self.raw().execute("PRAGMA table_info(servers)")]
         self.assertEqual(len(columns), len(set(columns)))
-        self.assertEqual(vuln_db.schema_version(), 2)
+        self.assertEqual(vuln_db.schema_version(), 3)
         self.assertEqual(self.fleet(), self.fleet_by_hand())
 
     def test_a_failed_upgrade_leaves_version_1_intact(self):
@@ -359,7 +359,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         self.assertEqual(len(columns), 18)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         self.assertNotIn("server_cves", names)
-        self.assertEqual(vuln_db.upgrade(), 2)  # and the next try succeeds
+        self.assertEqual(vuln_db.upgrade(), 3)  # and the next try succeeds
 
 
 # ---------------------------------------------------------------- writes
@@ -622,7 +622,9 @@ class ReadTests(FleetStore):
         self.assertEqual(summary["newest_matched"], "2026-11-28T00:00:00Z")
         self.assertEqual(summary["db_builts"], ["2026-10-0%dT00:00:00Z" % n for n in (7, 6, 5, 4, 3)])
         self.assertEqual(sorted(summary), ["critical", "db_builts", "exploited", "high", "newest_matched",
-                                           "oldest_matched", "servers", "servers_exploited", "vulns"])
+                                           "oldest_matched", "servers", "servers_exploited", "vuln_fixable",
+                                           "vulns"])
+        self.assertEqual(summary["vuln_fixable"], sum(1 for f in self.fleet().values() if f[3] > 0))
 
     def test_fleet_summary_of_an_empty_store(self):
         for server_id in range(1, 61):
@@ -673,6 +675,20 @@ class ReadTests(FleetStore):
         self.assertTrue(all(r["kev"] for r in exploited["rows"]))
         both = vuln_db.fleet_cves(severity="low", kev_only=True, page_size=100)
         self.assertEqual(both["total"], sum(1 for r in every if r["kev"] and r["sev_rank"] == 1))
+
+    def test_fleet_cves_fix_filter(self):
+        save(100, [mk("nofix", "1", "ALAS-900", "High", [("CVE-2024-9000", False)], False, "")])  # no fix anywhere
+        every = vuln_db.fleet_cves(page_size=100)["rows"]
+        fixable = vuln_db.fleet_cves(fix_only=True, page_size=100)
+        self.assertTrue(0 < fixable["total"] < len(every))
+        self.assertEqual(fixable["rows"], [r for r in every if r["fixable"] > 0])
+        self.assertNotIn("CVE-2024-9000", [r["cve"] for r in fixable["rows"]])
+        self.assertEqual(vuln_db.fleet_cves(fix_only=False)["total"], len(every))
+        both = vuln_db.fleet_cves(severity="critical", kev_only=True, fix_only=True, page_size=100)
+        self.assertEqual(both["total"], sum(1 for r in every if r["fixable"] and r["kev"] and r["sev_rank"] == 4))
+        searched = vuln_db.fleet_cves(search="CVE-2024-00", fix_only=True, page_size=100)
+        self.assertEqual({r["cve"] for r in searched["rows"]},
+                         {r["cve"] for r in every if r["fixable"] and "CVE-2024-00" in r["cve"]})
 
     def test_fleet_cves_search_by_cve(self):
         every = vuln_db.fleet_cves(page_size=100)["rows"]
@@ -833,7 +849,7 @@ class SetReadTests(FleetStore):
     def test_empty_and_unknown_ids(self):
         summary = vuln_db.set_summary([])
         self.assertEqual(summary, {"scanned": 0, "vulns": 0, "critical": 0, "high": 0, "exploited": 0,
-                                   "servers_exploited": 0, "oldest_inventory": None, "newest_matched": None,
+                                   "vuln_fixable": 0, "servers_exploited": 0, "oldest_inventory": None, "newest_matched": None,
                                    "db_builts": [], "truncated": False})
         self.assertEqual(vuln_db.set_summary([9001, 9002]), summary)  # no row: scanned 0, not None
         self.assertEqual(vuln_db.set_servers([9001]), {})
@@ -866,7 +882,8 @@ class SetReadTests(FleetStore):
                 summary = vuln_db.set_summary(ids)
                 self.assertEqual(sorted(summary), ["critical", "db_builts", "exploited", "high", "newest_matched",
                                                    "oldest_inventory", "scanned", "servers_exploited", "truncated",
-                                                   "vulns"])
+                                                   "vuln_fixable", "vulns"])
+                self.assertEqual(summary["vuln_fixable"], sum(1 for v in idents.values() if v[3] > 0))
                 self.assertEqual(summary["scanned"], len(known))
                 self.assertEqual(summary["vulns"], len(idents))
                 self.assertEqual(summary["critical"], sum(1 for v in idents.values() if v[0] == 4))
@@ -942,6 +959,28 @@ class SetReadTests(FleetStore):
         self.assertEqual(vuln_db.set_cves([1], severity="critical")["total"], 0)
         self.assertEqual(vuln_db.set_cves([1], kev_only=True)["total"], 0)
         self.assertEqual(vuln_db.set_cves([1, 2], kev_only=True)["total"], 1)
+
+    def test_set_cves_fix_filter(self):
+        self.model[100] = [mk("nofix", "1", "ALAS-900", "High", [("CVE-2024-9000", False)], False, "")]
+        save(100, self.model[100])
+        ids = list(range(1, 41)) + [100]
+        every = self.expected_rows(ids)
+        page, rows = self.everything(vuln_db.set_cves, ids, fix_only=True)
+        self.assertEqual(rows, [r for r in every if r["fixable"] > 0])
+        self.assertTrue(0 < len(rows) < len(every))
+        self.assertEqual(page["total"], len(rows))
+        _page, rows = self.everything(vuln_db.set_cves, ids, severity="high", kev_only=True, fix_only=True)
+        self.assertEqual(rows, [r for r in every if r["fixable"] and r["kev"] and r["sev_rank"] == 3])
+        _page, rows = self.everything(vuln_db.set_cves, ids, search="CVE-2024-00", fix_only=True)
+        self.assertEqual(rows, [r for r in every if r["fixable"] and "CVE-2024-00" in r["cve"]])
+        # The filter sees the set's servers, not the fleet's: only server 2 has a fix for this one.
+        self.reset()
+        save(1, [mk("a", "1", "A1", "Low", [("CVE-2024-0900", False)], False, "")])
+        save(2, [mk("b", "1", "A2", "Low", [("CVE-2024-0900", False)], False, "2")])
+        self.assertEqual(vuln_db.set_cves([1], fix_only=True)["total"], 0)
+        self.assertEqual(vuln_db.set_cves([1, 2], fix_only=True)["total"], 1)
+        self.assertEqual(vuln_db.set_summary([1])["vuln_fixable"], 0)
+        self.assertEqual(vuln_db.set_summary([1, 2])["vuln_fixable"], 1)
 
     def test_set_cves_search_by_cve(self):
         ids = list(range(1, 31))
@@ -1137,7 +1176,7 @@ class SetReadTests(FleetStore):
                     raise RuntimeError("boom")
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM sqlite_temp_master").fetchone()[0], 0)
         self.assertEqual((os.path.getsize(store.FINDINGS_DB), os.stat(store.FINDINGS_DB).st_mtime_ns), (size, stamp))
-        self.assertEqual(vuln_db.schema_version(), 2)
+        self.assertEqual(vuln_db.schema_version(), 3)
 
     def test_set_cves_leaves_no_temp_table_behind(self):
         names = []
@@ -1340,6 +1379,150 @@ class SetReadsOnAVersionOneStoreTests(V1Builder, StoreTestCase):
         self.assertEqual(summary["vulns"], len(expected))
         self.assertEqual(vuln_db.set_cves([1, 2, 3], page_size=100)["total"], len(expected))
         self.assertEqual(vuln_db.set_cve_servers([1, 2, 3], "CVE-2024-0001")["total"], 3)
+
+
+class FixableTests(V1Builder, StoreTestCase):
+    """vuln_fixable: the vulnerabilities of a server that have a fix on at least one match, and the filter."""
+
+    def mixed(self):
+        return [
+            # One vulnerability on two packages, only the later-sorting one with a fix: counts once.
+            mk("aaa", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, ""),
+            mk("zzz", "1", "ALAS-1", "High", [("CVE-2024-0100", False)], False, "2.0"),
+            # A vulnerability that no package has a fix for: does not count.
+            mk("bbb", "1", "ALAS-2", "Critical", [("CVE-2024-0101", True)], True, ""),
+            # An advisory with no CVE, with a fix; and a plain fixed one.
+            mk("ccc", "1", "GHSA-aaaa-bbbb", "Medium", [], False, "1.1", "", "deb"),
+            mk("ddd", "1", "ALAS-4", "Low", [("CVE-2024-0102", False)], False, "9"),
+        ]
+
+    def test_computed_on_save_in_the_unit_of_vulns(self):
+        row = save(1, self.mixed())
+        self.assertEqual((row["vulns"], row["vuln_fixable"]), (4, 3))
+        self.assertEqual(vuln_db.server_summary(1)["vuln_fixable"], 3)
+        stored = self.raw().execute("SELECT vulns, vuln_fixable FROM servers WHERE server_id = 1").fetchone()
+        self.assertEqual(stored, (4, 3))
+        nofix = save(2, [mk("a", "1", "A1", "High", [("CVE-2024-0200", False)]),
+                         mk("b", "1", "A2", "Low", [("CVE-2024-0201", False)], False, "")])
+        self.assertEqual((nofix["vulns"], nofix["vuln_fixable"]), (2, 0))
+        self.assertEqual(save(3, [])["vuln_fixable"], 0)
+
+    def test_follows_a_resave_and_the_fast_path(self):
+        save(1, self.mixed())
+        self.assertEqual(save(1, self.mixed()[2:3])["vuln_fixable"], 0)  # the fixed ones are gone
+        self.assertEqual(save(1, self.mixed())["vuln_fixable"], 3)
+        again = save(1, self.mixed(), packages=999)
+        self.assertTrue(again["unchanged"])
+        self.assertEqual((again["vuln_fixable"], again["packages"]), (3, 999))
+        # A fix that arrives for the vulnerability that had none changes the match hash and the count.
+        fixed = self.mixed()
+        fixed[2] = mk("bbb", "1", "ALAS-2", "Critical", [("CVE-2024-0101", True)], True, "3")
+        self.assertEqual(save(1, fixed)["vuln_fixable"], 4)
+
+    def test_windows_rows_all_have_a_fix(self):
+        matches = [mk("KB1", "1", "CVE-2024-0300", "High", [("CVE-2024-0300", False)], False, "10.0.1", "", "windows"),
+                   mk("KB2", "1", "CVE-2024-0301", "Low", [("CVE-2024-0301", False)], False, "10.0.2", "", "windows")]
+        row = save(1, matches, os_name="Windows Server 2022")
+        self.assertEqual((row["vulns"], row["vuln_fixable"]), (2, 2))
+        self.assertEqual(vuln_db.server_cves(1, fix_only=True)["total"], 2)
+
+    def test_upgrade_from_version_2_backfills_from_the_stored_findings(self):
+        if sqlite3.sqlite_version_info < (3, 35):
+            self.skipTest("ALTER TABLE .. DROP COLUMN needs SQLite 3.35")
+        for server_id, matches in sample_matches().items():
+            save(server_id, matches)
+        save(4, self.mixed())
+        expected = {i: vuln_db.server_summary(i)["vuln_fixable"] for i in (1, 2, 3, 4)}
+        self.assertEqual(expected[4], 3)
+        # Make the file what version 2 left: no column, the representative's fix only, a stale fleet.
+        conn = self.raw()
+        conn.isolation_level = None
+        conn.execute("ALTER TABLE servers DROP COLUMN vuln_fixable")
+        conn.execute("UPDATE server_cves SET fix_version = '' WHERE server_id = 4 AND cve = 'CVE-2024-0100'")
+        conn.execute("UPDATE fleet_cves SET fixable = 0")
+        conn.execute("PRAGMA user_version = 2")
+        self.assertEqual(vuln_db.schema_version(), 2)
+        self.assertIs(vuln_db.readable(), False)  # a reader waits for the writer's upgrade
+        self.assertIsNone(vuln_db.server_summary(1))  # why the server panel route upgrades before it reads
+        self.assertEqual(vuln_db.upgrade(), 3)
+        self.assertEqual({i: vuln_db.server_summary(i)["vuln_fixable"] for i in (1, 2, 3, 4)}, expected)
+        self.assertEqual(self.fleet(), self.fleet_by_hand())
+        self.assertEqual(self.fleet()["CVE-2024-0100"][-1], 1)
+        self.assertEqual(vuln_db.upgrade(), 3)  # idempotent
+        self.assertEqual({i: vuln_db.server_summary(i)["vuln_fixable"] for i in (1, 2, 3, 4)}, expected)
+        self.assertIs(vuln_db.readable(), True)
+
+    def test_a_version_1_store_gets_the_count_too(self):
+        for with_added in (True, False):
+            with self.subTest(with_added=with_added):
+                self.reset()
+                data = self.populated_v1(with_added)
+                vuln_db.upgrade()
+                for server_id, matches in data.items():
+                    want = sum(1 for r in vuln_match.vuln_rows(matches) if r["fix_version"])
+                    self.assertEqual(vuln_db.server_summary(server_id)["vuln_fixable"], want, server_id)
+
+    def test_the_findings_filter(self):
+        save(1, self.mixed())
+        every = vuln_db.server_cves(1, page_size=100)
+        self.assertEqual(every["total"], 5)  # a row per CVE and package
+        fixed = vuln_db.server_cves(1, fix_only=True, page_size=100)
+        self.assertEqual(fixed["total"], 3)
+        self.assertEqual(sorted(r["pkg_name"] for r in fixed["rows"]), ["ccc", "ddd", "zzz"])
+        self.assertTrue(all(r["fix_version"] for r in fixed["rows"]))
+        self.assertEqual(vuln_db.server_cves(1, fix_only=False)["total"], 5)
+        # With the other filters, and the total is the filtered one.
+        self.assertEqual(vuln_db.server_cves(1, severity="high", fix_only=True)["total"], 1)
+        self.assertEqual(vuln_db.server_cves(1, severity="critical", fix_only=True)["total"], 0)
+        self.assertEqual(vuln_db.server_cves(1, kev_only=True, fix_only=True)["total"], 0)
+        self.assertEqual(vuln_db.server_cves(1, kev_only=True)["total"], 1)
+        self.assertEqual(vuln_db.server_cves(1, search="CVE-2024-010", fix_only=True)["total"], 2)
+        self.assertEqual(vuln_db.server_cves(1, search="ALAS-2", fix_only=True)["total"], 0)
+        self.assertEqual(vuln_db.server_cves(1, search="ALAS-2")["total"], 1)
+        # The package list takes the same flag.
+        packages = vuln_db.server_packages(1, fix_only=True, page_size=100)
+        self.assertEqual(sorted(r["pkg_name"] for r in packages["rows"]), ["ccc", "ddd", "zzz"])
+        self.assertEqual(vuln_db.server_packages(1, severity="low", fix_only=True)["total"], 1)
+        self.assertEqual(vuln_db.server_packages(1, fix_only=True, search="ALAS-2")["total"], 0)
+
+    def test_a_fix_on_a_lower_advisory_of_the_same_package_still_counts_and_lists(self):
+        # Package p: advisory A is Critical with no fix, advisory B is Low with a fix, for one CVE.
+        both = [mk("p", "1", "ALAS-A", "Critical", [("CVE-2024-0500", True)], True, ""),
+                mk("p", "1", "ALAS-B", "Low", [("CVE-2024-0500", False)], False, "2"),
+                mk("q", "1", "ALAS-C", "High", [("CVE-2024-0501", False)], False, "")]
+        row = save(1, both)
+        self.assertEqual((row["vulns"], row["vuln_fixable"]), (2, 1))
+        listed = vuln_db.server_cves(1, fix_only=True, page_size=100)
+        self.assertEqual([(r["cve"], r["pkg_name"], r["severity"], r["fix_version"]) for r in listed["rows"]],
+                         [("CVE-2024-0500", "p", "Critical", "2")])  # the worst row, with the package's fix
+        self.assertEqual(listed["total"], 1)
+        self.assertEqual(vuln_db.server_cves(1, page_size=100)["total"], 2)
+        for kwargs, total in (({"kev_only": True}, 1), ({"severity": "critical"}, 1), ({"severity": "low"}, 0),
+                              ({"search": "0500"}, 1), ({"search": "ALAS-A"}, 1), ({"search": "0501"}, 0),
+                              ({"search": "q"}, 0), ({"kev_only": True, "severity": "critical", "search": "p"}, 1)):
+            self.assertEqual(vuln_db.server_cves(1, fix_only=True, **kwargs)["total"], total, kwargs)
+
+    def test_the_backfill_and_a_save_pick_the_same_representative(self):
+        for with_added in (True,):
+            self.reset()
+            conn = self.make_v1(with_added)
+            data = {1: [mk("bbb", "1", "ALAS-1", "High", [("CVE-2024-0600", False)], False, "10"),
+                        mk("aaa", "1", "ALAS-1", "High", [("CVE-2024-0600", False)], False, "9"),
+                        mk("ccc", "1", "ALAS-2", "Critical", [("CVE-2024-0601", True)], True, ""),
+                        mk("ddd", "1", "ALAS-3", "Low", [("CVE-2024-0601", False)], False, "4")]}
+            self.v1_save(conn, 1, data[1], with_added)
+            conn.close()
+            vuln_db.upgrade()
+            self.assertEqual(self.server_cve_rows(1), self.expected_server_cves(data[1]))
+            self.assertEqual(vuln_db.server_summary(1)["vuln_fixable"], 2)
+
+    def test_the_findings_filter_pages_in_the_database(self):
+        matches = [mk("pkg%02d" % n, "1", "ALAS-%d" % n, "High", [("CVE-2024-%04d" % n, False)], False,
+                      "2" if n % 2 else "") for n in range(40)]
+        save(1, matches)
+        page = vuln_db.server_cves(1, fix_only=True, page=2, page_size=10)
+        self.assertEqual((page["total"], page["pages"], page["page"], len(page["rows"])), (20, 2, 2, 10))
+        self.assertTrue(all(r["fix_version"] for r in page["rows"]))
 
 
 if __name__ == "__main__":

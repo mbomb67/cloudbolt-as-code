@@ -204,15 +204,15 @@
     var xhr = null;
     var reqN = 0;               // only the newest findings request may draw
     var cache = { sig: "", key: "", view: "packages", data: null };
-    var ui = { view: "packages", q: "", sev: "", kev: false, page: 1, focus: "", selStart: null, selEnd: null, pagerFocus: false };
+    var ui = { view: "packages", q: "", sev: "", kev: false, fix: false, page: 1, focus: "", selStart: null, selEnd: null, pagerFocus: false };
 
     function alive() { return document.body.contains(rootEl) && rootEl.vulnToken === token; }
     function panel() { return $body.find(".vuln-panel")[0] || null; }
     function isActive() { var p = panel(); return !!p && p.getAttribute("data-active") === "1"; }
     function one(sel) { return $body.find(sel)[0] || null; }
-    function sig() { return [ui.view, ui.q, ui.sev, ui.kev ? 1 : 0, ui.page, PAGE_SIZE].join("|"); }
+    function sig() { return [ui.view, ui.q, ui.sev, ui.kev ? 1 : 0, ui.fix ? 1 : 0, ui.page, PAGE_SIZE].join("|"); }
     function panelKey() { var p = panel(); return p ? (p.getAttribute("data-key") || "") : ""; }
-    function filtersOn() { return !!(ui.q || ui.sev || ui.kev); }
+    function filtersOn() { return !!(ui.q || ui.sev || ui.kev || ui.fix); }
 
     // The scan buttons follow the panel: off while a job runs, while the scanner is not
     // set up, while a start request is in flight or when access is denied.
@@ -234,9 +234,11 @@
       var q = one("[data-vuln-q]");
       var sev = one("[data-vuln-sev]");
       var kev = one("[data-vuln-kev]");
+      var fix = one("[data-vuln-fix]");
       if (q && q.value !== ui.q) { q.value = ui.q; }
       if (sev) { sev.value = ui.sev; }
       if (kev) { kev.checked = ui.kev; }
+      if (fix) { fix.checked = ui.fix; }
       $body.find("[data-vuln-view]").each(function () {
         this.setAttribute("aria-pressed", this.getAttribute("data-vuln-view") === ui.view ? "true" : "false");
       });
@@ -356,6 +358,7 @@
       var view = ui.view;
       var query = { view: view, q: ui.q, severity: ui.sev, page: ui.page, page_size: PAGE_SIZE };
       if (ui.kev) { query.kev = 1; }
+      if (ui.fix) { query.fix = 1; }
       setBusy(true);
       var req = $.ajax({ url: findingsUrl, data: query, dataType: "json", cache: false });
       xhr = req;
@@ -501,6 +504,7 @@
     });
     $root.on("change", "[data-vuln-sev]", function () { ui.sev = this.value; ui.page = 1; fetchTable(); });
     $root.on("change", "[data-vuln-kev]", function () { ui.kev = this.checked; ui.page = 1; fetchTable(); });
+    $root.on("change", "[data-vuln-fix]", function () { ui.fix = this.checked; ui.page = 1; fetchTable(); });
 
     function onVisible() {
       if (!alive()) { document.removeEventListener("visibilitychange", onVisible); return; }

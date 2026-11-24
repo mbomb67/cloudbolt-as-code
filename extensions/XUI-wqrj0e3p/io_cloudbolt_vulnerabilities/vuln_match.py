@@ -309,9 +309,10 @@ def vuln_rows(matches):
 
     Each dict has cve, sev_rank (the worst of its matches), kev (any exploited
     entry), pkg_name, pkg_version and fix_version (those of the representative
-    match: the worst severity, then exploited first, then package name, version,
-    type and path) and pkg_count (distinct packages carrying it). A missing fix
-    version is the empty string."""
+    match: one with a fix first, then the worst severity, then exploited first, then
+    package name, version, type and path, so the row has a fix exactly when any of its
+    matches has, and its package and fix come from the same match) and pkg_count
+    (distinct packages carrying it). A missing fix version is the empty string."""
     found = {}
     for match in matches:
         rank = sev_rank(match.get("severity"))
@@ -326,15 +327,20 @@ def vuln_rows(matches):
             item = found.get(ident)
             if item is None:
                 # [identity rank, identity kev, rep rank, rep kev, rep package, rep match, packages]
-                found[ident] = [rank, kev, rank, kev, pkg, match, {pkg}]
+                found[ident] = [rank, kev, rank, kev, pkg, match, {pkg}, bool(match.get("fix_version"))]
                 continue
             item[6].add(pkg)
             if rank > item[0]:
                 item[0] = rank
             if kev:
                 item[1] = True
-            if (rank > item[2] or (rank == item[2] and ((kev and not item[3]) or (kev == item[3] and pkg < item[4])))):
-                item[2], item[3], item[4], item[5] = rank, kev, pkg, match
+            fixed = bool(match.get("fix_version"))
+            if fixed != item[7]:
+                better = fixed
+            else:
+                better = (rank > item[2] or (rank == item[2] and ((kev and not item[3]) or (kev == item[3] and pkg < item[4]))))
+            if better:
+                item[2], item[3], item[4], item[5], item[7] = rank, kev, pkg, match, fixed
     rows = []
     for ident, item in found.items():
         rows.append({
@@ -375,8 +381,9 @@ def match_hash(matches):
 def summarize(matches, rows=None):
     """Counts for the servers row: match counts (findings and the severity keys),
     distinct CVE ids (cves), and distinct vulnerabilities (vulns, vuln_<severity>)
-    where each vulnerability counts once at the worst severity of its matches.
-    rows is vuln_rows(matches) when the caller has it already."""
+    where each vulnerability counts once at the worst severity of its matches, and
+    vuln_fixable, how many of those vulnerabilities have a fix (a fix version on any
+    of their matches). rows is vuln_rows(matches) when the caller has it already."""
     counts = {name.lower(): 0 for name in SEVERITIES}
     cves, exploited = set(), set()
     for match in matches:
@@ -391,6 +398,7 @@ def summarize(matches, rows=None):
     counts["kev"] = len(exploited)
     counts["cves"] = len(cves)
     counts["vulns"] = len(rows)
+    counts["vuln_fixable"] = sum(1 for row in rows if row["fix_version"])
     for name in SEVERITIES:
         counts["vuln_" + name.lower()] = sum(1 for row in rows if row["sev_rank"] == _RANKS[name])
     return counts

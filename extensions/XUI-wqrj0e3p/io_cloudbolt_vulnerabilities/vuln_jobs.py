@@ -1312,7 +1312,7 @@ def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, star
     add_server_event("MODIFICATION", server, "Vulnerability scan finished: " + message, job=job)
     outputs = {"scan_id": scan_id, "status": "completed", "packages": facts["packages"], "findings": findings}
     for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves", "vulns", "vuln_critical",
-                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown"):
+                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown", "vuln_fixable"):
         outputs[key] = summary[key]
     return "SUCCESS", message, "", outputs
 
@@ -1428,6 +1428,6 @@ def _run_windows(job, server, scan_id, started, began):
     add_server_event("MODIFICATION", server, "Vulnerability scan finished: " + message, job=job)
     outputs = {"scan_id": scan_id, "status": "completed", "packages": packages, "findings": findings}
     for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves", "vulns", "vuln_critical",
-                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown"):
+                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown", "vuln_fixable"):
         outputs[key] = summary[key]
     return "SUCCESS", message, "", outputs
