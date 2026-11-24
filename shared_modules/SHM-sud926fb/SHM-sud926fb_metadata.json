@@ -1,0 +1,18 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5t7bom9y",
+            "shared_modules/SHM-qlvol7k8"
+        ]
+    },
+    "description": "Enables or removes an ApacheDown alert for an OpenShift Virtualization VM: a readiness probe, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+    "id": "SHM-sud926fb",
+    "label": "OpenShift VM Alerts",
+    "max_retries": 0,
+    "module_name": "openshift_vm_alerts",
+    "name": "openshift_vm_alerts",
+    "resource_technologies": [],
+    "script_filename": "SHM-sud926fb_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

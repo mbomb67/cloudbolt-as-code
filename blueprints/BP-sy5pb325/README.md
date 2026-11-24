@@ -16,9 +16,10 @@ Steps in a group run in parallel; the groups run in order.
 | 5 | Key Vault Certificate | A certificate is issued in Azure Key Vault, installed on the web VM with its private key, and given to the Route. |
 | 6 | NetworkPolicy: Database, App, Web | The database accepts 3306 from the app VM only, the app accepts 8080 from the web VM only, the web VM accepts 443 from the cluster's routers only. |
 | 7 | Verify App | An entry is added through the app and read back, the web VM is shown to be blocked from the database, and the public URL is opened. |
+| 8 | Enable Apache Down Alert | Adds a readiness probe on port 443 to the web VM, restarts that VM once, and creates the `ApacheDown` alert rule and the routing that posts it to the [Monitoring Alerts](../../webhooks/IWH-i7b44zvs/) webhook. A failure here does not fail the order. The alert reaches CloudBolt only when the cluster has user-defined alert routing on, the webhook has a token and the cluster can reach CloudBolt's URL; see [Enable Apache Down Alert](../../server_actions/SVA-t1z9yt6d/). |
 | 8 | Scan All Servers for Compliance | A compliance scan of each VM is started with the `cis_server_l1` profile. The order does not wait for the scans. |
 
-Deleting the resource removes the Route, Services, NetworkPolicies and the Key Vault certificate, then the VMs.
+Deleting the resource removes the Route, Services, NetworkPolicies, the web VM's alert rule and the Key Vault certificate, then the VMs.
 
 ## Order form
 
@@ -68,10 +69,12 @@ CloudBolt imports an OpenShift handler's **Pod networking** network under the na
 | Build | OHK-ca90z6g2 | Issue Key Vault Certificate for Web Server |
 | Build | OHK-yf2kpzkx | Restrict VM Ingress |
 | Build | OHK-jru4jomd | Verify 3-Tier Web App |
+| Build | OHK-jjltp87s | Enable Apache Down Alert for Tier |
 | Build | OHK-icnbjok5 | Scan All Servers for Compliance |
 | Teardown | OHK-mfcauahq | Teardown 3-Tier Web App Networking |
 | Shared module | SHM-5t7bom9y | openshift_vm_network: Services, Routes, NetworkPolicies |
 | Shared module | SHM-eanos2e0 | vm_tier_scripts: find a tier's VM and run a script on it |
+| Shared module | SHM-sud926fb | openshift_vm_alerts: the readiness probe, alert rule and delivery |
 | Shared module | SHM-ny8h0nx0 | azure_key_vault_certificates |
 | Shared module | SHM-wkubiao7 | kubevirt_api_tunnel |
 
