@@ -2,6 +2,8 @@
 
 Post-Provision orchestration action (run_seq 900) that installs DISA SCC on each new Windows server of a provisioning job and starts a first scan. Provisioning does not wait: the scan runs as a sub-job of the Provision Server job, and the report is on the server's Compliance tab when that sub-job ends. Ships enabled.
 
+A server whose blueprint still has build items to run after the server's tier is left to the blueprint's last step; see Notes.
+
 It never fails or warns provisioning. The only progress message it writes says that a scan started; a skipped server and every problem go to the provisioning job's log only. The scan sub-job, "Compliance scan: <hostname>", ends as Failure when the scan fails; that does not change the provisioning job or the order. It runs after the other Post-Provision actions in this repository (the highest other run_seq is 100, the AD join).
 
 Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/README.md).
@@ -17,7 +19,8 @@ Prerequisites are in the [Compliance extension](../../extensions/XUI-i4kzuy3y/RE
 - SCC is downloaded from DISA once per server (about 108 MB) and later scans reuse it. The profile is the Profile input, or the Windows default profile of the settings page (`MAC-1_Classified` by default) when it is empty.
 - A scan of Windows Server 2025 (t3.large) took about 17 minutes, during which the server is already handed over.
 - The scan job is a sub-job, so the default Jobs list (top-level jobs) does not show it; open it from the Provision Server job or the order. Cancelling the provisioning job also cancels a scan that is still running.
-- Anything that reboots or powers off the server while the scan runs ends the scan as failed, which is why the action runs last. A blueprint step that runs after the server is built can still do that.
+- A server is skipped when its blueprint runs other build items after the server's tier (plug-ins, scripts, installs; anything that is not a server tier): those steps can change what a scan finds, or reboot the server under it. A server added to an existing deployment counts only the plug-in items set to run on scale up. End such a blueprint with the [Scan All Servers for Compliance](../../plugins/OHK-icnbjok5/) build item, which scans every server of the deployment once the other steps are done. A tier inside a sub-blueprint only sees that sub-blueprint's items.
+- Anything that reboots or powers off the server while the scan runs ends the scan as failed, which is why the action runs last.
 - While the scan runs, the Compliance tab refuses a second scan of the same server.
 - The length of a scan is limited by the extension's scan timeout setting (30 minutes by default).
 - A server that is not powered on is not scanned.

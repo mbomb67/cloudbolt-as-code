@@ -538,9 +538,11 @@ def _queue(profile, server, mode, datastream, profile_id, cfg, job_cfg, base_url
             store_problem = NO_TARGETS_PROBLEM
         else:
             try:
-                # The links must outlive the scan itself plus the upload.
+                # The links must outlive the scan itself plus the upload, and on an OpenShift
+                # Virtualization VM the wait for the guest that comes before the scan.
+                guest_wait_min = GUEST_WAIT_SECONDS // 60 if _is_openshift_vm(server) else 0
                 targets = oscap_repo.upload_targets(
-                    server, scan_id, base_url=base_url, minutes=cfg["scan_timeout_min"] + 5
+                    server, scan_id, base_url=base_url, minutes=cfg["scan_timeout_min"] + 5 + guest_wait_min
                 )
             except oscap_repo.RepoError as exc:
                 logger.error("Compliance: no upload targets for server %s: %s", server.id, exc.detail)
@@ -674,6 +676,8 @@ class TransportError(Exception):
 # Seconds of silence after which the tunnel's SSH session sends a keepalive, so a long quiet oscap
 # run does not look idle to the cluster's API endpoint or a load balancer in front of it.
 TUNNEL_KEEPALIVE = 30
+# Seconds a scan waits for an OpenShift Virtualization guest to accept an SSH login over the tunnel.
+GUEST_WAIT_SECONDS = 300
 
 
 def _is_openshift_vm(server):
@@ -690,8 +694,10 @@ def _execute(server, script, timeout, job=None):
     out raises, with the output on the exception's .output. OpenShift
     Virtualization guests sit on the pod network and CloudBolt cannot reach them,
     so they run through the kubevirt_api_tunnel shared module (SSH over the
-    KubeVirt port-forward websocket) and raise the same way. A tunnel that cannot
-    be opened raises TransportError.
+    KubeVirt port-forward websocket) and raise the same way. A VM that was just
+    built is Running before its guest answers, and a scan started at
+    Post-Provision arrives in that gap, so the guest gets GUEST_WAIT_SECONDS to
+    accept the login first. A tunnel that cannot be opened raises TransportError.
     """
     if not _is_openshift_vm(server):
         # Server.execute_script runs the script through the server's own
@@ -722,6 +728,12 @@ def _execute(server, script, timeout, job=None):
         # connect_ssh logs in with the server's CloudBolt credentials (key or password). Used instead of
         # run_script because run_script waits at most its timeout between reads, sets no keepalive and
         # cannot run the command under sudo.
+        # wait_for_ssh retries until the guest accepts the login and writes the reason it is
+        # waiting to the job's progress; a guest that is already up passes on the first try. An
+        # older copy of the shared module has no wait_for_ssh, and then the scan connects at once.
+        wait_for_ssh = getattr(kubevirt_api_tunnel, "wait_for_ssh", None)
+        if wait_for_ssh is not None:
+            wait_for_ssh(server, timeout=GUEST_WAIT_SECONDS)
         transport = kubevirt_api_tunnel.connect_ssh(server)
         transport.set_keepalive(TUNNEL_KEEPALIVE)
         channel = transport.open_session()
