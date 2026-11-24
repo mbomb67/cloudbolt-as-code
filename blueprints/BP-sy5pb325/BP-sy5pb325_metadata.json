@@ -522,10 +522,39 @@
             "run_on_scale_up": false,
             "show_on_order_form": false,
             "tier_type": "plugin"
+        },
+        {
+            "action_name": "Scan All Servers for Compliance",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-icnbjok5"
+            },
+            "deploy_seq": 19,
+            "description": "Starts a compliance scan of every VM of the deployment; the order does not wait for the scans.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-4jhxbj1v",
+            "name": "Scan All Servers for Compliance",
+            "parameter_defaults": [
+                {
+                    "label": "Linux Profile",
+                    "name": "linux_profile_a1",
+                    "value": "cis_server_l1"
+                },
+                {
+                    "label": "Windows Profile",
+                    "name": "windows_profile_a1",
+                    "value": "MAC-1_Classified"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": true,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
         }
     ],
     "deployment_permissions": [],
-    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then starts a compliance scan of each VM.",
     "favorited": false,
     "icon": "OpenShift_Logo_a0RM62N.png",
     "id": "BP-sy5pb325",
