@@ -312,7 +312,8 @@ def _cancel_child(child):
 
 def _run(job, resource, order, entries, mode, datastream, profile_id, install, cfg, base_url):
     total = len(order)
-    limit = (int(cfg.get("timeout_min") or 30) + TIMEOUT_MARGIN_MIN) * 60
+    # A scan may first wait GUEST_WAIT_SECONDS for an OpenShift Virtualization guest (oscap_jobs._execute).
+    limit = (int(cfg.get("timeout_min") or 30) + TIMEOUT_MARGIN_MIN) * 60 + oscap_jobs.GUEST_WAIT_SECONDS
     job_id = job.id if job is not None else None
     pending = list(order)
     active = {}
