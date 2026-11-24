@@ -24,10 +24,10 @@ Extension routes and views, and shared-module code, are cached in the web worker
 
 The restart is rolling: it recycles one worker at a time. After each signal the job waits for the replacement to appear, then for it to finish importing Django (its CPU time stops growing: running at least 3 seconds and under 0.05 seconds of CPU in the last one-second sample, up to 120 seconds per worker). The other workers keep serving, so the portal stays up.
 
-Measured on a dev appliance (10 workers): each worker respawned in about 4 s and finished loading in 10-12 s; the whole roll took about 154 s; the portal and MCP endpoint answered throughout.
+Measured on a dev appliance (10 workers, two runs): each worker respawned in about 4 s and finished loading in 10-18 s; the whole roll took 154 s and 185 s. The portal and MCP endpoint kept answering, but a `fetch_job` call holding a 45-second wait was cut off with a 502 twice in one run, because its worker was recycled mid-request.
 
 ## Output
-`oldWorkerPids`, `newWorkerPids`, `signalledCount`, `perWorker` (a list of `oldPid`, `newPid`, `secondsToRespawn`, `secondsToSettle`, `settled`), `secondsUntilWorkersReplaced`, `totalSeconds`, `httpProbeStatus`, `secondsUntilHttpOk`, `message`. A dry run returns `workerPids` and `apacheParentPids` instead. Poll the returned job id with `fetch_job_log`.
+`oldWorkerPids`, `newWorkerPids`, `signalledCount`, `perWorker` (a list of `oldPid`, `newPid`, `secondsToRespawn`, `secondsToSettle`, `settled`), `secondsUntilWorkersReplaced`, `totalSeconds`, `httpProbeStatus`, `secondsUntilHttpOk`, `message`. A dry run returns `workerPids` and `apacheParentPids` instead. Poll the returned job id with short calls (`fetch_job_log`, or `fetch_job` without a long `wait_seconds`) and retry a 502.
 
 The job succeeds once every old worker is replaced by a new one (up to 15 minutes), then probes the appliance's own site until it answers with a status below 500. If the workers were replaced but the probe never succeeded, the job still succeeds and the message carries a warning.
 
