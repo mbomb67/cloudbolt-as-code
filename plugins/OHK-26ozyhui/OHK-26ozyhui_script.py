@@ -2,7 +2,7 @@
 Restart Web Workers (Dev Appliances Only) (MCP Tool Action plugin).
 
 DEVELOPMENT APPLIANCES ONLY. Never deploy this to a production appliance: it
-interrupts every in-flight web request, synchronous action, inbound webhook
+works on any appliance it is synced to, and it interrupts every in-flight web request, synchronous action, inbound webhook
 and order-form call while the web tier reloads.
 
 Why it exists: UI extension routes and views, and shared-module code, are
@@ -25,8 +25,8 @@ new worker to finish importing Django (CPU time stops growing) before the
 next, so the other workers keep serving; "all" signals every worker at once.
 
 Safety gates: the caller must be a CloudBolt admin, the action must run as a
-job (a synchronous run would kill the request it runs in), and the file
-OPT_IN_FILE must exist unless dry run is true.
+job (a synchronous run would kill the request it runs in). A dry run never
+signals anything.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -47,7 +47,6 @@ from utilities.logger import ThreadLogger
 
 logger = ThreadLogger(__name__)
 
-OPT_IN_FILE = "/var/opt/cloudbolt/proserv/allow_dev_web_restart"
 WORKER_CMDLINE_NAME = "cloudbolt"
 POLL_INTERVAL_SECONDS = 2
 OVERALL_TIMEOUT_SECONDS = 180
@@ -421,12 +420,10 @@ def run(job, *args, **kwargs):
                 f"Unknown dev_web_restart_mode '{inputs['mode']}'. Use 'rolling' "
                 "(default) or 'all'."
             )
-        opted_in = os.path.exists(OPT_IN_FILE)
         if inputs["dry_run"]:
             workers, parents = _scan_workers()
             message = (
-                f"Dry run: {len(workers)} web workers matched, nothing was signalled. "
-                f"Opt-in file {OPT_IN_FILE} {'exists' if opted_in else 'does not exist'}."
+                f"Dry run: {len(workers)} web workers matched, nothing was signalled."
             )
             logger.info(message)
             return {
@@ -437,18 +434,9 @@ def run(job, *args, **kwargs):
                     "dryRun": True,
                     "workerPids": workers,
                     "apacheParentPids": parents,
-                    "optInFileExists": opted_in,
                     "message": message,
                 },
             }
-        if not opted_in:
-            return _failure(
-                f"Refused: the file {OPT_IN_FILE} does not exist. That file marks this "
-                "appliance as a development appliance that may have its web workers "
-                "restarted on demand. Its absence means this appliance is not marked as "
-                "a development appliance. Create it only on a development appliance, "
-                "never on a production one."
-            )
         return _restart(inputs["mode"])
     except Exception as exc:
         logger.error("Web worker restart failed: %s", exc)
