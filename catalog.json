@@ -850,6 +850,17 @@
     "enabled": true
   },
   {
+    "id": "XUI-wqrj0e3p",
+    "type": "extensions",
+    "name": "Vulnerabilities",
+    "description": "Adds a Vulnerabilities tab to Linux servers that lists the known CVEs in their installed software, found by matching a software list against a vulnerability database on the appliance.",
+    "path": "extensions/XUI-wqrj0e3p",
+    "readme": "extensions/XUI-wqrj0e3p/README.md",
+    "uses": [],
+    "used_by": [],
+    "enabled": true
+  },
+  {
     "id": "XUI-wyauaxbl",
     "type": "extensions",
     "name": "StormForge Optimize Live",

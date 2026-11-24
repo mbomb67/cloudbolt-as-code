@@ -1,0 +1,518 @@
+{% comment %}
+  Script for the Vulnerabilities server tab. vuln_tab.html includes this once per
+  injection; the script initialises every root it finds that has not been
+  initialised yet, so a tab injected twice never stacks timers. The styles are
+  vuln_styles.html.
+  The panel (cards, banners, toolbar) is server-rendered HTML. The table and the
+  pager are drawn here from the findings JSON, with DOM methods and textContent
+  only: no server value is ever put into innerHTML.
+{% endcomment %}
+{% include "io_cloudbolt_vulnerabilities/templates/vuln_styles.html" %}
+<script>
+(function () {
+  "use strict";
+  var PAGE_SIZE = 25;
+  var POLL_MS = 5000;
+  var DEBOUNCE_MS = 300;
+  var CVE_RE = /^CVE-\d{4}-\d+$/;
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function pad(n) { return n < 10 ? "0" + n : String(n); }
+
+  // A time in the browser's local time: "today 09:14", "yesterday 09:14", "23 Nov 09:14",
+  // or with kind "day" only the date. An unreadable value is shown as it came.
+  function fmtTime(iso, kind) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return iso; }
+    var now = new Date();
+    var yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    function same(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+    var label = d.getDate() + " " + MONTHS[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? " " + d.getFullYear() : "");
+    if (kind === "day") { return label; }
+    var hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    if (same(d, now)) { return "today " + hm; }
+    if (same(d, yest)) { return "yesterday " + hm; }
+    return label + " " + hm;
+  }
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined && text !== null) { node.textContent = text; }
+    return node;
+  }
+  function cell(cls) { return el("td", cls || ""); }
+  function dash(value) { return value ? String(value) : "–"; }
+
+  function sevPill(severity) {
+    var name = severity || "Unknown";
+    var cls = "vuln-pill" + (name === "Critical" ? " vuln-pill-crit" : (name === "High" ? " vuln-pill-high" : ""));
+    return el("span", cls, name);
+  }
+
+  function kevCell(exploited) {
+    var td = cell();
+    if (exploited) {
+      var mark = el("span", "vuln-kev");
+      var dot = el("span", "", "● ");
+      dot.setAttribute("aria-hidden", "true");
+      mark.appendChild(dot);
+      mark.appendChild(document.createTextNode("Exploited"));
+      td.appendChild(mark);
+    } else {
+      td.appendChild(el("span", "vuln-dim", "No"));
+    }
+    return td;
+  }
+
+  function packageCell(name, type, path) {
+    var td = cell();
+    td.appendChild(el("div", "vuln-name", name || ""));
+    var sub = (type || "") + (path ? (type ? " · " : "") + path : "");
+    if (sub) { td.appendChild(el("div", "vuln-dim vuln-mono", sub)); }
+    return td;
+  }
+
+  function monoCell(value) {
+    var td = cell("vuln-ver");
+    td.appendChild(el("span", "vuln-mono", dash(value)));
+    return td;
+  }
+
+  function headRow(names) {
+    var tr = document.createElement("tr");
+    names.forEach(function (name) {
+      var th = el("th", "", name);
+      th.setAttribute("scope", "col");
+      tr.appendChild(th);
+    });
+    return tr;
+  }
+
+  function advisoryCell(r) {
+    var td = cell();
+    var ids = r.advisories || [];
+    var cves = r.cves || [];
+    if (!ids.length && !cves.length) { td.appendChild(el("span", "vuln-dim", "–")); return td; }
+    var line = el("div", "vuln-mono", ids.join(", "));
+    var moreIds = (r.advisory_count || 0) - ids.length;
+    if (moreIds > 0) { line.appendChild(el("span", "vuln-dim", (ids.length ? " " : "") + "+" + moreIds + " more")); }
+    if (ids.length || moreIds > 0) { td.appendChild(line); }
+    // CVE ids that are not already the advisory id.
+    var extra = cves.filter(function (c) { return ids.indexOf(c) === -1; });
+    var moreCves = (r.cve_count || 0) - cves.length;
+    if (extra.length || moreCves > 0) {
+      var dim = el("div", "vuln-dim vuln-mono", extra.join(", "));
+      if (moreCves > 0) { dim.appendChild(document.createTextNode((extra.length ? " " : "") + "+" + moreCves + " more")); }
+      td.appendChild(dim);
+    }
+    return td;
+  }
+
+  function cveCell(r) {
+    var td = cell();
+    var id = r.cve || "";
+    var top = el("div", "vuln-name");
+    if (CVE_RE.test(id)) {
+      var a = el("a", "vuln-link vuln-mono", id);
+      a.setAttribute("href", "https://nvd.nist.gov/vuln/detail/" + id);
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+      top.appendChild(a);
+    } else {
+      top.appendChild(el("span", "vuln-mono", id));
+    }
+    td.appendChild(top);
+    if (r.vuln_id && r.vuln_id !== id) { td.appendChild(el("div", "vuln-dim vuln-mono", r.vuln_id)); }
+    return td;
+  }
+
+  function buildTable(view, rows) {
+    var table = el("table", "vuln-table");
+    var thead = document.createElement("thead");
+    var tbody = document.createElement("tbody");
+    if (view === "cves") {
+      thead.appendChild(headRow(["CVE", "Severity", "Package", "Installed", "Fixed in", "Exploited"]));
+      rows.forEach(function (r) {
+        var tr = document.createElement("tr");
+        tr.appendChild(cveCell(r));
+        var sev = cell(); sev.appendChild(sevPill(r.severity)); tr.appendChild(sev);
+        tr.appendChild(packageCell(r.pkg_name, r.pkg_type, r.path));
+        tr.appendChild(monoCell(r.pkg_version));
+        tr.appendChild(monoCell(r.fix_version));
+        tr.appendChild(kevCell(!!r.kev));
+        tbody.appendChild(tr);
+      });
+    } else {
+      thead.appendChild(headRow(["Package", "Installed", "Fixed in", "Worst", "Advisory", "Exploited"]));
+      rows.forEach(function (r) {
+        var tr = document.createElement("tr");
+        tr.appendChild(packageCell(r.pkg_name, r.pkg_type, r.path));
+        tr.appendChild(monoCell(r.pkg_version));
+        tr.appendChild(monoCell(r.fix_version));
+        var sev = cell(); sev.appendChild(sevPill(r.severity)); tr.appendChild(sev);
+        tr.appendChild(advisoryCell(r));
+        tr.appendChild(kevCell(!!r.kev));
+        tbody.appendChild(tr);
+      });
+    }
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function pageButton(label, to, ariaLabel, disabled, current) {
+    var b = el("button", "", label);
+    b.setAttribute("type", "button");
+    b.setAttribute("data-vuln-act", "page");
+    b.setAttribute("data-vuln-to", String(to));
+    if (ariaLabel) { b.setAttribute("aria-label", ariaLabel); }
+    if (current) { b.setAttribute("aria-current", "page"); }
+    if (disabled) { b.disabled = true; }
+    return b;
+  }
+
+  // 1 ... (page-1) page (page+1) ... last
+  function pageList(page, pages) {
+    var keep = {};
+    [1, pages, page - 1, page, page + 1].forEach(function (n) { if (n >= 1 && n <= pages) { keep[n] = true; } });
+    var out = [];
+    var last = 0;
+    Object.keys(keep).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+      if (last && n - last > 1) { out.push(0); }
+      out.push(n);
+      last = n;
+    });
+    return out;
+  }
+
+  function initRoot(rootEl) {
+    var $root = $(rootEl);
+    var token = String(Date.now()) + ":" + Math.random();
+    rootEl.vulnToken = token;
+    rootEl.setAttribute("data-vuln-init", "1");
+    var $body = $root.find("[data-vuln-body]");
+    var panelUrl = $root.data("panel-url");
+    var startUrl = $root.data("start-url");
+    var findingsUrl = $root.data("findings-url");
+    var csrf = $root.data("csrf") || "";
+    var timer = null;
+    var debounce = null;
+    var retry = null;           // pending re-fetch after an "unavailable" answer
+    var loading = false;
+    var busy = false;
+    var xhr = null;
+    var reqN = 0;               // only the newest findings request may draw
+    var cache = { sig: "", key: "", view: "packages", data: null };
+    var ui = { view: "packages", q: "", sev: "", kev: false, page: 1, focus: "", selStart: null, selEnd: null, pagerFocus: false };
+
+    function alive() { return document.body.contains(rootEl) && rootEl.vulnToken === token; }
+    function panel() { return $body.find(".vuln-panel")[0] || null; }
+    function isActive() { var p = panel(); return !!p && p.getAttribute("data-active") === "1"; }
+    function one(sel) { return $body.find(sel)[0] || null; }
+    function sig() { return [ui.view, ui.q, ui.sev, ui.kev ? 1 : 0, ui.page, PAGE_SIZE].join("|"); }
+    function panelKey() { var p = panel(); return p ? (p.getAttribute("data-key") || "") : ""; }
+    function filtersOn() { return !!(ui.q || ui.sev || ui.kev); }
+
+    // The scan buttons follow the panel: off while a job runs, while the scanner is not
+    // set up, while a start request is in flight or when access is denied.
+    function syncScan() {
+      var p = panel();
+      var off = busy || !p || p.getAttribute("data-active") === "1" || p.getAttribute("data-ready") === "0" || p.getAttribute("data-denied") === "1";
+      $body.find('[data-vuln-act="scan"]').prop("disabled", off);
+    }
+
+    function snapshot() {
+      var a = document.activeElement;
+      ui.focus = "";
+      if (a && $body[0].contains(a)) {
+        ui.focus = a.getAttribute("data-vuln-focus") || "";
+        if (a.type === "search") { ui.selStart = a.selectionStart; ui.selEnd = a.selectionEnd; }
+      }
+    }
+    function syncControls() {
+      var q = one("[data-vuln-q]");
+      var sev = one("[data-vuln-sev]");
+      var kev = one("[data-vuln-kev]");
+      if (q && q.value !== ui.q) { q.value = ui.q; }
+      if (sev) { sev.value = ui.sev; }
+      if (kev) { kev.checked = ui.kev; }
+      $body.find("[data-vuln-view]").each(function () {
+        this.setAttribute("aria-pressed", this.getAttribute("data-vuln-view") === ui.view ? "true" : "false");
+      });
+    }
+    function restoreFocus() {
+      if (!ui.focus) { return; }
+      var node = one('[data-vuln-focus="' + ui.focus + '"]');
+      if (!node || node.disabled) { return; }
+      node.focus();
+      if (node.type === "search" && ui.selStart !== null) {
+        try { node.setSelectionRange(ui.selStart, ui.selEnd); } catch (e) { /* not selectable */ }
+      }
+    }
+    function formatTimes() {
+      $body.find("[data-vuln-time]").each(function () {
+        var iso = this.getAttribute("data-vuln-time");
+        this.textContent = fmtTime(iso, this.getAttribute("data-vuln-fmt"));
+        this.setAttribute("title", iso);
+      });
+    }
+
+    function showAlert(message) {
+      var box = one("[data-vuln-alert]");
+      if (!box) { return; }
+      $(box).empty();
+      if (!message) { box.hidden = true; return; }
+      var row = el("div", "vuln-alert");
+      var icon = el("i", "bi bi-exclamation-triangle-fill");
+      icon.setAttribute("aria-hidden", "true");
+      row.appendChild(icon);
+      row.appendChild(el("div", "", message));
+      box.appendChild(row);
+      box.hidden = false;
+    }
+    function setStatus(message) {
+      var node = one("[data-vuln-status]");
+      if (node) { node.textContent = message || ""; }
+    }
+
+    // Keeping the body at its old height while the table is empty or being fetched stops the
+    // page from jumping to the top when the panel is swapped.
+    function holdHeight() { $body.css("min-height", $body.outerHeight() + "px"); }
+    function releaseHeight() { $body.css("min-height", ""); }
+    function setBusy(on) {
+      var wrap = one("[data-vuln-table]");
+      if (wrap) { $(wrap).toggleClass("vuln-busy", on); wrap.setAttribute("aria-busy", on ? "true" : "false"); }
+    }
+
+    // ---- table ----
+    function render(view, data) {
+      var wrap = one("[data-vuln-table]");
+      var pager = one("[data-vuln-pager]");
+      if (!wrap || !pager) { return; }
+      $(wrap).empty();
+      $(pager).empty();
+      setStatus("");
+      var rows = (data && data.rows) || [];
+      var total = (data && data.total) || 0;
+      var page = (data && data.page) || 1;
+      var size = (data && data.page_size) || PAGE_SIZE;
+      var pages = (data && data.pages) || 1;
+      if (!rows.length) {
+        wrap.appendChild(el("div", "vuln-nomatch", filtersOn() ? "No findings match these filters." : "No known vulnerabilities were found in this software list."));
+      } else {
+        wrap.appendChild(buildTable(view, rows));
+      }
+      // The CVE view lists one row per CVE and package, so its count is rows, not distinct CVEs.
+      var noun = view === "cves" ? "rows" : "packages with findings";
+      var from = total ? (page - 1) * size + 1 : 0;
+      var to = Math.min(page * size, total);
+      pager.appendChild(el("span", "", total ? (from + "–" + to + " of " + total + " " + noun) : ("0 " + noun)));
+      if (pages > 1) {
+        var nav = el("span", "vuln-pages");
+        nav.setAttribute("role", "navigation");
+        nav.setAttribute("aria-label", "Pages");
+        nav.appendChild(pageButton("‹", page - 1, "Previous page", page <= 1, false));
+        pageList(page, pages).forEach(function (n) {
+          if (n === 0) { nav.appendChild(el("span", "vuln-gap", "…")); }
+          else { nav.appendChild(pageButton(String(n), n, "Page " + n, false, n === page)); }
+        });
+        nav.appendChild(pageButton("›", page + 1, "Next page", page >= pages, false));
+        pager.appendChild(nav);
+      }
+      if (ui.pagerFocus) {
+        ui.pagerFocus = false;
+        var current = pager.querySelector('[aria-current="page"]');
+        if (current) { current.focus(); }
+      }
+    }
+
+    // The findings store answers "unavailable" while it is being updated: say so, keep the
+    // filters and the page, and ask again on the next tick.
+    function showUnavailable() {
+      var wrap = one("[data-vuln-table]");
+      var pager = one("[data-vuln-pager]");
+      if (!wrap || !pager) { return; }
+      $(wrap).empty();
+      $(pager).empty();
+      setStatus("");
+      wrap.appendChild(el("div", "vuln-nomatch", "The results are being updated. Try again in a moment."));
+      cache = { sig: "", key: "", view: "packages", data: null };
+      if (retry) { clearTimeout(retry); }
+      retry = setTimeout(function () { retry = null; fetchTable(); }, POLL_MS);
+    }
+
+    function fetchTable() {
+      if (debounce) { clearTimeout(debounce); debounce = null; }
+      if (retry) { clearTimeout(retry); retry = null; }
+      if (!alive() || !findingsUrl) { return; }
+      var p = panel();
+      if (!p || p.getAttribute("data-results") !== "1") { return; }
+      if (xhr) { xhr.abort(); xhr = null; }
+      var mine = ++reqN;
+      var key = panelKey();
+      var view = ui.view;
+      var query = { view: view, q: ui.q, severity: ui.sev, page: ui.page, page_size: PAGE_SIZE };
+      if (ui.kev) { query.kev = 1; }
+      setBusy(true);
+      var req = $.ajax({ url: findingsUrl, data: query, dataType: "json", cache: false });
+      xhr = req;
+      req.done(function (data) {
+        if (!alive() || mine !== reqN) { return; }
+        if (data && data.unavailable) { showUnavailable(); return; }
+        if (data && typeof data.page === "number" && data.page !== ui.page) { ui.page = data.page; }   // the server clamps to the last page
+        cache = { sig: sig(), key: key, view: view, data: data };
+        render(view, data);
+      }).fail(function (x, status) {
+        if (!alive() || mine !== reqN || status === "abort") { return; }
+        var err = x && x.responseJSON && x.responseJSON.error;
+        setStatus(err || ("Could not load the findings (HTTP " + (x && x.status) + ")."));
+      }).always(function () {
+        if (mine !== reqN) { return; }
+        xhr = null;
+        setBusy(false);
+        releaseHeight();
+      });
+    }
+
+    // After a panel swap: draw from the cache when nothing that changes the table changed,
+    // fetch otherwise. The 5 second refresh therefore never re-queries an unchanged table.
+    function refreshTable() {
+      var p = panel();
+      if (!p || p.getAttribute("data-results") !== "1") { releaseHeight(); return; }
+      if (cache.data && cache.sig === sig() && cache.key === panelKey()) {
+        render(cache.view, cache.data);
+        releaseHeight();
+        return;
+      }
+      fetchTable();
+    }
+
+    function queueFetch() {
+      if (debounce) { clearTimeout(debounce); }
+      debounce = setTimeout(function () { debounce = null; fetchTable(); }, DEBOUNCE_MS);
+    }
+
+    // ---- panel ----
+    function schedule() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (!alive() || !isActive()) { return; }
+      timer = setTimeout(function () {
+        timer = null;
+        if (!alive()) { return; }
+        if (document.hidden) { return; }   // resumes from the visibilitychange handler
+        load();
+      }, POLL_MS);
+    }
+
+    function load() {
+      if (loading || !alive()) { return; }
+      loading = true;
+      $root.addClass("vuln-loading");
+      $body.attr("aria-busy", "true");
+      $.ajax({ url: panelUrl, dataType: "html", cache: false })
+        .done(function (html) {
+          if (!alive()) { return; }
+          snapshot();
+          if (panel()) { holdHeight(); }
+          $body.html(html);
+          syncControls();
+          formatTimes();
+          syncScan();
+          refreshTable();
+          restoreFocus();
+          if (window.c2 && c2.tooltips) { c2.tooltips.init($body); }
+        })
+        .fail(function (xhr2) {
+          if (!alive() || panel()) { return; }
+          $body.empty();
+          var card = el("div", "vuln-card vuln-card-flush");
+          var row = el("div", "vuln-alert");
+          var icon = el("i", "bi bi-exclamation-triangle-fill");
+          icon.setAttribute("aria-hidden", "true");
+          row.appendChild(icon);
+          row.appendChild(el("div", "", "Could not load this panel (HTTP " + (xhr2 && xhr2.status) + ")."));
+          card.appendChild(row);
+          $body[0].appendChild(card);
+        })
+        .always(function () {
+          loading = false;
+          $root.removeClass("vuln-loading");
+          $body.attr("aria-busy", "false");
+          syncScan();
+          schedule();
+        });
+    }
+
+    function start() {
+      if (busy || !panel() || !startUrl) { return; }
+      busy = true;
+      showAlert("");
+      syncScan();
+      $.ajax({
+        url: startUrl,
+        method: "POST",
+        contentType: "application/json",
+        dataType: "json",
+        headers: { "Accept": "application/json", "X-CSRFToken": csrf },
+        data: JSON.stringify({})
+      }).done(function () {
+        busy = false;
+        if (!alive()) { return; }
+        load();
+      }).fail(function (x) {
+        busy = false;
+        if (!alive()) { return; }
+        syncScan();
+        var data = x.responseJSON || {};
+        showAlert(data.error || ("Could not start (HTTP " + x.status + ")."));
+      });
+    }
+
+    // ---- events ----
+    $root.on("click", "[data-vuln-act]", function (e) {
+      var node = this;
+      if (node.disabled) { return; }
+      var act = node.getAttribute("data-vuln-act");
+      e.preventDefault();
+      if (act === "reload") { load(); }
+      else if (act === "scan") { start(); }
+      else if (act === "view") {
+        var view = node.getAttribute("data-vuln-view") === "cves" ? "cves" : "packages";
+        if (view === ui.view) { return; }
+        ui.view = view;
+        ui.page = 1;
+        syncControls();
+        fetchTable();
+      } else if (act === "page") {
+        var to = parseInt(node.getAttribute("data-vuln-to"), 10);
+        if (!(to >= 1) || to === ui.page) { return; }
+        ui.page = to;
+        ui.pagerFocus = true;
+        fetchTable();
+      }
+    });
+    $root.on("input", "[data-vuln-q]", function () {
+      ui.q = this.value.slice(0, 100);
+      ui.page = 1;
+      queueFetch();
+    });
+    $root.on("change", "[data-vuln-sev]", function () { ui.sev = this.value; ui.page = 1; fetchTable(); });
+    $root.on("change", "[data-vuln-kev]", function () { ui.kev = this.checked; ui.page = 1; fetchTable(); });
+
+    function onVisible() {
+      if (!alive()) { document.removeEventListener("visibilitychange", onVisible); return; }
+      if (!document.hidden && isActive()) { load(); }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    load();
+  }
+
+  $(function () {
+    $("[data-vuln-root]").each(function () {
+      if (!this.getAttribute("data-vuln-init")) { initRoot(this); }
+    });
+  });
+})();
+</script>
