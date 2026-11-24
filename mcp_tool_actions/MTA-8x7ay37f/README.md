@@ -21,21 +21,21 @@ Extension routes and views, and shared-module code, are cached in the web worker
 | Input | Type | Meaning |
 |---|---|---|
 | `dev_web_restart_dry_run` | string, optional | `true`, `yes` or `1` lists the matched workers without signalling them; anything else restarts |
-| `dev_web_restart_mode` | string, optional | `rolling` (default) or `all`; anything else is refused |
 
-`rolling` recycles one worker at a time. After each signal the job waits for the replacement to appear, then for it to finish importing Django (its CPU time stops growing: running at least 3 seconds and under 0.05 seconds of CPU in the last one-second sample, up to 120 seconds per worker). The other workers keep serving, so the portal stays up. `all` signals every worker at once: faster, but the web tier is unavailable for the whole re-import window.
+The restart is rolling: it recycles one worker at a time. After each signal the job waits for the replacement to appear, then for it to finish importing Django (its CPU time stops growing: running at least 3 seconds and under 0.05 seconds of CPU in the last one-second sample, up to 120 seconds per worker). The other workers keep serving, so the portal stays up.
+
+Measured on a dev appliance (10 workers): each worker respawned in about 4 s and finished loading in 10-12 s; the whole roll took about 154 s; the portal and MCP endpoint answered throughout.
 
 ## Output
-`mode`, `oldWorkerPids`, `newWorkerPids`, `signalledCount`, `perWorker` (a list of `oldPid`, `newPid`, `secondsToRespawn`, `secondsToSettle`, `settled`; empty in `all` mode), `secondsUntilWorkersReplaced`, `totalSeconds`, `httpProbeStatus`, `secondsUntilHttpOk`, `message`. A dry run returns `workerPids` and `apacheParentPids` instead. Poll the returned job id with `fetch_job_log`.
+`oldWorkerPids`, `newWorkerPids`, `signalledCount`, `perWorker` (a list of `oldPid`, `newPid`, `secondsToRespawn`, `secondsToSettle`, `settled`), `secondsUntilWorkersReplaced`, `totalSeconds`, `httpProbeStatus`, `secondsUntilHttpOk`, `message`. A dry run returns `workerPids` and `apacheParentPids` instead. Poll the returned job id with `fetch_job_log`.
 
-The job succeeds once every old worker is replaced by a new one (up to 180 seconds in `all` mode, 15 minutes in `rolling`), then probes the appliance's own site until it answers with a status below 500. If the workers were replaced but the probe never succeeded, the job still succeeds and the message carries a warning.
+The job succeeds once every old worker is replaced by a new one (up to 15 minutes), then probes the appliance's own site until it answers with a status below 500. If the workers were replaced but the probe never succeeded, the job still succeeds and the message carries a warning.
 
 ## Effects on a running appliance
 - Jobs keep running, because the job engine is a separate process. A job that calls back to the appliance over HTTP may see errors during the window.
 - Work inside a web request is cut off.
 - UI logins survive, because sessions are stored outside the workers.
-- Rolling (default): the portal keeps answering. For a few minutes some requests may still reach old-code workers, so a new extension route can return 404 until the roll finishes, and a request in flight on the worker being recycled is cut off. A worker that mod_wsgi already recycled is skipped and recorded; only the workers that existed when the run started are ever signalled.
-- All: the web tier is unavailable for a few seconds to a minute, so MCP calls may fail briefly. Retry them.
+- The portal keeps answering. For a few minutes some requests may still reach old-code workers, so a new extension route can return 404 until the roll finishes, and a request in flight on the worker being recycled is cut off. A worker that mod_wsgi already recycled is skipped and recorded; only the workers that existed when the run started are ever signalled.
 - The job engine is not restarted, so shared-module code cached there still needs a job-engine restart.
 
 ## Notes

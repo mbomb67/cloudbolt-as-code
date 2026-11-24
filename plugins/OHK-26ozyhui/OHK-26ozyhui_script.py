@@ -20,9 +20,9 @@ command line to the display name "cloudbolt" while /proc/<pid>/comm stays
 worker children also run as cloudbolt and are also named httpd, but keep the
 httpd binary as their command line, so they are never signalled.
 
-Modes: "rolling" (default) recycles one worker at a time and waits for each
+The restart is rolling: it recycles one worker at a time and waits for each
 new worker to finish importing Django (CPU time stops growing) before the
-next, so the other workers keep serving; "all" signals every worker at once.
+next, so the other workers keep serving.
 
 Safety gates: the caller must be a CloudBolt admin, the action must run as a
 job (a synchronous run would kill the request it runs in). A dry run never
@@ -49,7 +49,6 @@ logger = ThreadLogger(__name__)
 
 WORKER_CMDLINE_NAME = "cloudbolt"
 POLL_INTERVAL_SECONDS = 2
-OVERALL_TIMEOUT_SECONDS = 180
 HTTP_PROBE_TIMEOUT_SECONDS = 10
 HTTP_PROBE_TOTAL_SECONDS = 180
 ROLLING_TIMEOUT_SECONDS = 900
@@ -57,7 +56,6 @@ SETTLE_WAIT_SECONDS = 120
 SETTLE_SAMPLE_SECONDS = 1
 SETTLE_MIN_AGE_SECONDS = 3
 SETTLE_MAX_CPU_DELTA = 0.05
-MODES = ("rolling", "all")
 PROC = "/proc"
 CLOCK_TICKS = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
 
@@ -78,11 +76,9 @@ def _failure(message):
 def _read_inputs():
     raw = {
         "dev_web_restart_dry_run": """{{ dev_web_restart_dry_run }}""",
-        "dev_web_restart_mode": """{{ dev_web_restart_mode }}""",
     }
     dry_run = _text(raw["dev_web_restart_dry_run"]).lower() in ("true", "yes", "1")
-    mode = _text(raw["dev_web_restart_mode"]).lower() or "rolling"
-    return {"dry_run": dry_run, "mode": mode}
+    return {"dry_run": dry_run}
 
 
 def _read(path):
@@ -248,13 +244,13 @@ def _wait_until_settled(pid, max_wait=SETTLE_WAIT_SECONDS):
     return False, round(time.time() - begun, 1)
 
 
-def _finish(mode, old_workers, new_workers, sent, per_worker, replaced_after, started, deadline):
-    """Probe the site and build the SUCCESS result shared by both modes."""
+def _finish(old_workers, new_workers, sent, per_worker, replaced_after, started, deadline):
+    """Probe the site and build the SUCCESS result."""
     logger.info("Web workers replaced after %s seconds: %s", replaced_after, new_workers)
     base_url = _base_url()
     probe_status, probe_seconds = _probe_http(base_url, started, deadline)
     message = (
-        f"Mode {mode}: signalled {sent} of {len(old_workers)} web workers; all were "
+        f"Signalled {sent} of {len(old_workers)} web workers; all were "
         f"replaced after {replaced_after} seconds."
     )
     if probe_seconds is None:
@@ -275,7 +271,6 @@ def _finish(mode, old_workers, new_workers, sent, per_worker, replaced_after, st
         "output_message": message,
         "error_message": "",
         "outputs": {
-            "mode": mode,
             "oldWorkerPids": old_workers,
             "newWorkerPids": new_workers,
             "signalledCount": sent,
@@ -351,12 +346,12 @@ def _restart_rolling(old_workers):
         return _failure(f"Rolling restart finished but old workers are still running: {still_old}.")
     replaced_after = round(time.time() - started, 1)
     return _finish(
-        "rolling", old_workers, new_workers, sent, per_worker, replaced_after, started,
+        old_workers, new_workers, sent, per_worker, replaced_after, started,
         time.time() + HTTP_PROBE_TOTAL_SECONDS,
     )
 
 
-def _restart(mode):
+def _restart():
     old_workers, _ = _scan_workers()
     if not old_workers:
         return _failure(
@@ -364,35 +359,7 @@ def _restart(mode):
             "user under the Apache parent) were found, so nothing was signalled. This "
             "does not look like a CloudBolt web appliance."
         )
-    if mode == "rolling":
-        return _restart_rolling(old_workers)
-    logger.info("Signalling %s web workers: %s", len(old_workers), old_workers)
-    started = time.time()
-    deadline = started + OVERALL_TIMEOUT_SECONDS
-    sent = _signal_workers(old_workers)
-    old_set = set(old_workers)
-
-    replaced_after = None
-    new_workers = []
-    while time.time() < deadline:
-        time.sleep(POLL_INTERVAL_SECONDS)
-        current, _ = _scan_workers()
-        if len(current) == len(old_workers) and not (set(current) & old_set):
-            new_workers = current
-            replaced_after = round(time.time() - started, 1)
-            break
-    if replaced_after is None:
-        current, _ = _scan_workers()
-        still_old = sorted(set(current) & old_set)
-        return _failure(
-            f"Web workers were not all replaced within {OVERALL_TIMEOUT_SECONDS} seconds. "
-            f"Still running with the old pids: {still_old or 'none'}; "
-            f"{len(current)} of {len(old_workers)} workers exist."
-        )
-    return _finish(
-        "all", old_workers, new_workers, len(sent), [], replaced_after, started,
-        time.time() + HTTP_PROBE_TOTAL_SECONDS,
-    )
+    return _restart_rolling(old_workers)
 
 
 def run(job, *args, **kwargs):
@@ -415,11 +382,6 @@ def run(job, *args, **kwargs):
 
     try:
         inputs = _read_inputs()
-        if inputs["mode"] not in MODES:
-            return _failure(
-                f"Unknown dev_web_restart_mode '{inputs['mode']}'. Use 'rolling' "
-                "(default) or 'all'."
-            )
         if inputs["dry_run"]:
             workers, parents = _scan_workers()
             message = (
@@ -437,7 +399,7 @@ def run(job, *args, **kwargs):
                     "message": message,
                 },
             }
-        return _restart(inputs["mode"])
+        return _restart()
     except Exception as exc:
         logger.error("Web worker restart failed: %s", exc)
         return _failure(f"Could not restart the web workers: {exc}")

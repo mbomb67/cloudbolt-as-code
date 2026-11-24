@@ -1228,7 +1228,7 @@
     "id": "MTA-8x7ay37f",
     "type": "mcp_tool_actions",
     "name": "Restart Web Workers (Dev Appliances Only)",
-    "description": "Recycles the mod_wsgi web worker processes on a development appliance, one at a time by default, so freshly synced extension routes and views load.",
+    "description": "Recycles the mod_wsgi web worker processes on a development appliance, one at a time, so freshly synced extension routes and views load.",
     "path": "mcp_tool_actions/MTA-8x7ay37f",
     "readme": "mcp_tool_actions/MTA-8x7ay37f/README.md",
     "uses": [
@@ -2123,7 +2123,7 @@
     "id": "OHK-26ozyhui",
     "type": "plugins",
     "name": "Restart Web Workers (Dev Appliances Only)",
-    "description": "Recycles the mod_wsgi web worker processes on a development appliance, one at a time by default, so freshly synced extension routes and views load.",
+    "description": "Recycles the mod_wsgi web worker processes on a development appliance, one at a time, so freshly synced extension routes and views load.",
     "path": "plugins/OHK-26ozyhui",
     "readme": null,
     "uses": [],
