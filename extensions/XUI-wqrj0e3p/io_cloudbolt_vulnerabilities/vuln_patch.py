@@ -83,11 +83,16 @@ JOB_LIMIT_S = int(7.5 * 3600)
 RESCAN_MARGIN_MIN = 30
 
 MODES = ("start", "poll", "probe", "reboot", "oldkernels", "cleanup")
-KNOWN_KEYS = ("os", "distro", "state", "phase", "updated", "failed", "exit", "removed", "failure", "reason", "note",
+KNOWN_KEYS = ("os", "distro", "state", "phase", "updated", "failed", "exit", "removed", "failure", "detail", "reason",
+              "note",
               "restart", "restart_reason", "boot_id", "kernel_running", "kernel_newest", "done")
 STATES = ("running", "done", "died", "missing")
 DISTROS = ("rhel", "ol", "amzn2023", "ubuntu")
 MAX_NOTES = 5
+# The guest sends up to this many "detail" lines after a failure; the job output and errors carry at most
+# DETAIL_TOTAL characters of them.
+MAX_DETAIL = 12
+DETAIL_TOTAL = 2000
 MAX_COUNT = 10 ** 6
 RUN_ID_RE = re.compile(r"[A-Za-z0-9-]{8,64}")
 BOOT_ID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -284,7 +289,7 @@ def _linux_parse(text):
     restart must be one of their listed values, the boot id a UUID."""
     result = {
         "os": "", "distro": "", "state": "", "phase": "", "updated": None, "failed": None, "exit": None,
-        "removed": None, "failure": "", "reason": "", "notes": [], "restart": "", "restart_reason": "",
+        "removed": None, "failure": "", "details": [], "reason": "", "notes": [], "restart": "", "restart_reason": "",
         "boot_id": "", "kernel_running": "", "kernel_newest": "", "done": False,
     }
     for raw in vuln_jobs._bounded(text).splitlines():
@@ -310,6 +315,9 @@ def _linux_parse(text):
         elif key == "note":
             if len(result["notes"]) < MAX_NOTES:
                 result["notes"].append(vuln_jobs.clean(value, MESSAGE_LEN))
+        elif key == "detail":
+            if len(result["details"]) < MAX_DETAIL:
+                result["details"].append(vuln_jobs.clean(value, MESSAGE_LEN))
         elif key == "done":
             result["done"] = True
         elif key in ("failure", "reason"):
@@ -320,6 +328,11 @@ def _linux_parse(text):
 
 
 parse_patch_output = _linux_parse
+
+
+def _detail_text(lines):
+    """The guest's detail lines as one text for the job output and errors, at most DETAIL_TOTAL characters."""
+    return "\n".join(line for line in (lines or []) if line)[:DETAIL_TOTAL]
 
 
 def _linux_call(server, mode, run_id, boot_id="", timeout=CALL_TIMEOUT, job=None):
@@ -444,6 +457,7 @@ def _linux_patch(job, server, run_id, restart, cfg):
     facts = {"updated": polled["updated"], "failed": polled["failed"], "restart_needed": False,
              "restarted": False, "kernels_removed": None, "notes": notes, "info": [], "no_updates": False}
     if polled["exit"]:
+        facts["detail"] = polled["details"]
         raise PatchFailed("The update failed on the server (exit code {}): {}".format(
             polled["exit"], polled["failure"] or "no reason was reported."), facts)
     needed = polled["restart"] == "1"
@@ -986,7 +1000,8 @@ def _patch_one(job, server, restart, cfg):
             facts = getattr(exc, "facts", None) or {}
             record = _record(job, server, "failed", facts, before, None, began, str(exc), family)
             _finish(job, server, record)
-            return dict(record, hostname=server.hostname, warning=True)
+            # The detail lines go to the job output and errors only, not into the stored record.
+            return dict(record, hostname=server.hostname, warning=True, detail=_detail_text(facts.get("detail")))
         notes = list(facts.get("notes") or [])
         info = list(facts.get("info") or [])
         after, problem = _rescan(job, server)
@@ -1047,6 +1062,7 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
         cfg = {}
     counts = {"updated": 0, "no_updates": 0, "restart_pending": 0, "failed": 0, "skipped": 0}
     results = {}
+    details = {}
     lines = []
     warned = False
     began = _clock()
@@ -1075,9 +1091,11 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
                         "restarted": False, "restart_needed": False, "kernels_removed": None, "before": None,
                         "after": None}
             warned = warned or bool(done.pop("warning", False))
+            detail = done.pop("detail", "")
             counts[done["status"]] += 1
-            lines.append(_sentence(target.hostname, done))
+            lines.append(_sentence(target.hostname, done) + ("\n" + detail if detail else ""))
             results[str(target.id)] = done
+            details[str(target.id)] = detail
     except BaseException:
         # A cancel (CancelJobException) ends the loop here; the marker was cleared by _patch_one's own finally.
         _progress(job, GUEST_KEEPS_RUNNING)
@@ -1093,9 +1111,12 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
     output = "\n".join(lines)
     problem = ""
     if counts["failed"]:
-        first = next(item for item in results.values() if item["status"] == "failed")
+        first_id = next(key for key, item in results.items() if item["status"] == "failed")
+        first = results[first_id]
         problem = first["message"] if len(targets) == 1 else "{} of {} servers failed. First failure ({}): {}".format(
             counts["failed"], len(targets), first["hostname"], first["message"])
+        if details.get(first_id):
+            problem += "\n" + details[first_id]
     if counts["failed"]:
         return "FAILURE", output, problem, outputs
     if warned or counts["failed"] or counts["skipped"]:

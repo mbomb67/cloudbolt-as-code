@@ -1406,5 +1406,62 @@ class ShellTests(unittest.TestCase):
                 self.assertNotIn("reason", text)
 
 
+# ---------------------------------------------------------------- failure detail lines
+def failed_poll(details, failure="Error: Transaction test error:"):
+    """A poll answer for a package manager that failed, with detail lines (a key that may repeat)."""
+    lines = ["CBVULN|state|done", "CBVULN|updated|0", "CBVULN|failed|1", "CBVULN|exit|1", "CBVULN|failure|" + failure]
+    lines += ["CBVULN|detail|" + text for text in details]
+    return "\n".join(lines + ["CBVULN|done|1"]) + "\n"
+
+
+class DetailTests(Base):
+    CONFLICTS = ["Error: Transaction test error:", "  file /usr/a conflicts with b-1", "  file /usr/c conflicts with d-2"]
+
+    def test_the_parser_collects_detail_lines_cleaned_capped_and_limited(self):
+        text = failed_poll(["see https://evil.example/x now"] + ["line {}".format(i) for i in range(20)] + ["x" * 500])
+        parsed = patch._linux_parse(text)
+        self.assertEqual(len(parsed["details"]), patch.MAX_DETAIL)
+        self.assertNotIn("evil.example", parsed["details"][0])
+        self.assertIn("detail", patch.KNOWN_KEYS)
+        parsed = patch._linux_parse(failed_poll(["y" * 500]))
+        self.assertLessEqual(len(parsed["details"][0]), patch.MESSAGE_LEN)
+        self.assertEqual(patch._linux_parse(out(state="done"))["details"], [])
+
+    def test_the_job_output_and_errors_carry_the_detail_the_record_does_not(self):
+        self.guest.answers("poll", failed_poll(self.CONFLICTS))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(status, "FAILURE")
+        first = "The update failed on the server (exit code 1): Error: Transaction test error:"
+        self.assertEqual(self.state["patch"]["message"], first)
+        self.assertIn("file /usr/a conflicts with b-1", output)
+        self.assertIn("file /usr/c conflicts with d-2", output)
+        self.assertTrue(errors.startswith(first + "\n"), errors)
+        self.assertIn("file /usr/c conflicts with d-2", errors)
+        self.assertNotIn("detail", outputs["servers"]["7"])
+        self.assertNotIn("conflicts", " ".join(str(value) for value in self.state["patch"].values()))
+
+    def test_the_detail_text_is_capped_at_two_thousand_characters(self):
+        self.guest.answers("poll", failed_poll(["z" * 290 + str(i) for i in range(12)]))
+        job, (status, output, errors, outputs) = self.go()
+        detail = errors.split("\n", 1)[1]
+        self.assertLessEqual(len(detail), patch.DETAIL_TOTAL)
+        self.assertGreater(len(detail), 1500)
+        self.assertEqual(patch._detail_text(["a" * 3000]), "a" * patch.DETAIL_TOTAL)
+        self.assertEqual(patch._detail_text(None), "")
+
+    def test_a_bulk_failure_errors_carry_the_first_failures_detail(self):
+        self.guest.answers("poll", failed_poll(self.CONFLICTS))
+        servers = [make_server(id=i, hostname="h{}".format(i)) for i in (1, 2)]
+        job, (status, output, errors, outputs) = self.go(servers=servers)
+        self.assertTrue(errors.startswith("2 of 2 servers failed. First failure (h1): "), errors)
+        self.assertEqual(errors.count("file /usr/a conflicts with b-1"), 1)
+        self.assertEqual(output.count("file /usr/a conflicts with b-1"), 2)
+
+    def test_a_failure_without_detail_lines_is_as_before(self):
+        self.guest.answers("poll", out(state="done", updated=0, failed=1, exit=1, failure="Error: boom"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertEqual(errors, "The update failed on the server (exit code 1): Error: boom")
+
+
 if __name__ == "__main__":
     unittest.main()

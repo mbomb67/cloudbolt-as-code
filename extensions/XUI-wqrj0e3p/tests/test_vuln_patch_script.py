@@ -329,5 +329,253 @@ DISTRO=rhel
         self.assertIn("CBVULN|removed|3", text)
 
 
+class WorkerEndToEndTests(Base):
+    """The real worker (mode_worker, which runs run_update and writes the status file), read back through the same
+    mode_poll the engine calls, with stub package managers whose upgrade changes the stubbed package list."""
+
+    COMMON = r"""
+T={r}
+RUN=$T/run; mkdir -m 700 "$RUN"
+id() { echo 0; }
+stat() { echo '0 700'; }
+uname() { echo 6.8.0-1035-aws; }
+"""
+    UBUNTU = r"""
+detect() { DISTRO=ubuntu; OS_NAME=Ubuntu; return 0; }
+printf 'libc6 1\nbash 1\nzlib 1\n' > "$T/pkgs"
+dpkg-query() {
+    case "$*" in
+        *Status-Abbrev*) sed 's/ .*//; s/^/ii linux-image-/' "$T/pkgs" ;;
+        *) cat "$T/pkgs" ;;
+    esac
+}
+apt-get() {
+    case "$*" in
+        *dist-upgrade*)
+            printf '%b
+' "$UPGRADE_OUTPUT"
+            [ "${APT_RC:-0}" = 0 ] || return "$APT_RC"
+            printf 'libc6 2\nbash 2\nzlib 1\nnewpkg 1\n' > "$T/pkgs" ;;
+    esac
+    return 0
+}
+"""
+    DNF = r"""
+detect() { DISTRO=rhel; OS_NAME=RHEL; return 0; }
+printf 'bash 0:1-1.x86_64\nlibc 0:1-1.x86_64\nkernel-core 0:5.14.0-1.x86_64\n' > "$T/pkgs"
+rpm() {
+    case "$*" in
+        *EPOCHNUM*) cat "$T/pkgs" ;;
+        *) awk '{sub(/^0:/, "", $2); print $1, $2}' "$T/pkgs" ;;
+    esac
+}
+dnf() {
+    case "$*" in
+        *needs-restarting*) return 1 ;;
+        *upgrade*)
+            printf '%b\n' "$DNF_OUTPUT"
+            [ "${DNF_RC:-0}" = 0 ] || return "$DNF_RC"
+            printf 'bash 0:2-1.x86_64\nlibc 0:2-1.x86_64\nkernel-core 0:5.14.0-1.x86_64\nkernel-core 0:5.14.0-2.x86_64\n' > "$T/pkgs" ;;
+    esac
+    return 0
+}
+"""
+
+    def run_worker(self, family, runs=1, env=""):
+        stubs = self.UBUNTU if family == "ubuntu" else self.DNF
+        calls = "".join("( mode_worker )\n" for _ in range(runs))
+        snippet = (self.COMMON + env + stubs + calls + "mode_poll\n").replace("{r}", self.root)
+        result = {"detail": []}
+        for line in shell(snippet).splitlines():
+            parts = line.split("|", 2)
+            if len(parts) == 3 and parts[0] == "CBVULN":
+                if parts[1] == "detail":
+                    result["detail"].append(parts[2].strip())
+                else:
+                    result[parts[1]] = parts[2]
+        return result
+
+    def test_ubuntu_counts_the_packages_the_upgrade_changed(self):
+        result = self.run_worker("ubuntu", env="UPGRADE_OUTPUT='Reading package lists'\n")
+        self.assertEqual((result["state"], result["exit"], result["updated"]), ("done", "0", "3"))
+
+    def test_ubuntu_with_nothing_to_upgrade_counts_zero(self):
+        stubs = self.UBUNTU.replace("*dist-upgrade*)", "*never-matches*)")
+        snippet = (self.COMMON + stubs + "( mode_worker )\nmode_poll\n").replace("{r}", self.root)
+        self.assertIn("CBVULN|updated|0", shell(snippet))
+
+    def test_the_dnf_family_counts_by_the_package_list_not_the_install_time(self):
+        result = self.run_worker("rhel", env="DNF_OUTPUT='Complete!'\n")
+        self.assertEqual((result["state"], result["exit"], result["updated"]), ("done", "0", "3"))
+        self.setUp()
+        stubs = self.DNF.replace("*upgrade*)", "*never-matches*)")
+        snippet = (self.COMMON + stubs + "( mode_worker )\nmode_poll\n").replace("{r}", self.root)
+        self.assertIn("CBVULN|updated|0", shell(snippet))
+
+    def test_a_second_run_of_the_worker_still_counts_against_the_first_before_list(self):
+        # A restart of the worker's service after the upgrade ran must not turn the count into 0.
+        for family, env in (("ubuntu", "UPGRADE_OUTPUT=x\n"), ("rhel", "DNF_OUTPUT=x\n")):
+            self.setUp()
+            result = self.run_worker(family, runs=2, env=env)
+            self.assertEqual(result["updated"], "3", family)
+
+    def test_a_failed_dnf_run_sends_detail_lines_from_the_first_error(self):
+        log = r"noise 1\nnoise 2\nError: Transaction test error:\n  file /usr/a conflicts with b-1\n  file /usr/c conflicts with d-2\n\n" + "".join(
+            "  line {}\\n".format(i) for i in range(1, 15))
+        result = self.run_worker("rhel", env="DNF_RC=1\nDNF_OUTPUT='" + log + "'\n")
+        self.assertEqual(result["exit"], "1")
+        self.assertTrue(result["failure"].startswith("Error: Transaction test error:"))
+        self.assertEqual(len(result["detail"]), 12)
+        self.assertEqual(result["detail"][-1], "line 14")
+        self.assertNotIn("noise 1", result["detail"])
+
+    def test_the_detail_starts_at_the_first_error_line_when_it_is_near_the_end(self):
+        log = r"a\nb\nError: Transaction test error:\n  file /usr/a conflicts with b-1\n  file /usr/c conflicts with d-2\n"
+        result = self.run_worker("rhel", env="DNF_RC=1\nDNF_OUTPUT='" + log + "'\n")
+        self.assertEqual(result["detail"], ["Error: Transaction test error:", "file /usr/a conflicts with b-1",
+                                            "file /usr/c conflicts with d-2"])
+
+    def test_without_an_error_line_the_last_twelve_lines_are_sent_and_capped_at_300_characters(self):
+        long_line = "x" * 400
+        log = "".join("l{}\\n".format(i) for i in range(1, 21)) + long_line + "\\n"
+        result = self.run_worker("ubuntu", env="APT_RC=100\nUPGRADE_OUTPUT='" + log + "'\n")
+        self.assertEqual(result["exit"], "100")
+        self.assertEqual(len(result["detail"]), 12)
+        self.assertEqual(result["detail"][-1], "x" * 300)
+        self.assertEqual(result["detail"][0], "l10")
+
+    def test_a_successful_run_sends_no_detail(self):
+        result = self.run_worker("rhel", env="DNF_OUTPUT='Complete!'\n")
+        self.assertEqual(result["detail"], [])
+
+
+class NeedrestartAndSecondStartTests(Base):
+    """The needrestart exclusion around apt, and the guards for a worker started a second time. The stubs are the
+    ones of WorkerEndToEndTests; apt-get is wrapped to note whether the exclusion file exists at each call."""
+
+    COMMON = r"""
+T={r}
+RUN=$T/run
+NR_CONF_DIR=$T/conf.d
+id() { echo 0; }
+stat() { echo '0 700'; }
+uname() { echo 6.8.0-1035-aws; }
+"""
+    WRAP = r"""
+eval "real_$(declare -f apt-get)"
+apt-get() {
+    if [ -f "$NR_CONF_DIR/zz-cloudbolt-updates.conf" ]; then
+        echo "present $*" >> "$T/seen"
+        cat "$NR_CONF_DIR/zz-cloudbolt-updates.conf" >> "$T/content"
+    else
+        echo "absent $*" >> "$T/seen"
+    fi
+    echo "apt $*" >> "$T/aptcalls"
+    real_apt-get "$@"
+}
+"""
+
+    def go(self, body, family="ubuntu", env="", conf_dir=True, needrestart=True, wrap=True):
+        stubs = WorkerEndToEndTests.UBUNTU if family == "ubuntu" else WorkerEndToEndTests.DNF
+        snippet = self.COMMON + ("mkdir \"$NR_CONF_DIR\"\n" if conf_dir else "") + env
+        snippet += ("needrestart() { :; }\n" if needrestart else "") + stubs + (self.WRAP if wrap else "") + body
+        text = shell(snippet.replace("{r}", self.root))
+        return text
+
+    def slurp(self, *parts):
+        with open(os.path.join(self.tmp.name, *parts), encoding="ascii") as handle:
+            return handle.read()
+
+    def seen(self):
+        return self.slurp("seen").splitlines() if os.path.exists(os.path.join(self.tmp.name, "seen")) else []
+
+    def conf_files(self):
+        folder = os.path.join(self.tmp.name, "conf.d")
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else None
+
+    FRESH = "mkdir -m 700 \"$RUN\"\n( mode_worker )\nmode_poll\n"
+
+    def test_the_exclusion_exists_for_every_apt_call_and_is_gone_after_success(self):
+        text = self.go(self.FRESH, env="UPGRADE_OUTPUT=x\n")
+        self.assertIn("CBVULN|state|done", text)
+        seen = self.seen()
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(all(line.startswith("present ") for line in seen), seen)
+        self.assertIn("dist-upgrade", seen[1])
+        content = self.slurp("content")
+        self.assertIn("push(@{ $nrconf{blacklist_rc} }, qr(^cbvuln-patch-));", content)
+        self.assertEqual(self.conf_files(), [])
+
+    def test_the_exclusion_is_gone_after_an_apt_failure(self):
+        text = self.go(self.FRESH, env="UPGRADE_OUTPUT=x\nAPT_RC=100\n")
+        self.assertIn("CBVULN|exit|100", text)
+        self.assertTrue(all(line.startswith("present ") for line in self.seen()))
+        self.assertEqual(self.conf_files(), [])
+
+    def test_a_stale_file_from_a_killed_run_is_replaced_and_removed(self):
+        env = ("UPGRADE_OUTPUT=x\nprintf 'stale from a killed run\\n' > \"$NR_CONF_DIR/zz-cloudbolt-updates.conf\"\n")
+        self.go(self.FRESH, env=env)
+        content = self.slurp("content")
+        self.assertNotIn("stale", content)
+        self.assertIn("cbvuln-patch-", content)
+        self.assertEqual(self.conf_files(), [])
+
+    def test_the_cleanup_mode_removes_a_stale_file_when_no_update_is_running(self):
+        env = "printf 'stale\\n' > \"$NR_CONF_DIR/zz-cloudbolt-updates.conf\"\n"
+        self.go("mode_cleanup\n", env=env, wrap=False)
+        self.assertEqual(self.conf_files(), [])
+
+    def test_nothing_is_written_when_needrestart_is_absent_or_has_no_conf_d(self):
+        self.go(self.FRESH, env="UPGRADE_OUTPUT=x\n", needrestart=False)
+        self.assertTrue(all(line.startswith("absent ") for line in self.seen()))
+        self.assertEqual(self.conf_files(), [])
+        self.setUp()
+        self.go(self.FRESH, env="UPGRADE_OUTPUT=x\n", conf_dir=False)
+        self.assertTrue(all(line.startswith("absent ") for line in self.seen()))
+        self.assertIsNone(self.conf_files())
+
+    def test_nothing_is_written_on_the_dnf_family(self):
+        text = self.go(self.FRESH, family="rhel", env="DNF_OUTPUT=x\n", wrap=False)
+        self.assertIn("CBVULN|updated|3", text)
+        self.assertEqual(self.conf_files(), [])
+
+    def test_a_second_worker_start_leaves_a_finished_run_alone(self):
+        env = "UPGRADE_OUTPUT=x\n"
+        self.go(self.FRESH, env=env)
+        before = len(self.slurp("aptcalls").splitlines())
+        status_before = self.slurp("run", "status")
+        # Run the worker again over the same folder, with the packages already upgraded.
+        text = self.go2("( mode_worker )\nmode_poll\n")
+        self.assertEqual(len(self.slurp("aptcalls").splitlines()), before)
+        self.assertEqual(self.slurp("run", "status"), status_before)
+        self.assertIn("CBVULN|updated|3", text)
+
+    def go2(self, body, pre=""):
+        """The worker's stubs over the run folder an earlier call left (the package list is not reset)."""
+        snippet = self.COMMON + "needrestart() { :; }\n" + WorkerEndToEndTests.UBUNTU.replace(
+            "printf 'libc6 1\\nbash 1\\nzlib 1\\n' > \"$T/pkgs\"\n", "") + self.WRAP + pre + body
+        return shell(snippet.replace("{r}", self.root))
+
+    def test_an_interrupted_run_is_reported_as_a_failure_without_a_second_upgrade(self):
+        os.makedirs(os.path.join(self.tmp.name, "run"))
+        self.write("run/status", ["CBVULN|state|running", "CBVULN|phase|Installing updates"])
+        self.write("run/before.pkgs", ["bash 1", "libc6 1", "zlib 1"])
+        self.write("pkgs", ["bash 2", "libc6 2", "zlib 1"])
+        text = self.go2("( mode_worker )\nmode_poll\n")
+        self.assertIn("CBVULN|state|done", text)
+        self.assertIn("CBVULN|exit|1", text)
+        self.assertIn("CBVULN|failure|the update was interrupted", text)
+        self.assertIn("CBVULN|updated|2", text)
+        self.assertEqual(self.read("aptcalls"), [])
+
+    def test_a_second_worker_while_the_first_is_alive_changes_nothing(self):
+        os.makedirs(os.path.join(self.tmp.name, "run"))
+        self.write("run/status", ["CBVULN|state|running"])
+        self.write("pkgs", ["bash 1"])
+        text = self.go2("( mode_worker )\ncat \"$RUN/status\"\n", pre="pid_alive() { return 0; }\n")
+        self.assertEqual(text.split(), ["CBVULN|state|running"])
+        self.assertEqual(self.read("aptcalls"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

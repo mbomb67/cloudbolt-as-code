@@ -171,15 +171,15 @@ newest_kernel() {
 # The dnf family: rpm name and epoch:version-release.arch; Ubuntu: dpkg binary package and version.
 snapshot() {
     if is_rpm; then
-        rpm -qa --qf '%{NAME} %{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | sort >"$1"
+        rpm -qa --qf '%{NAME} %{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | LC_ALL=C sort >"$1"
     else
-        dpkg-query -W -f='${binary:Package} ${Version}\n' 2>/dev/null | sort >"$1"
+        dpkg-query -W -f='${binary:Package} ${Version}\n' 2>/dev/null | LC_ALL=C sort >"$1"
     fi
 }
 
 # Lines only in the second snapshot (new or changed packages), and lines only in the first (gone ones).
-count_new() { comm -13 "$1" "$2" | wc -l | tr -d ' '; }
-count_gone() { comm -23 "$1" "$2" | wc -l | tr -d ' '; }
+count_new() { LC_ALL=C comm -13 "$1" "$2" | wc -l | tr -d ' '; }
+count_gone() { LC_ALL=C comm -23 "$1" "$2" | wc -l | tr -d ' '; }
 
 # ---- the run folder --------------------------------------------------------
 # /var/tmp is writable by every local user, so a folder is trusted only when it is a real directory (not a
@@ -226,11 +226,11 @@ other_worker_running() {
 }
 
 # ---- status file ----------------------------------------------------------
-STATE=running; PHASE=""; UPDATED=""; FAILED=""; EXITCODE=""; FAILURE=""
+STATE=running; PHASE=""; UPDATED=""; FAILED=""; EXITCODE=""; FAILURE=""; DETAIL=""
 RESTART=""; RESTART_REASON=""; KERNEL_RUNNING=""; KERNEL_NEWEST=""
 
 flush() {
-    local tmp="$RUN/.status.$$"
+    local tmp="$RUN/.status.$$" line
     {
         emit state "$STATE"
         emit os "$OS_NAME"
@@ -240,6 +240,11 @@ flush() {
         [ -z "$FAILED" ] || emit failed "$FAILED"
         [ -z "$EXITCODE" ] || emit exit "$EXITCODE"
         [ -z "$FAILURE" ] || emit failure "$(san "$FAILURE" 300)"
+        if [ -n "$DETAIL" ]; then
+            while IFS= read -r line; do
+                emit detail "$(san "$line" 300)"
+            done <<<"$DETAIL"
+        fi
         [ -z "$RESTART" ] || emit restart "$RESTART"
         [ -z "$RESTART_REASON" ] || emit restart_reason "$(san "$RESTART_REASON" 200)"
         [ -z "$KERNEL_RUNNING" ] || emit kernel_running "$(san "$KERNEL_RUNNING" 100)"
@@ -283,7 +288,12 @@ mode_start() {
     # A transient systemd service: not tied to this connection or its session, and listed by name.
     # https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html
     if command -v systemd-run >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-        if systemd-run --quiet --unit="$UNIT" --collect bash "$RUN/worker.sh" worker >"$RUN/launch.out" 2>&1; then
+        # RefuseManualStop=yes: needrestart skips a unit whose RefuseManualStop property is yes
+        # (systemd_refuse_restart, https://github.com/liske/needrestart/blob/v3.5/needrestart), a second guard next
+        # to the conf.d exclusion in run_update. https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html
+        # If this systemd does not take the property on a transient unit, the unit is started without it.
+        if systemd-run --quiet --unit="$UNIT" --collect -p RefuseManualStop=yes bash "$RUN/worker.sh" worker >"$RUN/launch.out" 2>&1 \
+            || systemd-run --quiet --unit="$UNIT" --collect bash "$RUN/worker.sh" worker >"$RUN/launch.out" 2>&1; then
             launched=1
         fi
     fi
@@ -306,9 +316,50 @@ mode_start() {
 
 # ---- mode: worker ---------------------------------------------------------
 LOG=""
+# Ubuntu: keep needrestart from restarting this update's own service. Facts, from the needrestart sources and
+# manual pages (v3.5 is Ubuntu 22.04, v3.6 is 24.04):
+#   * With NEEDRESTART_MODE=a (automatic) the apt hook restarts every service that uses an upgraded library with
+#     "systemctl restart <unit>"; the unit name is taken from the process's cgroup (/<name>.service), and nothing in
+#     the code skips transient units, so cbvuln-patch-<id>.service would be a candidate (our bash uses libc).
+#     https://github.com/liske/needrestart/blob/v3.5/needrestart
+#     https://manpages.ubuntu.com/manpages/jammy/man1/needrestart.1.html
+#     https://manpages.ubuntu.com/manpages/noble/man1/needrestart.1.html
+#   * A service matching a regex in $nrconf{blacklist_rc} "will be ignored completely"; the list starts empty. The
+#     stock needrestart.conf ends by reading every /etc/needrestart/conf.d/*.conf in sorted order (a Perl eval),
+#     in v3.5 and v3.6.
+#     https://github.com/liske/needrestart/blob/v3.5/ex/needrestart.conf
+#     https://github.com/liske/needrestart/blob/v3.6/ex/needrestart.conf
+#   * So a snippet that sorts last adds our unit-name prefix to that list for the length of the update; every
+#     other service is still restarted automatically. It is written before apt runs and removed on every exit path
+#     and, if a killed run left one, at the start of the next run and by the cleanup mode.
+# NEEDRESTART_SUSPEND (documented in the same manual pages: the apt hook does not run needrestart at all) is not
+# used, because the other services would then keep their old libraries until a restart.
+NR_CONF_DIR=/etc/needrestart/conf.d
+NR_CONF_FILE=zz-cloudbolt-updates.conf
+
+needrestart_exclude_off() {
+    rm -f "$NR_CONF_DIR/$NR_CONF_FILE" 2>/dev/null
+}
+
+# Only when needrestart is installed and reads a conf.d folder; otherwise nothing is written.
+needrestart_exclude_on() {
+    local tmp="$NR_CONF_DIR/.$NR_CONF_FILE.$$"
+    command -v needrestart >/dev/null 2>&1 || return 0
+    [ -d "$NR_CONF_DIR" ] || return 0
+    needrestart_exclude_off
+    {
+        printf '%s\n' '# Written by the CloudBolt Vulnerabilities extension while an update runs; removed when it ends.'
+        printf '%s\n' 'push(@{ $nrconf{blacklist_rc} }, qr(^cbvuln-patch-));'
+    } >"$tmp" 2>/dev/null && chmod 644 "$tmp" 2>/dev/null && mv -f "$tmp" "$NR_CONF_DIR/$NR_CONF_FILE" 2>/dev/null
+    rm -f "$tmp" 2>/dev/null
+    return 0
+}
+
 run_update() {
-    # The count of what changed is taken from package lists before and after, not from the console text.
-    snapshot "$RUN/before.pkgs"
+    # The count of what changed is taken from package lists before and after, not from the console text. The
+    # "before" list is written once: if this worker runs again (a service restart in the middle of the upgrade, for
+    # one) the second run must still count against the list from before the first, not from after it.
+    [ -s "$RUN/before.pkgs" ] || snapshot "$RUN/before.pkgs"
     if is_rpm; then
         if [ "$DISTRO" = amzn2023 ]; then
             # Amazon Linux 2023 moves to the newest release with --releasever=latest:
@@ -326,6 +377,9 @@ run_update() {
         # need a restart are restarted automatically. DPkg::Lock::Timeout waits for another package tool.
         # https://manpages.ubuntu.com/manpages/noble/man8/apt-get.8.html
         export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
+        trap needrestart_exclude_off EXIT
+        trap 'exit 143' TERM HUP INT
+        needrestart_exclude_on
         apt-get -o DPkg::Lock::Timeout=600 update >"$LOG" 2>&1
         EXITCODE=$?
         if [ "$EXITCODE" -eq 0 ]; then
@@ -335,6 +389,7 @@ run_update() {
                 -o DPkg::Lock::Timeout=600 dist-upgrade >>"$LOG" 2>&1
             EXITCODE=$?
         fi
+        needrestart_exclude_off
     fi
     snapshot "$RUN/after.pkgs"
     UPDATED=$(count_new "$RUN/before.pkgs" "$RUN/after.pkgs")
@@ -380,8 +435,47 @@ check_restart() {
     fi
 }
 
+# Up to 12 lines of the update log for a failure: from the first line that starts with Error (dnf) or E: (apt) to
+# the end, or the whole log when there is none; the last 12 non-empty lines, each cut to 300 characters.
+failure_detail() {
+    local first
+    first=$(grep -n -m 1 -E '^(Error|E:)' "$LOG" 2>/dev/null | cut -d: -f1)
+    if [ -n "$first" ]; then
+        tail -n +"$first" "$LOG"
+    else
+        cat "$LOG" 2>/dev/null
+    fi | grep -v '^[[:space:]]*$' | tail -n 12 | cut -c1-300
+}
+
+# A worker started a second time for the same run (a service restart, a duplicate start). A run that is done is left
+# exactly as it is. A run whose status says it is still going but whose worker is gone was interrupted: it is
+# reported as a failure, with the count of what changed so far, and no second upgrade is started.
+second_start_guard() {
+    local prior
+    [ -f "$RUN/status" ] && [ ! -L "$RUN/status" ] || return 0
+    prior=$(cat "$RUN/status" 2>/dev/null)
+    if printf '%s\n' "$prior" | grep -qx 'CBVULN|state|done'; then
+        exit 0
+    fi
+    printf '%s\n' "$prior" | grep -qx 'CBVULN|state|running' || return 0
+    pid_alive "$RUN" && exit 0
+    detect || true
+    if [ -s "$RUN/before.pkgs" ]; then
+        snapshot "$RUN/after.pkgs"
+        UPDATED=$(count_new "$RUN/before.pkgs" "$RUN/after.pkgs")
+    fi
+    PHASE="Interrupted"
+    EXITCODE=1
+    FAILED=1
+    FAILURE="the update was interrupted"
+    STATE=done
+    flush
+    exit 0
+}
+
 mode_worker() {
     safe_dir "$RUN" || exit 0
+    second_start_guard
     LOG="$RUN/update.log"
     echo $$ >"$RUN/pid"
     detect || true
@@ -393,6 +487,7 @@ mode_worker() {
         [ -n "$FAILED" ] && [ "$FAILED" -gt 0 ] 2>/dev/null || FAILED=1
         FAILURE=$(grep -E '^(Error|E:|Failed)' "$LOG" 2>/dev/null | tail -n 3 | tr '\n' ' ')
         [ -n "$FAILURE" ] || FAILURE=$(grep -v '^[[:space:]]*$' "$LOG" 2>/dev/null | tail -n 2 | tr '\n' ' ')
+        DETAIL=$(failure_detail)
     else
         FAILED=0
     fi
@@ -584,6 +679,8 @@ mode_oldkernels() {
 
 # ---- mode: cleanup --------------------------------------------------------
 mode_cleanup() {
+    # A stale needrestart exclusion from a killed run goes too, unless an update is running.
+    other_worker_running || needrestart_exclude_off
     if [ ! -e "$RUN" ] && [ ! -L "$RUN" ]; then
         finish
     fi
