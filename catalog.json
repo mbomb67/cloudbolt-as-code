@@ -552,7 +552,7 @@
     "id": "BP-sy5pb325",
     "type": "blueprints",
     "name": "3-Tier Web App on OpenShift Virtualization",
-    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies.",
+    "description": "Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then starts a compliance scan of each VM.",
     "path": "blueprints/BP-sy5pb325",
     "readme": "blueprints/BP-sy5pb325/README.md",
     "uses": [
@@ -560,6 +560,7 @@
       "plugins/OHK-92i4lt1y",
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-d9ujne9z",
+      "plugins/OHK-icnbjok5",
       "plugins/OHK-jjltp87s",
       "plugins/OHK-jru4jomd",
       "plugins/OHK-lwhuaezv",
@@ -1761,7 +1762,7 @@
     "readme": "packages/PKG-57ltvnbl/README.md",
     "uses": [],
     "used_by": [],
-    "version": "1.3.1",
+    "version": "1.3.2",
     "contents": [
       "extensions/XUI-y9bdnzxt",
       "extensions/XUI-60382c9x",
@@ -3717,6 +3718,19 @@
     ],
     "used_by": [
       "orchestration_actions/HPA-fxo5hujp"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
+    "id": "OHK-icnbjok5",
+    "type": "plugins",
+    "name": "Scan All Servers for Compliance",
+    "description": "Starts a compliance scan of every server of a deployment with the Compliance UI extension, as sub-jobs the order does not wait for, when added as a blueprint's last build item.",
+    "path": "plugins/OHK-icnbjok5",
+    "readme": null,
+    "uses": [],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
     ],
     "plugin_type": "CloudBolt Plug-in"
   },

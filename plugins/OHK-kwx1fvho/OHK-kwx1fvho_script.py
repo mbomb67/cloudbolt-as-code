@@ -6,6 +6,10 @@ one: that installs SCC when it is missing and runs the scan as its own job, a su
 provisioning job. The action does not wait for the scan, so the server is handed over while the scan
 runs. The result and the report appear on the server's Compliance tab when the scan's job ends.
 
+A server is skipped when its blueprint runs other build items after the server's tier (plug-ins,
+scripts, installs; anything that is not a server tier), because those steps can change what a scan
+finds. Such a blueprint ends with the Scan All Servers for Compliance build item (plugins/OHK-icnbjok5).
+
 It never fails or warns provisioning, and always returns SUCCESS. The only progress message it writes
 is the line that says a scan started. A skipped server, a refusal and every problem go to the job's log
 only, so nothing that reads like an error shows on the provisioning job's page.
@@ -71,6 +75,15 @@ def _one(oscap_api, server, job):
         ok, reason = oscap_api.eligible(server)
         if not ok:
             return False, f"{host}: skipped, {reason}"
+        # Build items that run after this server's tier can change what a scan finds, so the scan
+        # is left to the blueprint's last step. An older extension has no later_build_items.
+        later = getattr(oscap_api, "later_build_items", lambda _server, _job=None: [])(server, job)
+        if later:
+            shown = ", ".join(later[:3]) + (f" and {len(later) - 3} more" if len(later) > 3 else "")
+            return False, (
+                f"{host}: skipped, its blueprint runs build items after this server's tier ({shown}). "
+                "End the blueprint with the Scan All Servers for Compliance build item to scan it then."
+            )
         result = oscap_api.start_scan(server, job.owner, profile_id=PROFILE, install=True, parent_job=job)
         if result["status"] == "started":
             return True, f"{host}: scan started as job {result['job'].id}; the result will be on the server's Compliance tab."
