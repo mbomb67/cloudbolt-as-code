@@ -1,5 +1,5 @@
 """
-Compliance scans for other content: scan a server from a plug-in and wait for the result.
+Compliance scans for other content: scan a server from a plug-in, and wait for the result or not.
 
     from xui.io_cloudbolt_compliance import oscap_api
 
@@ -13,8 +13,29 @@ Compliance scans for other content: scan a server from a plug-in and wait for th
 
 The scan is the job the Compliance tab starts (oscap_jobs.start), so it takes the
 same lock, lands in the server's scan history and stores its files the same
-way. A blueprint build item uses this to scan the servers it built before the
-order finishes (plugins/OHK-oqqmfoah).
+way.
+
+    result = oscap_api.start_scan(server, job.owner, profile_id="cis_server_l1", install=True, parent_job=job)
+    result["status"]         "started" or "refused"
+    result["job"]            the scan's own Job when it started
+
+start_scan starts the same job and returns at once. With parent_job the scan is a
+sub-job of that job: shown under it, cancelled with it, and the parent neither
+waits for it nor is changed by its result. The result is in the server's scan history.
+
+    ok, reason = eligible(server)   (True, "") or (False, one sentence why not)
+
+eligible says whether content may start a scan on a server at all: it is not
+historical, has a VM, and gets the Compliance tab under the "Show the tab on"
+setting. The Post-Provision actions HPA-b14wu721 (Linux) and HPA-ruxgbj67 (Windows) use eligible
+and start_scan.
+
+    names = later_build_items(server, job)   [] or the names of the build items still to run
+
+later_build_items lists the build items of the server's blueprint that start after its tier and
+are not server tiers. Those steps can change what a scan finds, so the Post-Provision actions skip
+a server that has any, and the blueprint ends with the Scan All Servers for Compliance build item
+(plugins/OHK-icnbjok5), which calls start_scan for every server of the deployment.
 
 Nothing here checks a permission: the caller is content an administrator put
 in place, running as a job. Do not call it from a web request.
@@ -63,6 +84,94 @@ def _result(status, message, job=None, scan=None, url="", problem=""):
         "status": status, "message": message, "job": job, "scan": scan,
         "report_url": url, "report_problem": problem,
     }
+
+
+def eligible(server):
+    """(True, "") when content may start a scan on this server, else (False, reason)."""
+    if server.status == "HISTORICAL":
+        return False, "the server is historical."
+    if not server.resource_handler_svr_id:
+        return False, "the VM was not created."
+    if not oscap_jobs.shows_tab(server, store.get_settings()["visibility"]):
+        return False, 'the Compliance "Show the tab on" setting does not include this server.'
+    return True, ""
+
+
+def later_build_items(server, job=None):
+    """Names of the build items that start after the server's tier in its blueprint and are not server tiers.
+
+    Scripts, installs and other steps that run after the tier can change what a scan finds, so a
+    Post-Provision action uses this to leave the scan to the end of the blueprint. Empty for a
+    server no blueprint tier built, and when the blueprint cannot be read. The build order is
+    (deploy_seq, id), which the deploy job follows (jobengine/jobmodules/deploy_blueprint_job.py).
+    Teardown items are not build items (servicecatalog/models.py ServiceBlueprint.deployment_sis),
+    and a disabled plug-in item does not run. A tier inside a sub-blueprint sees only the items of
+    that sub-blueprint.
+
+    job is the provisioning job the caller runs in. When its top-level job is not a blueprint
+    deployment the server is being added to an existing deployment, and a scale-up runs only the
+    plug-in items marked Run on scale up that target this tier or no tier, whatever their
+    sequence (cbhooks/hookmodules/scale_resource.py run_actions_for_tier); only those count then.
+    """
+    try:
+        from servicecatalog.models import ProvisionServerServiceItem
+
+        # Server.service_item is the server tier that built the server (infrastructure/models.py).
+        tier = getattr(server, "service_item", None)
+        blueprint = getattr(tier, "blueprint", None)
+        if tier is None or blueprint is None:
+            return []
+
+        def position(item):
+            # An item without a sequence sorts first.
+            return (float("-inf") if item.deploy_seq is None else item.deploy_seq, item.id)
+
+        # Job.top_level_job is the job itself when it has no parent (jobs/models.py).
+        scale_up = job is not None and getattr(job.top_level_job, "type", "") != "deploy_blueprint"
+        after = position(tier)
+        names = []
+        for item in blueprint.deployment_sis():
+            if not scale_up and position(item) <= after:
+                continue
+            item = item.cast()
+            if isinstance(item, ProvisionServerServiceItem):
+                continue
+            if scale_up:
+                if not getattr(item, "run_on_scale_up", False):
+                    continue
+                targets = getattr(item, "targets", None)
+                if targets is not None and targets.exists() and not targets.filter(id=tier.id).exists():
+                    continue
+            elif getattr(item, "enabled", True) is False:
+                continue
+            names.append(getattr(item, "name", "") or type(item).__name__)
+        return names
+    except Exception:
+        logger.exception("Compliance: could not read the build items after server %s", getattr(server, "id", "?"))
+        return []
+
+
+def start_scan(server, owner, profile_id="", datastream="", install=False, parent_job=None):
+    """Start a scan of one server and return without waiting for it.
+
+    owner is the UserProfile the scan job belongs to (a plug-in passes job.owner).
+    profile_id is a profile id or its ending, such as cis_server_l1; empty tries
+    the default profiles of the settings page (a Windows server uses the Windows
+    default profile). datastream is the SCC benchmark on Windows. install=True
+    installs OpenSCAP and the SCAP Security Guide (SCC on Windows) when they are
+    missing, whatever the Allow install setting says: that setting governs the
+    tab's Install box. parent_job makes the scan a sub-job of that job, which is
+    then shown under it and is cancelled with it; the parent does not wait for
+    the scan and is not changed by its result. The result appears in the scan
+    history on the server's Compliance tab.
+    """
+    started = oscap_jobs.start(
+        owner, server, "scan", datastream, profile_id, False,
+        base_url=site_url(), content_install=bool(install), parent_job=parent_job,
+    )
+    if isinstance(started, oscap_jobs.Refusal):
+        return _result("refused", started.message)
+    return _result("started", "The scan of {} started as job {}.".format(server.hostname, started.id), job=started)
 
 
 def scan_and_wait(server, owner, profile_id="", datastream="", install=False, timeout=None):
