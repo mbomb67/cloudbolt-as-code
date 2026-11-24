@@ -1,0 +1,16 @@
+{
+    "action_input_default_values": [],
+    "authentication_method": "token",
+    "base_action_name": "Monitoring Alerts",
+    "dependencies": {
+        "hook": "plugins/OHK-ogu8lqt2"
+    },
+    "description": "Endpoint a monitoring system posts Alertmanager alerts to; each firing alert starts the mapped remediation server action on the server it names.",
+    "enabled": true,
+    "id": "IWH-i7b44zvs",
+    "label": "Monitoring Alerts",
+    "last_updated": "2026-11-23",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "uri_path": "monitoring-alerts"
+}

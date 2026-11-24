@@ -5,7 +5,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 
 | Blueprint | ID | Description |
 |---|---|---|
-| 3-Tier Web App on OpenShift Virtualization | [BP-sy5pb325](BP-sy5pb325/README.md) | Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then scans each VM with OpenSCAP. |
+| 3-Tier Web App on OpenShift Virtualization | [BP-sy5pb325](BP-sy5pb325/README.md) | Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then starts a compliance scan of each VM. |
 | AKS Namespace | [BP-dogqi827](BP-dogqi827/README.md) | Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access. |
 | AWS EKS | [BP-r5apcf7e](BP-r5apcf7e/README.md) | Creates Amazon EKS clusters with a first managed node group, deletes and discovers them, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones. |
 | AWS EKS Namespace | [BP-e4c0q58z](BP-e4c0q58z/README.md) | Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it. |

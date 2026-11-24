@@ -3,15 +3,15 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "Name of the server build item, in the same blueprint, whose servers this step scans. Empty scans every server of the resource.",
+            "description": "OpenSCAP profile id or its ending, for the Linux servers. Empty lets each scan pick the first of the Compliance settings page's default profiles that the server's own guide offers.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": true,
-            "id": "CF-ipegxssq",
-            "label": "Tier",
-            "name": "tier",
-            "placeholder": "Web",
+            "id": "CF-64zbik1c",
+            "label": "Linux Profile",
+            "name": "linux_profile",
+            "placeholder": "cis_server_l1",
             "relevant_osfamilies": [],
             "required": false,
             "show_as_attribute": false,
@@ -22,15 +22,15 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "OpenSCAP profile id or its ending. Empty tries the default profiles of the Compliance settings page.",
+            "description": "SCC profile id, for the Windows servers. Empty uses the Windows default profile of the Compliance settings page.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
             "hide_if_default_value": true,
-            "id": "CF-7kaiofk3",
-            "label": "Profile",
-            "name": "profile",
-            "placeholder": "cis_server_l1",
+            "id": "CF-g8v7zbqg",
+            "label": "Windows Profile",
+            "name": "windows_profile",
+            "placeholder": "MAC-1_Classified",
             "relevant_osfamilies": [],
             "required": false,
             "show_as_attribute": false,
@@ -40,24 +40,16 @@
         }
     ],
     "action_inputs_sequence": [
-        "tier",
-        "profile"
+        "linux_profile",
+        "windows_profile"
     ],
-    "dependencies": {
-        "sharedModules": [
-            "shared_modules/SHM-eanos2e0",
-            "shared_modules/SHM-wkubiao7"
-        ]
-    },
-    "description": "Scans a blueprint's server tier with the Compliance UI extension, waits for the scan, and stores a link to the report on the resource.",
-    "id": "OHK-oqqmfoah",
+    "description": "Starts a compliance scan of every server of a deployment with the Compliance UI extension, as sub-jobs the order does not wait for, when added as a blueprint's last build item.",
+    "id": "OHK-icnbjok5",
     "max_retries": 0,
-    "name": "Run OpenSCAP Scan",
-    "resource_technologies": [
-        "OpenShift Virtualization"
-    ],
-    "script_filename": "OHK-oqqmfoah_script.py",
-    "shared": false,
+    "name": "Scan All Servers for Compliance",
+    "resource_technologies": [],
+    "script_filename": "OHK-icnbjok5_script.py",
+    "shared": true,
     "target_os_families": [],
     "type": "CloudBolt Plug-in"
 }
