@@ -1,8 +1,8 @@
 # Vulnerabilities (XUI)
 
-Adds a **Vulnerabilities** tab to Linux servers, and to any server labelled `Vulnerabilities`. The tab collects a list of the software installed on the server, matches it against a database of known vulnerabilities, and shows the findings: how many are critical, high, medium and low, how many are on the CISA known-exploited list, and for each package the installed version, the version that fixes it and the advisory. Users can switch between a Packages view (what to update) and a CVEs view (one row per CVE), search, filter by severity and show only exploited findings.
+Adds a **Vulnerabilities** tab to Linux and Windows servers, and to any server labelled `Vulnerabilities`. On Linux the tab collects a list of the software installed on the server, matches it against a database of known vulnerabilities, and shows the findings: how many are critical, high, medium and low, how many are on the CISA known-exploited list, and for each package the installed version, the version that fixes it and the advisory. Users can switch between a Packages view (what to update) and a CVEs view (one row per CVE), search, filter by severity and show only exploited findings.
 
-Nothing is changed on the server. The tab does not contact the server when it opens; it shows the last result.
+Nothing is changed on the server. The tab does not contact the server when it opens; it shows the last result. Windows servers are covered in [Windows servers](#windows-servers).
 
 ## How it works
 
@@ -11,6 +11,15 @@ Nothing is changed on the server. The tab does not contact the server when it op
 2. **Match.** On the appliance, Grype compares the software list with the vulnerability database. The scanner runs as the CloudBolt service account, not as root.
 3. **Store.** The findings go into one SQLite file, `/var/opt/cloudbolt/proserv/vulnerabilities/findings.db`. The CloudBolt database is not touched.
 4. **Show.** The tab reads one page at a time from that file, filtered on the server side.
+
+## Windows servers
+
+A Windows Server 2022 or 2025 server gets the same tab with a **Check for missing updates** button. The check reads the Windows build and the edition from the registry and the installed update ids from Get-HotFix and the servicing packages (Get-HotFix alone is known to miss some; at most 400 are kept, the newest first; when none can be read the tab says so), with a short PowerShell script that runs through the same script channel (WinRM, or the technology's own channel such as AWS SSM). Nothing is installed on the server, downloaded onto it or uploaded from it; the facts are stored on the appliance and matched there against Microsoft's published security updates, which an admin downloads from the settings page (Microsoft's Security Update Guide, plus the CISA known-exploited list). Each missing security update is one row in the Packages view, named by its KB number, with the build that fixes it; a vulnerability counts as exploited when CISA lists it or Microsoft marks it exploited.
+
+- A server on the hotpatch track (any installed hotpatch update) is compared with the earliest build that fixes the CVE on that track; every other server with the earliest standard fix.
+- Only the operating system is covered. Applications on Windows are not, and neither are Windows Server 2019 and older or Windows client versions: the check fails with a message saying so, and the weekly inventory, the resource scan and the scan after provisioning then skip that server as "a Windows version this extension does not cover" (the tab's button still tries; a later successful check lifts the skip).
+- Needs: a powered-on server whose script channel and credentials work, in a group that is not Unassigned, and Microsoft security data on the appliance (outbound HTTPS to api.msrc.microsoft.com and www.cisa.gov, set up with the scanner). It needs neither Grype nor the portal's site URL.
+- The nightly re-match, the weekly inventory, the resource tab and the scan after provisioning handle Windows servers the same way as Linux ones. The nightly job downloads the Microsoft data only when it has been set up here or a Windows server has been checked, so a Linux-only or offline appliance does not try it every night.
 
 ## What it installs on the appliance
 
@@ -24,7 +33,7 @@ Setup downloads about 300 MB, needs about 9 GB free while the database unpacks, 
 
 ## What the server needs
 
-- A Linux server whose script execution works (the same channel Remote Scripts use), powered on.
+- A Linux server (for Windows, see above) whose script execution works (the same channel Remote Scripts use), powered on.
 - `curl`, `tar`, `gzip` and `sha256sum`.
 - Outbound HTTPS access to the appliance, or to github.com (when **Let servers download the inventory tool from GitHub** is on). The upload URL comes from the default portal's site URL (Admin > Portals) and never from a request's host. The server must trust the appliance certificate. An appliance that serves its certificate without the issuing CA's intermediate works in a browser and still fails here (curl error 60): add the intermediate to the appliance's web server, install it on the servers, or turn on **Allow servers to skip the certificate check**.
 - A group that is not an Unassigned group. Servers in an Unassigned group are never scanned.
@@ -36,11 +45,11 @@ Admin > Custom Extensions > Vulnerability Search (CB Admins) searches every scan
 
 ## Resource tab
 
-A resource whose servers include a Linux server (or, when the tab is limited to labelled servers, a labelled one) gets its own **Vulnerabilities** tab. It rolls up the known vulnerabilities of the resource's own servers: a card with how many of the servers you can see have a software list (for example 4 of 6), the totals, and the same two views as the Vulnerability search page. **Vulnerabilities** lists each one with its severity, whether it is on the CISA exploited list and how many of the resource's servers it affects; choose one to see which servers. **Servers** lists each server with its critical, high and exploited counts, or why it has none ("Not scanned yet", "Powered off", "In an Unassigned group", "Scanning"). Both views are paged on the server.
+A resource whose servers include a Linux or Windows server (or, when the tab is limited to labelled servers, a labelled one) gets its own **Vulnerabilities** tab. It rolls up the known vulnerabilities of the resource's own servers: a card with how many of the servers you can see have a software list (for example 4 of 6), the totals, and the same two views as the Vulnerability search page. **Vulnerabilities** lists each one with its severity, whether it is on the CISA exploited list and how many of the resource's servers it affects; choose one to see which servers. **Servers** lists each server with its critical, high and exploited counts, or why it has none ("Not scanned yet", "Powered off", "In an Unassigned group", "Scanning"). Both views are paged on the server.
 
 - The tab covers the servers of the resource itself. Servers of sub-resources are not included; they have their own tab.
 - You see only the servers you may view. If you may view none of them, the tab says so.
-- **Scan all servers** starts one job that collects a software list from every server of the resource that you may scan and that can be scanned without anyone present (Linux, powered on, not in an Unassigned group, with a working script channel and credentials). Others are skipped and counted in the job output. It needs the server.all_actions permission on a server, or CB Admin, and it never scans a server you cannot scan. The button shows only when at least one server qualifies. Servers are scanned a few at a time (the same setting as the weekly inventory). While it runs the tab shows how many servers are done and a link to the job, and refreshes itself every 5 seconds; only one such scan runs per resource at a time.
+- **Scan all servers** starts one job that collects a software list from every server of the resource that you may scan and that can be scanned without anyone present (Linux or Windows, powered on, not in an Unassigned group, with a working script channel and credentials). Others are skipped and counted in the job output. It needs the server.all_actions permission on a server, or CB Admin, and it never scans a server you cannot scan. The button shows only when at least one server qualifies. Servers are scanned a few at a time (the same setting as the weekly inventory). While it runs the tab shows how many servers are done and a link to the job, and refreshes itself every 5 seconds; only one such scan runs per resource at a time.
 - The roll-up covers the first 500 servers of a resource. A larger resource shows the totals of those 500 and says so; the Servers view still lists every server you can see. For a resource with many servers the roll-up takes longer to load (about a second at 200 servers in testing).
 - The totals come from stored software lists, so a new vulnerability appears without a rescan once the nightly re-match has run.
 
@@ -48,8 +57,8 @@ A resource whose servers include a Linux server (or, when the tab is limited to 
 
 Two recurring jobs are created the first time the Vulnerability Settings page opens. Both are created **off**; the extension never changes a job's schedule or on/off state afterwards. Open a job from the Schedules card on the settings page to run it now or to turn its schedule on.
 
-- **Vulnerability Nightly Re-match** (03:00 every day). Updates the vulnerability database, then matches every stored software list that was matched against an older database. Servers are checked a few at a time (setting below). It also removes the results, stored software lists and state of servers that were deleted, are historical or are in an Unassigned group.
-- **Vulnerability Weekly Inventory** (01:00 every Sunday). Collects a fresh software list from every server that can be scanned without anyone present: Linux, powered on, in a group that is not Unassigned, with a working script channel and credentials. Servers that cannot be scanned are skipped and counted in the job output; a server whose stored list is under 20 hours old is skipped. It needs the default portal's site URL (Admin > Portals), like a scan from the tab.
+- **Vulnerability Nightly Re-match** (03:00 every day). Updates the vulnerability database and the Microsoft security data, then matches every stored software list or Windows build that was matched against older data. Servers are checked a few at a time (setting below). It also removes the results, stored software lists and state of servers that were deleted, are historical or are in an Unassigned group.
+- **Vulnerability Weekly Inventory** (01:00 every Sunday). Collects a fresh software list or Windows build from every server that can be scanned without anyone present: Linux or Windows, powered on, in a group that is not Unassigned, with a working script channel and credentials. Servers that cannot be scanned are skipped and counted in the job output; a server whose stored list is under 20 hours old is skipped. A Linux server needs the default portal's site URL (Admin > Portals), like a scan from the tab.
 
 ## Scan after provisioning
 
@@ -59,7 +68,7 @@ Turn on **Scan new servers after they are built** on the settings page. The exte
 
 1. Sync the repository, then restart the web service (`httpd`) so the new routes load, and confirm the extension is enabled under Admin > Extensions.
 2. Open Admin > Custom Extensions > Vulnerability Settings and choose **Set up scanner**. The page shows the job's progress and the installed versions when it finishes.
-3. Open a Linux server's Vulnerabilities tab and choose **Collect software list**.
+3. Open a Linux server's Vulnerabilities tab and choose **Collect software list**, or a Windows server's and choose **Check for missing updates**.
 
 ## Settings
 
@@ -67,7 +76,7 @@ Turn on **Scan new servers after they are built** on the settings page. The exte
 - Whether servers may skip the certificate check when they talk to the appliance (off by default).
 - Whether servers may download the inventory tool from GitHub when the appliance is unreachable (on by default).
 - Extra folders the software list skips, one absolute path per line, at most 20. System, container and network folders are always skipped.
-- Whether the tab shows on every Linux server or only on servers labelled `Vulnerabilities`.
+- Whether the tab shows on every Linux and Windows server or only on servers labelled `Vulnerabilities`.
 - Scan new servers after they are built (off by default).
 - Vulnerability matches at once on the appliance, for scans and the nightly re-match (1 to 4, default 1). Each can use more than a gigabyte of memory; further scans wait for a free slot.
 - Servers scanned at once by the weekly inventory and by Scan all servers on a resource (1 to 10, default 4).
@@ -76,7 +85,7 @@ An Unassigned group is never scanned or re-matched by any job. The nightly job r
 
 ## Not in this version
 
-- Windows servers.
+- Applications on Windows servers, and Windows Server 2019 and older.
 - Storing software lists in S3.
 - A lookup of whether a CVE is in the vulnerability database itself (the Vulnerability search page and the resource tab only show what affects scanned servers).
 
@@ -88,6 +97,8 @@ Also tested there: the upgrade of an existing findings store, the Vulnerability 
 
 Also tested: a database update after the first one and the nightly job re-matching a stored software list against it; the resource tab on a three-server resource on OpenShift Virtualization (Red Hat Enterprise Linux 9 virtual machines) before and after Scan all servers, with one server whose build failed shown as not active and skipped; and two large matches queued one after the other by the matches-at-once limit.
 
-Not tested: Oracle Linux, arm64 servers, a user who is not a CB Admin, either job running on its schedule, and more than a few servers at once.
+Windows tested on the same appliance: the Microsoft data download, a check of a Windows Server 2025 on AWS through Systems Manager (standard track), the Windows tab, the search page with Linux and Windows servers together, and the nightly job with both data sources.
+
+Not tested: Windows Server 2022, Windows over WinRM, a server on the hotpatch track, Oracle Linux, arm64 servers, a user who is not a CB Admin, either job running on its schedule, and more than a few servers at once.
 
 `extensions/XUI-wqrj0e3p/tests` holds unit tests that run without CloudBolt: `python -B -m unittest discover -s extensions/XUI-wqrj0e3p/tests -p "test_*.py"`.

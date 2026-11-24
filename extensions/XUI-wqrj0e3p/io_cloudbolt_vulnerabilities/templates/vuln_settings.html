@@ -95,6 +95,12 @@
       <div>The last setup did not finish: {{ tools.last_error }}{% if tools.last_error_at %} &middot; <span data-vuln-time="{{ tools.last_error_at }}">{{ tools.last_error_at }}</span>{% endif %}</div>
     </div>
     {% endif %}
+    {% if msrc.last_error and not setup_active %}
+    <div class="vuln-notice vuln-notice-bad" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>The last update of the Microsoft security data did not finish: {{ msrc.last_error }}{% if msrc.last_error_at %} &middot; <span data-vuln-time="{{ msrc.last_error_at }}">{{ msrc.last_error_at }}</span>{% endif %}</div>
+    </div>
+    {% endif %}
     {% if tools %}
     <div class="vuln-usage">
       <div><div class="n">{% if tools.grype.installed %}{{ tools.grype.version|default:"Installed" }}{% else %}Not installed{% endif %}</div><div class="l">Scanner</div></div>
@@ -104,6 +110,13 @@
         <div class="l">Vulnerability database{% if tools.db.present and db_age_days is not None %}, {{ db_age_days }} day{{ db_age_days|pluralize }} old{% endif %}</div>
       </div>
       <div><div class="n">{{ tools.db.bytes|default:0|filesizeformat }}</div><div class="l">Database size</div></div>
+      {% if msrc %}
+      <div>
+        <div class="n">{% if msrc.present %}{{ msrc.built|slice:":10"|default:"Present" }}{% else %}None{% endif %}</div>
+        <div class="l">Microsoft security data{% if msrc.present and msrc.age_days is not None %}, {{ msrc.age_days }} day{{ msrc.age_days|pluralize }} old{% endif %}</div>
+      </div>
+      {% if msrc.present %}<div><div class="n">{{ msrc.cves|default:0 }}</div><div class="l">CVEs in the Microsoft data</div></div>{% endif %}
+      {% endif %}
       <div><div class="n">{{ tools.free_bytes|default:0|filesizeformat }}</div><div class="l">Free disk</div></div>
       {% if store_stats %}
       <div><div class="n">{{ store_stats.servers|default:0 }}</div><div class="l">Servers with findings</div></div>
@@ -111,6 +124,7 @@
       {% endif %}
     </div>
     {% if tools.db.checked %}<div class="vuln-help" style="margin: -4px 0 14px;">Database last checked {% if db_checked %}{{ db_checked|date:"j M Y H:i" }}{% else %}{{ tools.db.checked }}{% endif %}.</div>{% endif %}
+    {% if msrc.checked %}<div class="vuln-help" style="margin: -4px 0 14px;">Microsoft security data last checked {% if msrc.checked_local %}{{ msrc.checked_local|date:"j M Y H:i" }}{% else %}{{ msrc.checked }}{% endif %}.</div>{% endif %}
     {% endif %}
 
     {% if setup_active %}
@@ -127,7 +141,7 @@
     <button type="button" class="btn btn-sm btn-primary" data-vuln-act="setup"{% if setup_active or scanner_error %} disabled{% endif %}>
       <i class="bi bi-download" aria-hidden="true"></i> {% if tools.ready %}Update now{% else %}Set up scanner{% endif %}
     </button>
-    <div class="vuln-help">Setup downloads about 300 MB and uses 3.6 GB of disk. It needs outbound access to github.com and grype.anchore.io.{% if tools.ready %} Updating fetches a newer vulnerability database when there is one.{% endif %}</div>
+    <div class="vuln-help">Setup downloads about 300 MB and uses 3.6 GB of disk. It needs outbound access to github.com and grype.anchore.io. It also downloads the Microsoft security data that Windows servers are checked against, which needs outbound access to api.msrc.microsoft.com and www.cisa.gov.{% if tools.ready %} Updating fetches a newer vulnerability database and newer Microsoft data when there is any.{% endif %}</div>
     {% if tools and tools.free_bytes < 9663676416 %}<div class="vuln-help vuln-caution">The database update needs at least 9 GB of free disk space while it unpacks.</div>{% endif %}
   </div>
 
@@ -189,7 +203,7 @@
       <div class="vuln-field">
         <label class="vuln-label" for="vuln-visibility">Show the tab on</label>
         <select class="form-select form-select-sm" id="vuln-visibility" name="visibility">
-          <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux server</option>
+          <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux and Windows server</option>
           <option value="label"{% if settings.visibility == "label" %} selected{% endif %}>Only servers labelled Vulnerabilities</option>
         </select>
         <div class="vuln-help">Choose who sees the Vulnerabilities tab on a server page.</div>

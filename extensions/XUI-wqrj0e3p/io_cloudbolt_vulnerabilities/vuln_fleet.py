@@ -3,8 +3,9 @@ The fleet-wide work of the Vulnerabilities extension: which servers a job may sc
 cleanup of servers that are gone, and the three jobs that run without a person.
 
     run_rematch     nightly. Removes what is stored for deleted servers, updates the
-                    vulnerability database and matches the stored software lists of the
-                    servers that were last matched against an older database.
+                    vulnerability database and the Microsoft security data, and matches the
+                    stored software lists (Linux) and Windows builds of the servers that were
+                    last matched against older data of their own kind.
     run_inventory   weekly. Starts a scan (vuln_jobs.start) of every server that can be
                     scanned without a person.
     run_provision   after a build, when the setting is on. Starts a scan of each new server
@@ -22,6 +23,7 @@ Rules that hold everywhere here:
     that nothing closes): every ORM call runs in the job's own thread. The worker threads of the
     re-match only run the scanner and parse its report; the main thread saves the results.
 """
+import re
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -30,7 +32,7 @@ from infrastructure.models import Server
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
-from . import vuln_db, vuln_hooks, vuln_jobs, vuln_repo, vuln_store as store, vuln_tools as tools
+from . import vuln_db, vuln_hooks, vuln_jobs, vuln_msrc, vuln_repo, vuln_store as store, vuln_tools as tools
 
 logger = ThreadLogger(__name__)
 
@@ -51,7 +53,7 @@ BAD_STATUSES = ("FAILURE", "CANCELED", "TO_CANCEL")
 REASONS = {
     "historical": "historical",
     "unassigned": "in an Unassigned group",
-    "not_linux": "not Linux",
+    "unsupported_os": "not Linux or Windows",
     "hidden": "not shown the tab by the settings",
     "powered_off": "powered off",
     "no_script_channel": "no way to run a script",
@@ -67,7 +69,15 @@ REASONS = {
     "changed": "scanned again while it ran",
     "left_resource": "no longer in the resource",
     "no_permission": "without permission to scan",
+    "not_set_up": "scanner not set up",
+    "no_site_url": "no portal site URL",
+    "no_windows_data": "no Microsoft security data",
+    "unsupported_windows": "a Windows version this extension does not cover",
 }
+# A db_built that is a Microsoft index stamp ("2026-11-10.26edfc27ff"), not a Grype build time: a date, a dot, a hash.
+MSRC_STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.")
+# What stops a server of each kind from being scanned when the data it needs is missing (prerequisites()).
+KIND_PROBLEM = {"linux": "not_set_up", "windows": "no_windows_data"}
 
 
 # ---------------------------------------------------------------- small helpers
@@ -150,11 +160,43 @@ def _plural(count, noun):
     return "{} {}{}".format(count, noun, "" if count == 1 else "s")
 
 
+# ---------------------------------------------------------------- what each kind of server needs
+def prerequisites(base_url):
+    """(linux problem, windows problem): "" when servers of that kind can be scanned now, else a reason code of
+    REASONS. A Linux server needs the scanner and the portal's site URL; a Windows server needs only the Microsoft
+    security data on the appliance."""
+    try:
+        ready = bool(tools.status()["ready"])
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the state of the scanner")
+        ready = False
+    linux = "not_set_up" if not ready else ("" if base_url else "no_site_url")
+    windows = "" if vuln_jobs.msrc_ready() else "no_windows_data"
+    return linux, windows
+
+
+def prerequisite_for(server, problems):
+    """The reason code that keeps this server from being scanned now, or "". problems is prerequisites()."""
+    return problems[1] if vuln_jobs.is_windows(server) else problems[0]
+
+
+def nothing_can_run(problems):
+    """True when neither a Linux nor a Windows server can be scanned."""
+    return bool(problems[0] and problems[1])
+
+
+def not_ready_message(problems):
+    """The sentence for a job that cannot start any scan: the Linux one, as it always was."""
+    return vuln_jobs.NOT_SET_UP if problems[0] == "not_set_up" else vuln_jobs.NO_SITE_URL
+
+
 # ---------------------------------------------------------------- which servers
 def eligibility(server, visibility):
     """"" when an unattended job may scan the server, else a short reason code: historical, not_active (any
-    other status than ACTIVE, such as a failed build), unassigned, not_linux, hidden, powered_off, no_script_channel, no_address, no_credentials (or unknown when a
-    check itself failed). No network call; the resource handler may be None."""
+    other status than ACTIVE, such as a failed build), unassigned, unsupported_os (neither Linux nor Windows),
+    hidden, powered_off, unsupported_windows (a Windows version whose last scan failed as not covered),
+    no_script_channel, no_address, no_credentials (or unknown when a check itself failed). No network call (one
+    small state file is read for a Windows server); the resource handler may be None."""
     try:
         if server.status == "HISTORICAL":
             return "historical"
@@ -162,12 +204,14 @@ def eligibility(server, visibility):
             return "not_active"
         if vuln_jobs.in_unassigned_group(server):
             return "unassigned"
-        if not vuln_jobs.is_linux(server):
-            return "not_linux"
+        if not vuln_jobs.is_supported(server):
+            return "unsupported_os"
         if not vuln_jobs.shows_tab(server, visibility):
             return "hidden"
         if server.power_status != "POWERON":
             return "powered_off"
+        if vuln_jobs.is_windows(server) and _unsupported_windows(server):
+            return "unsupported_windows"
         if vuln_jobs._is_openshift_vm(server):
             # The scan reaches these through the API tunnel (vuln_jobs._execute), which needs no address
             # and logs in on its own.
@@ -195,6 +239,19 @@ def eligibility(server, visibility):
     except Exception:
         logger.exception("Vulnerabilities: could not check whether server %s can be scanned", getattr(server, "id", ""))
         return "unknown"
+
+
+def _unsupported_windows(server):
+    """True when the server's last scan failed because its Windows version is not one the Microsoft data covers
+    (vuln_jobs.UNSUPPORTED_WINDOWS is stored in that scan's entry). Every unattended scan of it would fail the
+    same way, so the jobs skip it; a later successful scan (the tab's button still works) replaces the entry and
+    clears this. A state that cannot be read does not skip the server."""
+    try:
+        last = store.read_state(server.id).get("last")
+    except Exception:
+        return False
+    return bool(isinstance(last, dict) and last.get("status") == "failed"
+                and last.get("reason") == vuln_jobs.UNSUPPORTED_WINDOWS)
 
 
 def candidates(visibility):
@@ -278,20 +335,41 @@ def _match_worker(item):
     return vuln_jobs.match_and_parse(item["path"], out_json)
 
 
-def _rematch_items(known, built, counts):
-    """The servers to re-match (oldest match first) as work items; counts gets the skips. Runs in the
-    job's thread: it reads Server rows, the state files and the jobs."""
-    todo = [row for row in known if (row.get("db_built") or "") != built]
-    todo.sort(key=lambda row: row.get("matched_at") or "")
+def _rematch_items(known, builts, counts):
+    """The servers to re-match (oldest match first) as work items; counts gets the skips. builts is
+    {"linux": the Grype database build, "windows": the Microsoft data stamp}, a kind with no data left out.
+    Each server's stored software list says which kind it is (vuln_jobs.inventory_kind) and the row's db_built
+    is compared with the stamp of that kind. A row with no stored list is left alone when its db_built equals
+    either stamp. Runs in the job's thread: it reads Server rows, the state files, the stored lists and the jobs."""
+    current = {built for built in builts.values() if built}
+    todo = []
+    for row in known:
+        scan_id = row.get("scan_id") or ""
+        path = vuln_repo.inventory_path(int(row["server_id"]), scan_id) if scan_id else None
+        kind, facts = ("linux", None)
+        if path is not None:
+            kind, facts = vuln_jobs.inventory_kind(path)
+        stamp = row.get("db_built") or ""
+        if path is None:
+            if stamp in current:
+                continue
+        elif not builts.get(kind):
+            # No data of its kind on the appliance (yet): nothing to match against, so it is left as it is.
+            counts[KIND_PROBLEM[kind]] += 1
+            continue
+        elif stamp == builts[kind]:
+            continue
+        todo.append((row, path, kind, facts))
+    todo.sort(key=lambda entry: entry[0].get("matched_at") or "")
     if not todo:
         return []
     servers = {
         server.id: server
-        for server in Server.objects.filter(id__in=[int(row["server_id"]) for row in todo]).select_related(
+        for server in Server.objects.filter(id__in=[int(entry[0]["server_id"]) for entry in todo]).select_related(
             "group", "environment")
     }
     items = []
-    for row in todo:
+    for row, path, kind, facts in todo:
         server_id = int(row["server_id"])
         server = servers.get(server_id)
         if server is None:
@@ -301,14 +379,13 @@ def _rematch_items(known, built, counts):
         elif vuln_jobs.in_unassigned_group(server):
             counts["unassigned"] += 1
         else:
-            scan_id = row.get("scan_id") or ""
-            path = vuln_repo.inventory_path(server_id, scan_id) if scan_id else None
             if path is None:
                 counts["no_list"] += 1
             elif _scan_running(server_id):
                 counts["scanning"] += 1
             else:
-                items.append({"server_id": server_id, "scan_id": scan_id, "path": path, "server": server})
+                items.append({"server_id": server_id, "scan_id": row.get("scan_id") or "", "path": path,
+                              "server": server, "kind": kind, "facts": facts})
     return items
 
 
@@ -394,13 +471,37 @@ def run_rematch(job, **kwargs):
         return "FAILURE", "", "The nightly re-match failed: {}".format(vuln_jobs.clean(str(exc), 300)), {}
 
 
+def _match_windows(item, index, built, counts):
+    """Re-match one Windows server in the job's own thread (a lookup in the Microsoft data: no match slot, no
+    scanner, no worker). Returns "changed", "unchanged" or "" (dropped); raises when the lookup fails."""
+    server, reason = _requalify(item["server_id"])
+    if reason:
+        counts[reason] += 1
+        return ""
+    result = vuln_msrc.match(item["facts"], index)
+    return _save_rematch(dict(item, server=server), {"matches": result["matches"]},
+                         result.get("db_built") or built, counts)
+
+
+def _microsoft_in_use(known):
+    """True when the Microsoft security data has been set up on this appliance, or a known server was last matched
+    against it (its db_built is a Microsoft stamp). Never raises."""
+    try:
+        if vuln_msrc.status().get("present"):
+            return True
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the state of the Microsoft security data")
+    return any(MSRC_STAMP_RE.match(str(row.get("db_built") or "")) for row in known or [])
+
+
 def _rematch(job):
     try:
         vuln_db.upgrade()   # also the one-time upgrade of a store the previous release left
     except Exception as exc:
         logger.exception("Vulnerabilities: the findings store could not be opened")
         return "FAILURE", "", _store_unreadable(exc), {}
-    if not tools.status()["ready"]:
+    linux_ready = bool(tools.status()["ready"])
+    if not linux_ready and not vuln_jobs.msrc_ready():
         return "FAILURE", "", vuln_jobs.NOT_SET_UP, {}
     notes = []
 
@@ -409,28 +510,72 @@ def _rematch(job):
 
     forgotten = forget_stale(progress)["forgotten"]
 
-    progress("Updating the vulnerability database")
-    try:
-        tools.update_database(progress)
-    except Exception as exc:
-        logger.exception("Vulnerabilities: the database update failed; matching with the database it has")
-        notes.append("The vulnerability database could not be updated ({}); the one already there was used.".format(
-            vuln_jobs.clean(exc.public if isinstance(getattr(exc, "public", None), str) else str(exc), 150)))
-    built = tools.status()["db"]["built"]
-    if not built:
+    if linux_ready:
+        progress("Updating the vulnerability database")
+        try:
+            tools.update_database(progress)
+        except Exception as exc:
+            logger.exception("Vulnerabilities: the database update failed; matching with the database it has")
+            notes.append("The vulnerability database could not be updated ({}); the one already there was used.".format(
+                vuln_jobs.clean(exc.public if isinstance(getattr(exc, "public", None), str) else str(exc), 150)))
+    known = vuln_db.known_servers()
+    # The download is for an appliance that uses the Microsoft data: it has been set up here, or a Windows server
+    # has been scanned. A Linux-only or air-gapped appliance does not try it every night and add a failure note.
+    if _microsoft_in_use(known):
+        progress("Updating the Microsoft security data")
+        try:
+            tools.update_microsoft(progress)
+        except Exception as exc:
+            logger.exception("Vulnerabilities: the Microsoft data update failed; matching with the data it has")
+            notes.append("The Microsoft security data could not be updated ({}); the data already there was used.".format(
+                vuln_jobs.clean(exc.public if isinstance(getattr(exc, "public", None), str) else str(exc), 150)))
+    builts = {}
+    if linux_ready:
+        built = tools.status()["db"]["built"]
+        if built:
+            builts["linux"] = built
+    windows_index = None
+    if vuln_jobs.msrc_ready():
+        windows_index = vuln_msrc.load_index()
+        windows_built = vuln_msrc.status()["built"]
+        if windows_index is not None and windows_built:
+            builts["windows"] = windows_built
+    if not builts:
         return "WARNING", "The build date of the vulnerability database is not known, so no server was re-matched.", "", {}
+    built = builts.get("linux", "")
 
     counts = {key: 0 for key in REASONS}
-    items = _rematch_items(vuln_db.known_servers(), built, counts)
-    total = len(items)
+    items = _rematch_items(known, builts, counts)
+    windows_items = [item for item in items if item["kind"] == "windows"]
+    items = [item for item in items if item["kind"] != "windows"]
+    total = len(items) + len(windows_items)
     rematched = unchanged = failed = done = 0
     stopped = out_of_time = False
     left = 0
     started_at = _clock()
     workers = max(1, min(4, int(store.get_settings()["rematch_workers"])))
 
-    if items:
-        progress("Matching {} against the vulnerability database".format(_plural(total, "server")))
+    if windows_items:
+        progress("Matching {} against the Microsoft security data".format(_plural(len(windows_items), "Windows server")))
+        for item in windows_items:
+            if _cancelled(job):
+                stopped = True
+                break
+            done += 1
+            try:
+                outcome = _match_windows(item, windows_index, builts["windows"], counts)
+            except Exception as exc:
+                failed += 1
+                logger.error("Vulnerabilities: re-matching Windows server %s failed: %s", item["server_id"],
+                             getattr(exc, "detail", None) or repr(exc))
+                continue
+            if outcome:
+                rematched += 1
+                unchanged += outcome == "unchanged"
+            _progress(job, "Matched {} of {}".format(done, total), done, total)
+
+    if items and not stopped:
+        progress("Matching {} against the vulnerability database".format(_plural(len(items), "server")))
         executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="vuln-rematch")
         waiting = list(items)
         pending = {}
@@ -493,7 +638,12 @@ def _rematch(job):
                 notes.append("Afterwards, {} failed: {}".format(what, vuln_jobs.clean(str(exc), 150)))
 
     skipped = {code: counts[code] for code in counts if counts[code]}
-    parts = ["Re-matched {} against the vulnerability database built {}".format(_plural(rematched, "server"), built)]
+    sources = []
+    if "linux" in builts:
+        sources.append("the vulnerability database built {}".format(builts["linux"]))
+    if "windows" in builts:
+        sources.append("the Microsoft security data built {}".format(builts["windows"]))
+    parts = ["Re-matched {} against {}".format(_plural(rematched, "server"), " and ".join(sources))]
     if rematched:
         parts[0] += " ({} with no change in findings)".format(unchanged)
     if skipped:
@@ -512,7 +662,9 @@ def _rematch(job):
         message += " " + " ".join(notes)
     outputs = {"rematched": rematched, "unchanged": unchanged, "failed": failed, "forgotten": forgotten,
                "skipped": skipped, "db_built": built}
-    if items and rematched == 0 and failed and not stopped:
+    if "windows" in builts:
+        outputs["windows_built"] = builts["windows"]
+    if total and rematched == 0 and failed and not stopped:
         return "FAILURE", message, "No server could be re-matched.", outputs
     outputs["left"] = left
     return ("WARNING" if stopped or out_of_time else "SUCCESS"), message, "", outputs
@@ -626,11 +778,10 @@ def _inventory(job):
     except Exception as exc:
         logger.exception("Vulnerabilities: the findings store could not be opened")
         return "FAILURE", "", _store_unreadable(exc), {}
-    if not tools.status()["ready"]:
-        return "FAILURE", "", vuln_jobs.NOT_SET_UP, {}
     base_url = default_base_url()
-    if not base_url:
-        return "FAILURE", "", vuln_jobs.NO_SITE_URL, {}
+    problems = prerequisites(base_url)
+    if nothing_can_run(problems):
+        return "FAILURE", "", not_ready_message(problems), {}
     forgotten = forget_stale(lambda message: _progress(job, message))["forgotten"]
 
     cfg = store.get_settings()
@@ -646,6 +797,9 @@ def _inventory(job):
     queue = []
     for server in candidates(visibility):
         reason = eligibility(server, visibility)
+        if not reason:
+            # A kind of server whose data is missing is skipped and counted; the other kind still runs.
+            reason = prerequisite_for(server, problems)
         if not reason and _recent(last_list.get(server.id)):
             reason = "recent"
         if reason:
@@ -782,10 +936,9 @@ def start_resource_scan(profile, resource, server_ids, base_url):
             if running is not None:
                 return vuln_jobs.Refusal(
                     "Job {} is already scanning the servers of this resource.".format(running[1].id), 409)
-            if not tools.status()["ready"]:
-                return vuln_jobs.Refusal(vuln_jobs.NOT_SET_UP, 409)
-            if not base_url:
-                return vuln_jobs.Refusal(vuln_jobs.NO_SITE_URL, 409)
+            problems = prerequisites(base_url)
+            if nothing_can_run(problems):
+                return vuln_jobs.Refusal(not_ready_message(problems), 409)
             requested_by = vuln_jobs._requested_by(profile)
             created = vuln_hooks.resource_scan_hook().run_as_job(
                 owner=profile,
@@ -862,11 +1015,10 @@ def _resource_scan(job, resource_id, server_ids):
     queue = _int_ids(server_ids)
     if not queue:
         return "FAILURE", "", "This job was given no server to scan.", {}
-    if not tools.status()["ready"]:
-        return "FAILURE", "", vuln_jobs.NOT_SET_UP, {}
     base_url = default_base_url()
-    if not base_url:
-        return "FAILURE", "", vuln_jobs.NO_SITE_URL, {}
+    problems = prerequisites(base_url)
+    if nothing_can_run(problems):
+        return "FAILURE", "", not_ready_message(problems), {}
     cfg = store.get_settings()
     visibility = cfg["visibility"]
     parallel = max(1, min(10, int(cfg["inventory_parallel"])))
@@ -897,7 +1049,7 @@ def _resource_scan(job, resource_id, server_ids):
         # As the person who started the scan: view (Server.objects_for_profile) and scan (server.all_actions).
         if not (vuln_jobs.can_view(fresh, server) and vuln_jobs.can_scan(fresh, server)):
             return "no_permission"
-        return eligibility(server, visibility)
+        return eligibility(server, visibility) or prerequisite_for(server, problems)
 
     total = len(queue)
     _progress(job, "Scanning {}".format(_plural(total, "server")), 0, total)
@@ -944,10 +1096,11 @@ def _provision(job, kwargs):
     cfg = store.get_settings()
     if not cfg["scan_on_provision"]:
         return "Scanning new servers is turned off."
-    if not tools.status()["ready"]:
-        return "No scan was started: the scanner is not set up yet."
     base_url = default_base_url()
-    if not base_url:
+    problems = prerequisites(base_url)
+    if nothing_can_run(problems):
+        if problems[0] == "not_set_up":
+            return "No scan was started: the scanner is not set up yet."
         return "No scan was started: " + vuln_jobs.NO_SITE_URL
     # Hook-point actions get the job; its servers are the ones the build made (cbhooks/models.py line 4770
     # looks for servers in kwargs, the context and the job the same way).
@@ -956,7 +1109,7 @@ def _provision(job, kwargs):
         return "No scan was started: the build made no server."
     started, skipped = [], {}
     for server in servers:
-        reason = eligibility(server, cfg["visibility"])
+        reason = eligibility(server, cfg["visibility"]) or prerequisite_for(server, problems)
         if reason:
             skipped[reason] = skipped.get(reason, 0) + 1
             continue

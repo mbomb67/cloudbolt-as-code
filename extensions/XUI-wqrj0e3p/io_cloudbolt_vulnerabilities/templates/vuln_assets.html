@@ -298,13 +298,15 @@
       var page = (data && data.page) || 1;
       var size = (data && data.page_size) || PAGE_SIZE;
       var pages = (data && data.pages) || 1;
+      var p = panel();
+      var win = !!p && p.getAttribute("data-windows") === "1";   // a Windows server: a build and updates, not a software list
       if (!rows.length) {
-        wrap.appendChild(el("div", "vuln-nomatch", filtersOn() ? "No findings match these filters." : "No known vulnerabilities were found in this software list."));
+        wrap.appendChild(el("div", "vuln-nomatch", filtersOn() ? "No findings match these filters." : (win ? "No known vulnerabilities were found for this Windows build." : "No known vulnerabilities were found in this software list.")));
       } else {
         wrap.appendChild(buildTable(view, rows));
       }
       // The CVE view lists one row per CVE and package, so its count is rows, not distinct CVEs.
-      var noun = view === "cves" ? "rows" : "packages with findings";
+      var noun = view === "cves" ? "rows" : (win ? "updates with findings" : "packages with findings");
       var from = total ? (page - 1) * size + 1 : 0;
       var to = Math.min(page * size, total);
       pager.appendChild(el("span", "", total ? (from + "–" + to + " of " + total + " " + noun) : ("0 " + noun)));

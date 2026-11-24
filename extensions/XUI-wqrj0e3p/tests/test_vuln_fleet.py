@@ -248,9 +248,9 @@ class EligibilityTests(Base):
         self.assertEqual(fleet.eligibility(make_server(status="HISTORICAL"), "linux"), "historical")
         self.assertEqual(fleet.REASONS["not_active"], "not active")
 
-    def test_not_linux_and_hidden(self):
+    def test_not_linux_or_windows_and_hidden(self):
         windows = make_server(os_family=types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows"))
-        self.assertEqual(fleet.eligibility(windows, "linux"), "not_linux")
+        self.assertEqual(fleet.eligibility(windows, "linux"), "unsupported_os")
         self.assertEqual(fleet.eligibility(make_server(), "label"), "hidden")
         tagged = make_server(tags=types.SimpleNamespace(all=lambda: [types.SimpleNamespace(name="Vulnerabilities")]))
         self.assertEqual(fleet.eligibility(tagged, "label"), "")
@@ -575,6 +575,8 @@ class RematchTests(Base):
             mock.patch.object(fleet, "forget_stale", return_value={"forgotten": 0, "kept": 0}),
             mock.patch.object(tools, "status", return_value={"ready": True, "db": {"built": self.BUILT}}),
             mock.patch.object(tools, "update_database", side_effect=update_error, return_value={"updated": True, "built": self.BUILT}),
+            # The nightly job also updates the Microsoft data; never let a test reach the network.
+            mock.patch.object(tools, "update_microsoft", return_value={"updated": False, "built": ""}),
             mock.patch.object(tools, "match", side_effect=self.fake_match),
             mock.patch.object(store, "get_settings", return_value=self.settings),
             mock.patch.object(store, "start_lock", lambda server_id: contextlib.nullcontext()),
@@ -2352,7 +2354,7 @@ class SignalMessageTests(Base):
 class JobFileTests(unittest.TestCase):
     FILES = ("vuln_job.py", "vuln_setup_job.py", "vuln_rematch_job.py", "vuln_inventory_job.py", "vuln_provision_job.py",
              "vuln_resource_job.py")
-    ORDER = ("vuln_store", "vuln_match", "vuln_db", "vuln_tools", "vuln_repo", "vuln_hooks", "vuln_jobs", "vuln_fleet")
+    ORDER = ("vuln_store", "vuln_match", "vuln_db", "vuln_msrc", "vuln_tools", "vuln_repo", "vuln_hooks", "vuln_jobs", "vuln_fleet")
 
     def modules_of(self, filename):
         ns = {}

@@ -25,6 +25,12 @@ run_scan() runs inside that job:
   3. the findings replace the server's rows in the findings database
      (vuln_db.py) and the scan is recorded in the server's state file.
 A scan that fails leaves the findings of the previous good scan untouched.
+
+A Windows server takes a different, shorter path (_run_windows). A short PowerShell script
+(vuln_scan_windows.ps1) reads the Windows build and the installed update ids, nothing is installed
+or changed on the server, and nothing is uploaded from it. The job stores those facts as the
+server's software list and matches the build against the Microsoft security data that is already
+on the appliance (vuln_msrc.py). No Grype, no match slot and no portal site URL are involved.
 Everything that came from the server is stripped of URLs and tokens before it
 is stored or shown.
 
@@ -32,6 +38,8 @@ An OpenShift Virtualization VM usually has no route to CloudBolt, so it gets no
 upload URL: the script leaves the file in a root-only directory (HOLD_DIR) and
 the job reads it over the same API tunnel (_collect).
 """
+import base64
+import gzip
 import json
 import os
 import re
@@ -39,6 +47,7 @@ import secrets
 import shlex
 import tempfile
 import time
+import zlib
 from datetime import datetime, timezone
 
 from infrastructure.models import Server
@@ -46,14 +55,15 @@ from jobs.models import Job
 from utilities.events import add_server_event
 from utilities.logger import ThreadLogger
 
-from . import vuln_db, vuln_hooks, vuln_match, vuln_repo, vuln_store as store, vuln_tools as tools
+from . import vuln_db, vuln_hooks, vuln_match, vuln_msrc, vuln_repo, vuln_store as store, vuln_tools as tools
 
 logger = ThreadLogger(__name__)
 
 SCRIPT_FILE = "vuln_scan.sh"
+WINDOWS_SCRIPT_FILE = "vuln_scan_windows.ps1"
 SECRET_KEYS = ("vuln_upload_url", "vuln_token", "vuln_tools")
 
-# The Vulnerabilities tab shows on Linux servers (settings can narrow it to the
+# The Vulnerabilities tab shows on Linux and Windows servers (settings can narrow it to the
 # ones that carry this label).
 LINUX_FAMILY = "Linux"
 LABEL = "Vulnerabilities"
@@ -79,6 +89,26 @@ UPLOAD_STATES = ("ok", "held", "failed")
 # Where a server keeps its software list for _collect; the scan id is appended.
 HOLD_PREFIX = "/var/tmp/vuln-hold-"
 HELD_NAME = "sbom.json.gz"
+# The Windows check. WinRM sends the script as "powershell -encodedcommand <base64 of UTF-16LE>" on one command
+# line, so len(base64) + 27 must stay within 8000 (CloudBolt's own limit, the same one the Compliance extension
+# checks). The check is made on the final text, before it is sent.
+WINDOWS_MAX_ENCODED = 8000
+WINDOWS_ENCODING_OVERHEAD = 27
+# WinRM ignores this limit and gives up on its own; the SSM and VMware channels honour it.
+WINDOWS_EXEC_TIMEOUT = 110
+WINDOWS_KEYS = ("os", "current_build", "ubr", "installation_type", "edition_id", "display_version", "product_name",
+                "hotfixes", "reason", "note", "done")
+WINDOWS_KIND = "windows-build"
+# The reason a Windows scan is recorded with when the build is not one the Microsoft data covers (Server 2019 and
+# older, a client build). The unattended jobs read it from the last scan (vuln_fleet.eligibility) and skip the server.
+UNSUPPORTED_WINDOWS = "unsupported_windows"
+MAX_HOTFIXES = 400
+# The script's own limit on one printed value (the Cb function in vuln_scan_windows.ps1).
+WINDOWS_LINE_CUT = 3000
+BUILD_RE = re.compile(r"[0-9]{3,6}")
+HOTFIX_RE = re.compile(r"KB[0-9]{4,9}")
+# Text of the first bytes of a stored Windows software list: inventory_kind reads no more than this of a Linux one.
+KIND_PEEK = 64
 EXCLUDE_RE = re.compile(r"/[A-Za-z0-9._/@+-]{0,200}")
 URL_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://\S+")
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}")
@@ -86,6 +116,8 @@ CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
 UNASSIGNED = "Servers in an Unassigned group are not scanned. Move the server to a group first."
 NOT_SET_UP = ("The scanner is not set up yet. A CloudBolt admin can set it up on the Vulnerability Settings page.")
+NOT_SET_UP_WINDOWS = ("The Microsoft security data is not on this appliance yet. A CloudBolt admin can download it on the "
+                      "Vulnerability Settings page with the Set up scanner or Update now button.")
 NO_SITE_URL = "The default portal has no site URL, so servers cannot be told where to send their software list."
 STATE_ERROR = "The scan history for this server cannot be read or written; ask an administrator to check the Vulnerabilities folder."
 COOLDOWN = "This server's software list was collected less than a minute ago. Try again shortly."
@@ -101,7 +133,12 @@ class ScanError(Exception):
 
 
 class ScanFailed(Exception):
-    """A step of a running scan failed; the message is safe to store and show."""
+    """A step of a running scan failed; the message is safe to store and show. reason is a short code the
+    failed scan is recorded with when the caller must act on the kind of failure (UNSUPPORTED_WINDOWS)."""
+
+    def __init__(self, message="", reason=""):
+        super().__init__(message)
+        self.reason = reason
 
 
 class Refusal:
@@ -186,6 +223,35 @@ def build_script(targets_tools, upload_url, token, cfg, hold=""):
     with open(path, encoding="utf-8", newline="") as handle:
         body = handle.read().replace("\r\n", "\n")
     return _launcher("#!/bin/bash\n" + header + body)
+
+
+def windows_script_size(script):
+    """The number the WinRM command-line limit is checked against: len(base64(utf-16-le script)) + 27."""
+    return len(base64.b64encode(script.encode("utf-16-le"))) + WINDOWS_ENCODING_OVERHEAD
+
+
+def windows_script_fits(script):
+    """The WinRM command-line limit: len(base64(utf-16-le script)) + 27 <= 8000."""
+    return windows_script_size(script) <= WINDOWS_MAX_ENCODED
+
+
+def build_windows_script():
+    """The Windows script as sent: vuln_scan_windows.ps1 without its comment lines, blank lines and indentation
+    (every character counts against the command-line limit). Raises ScanError when the text is not plain ASCII,
+    holds a template marker or does not fit the limit."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), WINDOWS_SCRIPT_FILE)
+    with open(path, encoding="utf-8", newline="") as handle:
+        body = handle.read().replace("\r\n", "\n")
+    lines = [line.strip() for line in body.split("\n")]
+    script = "\n".join(line for line in lines if line and not line.startswith("#")) + "\n"
+    if not script.isascii():
+        raise ScanError("The Windows script has characters that are not allowed.")
+    if "{" + "{" in script:
+        raise ScanError("The Windows script has a template marker in it.")
+    if not windows_script_fits(script):
+        raise ScanError("The Windows script is too long to send ({} of {} characters allowed on one command line).".format(
+            windows_script_size(script), WINDOWS_MAX_ENCODED))
+    return script
 
 
 # ---------------------------------------------------------------- output
@@ -310,6 +376,122 @@ def parse_output(text):
     return result
 
 
+def parse_windows_output(text):
+    """The CBVULN|key|value lines of the Windows script as one dict. Only known keys are read; values are
+    cleaned and capped, the build must be digits, the update ids (any number of hotfixes lines, at most 400 in all)
+    must look like KB1234567. A missing value is "" (None for ubr)."""
+    result = {
+        "os": "", "current_build": "", "ubr": None, "installation_type": "", "edition_id": "", "display_version": "",
+        "product_name": "", "hotfixes": [], "reason": "", "notes": [], "done": False,
+    }
+    for raw in _bounded(text).splitlines():
+        line = raw.strip()
+        if not line.startswith("CBVULN|"):
+            continue
+        parts = line.split("|", 2)
+        if len(parts) < 3 or parts[1] not in WINDOWS_KEYS:
+            continue
+        key, value = parts[1], parts[2].strip()
+        if key == "current_build":
+            result[key] = value if BUILD_RE.fullmatch(value) else ""
+        elif key == "ubr":
+            result[key] = _int(value, 10 ** 6)
+        elif key in ("os", "installation_type", "edition_id", "display_version", "product_name"):
+            result[key] = clean(value, 120)
+        elif key == "hotfixes":
+            # The script prints the ids in lines that each end at a comma and are far shorter than its own
+            # 3000-character cut, and the lines add up. A line that reaches the cut anyway may end in half an id
+            # ("KB51310"), which would pass for a real one, so its last item is dropped.
+            items = value.split(",")
+            if len(value) >= WINDOWS_LINE_CUT:
+                items = items[:-1]
+            found = result["hotfixes"]
+            for item in items:
+                item = item.strip().upper()
+                if len(found) >= MAX_HOTFIXES:
+                    break
+                if HOTFIX_RE.fullmatch(item) and item not in found:
+                    found.append(item)
+        elif key == "reason":
+            result["reason"] = clean(value, MESSAGE_LEN)
+        elif key == "note":
+            if len(result["notes"]) < MAX_NOTES:
+                result["notes"].append(clean(value, MESSAGE_LEN))
+        elif key == "done":
+            result["done"] = True
+    return result
+
+
+def windows_facts(parsed):
+    """The Windows "software list": what the script read, as the dict that is stored and matched. None when the
+    build or its revision number is missing."""
+    if not parsed["current_build"] or parsed["ubr"] is None:
+        return None
+    return {
+        "kind": WINDOWS_KIND,
+        "current_build": parsed["current_build"],
+        "ubr": parsed["ubr"],
+        "build": "10.0.{}.{}".format(parsed["current_build"], parsed["ubr"]),
+        "installation_type": parsed["installation_type"],
+        "edition_id": parsed["edition_id"],
+        "display_version": parsed["display_version"],
+        "product_name": parsed["product_name"],
+        "hotfixes": list(parsed["hotfixes"]),
+    }
+
+
+def encode_windows_facts(facts):
+    """The facts as the gzip bytes that are stored. The kind is the first key and the JSON has no spaces, so
+    inventory_kind can tell a Windows list from a Linux one by reading a few bytes."""
+    ordered = {"kind": WINDOWS_KIND}
+    ordered.update((key, value) for key, value in facts.items() if key != "kind")
+    return gzip.compress(json.dumps(ordered, separators=(",", ":")).encode("utf-8"), 6, mtime=0)
+
+
+def inventory_kind(path):
+    """("windows", facts) when the stored software list at path is a Windows one, else ("linux", None). Reads the
+    first bytes only, and the whole file only when those say it is a Windows list (a few kilobytes at most). A
+    file that cannot be read counts as a Linux one, so the Linux code reports it as it always did."""
+    prefix = b'{"kind":"' + WINDOWS_KIND.encode() + b'"'
+    try:
+        with gzip.open(path, "rb") as handle:
+            head = handle.read(KIND_PEEK)
+            if not head.startswith(prefix):
+                return "linux", None
+            rest = handle.read(1024 * 1024 + 1)
+        if len(rest) > 1024 * 1024:
+            return "linux", None
+        facts = json.loads((head + rest).decode("utf-8"))
+    except (OSError, EOFError, ValueError, RecursionError, zlib.error):
+        return "linux", None
+    if isinstance(facts, dict) and facts.get("kind") == WINDOWS_KIND:
+        return "windows", facts
+    return "linux", None
+
+
+def windows_os_name(facts):
+    """"Windows Server 2025 Datacenter, 24H2, build 26100.33650": the product from the Microsoft table (the
+    registry's ProductName can name an older release), the edition, the release and the build."""
+    name = ""
+    try:
+        found = vuln_msrc.product_for(facts)
+        name = re.sub(r"\s*\(.*\)\s*$", "", str(found[1])) if found else ""
+    except Exception:
+        name = ""
+    if not name:
+        name = facts.get("product_name") or "Windows"
+    edition = str(facts.get("edition_id") or "")
+    if edition.startswith("Server"):
+        edition = edition[len("Server"):]
+    if edition.endswith("Eval"):
+        edition = edition[:-len("Eval")] + " (evaluation)"
+    parts = [name + (" " + edition if edition else "")]
+    if facts.get("display_version"):
+        parts.append(str(facts["display_version"]))
+    parts.append("build {}.{}".format(facts["current_build"], facts["ubr"]))
+    return ", ".join(parts)
+
+
 # ---------------------------------------------------------------- unassigned groups
 def in_unassigned_group(server):
     """True when the server is in an Unassigned group: the general one or a
@@ -357,11 +539,22 @@ def is_linux(server):
     return bool(family and family.get_base_name() == LINUX_FAMILY)
 
 
+def is_windows(server):
+    """True for a Windows server: core's Server.is_windows (the root OS family is named Windows)."""
+    check = getattr(server, "is_windows", None)
+    return bool(check()) if callable(check) else False
+
+
+def is_supported(server):
+    """Linux and Windows servers can be scanned."""
+    return is_linux(server) or is_windows(server)
+
+
 def shows_tab(server, visibility):
-    """Whether the server gets the tab: not historical, Linux, and (when the
+    """Whether the server gets the tab: not historical, Linux or Windows, and (when the
     settings say "label") labelled Vulnerabilities. Cheap: no network, no
     remote call."""
-    if server.status == "HISTORICAL" or not is_linux(server):
+    if server.status == "HISTORICAL" or not is_supported(server):
         return False
     if visibility != "label":
         return True
@@ -442,14 +635,21 @@ def start(profile, server, base_url, parent_job=None):
         return Refusal(NOT_ACTIVE, 409)
     if in_unassigned_group(server):
         return Refusal(UNASSIGNED, 409)
-    if not is_linux(server):
-        return Refusal("Vulnerability scanning supports Linux servers only.")
+    windows = is_windows(server)
+    if not windows and not is_linux(server):
+        return Refusal("Vulnerability scanning supports Linux and Windows servers only.")
     if server.power_status != "POWERON":
         return Refusal("The server is not powered on.", 409)
-    if not tools.status()["ready"]:
-        return Refusal(NOT_SET_UP, 409)
-    if not base_url:
-        return Refusal(NO_SITE_URL, 409)
+    if windows:
+        # A Windows server is matched against the Microsoft security data on the appliance: no scanner, and the
+        # server uploads nothing, so the portal's site URL is not needed.
+        if not msrc_ready():
+            return Refusal(NOT_SET_UP_WINDOWS, 409)
+    else:
+        if not tools.status()["ready"]:
+            return Refusal(NOT_SET_UP, 409)
+        if not base_url:
+            return Refusal(NO_SITE_URL, 409)
     cfg = store.job_settings()
     try:
         # One start at a time per server: the active check, the queueing and
@@ -469,10 +669,21 @@ def start(profile, server, base_url, parent_job=None):
         return Refusal(STATE_ERROR, 500)
 
 
+def msrc_ready():
+    """True when the Microsoft security data is on the appliance. Never raises."""
+    try:
+        return bool(vuln_msrc.ready())
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the state of the Microsoft security data")
+        return False
+
+
 def _is_openshift_vm(server):
     """True for a VM on an OpenShift Virtualization resource handler (resourcehandlers/ovirt). Only
     those servers have an OVirtServerInfo row, and it is what kubevirt_api_tunnel reads the
-    namespace from (resourcehandlers/ovirt/models.py OVirtServerInfo)."""
+    namespace from (resourcehandlers/ovirt/models.py OVirtServerInfo). Never true for a Windows server."""
+    if is_windows(server):
+        return False
     return getattr(server, "ovirtserverinfo", None) is not None
 
 
@@ -486,10 +697,15 @@ def _requested_by(profile):
 def _queue(profile, server, cfg, base_url, parent_job):
     """The queued Job, or a Refusal."""
     scan_id = store.new_scan_id()
+    windows = is_windows(server)
     pull = _is_openshift_vm(server)
     try:
-        # The links must outlive the scan, the upload and a wait in the job queue.
-        found = vuln_repo.targets(base_url, scan_id, server.id, cfg["timeout_min"] + TOKEN_EXTRA_MIN)
+        if windows:
+            # No upload link, no tool link and no token: the job runs a script and stores what it prints.
+            found = {"upload_url": "", "tools": {}, "token": ""}
+        else:
+            # The links must outlive the scan, the upload and a wait in the job queue.
+            found = vuln_repo.targets(base_url, scan_id, server.id, cfg["timeout_min"] + TOKEN_EXTRA_MIN)
         vuln_repo.prepare(server.id, scan_id)
     except vuln_repo.RepoError as exc:
         logger.error("Vulnerabilities: no upload targets for server %s: %s", server.id, exc.detail)
@@ -612,35 +828,83 @@ def start_setup(profile):
         return Refusal(STATE_ERROR, 500)
 
 
+def _msrc_date(built):
+    """The date of a Microsoft index stamp ("2026-11-10.26edfc27ff" -> "2026-11-10"), or "" when there is none."""
+    try:
+        return vuln_msrc.stamp_date(built) or ""
+    except Exception:
+        found = re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", str(built or ""))
+        return found.group(0) if found else ""
+
+
+def _msrc_sentence(msrc):
+    """One sentence on the Microsoft security data part of a setup, from the dict tools.setup() reports
+    ({"updated", "built", "error"?}); "" when setup said nothing about it."""
+    if not isinstance(msrc, dict) or not msrc:
+        return ""
+    if msrc.get("error"):
+        return "The Microsoft security data could not be downloaded: {}".format(
+            clean(msrc["error"], MESSAGE_LEN).rstrip(".") + ".")
+    date = _msrc_date(msrc.get("built"))
+    if msrc.get("updated"):
+        return "The Microsoft security data was downloaded{}.".format(" ({})".format(date) if date else "")
+    return "The Microsoft security data is already current{}.".format(" ({})".format(date) if date else "")
+
+
 def run_setup(job, vuln_requested_by="", **kwargs):
     """Plugin entry point (via vuln_setup_job.py). Returns the 4-tuple CloudBolt
-    plugins use: status, output, errors, outputs."""
+    plugins use: status, output, errors, outputs. The setup has two parts: the Grype scanner and
+    database (Linux) and the Microsoft security data (Windows). The Microsoft result rides on the
+    return value of tools.setup() as "msrc", or on a ToolError as .msrc when the Grype part failed;
+    each part is reported, and the job fails only when neither worked."""
     def progress(message):
         _progress(job, message)
 
+    msrc = None
+    failure = ""
+    result = None
     try:
         result = tools.setup(progress)
     except tools.ToolError as exc:
         logger.error("Vulnerabilities: scanner setup failed: %s", exc.detail)
-        message = clean(exc.public, MESSAGE_LEN)
-        tools.record_setup_error(message)
-        return "FAILURE", "", message, {}
+        failure = clean(exc.public, MESSAGE_LEN)
+        msrc = getattr(exc, "msrc", None)
     except Exception as exc:
         logger.exception("Vulnerabilities: scanner setup failed")
-        message = "The scanner setup failed: {}".format(clean(str(exc), MESSAGE_LEN))
-        tools.record_setup_error(message)
-        return "FAILURE", "", message, {}
+        failure = "The scanner setup failed: {}".format(clean(str(exc), MESSAGE_LEN))
+        msrc = getattr(exc, "msrc", None)
     finally:
         try:
             _write_setup_marker(None)
         except Exception:
             logger.exception("Vulnerabilities: could not clear the setup marker")
+    if isinstance(result, dict):
+        msrc = result.get("msrc")
+        # A setup that reports the Grype part as a failure instead of raising.
+        failure = clean(result.get("grype_error") or result.get("error") or "", MESSAGE_LEN)
+    msrc_text = _msrc_sentence(msrc)
+    msrc_ok = isinstance(msrc, dict) and bool(msrc) and not msrc.get("error")
+    outputs = {}
+    if isinstance(msrc, dict) and msrc:
+        outputs["msrc_built"] = str(msrc.get("built") or "")
+        if msrc.get("error"):
+            outputs["msrc_error"] = clean(msrc["error"], MESSAGE_LEN)
+    if failure:
+        tools.record_setup_error(failure)
+        if msrc_ok:
+            # The Linux part failed but the Windows data is on the appliance: say both, end with a warning.
+            outputs["grype_error"] = failure
+            return "WARNING", "{} {}".format(msrc_text, "The scanner setup did not finish: " + failure), failure, outputs
+        return "FAILURE", "", "{} {}".format(failure, msrc_text).strip(), outputs
     db = result["db"]
     message = "The scanner is ready (scanner {}, software list tool {}); the vulnerability database {}{}.".format(
         result["grype"], result["syft"], "was updated" if db["updated"] else "is already current",
         ", built {}".format(db["built"]) if db["built"] else "",
     )
-    return "SUCCESS", message, "", {"grype": result["grype"], "syft": result["syft"], "db_built": db["built"]}
+    if msrc_text:
+        message += " " + msrc_text
+    outputs.update({"grype": result["grype"], "syft": result["syft"], "db_built": db["built"]})
+    return "SUCCESS", message, "", outputs
 
 
 # ---------------------------------------------------------------- the scan job
@@ -684,14 +948,16 @@ def run_scan(job, vuln_server_id=None, vuln_scan_id="", vuln_cfg=None, vuln_uplo
             return _run(job, server, vuln_scan_id, cfg, vuln_upload_url or "", vuln_tools or {}, vuln_token or "",
                         bool(vuln_pull), vuln_started or store.stamp(), vuln_requested_by, began)
         except Exception as exc:
+            reason = ""
             if isinstance(exc, (ScanFailed, tools.ToolError, store.StoreError)):
                 message = exc.public if isinstance(exc, tools.ToolError) else str(exc)
+                reason = str(getattr(exc, "reason", "") or "") if isinstance(exc, ScanFailed) else ""
                 if isinstance(exc, tools.ToolError):
                     logger.error("Vulnerabilities: scan %s on server %s failed: %s", vuln_scan_id, server.id, exc.detail)
             else:
                 logger.exception("Vulnerabilities: scan job failed on server %s", vuln_server_id)
                 message = "The scan failed: {}".format(clean(str(exc), MESSAGE_LEN))
-            return _fail(job, server, vuln_scan_id, vuln_started, began, clean(message, MESSAGE_LEN * 2))
+            return _fail(job, server, vuln_scan_id, vuln_started, began, clean(message, MESSAGE_LEN * 2), reason)
     finally:
         # Always clear the marker, so a failed job never blocks the next scan.
         if vuln_server_id:
@@ -703,9 +969,9 @@ def run_scan(job, vuln_server_id=None, vuln_scan_id="", vuln_cfg=None, vuln_uplo
         _clear_secrets(job)
 
 
-def _fail(job, server, scan_id, started, began, message):
+def _fail(job, server, scan_id, started, began, message, reason=""):
     """Record a failed scan (the server's earlier findings stay as they are)
-    and return the job's FAILURE result."""
+    and return the job's FAILURE result. reason, when given, is stored in the scan's entry."""
     now = store.now_utc()
     try:
         # The file of a failed scan is of no use, and the one from the last good scan is still there.
@@ -713,11 +979,14 @@ def _fail(job, server, scan_id, started, began, message):
     except Exception:
         logger.exception("Vulnerabilities: could not discard the inventory of scan %s", scan_id)
     try:
-        store.record_scan(server.id, {
+        entry = {
             "scan_id": scan_id, "started": started or store.stamp(now), "finished": store.stamp(now),
             "status": "failed", "error": message, "duration_s": int((now - began).total_seconds()),
             "packages": None, "findings": None,
-        })
+        }
+        if reason:
+            entry["reason"] = reason
+        store.record_scan(server.id, entry)
     except Exception:
         logger.exception("Vulnerabilities: could not record the failed scan %s", scan_id)
     try:
@@ -946,6 +1215,8 @@ def _snapshot(server, parsed_output, scan_id, inventory_at, packages, matched_at
 
 
 def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, started, requested_by, began):
+    if is_windows(server):
+        return _run_windows(job, server, scan_id, started, began)
     if not pull and not upload_url:
         raise ScanFailed(
             "This job's upload links were cleared when it first ran, so it cannot run again. "
@@ -1040,6 +1311,122 @@ def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, star
         server.hostname, facts["packages"], summary["vulns"], summary["vuln_critical"], summary["vuln_high"])
     add_server_event("MODIFICATION", server, "Vulnerability scan finished: " + message, job=job)
     outputs = {"scan_id": scan_id, "status": "completed", "packages": facts["packages"], "findings": findings}
+    for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves", "vulns", "vuln_critical",
+                "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown"):
+        outputs[key] = summary[key]
+    return "SUCCESS", message, "", outputs
+
+
+# ---------------------------------------------------------------- the Windows check
+def _execute_windows(server, script):
+    """Run the script on a Windows server and return (stdout text, error text). Server.execute_script picks the
+    channel: WinRM with the server's credentials, or the handler's own (AWS SSM runs it as SYSTEM). It sends
+    the text through PowerShell and ignores run_with_sudo; WinRM ignores the timeout too
+    (infrastructure/models.py Server.execute_script, cbhooks/hookmodules/remote_scripts_with_winrm.py). A script
+    that exits non-zero, or a call that fails, raises; a WinRM failure carries stderr on .output, not stdout,
+    and str(exc) is the readable message. The script always exits 0, so a failure here is a transport problem
+    (the connection, the credentials, a command line that is too long)."""
+    try:
+        output = server.execute_script(script_contents=script, timeout=WINDOWS_EXEC_TIMEOUT,
+                                       show_streaming_output=False)
+        return output.decode("utf-8", errors="replace") if isinstance(output, bytes) else str(output or ""), ""
+    except NotImplementedError:
+        raise ScanFailed("This server's resource handler cannot run scripts on servers.")
+    except Exception as exc:
+        output = getattr(exc, "output", "") or ""
+        if isinstance(output, bytes):
+            output = output.decode("utf-8", errors="replace")
+        message = clean(str(exc), MESSAGE_LEN)
+        if not hasattr(exc, "output"):
+            logger.exception("Vulnerabilities: running the Windows script on server %s failed", server.id)
+            message = "The script could not be run on the server. The CloudBolt job log has the details."
+        return str(output), message or "The script could not be run on the server."
+
+
+def _run_windows(job, server, scan_id, started, began):
+    """The scan of a Windows server: read the build and the installed updates, match the build against the
+    Microsoft security data on the appliance, store the findings. No scanner, no match slot, no upload."""
+    if server.power_status != "POWERON":
+        raise ScanFailed("{} is not powered on.".format(server.hostname))
+    if not msrc_ready():
+        raise ScanFailed(NOT_SET_UP_WINDOWS)
+    try:
+        script = build_windows_script()
+    except ScanError as exc:
+        raise ScanFailed(str(exc))
+
+    # 1. The script reads the build and the installed update ids.
+    _progress(job, "Reading the Windows build and the installed updates")
+    output, error = _execute_windows(server, script)
+    parsed = parse_windows_output(output)
+    for note in parsed["notes"]:
+        logger.info("Vulnerabilities: server %s: %s", server.id, note)
+    inventory_at = store.stamp()
+    facts = windows_facts(parsed)
+    if facts is None:
+        reason = parsed["reason"] or error
+        if not reason and not output.strip():
+            reason = "The server returned no output."
+        if not reason and not parsed["done"]:
+            reason = "The script did not finish (the connection dropped, it timed out, or the output was cut off)."
+        raise ScanFailed("The server did not report its Windows build: {}".format(
+            reason or "no reason was reported."))
+
+    # 2. Match the build against the Microsoft security data. No match slot and no scanner lock: it is a lookup.
+    _progress(job, "Matching the Windows build against the Microsoft security data")
+    try:
+        matched = vuln_msrc.match(facts)
+    except vuln_msrc.MsrcError as exc:
+        logger.error("Vulnerabilities: matching the Windows build of server %s failed: %s", server.id,
+                     getattr(exc, "detail", "") or exc.public)
+        # A build the Microsoft data does not cover fails every scan; the entry says so, and the unattended jobs
+        # stop trying this server (vuln_fleet.eligibility). The server tab's own button still works.
+        raise ScanFailed(clean(exc.public, MESSAGE_LEN),
+                         UNSUPPORTED_WINDOWS if getattr(exc, "reason", "") == UNSUPPORTED_WINDOWS else "")
+    parsed_match = {"matches": matched["matches"], "db_built": matched["db_built"]}
+
+    # 3. Store the facts as the server's software list, the way an uploaded list is stored.
+    try:
+        if vuln_repo.inventory_path(server.id, scan_id) is not None:
+            raise ScanFailed(
+                "This job already ran, so it cannot run again. Start a new scan from the Vulnerabilities tab."
+            )
+        vuln_repo.prepare(server.id, scan_id)
+        vuln_repo.store_stream(server.id, scan_id, [encode_windows_facts(facts)])
+    except vuln_repo.RepoError as exc:
+        logger.error("Vulnerabilities: storing the Windows facts of scan %s for server %s failed: %s", scan_id,
+                     server.id, exc.detail)
+        raise ScanFailed(clean(exc.public, MESSAGE_LEN))
+    # The number of installed updates that could be read: 0 when none could (the panel says so), never a made-up 1.
+    packages = len(facts["hotfixes"])
+
+    # 4. Replace the server's findings. This is the only step that changes them.
+    _progress(job, "Saving the findings")
+    now = store.now_utc()
+    row = vuln_db.replace_server(
+        _snapshot(server, {"os": windows_os_name(facts)}, scan_id, inventory_at, packages, store.stamp(now)),
+        parsed_match,
+    )
+
+    # 5. Housekeeping and the record.
+    try:
+        vuln_repo.prune(server.id, scan_id)
+    except Exception:
+        logger.exception("Vulnerabilities: pruning failed for server %s", server.id)
+    summary = vuln_match.summarize(parsed_match["matches"])
+    findings = row.get("findings", summary["findings"]) if isinstance(row, dict) else summary["findings"]
+    finished = store.now_utc()
+    store.record_scan(server.id, {
+        "scan_id": scan_id, "started": started, "finished": store.stamp(finished), "status": "completed",
+        "error": "", "duration_s": int((finished - began).total_seconds()), "packages": packages,
+        "findings": findings,
+    })
+    updates = ("{} installed update{}".format(packages, "" if packages == 1 else "s") if packages
+               else "installed updates could not be read")
+    message = "Check of {} finished: Windows build {}, {}, {} known vulnerabilities ({} critical, {} high).".format(
+        server.hostname, facts["build"], updates, summary["vulns"], summary["vuln_critical"], summary["vuln_high"])
+    add_server_event("MODIFICATION", server, "Vulnerability scan finished: " + message, job=job)
+    outputs = {"scan_id": scan_id, "status": "completed", "packages": packages, "findings": findings}
     for key in ("critical", "high", "medium", "low", "unknown", "kev", "cves", "vulns", "vuln_critical",
                 "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown"):
         outputs[key] = summary[key]

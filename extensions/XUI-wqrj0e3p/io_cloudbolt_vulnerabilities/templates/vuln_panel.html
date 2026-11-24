@@ -1,6 +1,8 @@
 {% load i18n %}
 {% comment %}
   Panel fragment for the Vulnerabilities tab, loaded and re-loaded by vuln_assets.html.
+  vuln.windows is true for a Windows server: the same panel, worded for a check of the Windows build and
+  installed updates instead of a software list.
   The top element carries: data-active ("1" while a job runs, which keeps the script
   polling and the scan button off), data-denied, data-results ("1" when there is a
   stored result to show) and data-key (changes when the table must be fetched again).
@@ -9,7 +11,7 @@
   is marked safe. Times are written as ISO values and shown in the browser's
   local time by the script.
 {% endcomment %}
-<div class="vuln-panel" data-active="{% if vuln.active %}1{% else %}0{% endif %}" data-denied="{% if vuln.denied %}1{% else %}0{% endif %}" data-results="{% if vuln.summary %}1{% else %}0{% endif %}" data-ready="{% if vuln.ready %}1{% else %}0{% endif %}" data-key="{{ vuln.key }}">
+<div class="vuln-panel" data-active="{% if vuln.active %}1{% else %}0{% endif %}" data-denied="{% if vuln.denied %}1{% else %}0{% endif %}" data-results="{% if vuln.summary %}1{% else %}0{% endif %}" data-ready="{% if vuln.ready %}1{% else %}0{% endif %}" data-windows="{% if vuln.windows %}1{% else %}0{% endif %}" data-key="{{ vuln.key }}">
 {% if vuln.denied %}
   <div class="vuln-banner vuln-banner-bad" role="alert">
     <i class="bi bi-lock-fill" aria-hidden="true"></i>
@@ -30,8 +32,13 @@
   <div class="vuln-banner" role="status">
     <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
     <div class="vuln-banner-body">
+      {% if vuln.windows %}
+      <div class="vuln-banner-t">{% trans "The Microsoft security data is not on this appliance yet" %}</div>
+      <div class="vuln-banner-s">{% if vuln.is_admin %}{% trans "Download it once on the Vulnerability Settings page, then check this server." %}{% else %}{% trans "A CloudBolt administrator needs to download it before this server can be checked." %}{% endif %}</div>
+      {% else %}
       <div class="vuln-banner-t">{% trans "The scanner is not set up yet" %}</div>
       <div class="vuln-banner-s">{% if vuln.is_admin %}{% trans "Set it up once on the Vulnerability Settings page, then collect a software list from this server." %}{% else %}{% trans "A CloudBolt administrator needs to set it up before this server can be scanned." %}{% endif %}</div>
+      {% endif %}
     </div>
     {% if vuln.settings_url %}<a class="btn btn-sm btn-primary vuln-banner-btn" href="{{ vuln.settings_url }}">{% trans "Open Vulnerability Settings" %}</a>{% endif %}
   </div>
@@ -41,7 +48,7 @@
   <div class="vuln-banner vuln-banner-info" role="status" aria-live="polite">
     <i class="bi bi-arrow-repeat vuln-spin" aria-hidden="true"></i>
     <div class="vuln-banner-body">
-      <div class="vuln-banner-t">{% trans "Scan running" %}</div>
+      <div class="vuln-banner-t">{% if vuln.windows %}{% trans "Check running" %}{% else %}{% trans "Scan running" %}{% endif %}</div>
       <div class="vuln-banner-s">{% if vuln.active.started %}{% trans "Started" %} <span data-vuln-time="{{ vuln.active.started }}" data-vuln-fmt="when">{{ vuln.active.started }}</span>{% endif %}{% if vuln.active.message %}{% if vuln.active.started %} &middot; {% endif %}{{ vuln.active.message }}{% endif %}</div>
     </div>
     {% if vuln.active.job_url %}<a class="btn btn-sm btn-outline-secondary vuln-banner-btn" href="{{ vuln.active.job_url }}">{% trans "View job" %}</a>{% endif %}
@@ -52,8 +59,8 @@
   <div class="vuln-banner vuln-banner-bad" role="alert">
     <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
     <div class="vuln-banner-body">
-      <div class="vuln-banner-t">{% trans "The latest scan failed" %}</div>
-      <div class="vuln-banner-s">{% if vuln.last_failed.error %}{{ vuln.last_failed.error }}{% endif %}{% if vuln.last_failed.started %}{% if vuln.last_failed.error %} &middot; {% endif %}{% trans "Started" %} <span data-vuln-time="{{ vuln.last_failed.started }}" data-vuln-fmt="when">{{ vuln.last_failed.started }}</span>{% endif %}{% if vuln.summary %} &middot; {% trans "The results below are from the last good scan." %}{% endif %}</div>
+      <div class="vuln-banner-t">{% if vuln.windows %}{% trans "The latest check failed" %}{% else %}{% trans "The latest scan failed" %}{% endif %}</div>
+      <div class="vuln-banner-s">{% if vuln.last_failed.error %}{{ vuln.last_failed.error }}{% endif %}{% if vuln.last_failed.started %}{% if vuln.last_failed.error %} &middot; {% endif %}{% trans "Started" %} <span data-vuln-time="{{ vuln.last_failed.started }}" data-vuln-fmt="when">{{ vuln.last_failed.started }}</span>{% endif %}{% if vuln.summary %} &middot; {% if vuln.windows %}{% trans "The results below are from the last good check." %}{% else %}{% trans "The results below are from the last good scan." %}{% endif %}{% endif %}</div>
     </div>
   </div>
   {% endif %}
@@ -63,15 +70,15 @@
   <section class="vuln-section">
     {% if vuln.last_failed %}
     <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No results yet" %}</span></div>
-    <div class="vuln-empty">{% trans "The last scan did not finish. You can collect the software list again. Nothing is changed on the server." %}</div>
+    <div class="vuln-empty">{% if vuln.windows %}{% trans "The last check did not finish. You can check again. Nothing is installed or changed on the server." %}{% else %}{% trans "The last scan did not finish. You can collect the software list again. Nothing is changed on the server." %}{% endif %}</div>
     {% else %}
-    <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No scan yet" %}</span></div>
-    <div class="vuln-empty">{% trans "A scan collects a list of the software installed on this server, then matches it against a database of known vulnerabilities. Nothing is changed on the server." %}</div>
+    <div class="vuln-card-h"><span class="vuln-card-t">{% if vuln.windows %}{% trans "No check yet" %}{% else %}{% trans "No scan yet" %}{% endif %}</span></div>
+    <div class="vuln-empty">{% if vuln.windows %}{% trans "A check reads the Windows build and the installed updates of this server, then compares them with the security updates Microsoft has published. Nothing is installed or changed on the server." %}{% else %}{% trans "A scan collects a list of the software installed on this server, then matches it against a database of known vulnerabilities. Nothing is changed on the server." %}{% endif %}</div>
     {% endif %}
     {% if vuln.unassigned %}
     <div class="vuln-empty">{{ vuln.unassigned_text }}</div>
     {% elif vuln.can_scan %}
-    <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if not vuln.ready %} disabled{% endif %}><i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Collect software list" %}</button>
+    <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if not vuln.ready %} disabled{% endif %}><i class="bi bi-play-fill" aria-hidden="true"></i> {% if vuln.windows %}{% trans "Check for missing updates" %}{% else %}{% trans "Collect software list" %}{% endif %}</button>
     {% endif %}
   </section>
   {% endif %}
@@ -106,12 +113,18 @@
       <span class="vuln-card-sub">{% trans "on the CISA exploited list" %}</span>
     </div>
     <div class="vuln-card">
+      {% if vuln.windows %}
+      <span class="vuln-eyebrow">{% trans "Windows build" %}</span>
+      <span class="vuln-big">{% if s.windows_build %}{{ s.windows_build }}{% else %}&ndash;{% endif %}</span>
+      <span class="vuln-card-sub">{% if s.packages %}{{ s.packages }} {% if s.packages == 1 %}{% trans "update installed" %}{% else %}{% trans "updates installed" %}{% endif %}{% else %}{% trans "installed updates could not be read" %}{% endif %}{% if s.inventory_at %} &middot; {% trans "checked" %} <span data-vuln-time="{{ s.inventory_at }}" data-vuln-fmt="when">{{ s.inventory_at }}</span>{% endif %}</span>
+      {% else %}
       <span class="vuln-eyebrow">{% trans "Software list" %}</span>
       <span class="vuln-big">{% if s.packages is not None %}{{ s.packages }}{% else %}&ndash;{% endif %}</span>
       <span class="vuln-card-sub">{% trans "packages" %}{% if s.inventory_at %} &middot; {% trans "collected" %} <span data-vuln-time="{{ s.inventory_at }}" data-vuln-fmt="when">{{ s.inventory_at }}</span>{% endif %}</span>
+      {% endif %}
     </div>
     <div class="vuln-card">
-      <span class="vuln-eyebrow">{% trans "Database" %}</span>
+      <span class="vuln-eyebrow">{% if vuln.windows %}{% trans "Microsoft data" %}{% else %}{% trans "Database" %}{% endif %}</span>
       <span class="vuln-big">{% if s.db_built %}<span data-vuln-time="{{ s.db_built }}" data-vuln-fmt="day">{{ s.db_built }}</span>{% else %}&ndash;{% endif %}</span>
       <span class="vuln-card-sub">{% if s.matched_at %}{% trans "matched" %} <span data-vuln-time="{{ s.matched_at }}" data-vuln-fmt="when">{{ s.matched_at }}</span>{% else %}&nbsp;{% endif %}</span>
     </div>
@@ -139,7 +152,7 @@
     </div>
     <span class="vuln-spacer"></span>
     {% if vuln.can_scan %}
-    <button type="button" class="btn btn-sm btn-outline-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if vuln.active or not vuln.ready %} disabled{% endif %}><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% trans "Refresh software list" %}</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-vuln-act="scan" data-vuln-focus="scan"{% if vuln.active or not vuln.ready %} disabled{% endif %}><i class="bi bi-arrow-repeat" aria-hidden="true"></i> {% if vuln.windows %}{% trans "Check again" %}{% else %}{% trans "Refresh software list" %}{% endif %}</button>
     {% endif %}
   </div>
 

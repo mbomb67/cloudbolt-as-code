@@ -53,7 +53,7 @@
 
   <div class="vuln-card vuln-state" data-vuln-empty hidden>
     <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No server has been scanned yet" %}</span></div>
-    <div class="vuln-empty">{% trans "Collect a software list from a server's Vulnerabilities tab, or turn on the weekly inventory on the settings page. Results appear here as soon as one server has a stored software list." %}</div>
+    <div class="vuln-empty">{% trans "Scan a server from its Vulnerabilities tab, or turn on the weekly inventory on the settings page. Results appear here as soon as one server has been scanned." %}</div>
     {% if settings_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ settings_url }}">{% trans "Vulnerability settings" %}</a>{% endif %}
   </div>
 

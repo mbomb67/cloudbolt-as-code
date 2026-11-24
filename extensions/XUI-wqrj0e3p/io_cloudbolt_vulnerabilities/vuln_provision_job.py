@@ -14,6 +14,7 @@ MODULES = (
     "xui.io_cloudbolt_vulnerabilities.vuln_store",
     "xui.io_cloudbolt_vulnerabilities.vuln_match",
     "xui.io_cloudbolt_vulnerabilities.vuln_db",
+    "xui.io_cloudbolt_vulnerabilities.vuln_msrc",
     "xui.io_cloudbolt_vulnerabilities.vuln_tools",
     "xui.io_cloudbolt_vulnerabilities.vuln_repo",
     "xui.io_cloudbolt_vulnerabilities.vuln_hooks",

@@ -1,5 +1,5 @@
 {
-    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab on servers and on resources, a search across all servers, and a nightly re-match.",
+    "description": "Finds known CVEs on Linux servers (from a software list) and Windows Server 2022 and 2025 servers (from the Windows build and installed updates) by matching them against vulnerability data on the appliance, with a tab on servers and on resources, a search across all servers, and a nightly re-match.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-wqrj0e3p",
@@ -27,6 +27,8 @@
         "vuln_provision_job.py",
         "vuln_resource_job.py",
         "vuln_scan.sh",
+        "vuln_msrc.py",
+        "vuln_scan_windows.ps1",
         "templates/vuln_styles.html",
         "templates/vuln_assets.html",
         "templates/vuln_tab.html",
