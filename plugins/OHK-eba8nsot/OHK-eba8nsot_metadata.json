@@ -1,0 +1,19 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-wkubiao7",
+            "shared_modules/SHM-qlvol7k8"
+        ]
+    },
+    "description": "Restarts Apache on a Linux server, health-checks it, and opens a ServiceNow incident and posts to Microsoft Teams when an alert started the job and Apache is still unhealthy.",
+    "id": "OHK-eba8nsot",
+    "max_retries": 0,
+    "name": "Restart Apache",
+    "resource_technologies": [],
+    "script_filename": "OHK-eba8nsot_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
