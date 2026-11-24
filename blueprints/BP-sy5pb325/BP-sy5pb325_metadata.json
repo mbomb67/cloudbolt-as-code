@@ -529,7 +529,7 @@
             "dependencies": {
                 "hook": "plugins/OHK-icnbjok5"
             },
-            "deploy_seq": 19,
+            "deploy_seq": 20,
             "description": "Starts a compliance scan of every VM of the deployment; the order does not wait for the scans.",
             "enabled": true,
             "execute_in_parallel": false,
