@@ -3,6 +3,7 @@
     "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
+            "shared_modules/SHM-sud926fb",
             "shared_modules/SHM-5t7bom9y",
             "shared_modules/SHM-qlvol7k8"
         ]
