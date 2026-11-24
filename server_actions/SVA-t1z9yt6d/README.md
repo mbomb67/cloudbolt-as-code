@@ -1,9 +1,9 @@
 # Enable Apache Down Alert
 
-Server action that makes OpenShift detect that Apache stopped answering inside an OpenShift Virtualization VM and raise an `ApacheDown` alert. It works on OpenShift Virtualization VMs only; any other server is refused. It is safe to run again.
+Server action that makes OpenShift detect that Apache stopped answering inside an OpenShift Virtualization VM and raise an `ApacheDown` alert. It works on OpenShift Virtualization VMs only; any other server is refused. It is safe to run again. The work is in the `openshift_vm_alerts` shared module ([SHM-sud926fb](../../shared_modules/SHM-sud926fb/)), which the [3-tier web app blueprint](../../blueprints/BP-sy5pb325/) also calls from its last build step; this action is a thin wrapper around it.
 
 ## What it does
-1. Adds a TCP readiness probe on port 443 to the VirtualMachine (first check after 120 seconds, then every 10 seconds, 3 failures).
+1. Adds a TCP readiness probe on port 443 to the VirtualMachine (first check after 30 seconds, then every 10 seconds, 3 failures).
 2. Restarts the VM once, only when the running VM does not yet have the probe, and waits up to 10 minutes for the new VM instance to be Running and Ready.
 3. Creates or updates the PrometheusRule `apache-down-<vm>` in the VM's namespace. It is labelled `app.kubernetes.io/managed-by: cloudbolt` and `cloudbolt.io/resource: <server id>`, and it is left to Thanos Ruler so it can read platform metrics.
 4. Sets up delivery: stores the Monitoring Alerts webhook's URL (with its token) in the Secret `cloudbolt-alert-webhook` and creates the AlertmanagerConfig `cloudbolt-alerts`, which sends alerts that carry a `cloudbolt_server` label to that URL. Cluster-wide monitoring settings are never changed.
