@@ -308,38 +308,45 @@ class TemplateTests(unittest.TestCase):
 
 class SettingsViewTests(unittest.TestCase):
     STATE = {"exists": True, "enabled": True, "action_id": 9}
+    MISSING = {"exists": False, "enabled": False, "action_id": None}
 
-    def post(self, apply_patching=None, patching=True, was=False, state=None, state_error=False):
+    def post(self, apply_patching=None, patching=True, was=False, state=None, state_error=False, resource_state=None):
         request = types.SimpleNamespace(method="POST", POST={"x": "1"})
         clean = {"patching": patching, "scan_on_provision": False}
         if state_error:
             get_state = mock.Mock(side_effect=RuntimeError("boom"))
         else:
             get_state = mock.Mock(return_value=state or self.STATE)
+        get_resource = mock.Mock(return_value=resource_state or self.STATE)
         with mock.patch.object(views.store, "validate_settings", return_value=(clean, {})),                 mock.patch.object(views.store, "save_settings"),                 mock.patch.object(views.store, "get_settings", return_value={"patching": was}),                 mock.patch.object(views.vuln_hooks, "apply_provision_setting", create=True),                 mock.patch.object(views.vuln_hooks, "apply_patching_setting", apply_patching or mock.Mock(),
-                                  create=True),                 mock.patch.object(views.vuln_hooks, "patch_action_state", get_state, create=True),                 mock.patch.object(views.vuln_hooks, "ensure_schedules", return_value=[], create=True),                 mock.patch.object(views, "_schedule_rows", return_value=[]),                 mock.patch.object(views, "_scanner_context", return_value={}),                 mock.patch.object(views, "_fleet_url", return_value=""),                 mock.patch.object(views, "reverse", return_value="/setup/"):
+                                  create=True),                 mock.patch.object(views.vuln_hooks, "patch_action_state", get_state, create=True),                 mock.patch.object(views.vuln_hooks, "resource_patch_action_state", get_resource, create=True),                 mock.patch.object(views.vuln_hooks, "ensure_schedules", return_value=[], create=True),                 mock.patch.object(views, "_schedule_rows", return_value=[]),                 mock.patch.object(views, "_scanner_context", return_value={}),                 mock.patch.object(views, "_fleet_url", return_value=""),                 mock.patch.object(views, "reverse", return_value="/setup/"):
             return views.settings(request)[1]
 
     def test_off_to_on_applies_it(self):
         apply = mock.Mock()
         ctx = self.post(apply, patching=True, was=False)
-        apply.assert_called_once_with(True)
+        apply.assert_called_once_with(True, create_only=False)
         self.assertEqual(ctx["warnings"], [])
 
-    def test_on_to_on_with_the_action_present_leaves_it_alone(self):
+    def test_on_to_on_with_both_actions_present_leaves_them_alone(self):
         apply = mock.Mock()
         self.post(apply, patching=True, was=True)
         apply.assert_not_called()
 
-    def test_on_to_on_with_the_action_missing_applies_it(self):
+    def test_on_to_on_with_the_action_missing_applies_it_create_only(self):
         apply = mock.Mock()
-        self.post(apply, patching=True, was=True, state={"exists": False, "enabled": False, "action_id": None})
-        apply.assert_called_once_with(True)
+        self.post(apply, patching=True, was=True, state=self.MISSING)
+        apply.assert_called_once_with(True, create_only=True)
+
+    def test_on_to_on_with_only_the_resource_action_missing_applies_it_create_only(self):
+        apply = mock.Mock()
+        self.post(apply, patching=True, was=True, resource_state=self.MISSING)
+        apply.assert_called_once_with(True, create_only=True)
 
     def test_on_to_off_applies_false(self):
         apply = mock.Mock()
         self.post(apply, patching=False, was=True)
-        apply.assert_called_once_with(False)
+        apply.assert_called_once_with(False, create_only=False)
 
     def test_off_to_off_leaves_it_alone(self):
         apply = mock.Mock()
@@ -347,14 +354,14 @@ class SettingsViewTests(unittest.TestCase):
         apply.assert_not_called()
 
     def test_a_failure_is_a_warning_and_the_save_stands(self):
-        ctx = self.post(mock.Mock(side_effect=RuntimeError("no hook")))
+        # The server action did not follow (it does not exist after the failed apply); the resource action did.
+        ctx = self.post(mock.Mock(side_effect=RuntimeError("no hook")), state=self.MISSING)
         self.assertEqual(ctx["warnings"], [views.PATCHING_ERROR])
         self.assertTrue(ctx["saved"])
 
     def test_the_action_state_is_in_the_context(self):
         self.assertEqual(self.post()["patch_action"], self.STATE)
-        self.assertEqual(self.post(state_error=True, patching=False, was=False)["patch_action"],
-                         {"exists": False, "enabled": False, "action_id": None})
+        self.assertEqual(self.post(state_error=True, patching=False, was=False)["patch_action"], self.MISSING)
 
 
 if __name__ == "__main__":

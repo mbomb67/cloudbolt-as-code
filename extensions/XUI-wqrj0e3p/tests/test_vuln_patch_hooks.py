@@ -263,13 +263,13 @@ class ApplyPatchingTests(unittest.TestCase):
     def test_off_with_no_hook_is_a_no_op(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(False)
+            hooks._apply_server_action(False)
         self.assertEqual(world.calls, [])
 
     def test_first_enable_makes_everything_once(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
         self.assertEqual([h.name for h in world.hooks], [hooks.PATCH_NAME, hooks.CONDITION_NAME])
         self.assertEqual(len(world.actions), 1)
         action = world.actions[0]
@@ -297,7 +297,7 @@ class ApplyPatchingTests(unittest.TestCase):
     def test_the_input_is_made_when_the_token_pass_did_not(self):
         world = World(make_token_input=False)
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
         patch = world.hooks[0]
         self.assertEqual(len(patch.input_rows), 1)
         self.assertEqual(world.count("input.create"), 1)
@@ -308,9 +308,9 @@ class ApplyPatchingTests(unittest.TestCase):
     def test_no_os_families_call_is_made(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
-            hooks.apply_patching_setting(False)
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
+            hooks._apply_server_action(False)
+            hooks._apply_server_action(True)
         for hook in world.hooks:
             self.assertFalse(hasattr(hook, "os_families"))
         text = " ".join(str(c) for c in world.calls)
@@ -327,17 +327,17 @@ class ApplyPatchingTests(unittest.TestCase):
     def test_second_enable_creates_nothing_and_off_only_sets_enabled(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             world.calls.clear()
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             self.assertEqual(world.calls, [])
-            hooks.apply_patching_setting(False)
+            hooks._apply_server_action(False)
             self.assertEqual(world.calls, [("action.save", False)])
             self.assertIs(world.actions[0].enabled, False)
             world.calls.clear()
-            hooks.apply_patching_setting(False)
+            hooks._apply_server_action(False)
             self.assertEqual(world.calls, [])
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             self.assertEqual(world.calls, [("action.save", True)])
         self.assertEqual(len(world.actions), 1)
         self.assertEqual(len(world.hooks), 2)
@@ -345,7 +345,7 @@ class ApplyPatchingTests(unittest.TestCase):
     def test_admin_owned_flags_survive_off_and_on(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             action = world.actions[0]
             action.requires_approval = True
             action.auto_submit_order = True
@@ -354,8 +354,8 @@ class ApplyPatchingTests(unittest.TestCase):
             condition = action.condition
             action.condition = "admin's own"
             action.mapping_rows[0].default_value.value = False
-            hooks.apply_patching_setting(False)
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(False)
+            hooks._apply_server_action(True)
         self.assertIs(action.requires_approval, True)
         self.assertIs(action.auto_submit_order, True)
         self.assertEqual(action.label, "Patch it")
@@ -385,7 +385,7 @@ class ApplyPatchingTests(unittest.TestCase):
         self.assertTrue(hooks.PATCH_ACTION_ICON.startswith("fas fa-"))
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
         self.assertEqual(world.actions[0].extra_classes, hooks.PATCH_ACTION_ICON)
 
     def test_a_failure_is_a_runtime_error(self):
@@ -393,12 +393,12 @@ class ApplyPatchingTests(unittest.TestCase):
         with world.installed():
             world.ServerAction.objects.create = mock.Mock(side_effect=ValueError("boom"))
             with self.assertRaises(RuntimeError):
-                hooks.apply_patching_setting(True)
+                hooks._apply_server_action(True)
 
     def test_an_action_made_meanwhile_is_not_doubled(self):
         world = World()
         with world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             rival = world.actions[0]
             world.actions.clear()
             real = hooks.patch_actions
@@ -413,7 +413,7 @@ class ApplyPatchingTests(unittest.TestCase):
             world.actions.clear()
             with mock.patch.object(hooks, "patch_actions", racing):
                 world.calls.clear()
-                hooks.apply_patching_setting(True)
+                hooks._apply_server_action(True)
         self.assertEqual(len(world.actions), 1)
         self.assertEqual(world.count("action.create"), 0)
 
@@ -422,10 +422,10 @@ class ApplyPatchingTests(unittest.TestCase):
         with world.installed():
             self.assertEqual(hooks.patch_action_state(), {"exists": False, "enabled": False, "action_id": None})
             self.assertEqual(world.calls, [])
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
             state = hooks.patch_action_state()
             self.assertEqual(state, {"exists": True, "enabled": True, "action_id": world.actions[0].pk})
-            hooks.apply_patching_setting(False)
+            hooks._apply_server_action(False)
             self.assertEqual(hooks.patch_action_state()["enabled"], False)
         with mock.patch.object(hooks, "CloudBoltHook", mock.Mock(objects=mock.Mock(filter=mock.Mock(
                 side_effect=RuntimeError("db"))))):
@@ -436,7 +436,7 @@ class PatchButtonTests(unittest.TestCase):
     def setUp(self):
         self.world = World()
         with self.world.installed():
-            hooks.apply_patching_setting(True)
+            hooks._apply_server_action(True)
         self.settings = {"patching": True}
         self.patcher = mock.patch.object(store, "get_settings", lambda: self.settings)
         self.patcher.start()

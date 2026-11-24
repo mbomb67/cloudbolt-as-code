@@ -1096,7 +1096,7 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
         first = next(item for item in results.values() if item["status"] == "failed")
         problem = first["message"] if len(targets) == 1 else "{} of {} servers failed. First failure ({}): {}".format(
             counts["failed"], len(targets), first["hostname"], first["message"])
-    if counts["failed"] and not (counts["updated"] or counts["no_updates"] or counts["restart_pending"]):
+    if counts["failed"]:
         return "FAILURE", output, problem, outputs
     if warned or counts["failed"] or counts["skipped"]:
         return "WARNING", output, problem, outputs

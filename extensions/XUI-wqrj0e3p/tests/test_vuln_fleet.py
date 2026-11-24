@@ -1733,7 +1733,8 @@ class ResourceRunTests(ResourceBase):
         store.set_resource_run(5, {"job_id": 40, "started": "2026-11-23T10:00:00Z", "server_ids": [1, 2, 3]})
         self.table.add(40, done=2, total=3)
         self.assertEqual(fleet.resource_run(5), {"job_id": 40, "job_url": "/jobs/40/",
-                                                 "started": "2026-11-23T10:00:00Z", "done": 2, "total": 3})
+                                                 "started": "2026-11-23T10:00:00Z", "done": 2, "total": 3,
+                                                 "kind": "scan", "message": ""})
 
     def test_before_the_job_reports_anything_the_total_comes_from_the_marker(self):
         store.set_resource_run(5, {"job_id": 40, "started": "t", "server_ids": [1, 2, 3]})
@@ -2385,7 +2386,7 @@ class JobFileTests(unittest.TestCase):
             if filename.endswith(".py"):
                 with open(os.path.join(package, filename), encoding="utf-8") as handle:
                     text = handle.read()
-                if filename == "vuln_patch_job.py":
+                if filename in ("vuln_patch_job.py", "vuln_resource_patch_job.py"):
                     # The one declared plugin input: CloudBolt creates the action's input from this line.
                     token = 'RESTART_TOKEN = """' + "{" * 2 + " restart_if_needed " + "}" * 2 + '"""'
                     self.assertEqual(text.count(token), 1, filename)

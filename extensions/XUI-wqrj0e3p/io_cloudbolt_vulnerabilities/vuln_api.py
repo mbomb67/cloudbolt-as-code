@@ -12,6 +12,9 @@ Vulnerability scans and updates for other content: start them from a plug-in, an
     result["scan"]      the server's last scan entry (scan_and_wait), or None
     result["patch"]     the server's last update record (install_updates), or None
 
+    result = vuln_api.install_updates_on_resource(resource, job.owner, restart_if_needed=True)
+    result["counts"]    {"updated", "restart_pending", "failed", "skipped"} servers (install_updates_on_resource)
+
 Both start the same jobs the Vulnerabilities tab starts, so they take the same lock and land in the server's
 history. install_updates installs the updates the server's package manager (Linux) or Windows Update (Windows Server
 2022 and 2025) offers, restarts it
@@ -24,6 +27,10 @@ start_scan returns at once. With parent_job the scan is a sub-job of that job: s
 
     ok, reason = eligible(server)   (True, "") or (False, one sentence why not)
 
+install_updates_on_resource installs the updates on every server of one resource, one server at a time, and stops at the
+first server that fails. Its status is "completed", "restart_pending" (nothing failed, at least one server still needs a
+restart), "failed", "refused" or "timeout".
+
 eligible says whether content may scan a server now: it is not historical, is not in an Unassigned group, has a
 script channel, gets the tab under the "Show the tab on" setting, and the scanner is set up.
 
@@ -32,12 +39,14 @@ it from a web request.
 """
 from utilities.logger import ThreadLogger
 
-from . import vuln_fleet, vuln_jobs, vuln_patch, vuln_store as store
+from . import vuln_fleet, vuln_jobs, vuln_patch, vuln_patch_resource, vuln_store as store
 
 logger = ThreadLogger(__name__)
 
 # Added to the time limits of a job when waiting for it: queueing and the upload of the software list.
 WAIT_MARGIN_SECONDS = 600
+# The longest install_updates_on_resource waits by default: 7.5 hours.
+MAX_RESOURCE_WAIT_SECONDS = 27000
 
 
 def site_url():
@@ -142,3 +151,67 @@ def install_updates(server, owner, restart_if_needed=True, timeout=None, parent_
         return _result("completed", "No updates were available on {}.".format(server.hostname), job=job, patch=patch)
     return _result("completed", "Updates were installed on {}{}.".format(
         server.hostname, "; it restarted" if patch.get("restarted") else ""), job=job, patch=patch)
+
+
+def install_updates_on_resource(resource, owner, restart_if_needed=True, timeout=None, parent_job=None):
+    """Install the updates on every server of one resource, one server at a time, and wait for the job to end.
+    owner is the UserProfile the job belongs to (a plug-in passes job.owner). timeout is in seconds; the default is
+    the worst case of one server (update, restart wait and rescan limits of the settings) times the servers the
+    owner may update now, at most 7.5 hours.
+
+    This does no permission check of its own before it starts: the caller is content an administrator put in
+    place. The job still checks every server as owner (the Install Updates server action must be permitted for
+    that user on it, and the server must be eligible), skips what fails the checks with a reason, and stops at
+    the first server whose update fails. The patching setting is enforced by the job. The result is the usual
+    dict plus counts, from the resource's last update record: {"updated", "restart_pending", "failed", "skipped"}.
+    Status "completed" does not mean every server was updated: the caller must read counts (updated, no_updates,
+    restart_pending, failed, skipped) to see what happened to each server.
+    The status is "restart_pending" when nothing failed and at least one server still needs a restart."""
+    started = vuln_patch_resource.start_job(owner, resource, restart_if_needed=restart_if_needed, parent_job=parent_job)
+    if vuln_fleet._started_id(started) is None:
+        return dict(_result("refused", started.message), counts=None)
+    cfg = store.get_settings()
+    if timeout:
+        wait = timeout
+    else:
+        try:
+            servers = max(1, len(vuln_patch_resource.patchable_ids(owner, resource, cfg["visibility"])))
+        except Exception:
+            logger.exception("Vulnerabilities: could not count the servers of resource %s", getattr(resource, "id", ""))
+            servers = 1
+        worst = (vuln_patch._minutes(cfg, "patch_timeout_min", vuln_patch.DEFAULT_PATCH_TIMEOUT_MIN)
+                 + vuln_patch._minutes(cfg, "restart_wait_min", vuln_patch.DEFAULT_RESTART_WAIT_MIN)
+                 + cfg["scan_timeout_min"]) * 60
+        wait = min(servers * worst + WAIT_MARGIN_SECONDS, MAX_RESOURCE_WAIT_SECONDS)
+    name = getattr(resource, "name", "") or "the resource"
+    job = _wait(started, wait)
+    if job is None:
+        return dict(_result("timeout", "The update of {} did not finish within {} minutes (job {}).".format(
+            name, wait // 60, started.id), job=started), counts=None)
+    record = _resource_patch(resource.id)
+    if not isinstance(record, dict) or record.get("job_id") != job.id:
+        detail = vuln_jobs.clean(job.errors or "", vuln_jobs.MESSAGE_LEN)
+        return dict(_result("failed", "The update of {} recorded no result (job {} ended as {}). {}".format(
+            name, job.id, job.status, detail).strip(), job=job), counts=None)
+    counts = record.get("counts") if isinstance(record.get("counts"), dict) else {}
+    counts = {key: _whole(counts.get(key)) for key in ("updated", "no_updates", "restart_pending", "failed", "skipped")}
+    note = record.get("message") or "no reason given"
+    if record.get("status") == "failure" or counts["failed"] > 0:
+        return dict(_result("failed", "The update of {} failed: {}".format(name, note), job=job), counts=counts)
+    if counts["restart_pending"] > 0:
+        return dict(_result("restart_pending", "Updates were installed on the servers of {}; {} still need a "
+                            "restart.".format(name, counts["restart_pending"]), job=job), counts=counts)
+    return dict(_result("completed", "Updates were installed on the servers of {}: {}".format(name, note), job=job),
+                counts=counts)
+
+
+def _resource_patch(resource_id):
+    try:
+        return store.read_resource_patch(resource_id)
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the update record of resource %s", resource_id)
+        return None
+
+
+def _whole(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0

@@ -107,6 +107,29 @@ RESTART_INPUT = "restart_if_needed"
 RESTART_LABEL = "Restart if needed"
 RESTART_DESCRIPTION = "Restart the server when an update needs it."
 
+RESOURCE_PATCH_NAME = "Vulnerability Install Updates on All Servers"
+RESOURCE_PATCH_DESCRIPTION = (
+    "Installs the available updates, one server at a time, on the Linux and Windows servers of one resource, for "
+    "the Vulnerabilities UI extension. Created by the extension when the setting Offer Install updates is turned "
+    "on; its code is the extension's vuln_resource_patch_job.py, so do not edit or delete it here."
+)
+RESOURCE_PATCH_FILE = "vuln_resource_patch_job.py"
+
+RESOURCE_CONDITION_NAME = "Vulnerability Install Updates on All Servers Display Condition"
+RESOURCE_CONDITION_DESCRIPTION = (
+    "Decides which resources show the Install Updates on All Servers action: resources with at least one Linux "
+    "or Windows server that is not in an Unassigned group. Created by the extension; its code is the "
+    "extension's vuln_resource_patch_condition.py, so do not edit or delete it here."
+)
+RESOURCE_CONDITION_FILE = "vuln_resource_patch_condition.py"
+
+RESOURCE_ACTION_LABEL = "Install Updates on All Servers"
+RESOURCE_DIALOG_MESSAGE = (
+    "Installs all available updates on the servers of this resource, one server at a time. The run stops at the "
+    "first server that fails. Servers may restart."
+)
+RESOURCE_SUBMIT_LABEL = "Install updates"
+
 # key, name (the job's and its plugin's), cron text, what the job does in one sentence.
 SCHEDULES = (
     ("rematch", REMATCH_NAME, "0 3 * * *",
@@ -176,6 +199,18 @@ def condition_hook():
     """The Display Condition plugin of the Install Updates action, created on first use and kept pointing at
     vuln_patch_condition.py."""
     return _hook(CONDITION_NAME, CONDITION_DESCRIPTION, CONDITION_FILE)
+
+
+def resource_patch_hook():
+    """The install updates on all servers plugin, created on first use and kept pointing at
+    vuln_resource_patch_job.py."""
+    return _hook(RESOURCE_PATCH_NAME, RESOURCE_PATCH_DESCRIPTION, RESOURCE_PATCH_FILE)
+
+
+def resource_condition_hook():
+    """The Display Condition plugin of the Install Updates on All Servers action, created on first use and kept
+    pointing at vuln_resource_patch_condition.py."""
+    return _hook(RESOURCE_CONDITION_NAME, RESOURCE_CONDITION_DESCRIPTION, RESOURCE_CONDITION_FILE)
 
 
 # ---------------------------------------------------------------- recurring jobs
@@ -355,13 +390,14 @@ def patch_actions(hook):
     return list(ServerAction.objects.filter(hook=hook))
 
 
-def apply_patching_setting(enabled):
+def _apply_server_action(enabled, create_only=False):
     """Make the Install Updates server action match the patching setting. On: make the plugin, its Restart
     if needed input with the default True, the Display Condition and the action when the action does not
     exist; an existing one is only switched on. Off: switch an existing action off and nothing else.
 
     The caller decides when to call it (the settings view calls it on a change to on, or when the action is
-    missing); calling it with an existing, switched-off action switches it on.
+    missing); calling it with an existing, switched-off action switches it on, unless create_only is true: then
+    an existing action is left exactly as it is and only a missing one is made.
 
     Everything an admin owns on the action is written only when it is first made and never again: label,
     Requires approval, Auto submit order, the condition, the role grants and the default of the input.
@@ -402,6 +438,8 @@ def apply_patching_setting(enabled):
                     is_synchronous=False, condition=condition,
                 )
                 _default_restart_on(action, field)
+            return
+        if create_only:
             return
         for action in actions:
             if not action.enabled:
@@ -457,3 +495,152 @@ def patch_button(server, profile, request=None):
         logger.exception("Vulnerabilities: could not work out the Install Updates button for server %s",
                          getattr(server, "id", ""))
         return None
+
+
+# ---------------------------------------------------------------- install updates on all servers (resource action)
+def resource_patch_actions(hook):
+    """The resource actions that run the install on all servers plugin (normally one)."""
+    from cbhooks.models import ResourceAction
+
+    return list(ResourceAction.objects.filter(hook=hook))
+
+
+def _apply_resource_action(enabled, create_only=False):
+    """Make the Install Updates on All Servers resource action match the patching setting, under the rules of
+    _apply_server_action: made once, then only switched on and off through enabled. Its plugin, its Restart if
+    needed input with the default True and its Display Condition are made with it.
+
+    ResourceAction has no resource type field and blueprints stays empty (cbhooks/models.py line 2683: none
+    selected means every resource), so the action is offered to every resource and the condition decides
+    (resources/models.py available_actions, lines 525-535). list_view_visible is False so it is not offered
+    for a bulk run from a list (cbhooks/models.py line 2721); an admin may change that. Label, Requires approval,
+    Auto submit order, the condition, list_view_visible, the role grants and the default of the input are written
+    only when the action is made. Raises RuntimeError when it could not be made or changed."""
+    from cbhooks.models import ResourceAction
+
+    try:
+        if not enabled:
+            hook = CloudBoltHook.objects.filter(name=RESOURCE_PATCH_NAME).first()
+            if hook is None:
+                return
+            for action in resource_patch_actions(hook):
+                if action.enabled:
+                    action.enabled = False
+                    action.save()
+            return
+
+        hook = resource_patch_hook()
+        actions = resource_patch_actions(hook)
+        if not actions:
+            field = ensure_restart_input(hook)
+            condition = resource_condition_hook()
+            with transaction.atomic():
+                # ResourceAction.hook is not unique either: the row lock on the plugin makes a second first
+                # enable wait and look again before it makes one.
+                CloudBoltHook.objects.select_for_update().filter(pk=hook.pk).first()
+                if resource_patch_actions(hook):
+                    return
+                # The idiom of cbhooks/views.py line 4039 (hook, enabled, label) plus the dialog texts and the
+                # icon, as the server action. is_synchronous stays False because synchronous plus approval is
+                # refused for resource actions (cbhooks/views.py line 4119).
+                action = ResourceAction.objects.create(
+                    hook=hook, label=RESOURCE_ACTION_LABEL, enabled=True, extra_classes=PATCH_ACTION_ICON,
+                    submit_button_label=RESOURCE_SUBMIT_LABEL, dialog_message=RESOURCE_DIALOG_MESSAGE,
+                    is_synchronous=False, list_view_visible=False, condition=condition,
+                )
+                _default_restart_on(action, field)
+            return
+        if create_only:
+            return
+        for action in actions:
+            if not action.enabled:
+                action.enabled = True
+                action.save()
+    except Exception as exc:
+        logger.exception("Vulnerabilities: could not switch the Install Updates on All Servers action")
+        raise RuntimeError("The Install Updates on All Servers action could not be switched.") from exc
+
+
+def apply_patching_setting(enabled, create_only=False):
+    """Make both Install Updates actions match the patching setting: the server action and the resource action
+    Install Updates on All Servers. Each half runs in its own try, so one failing does not hide the other; a
+    RuntimeError is raised afterwards when either failed. create_only leaves existing actions as they are and
+    only makes missing ones: the settings view passes it when the setting did not change, so an action an admin
+    switched off in the action editor stays off while a missing one (an appliance that had the server action
+    before the resource action existed) is made."""
+    failed = []
+    for name, apply in (("server", _apply_server_action), ("resource", _apply_resource_action)):
+        try:
+            apply(enabled, create_only=create_only)
+        except Exception:
+            failed.append(name)
+    if failed:
+        raise RuntimeError("The Install Updates {} action could not be switched.".format(" and ".join(failed)))
+
+
+def resource_patch_action_state():
+    """{"exists": bool, "enabled": bool, "action_id": int or None} for the Install Updates on All Servers action.
+    Reads only; never makes it and never raises."""
+    try:
+        hook = CloudBoltHook.objects.filter(name=RESOURCE_PATCH_NAME).first()
+        if hook is None:
+            return {"exists": False, "enabled": False, "action_id": None}
+        actions = resource_patch_actions(hook)
+        if not actions:
+            return {"exists": False, "enabled": False, "action_id": None}
+        chosen = next((a for a in actions if a.enabled), actions[0])
+        return {"exists": True, "enabled": bool(chosen.enabled), "action_id": chosen.pk}
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the Install Updates on All Servers action")
+        return {"exists": False, "enabled": False, "action_id": None}
+
+
+def resource_patch_button(resource, profile, request=None):
+    """{"url", "label", "action_id"} of the Install Updates on All Servers dialog for this resource and user, or
+    None. Only when the setting is on, the action is enabled, core lists it for this resource
+    (Resource.available_actions, resources/models.py line 443, which applies the blueprint, plug-in and Display
+    Condition rules and builds the dialog URL with reverse("run_resource_action", ...)) and the user may run it
+    (resource_action_permitted, utilities/permissions.py line 527). An action an admin turned into a new-tab
+    link has no dialog and gives None. Never raises."""
+    try:
+        from utilities.permissions import resource_action_permitted
+        from . import vuln_store
+
+        if not vuln_store.get_settings().get("patching"):
+            return None
+        hook = CloudBoltHook.objects.filter(name=RESOURCE_PATCH_NAME).first()
+        if hook is None:
+            return None
+        mine = {action.pk: action for action in resource_patch_actions(hook) if action.enabled}
+        if not mine:
+            return None
+        for shown in resource.available_actions(request):
+            action = mine.get(getattr(shown.get("action"), "pk", None))
+            if action is None or shown.get("not_dialog") or not shown.get("url"):
+                continue
+            if not resource_action_permitted(profile, resource, action):
+                continue
+            return {"url": shown["url"], "label": action.label or RESOURCE_ACTION_LABEL, "action_id": action.pk}
+        return None
+    except Exception:
+        logger.exception("Vulnerabilities: could not work out the Install Updates on All Servers button for "
+                         "resource %s", getattr(resource, "id", ""))
+        return None
+
+
+def server_patch_permitted(profile, server):
+    """True when the enabled Install Updates server action is permitted for this user on this server
+    (server_action_permitted, utilities/permissions.py line 437). The resource action's job asks this for every
+    server, because core's check for a resource action says nothing about the servers inside it. Never raises."""
+    try:
+        from utilities.permissions import server_action_permitted
+
+        hook = CloudBoltHook.objects.filter(name=PATCH_NAME).first()
+        if hook is None:
+            return False
+        return any(server_action_permitted(profile, server, action)
+                   for action in patch_actions(hook) if action.enabled)
+    except Exception:
+        logger.exception("Vulnerabilities: could not check the Install Updates permission for server %s",
+                         getattr(server, "id", ""))
+        return False

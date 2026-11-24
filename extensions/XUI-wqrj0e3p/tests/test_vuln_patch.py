@@ -792,7 +792,7 @@ class BulkTests(Base):
         with mock.patch.object(jobs, "_execute", failing_second):
             self.summaries[:] = [{"vulns": 5, "vuln_fixable": 5}] * 6
             job, (status, output, errors, outputs) = self.go(servers=self.servers())
-        self.assertEqual(status, "WARNING")
+        self.assertEqual(status, "FAILURE")
         self.assertEqual(outputs["counts"], {"updated": 2, "no_updates": 0, "restart_pending": 0, "failed": 1, "skipped": 0})
         self.assertEqual(sorted(outputs["servers"]), ["1", "2", "3"])
         self.assertEqual(outputs["servers"]["2"]["status"], "failed")
@@ -1121,7 +1121,7 @@ class OutcomeTests(Base):
         servers = [make_server(id=i, hostname="h{}".format(i)) for i in (1, 2)]
         with mock.patch.object(jobs, "_execute", second_start_refused):
             job, (status, output, errors, outputs) = self.go(servers=servers)
-        self.assertEqual(status, "WARNING")
+        self.assertEqual(status, "FAILURE")
         self.assertIn("1 of 2 servers failed", errors)
         self.assertIn("read-only", errors)
 
@@ -1234,12 +1234,12 @@ class NoUpdatesTests(Base):
         self.assertEqual(status, "SUCCESS")
         self.assertEqual(output, "a: no updates were available.\nb: no updates were available.")
 
-    def test_a_failed_server_next_to_one_without_updates_is_a_warning(self):
+    def test_a_failed_server_next_to_one_without_updates_is_a_failure(self):
         self.guest.answers("poll", out(state="done", updated=0, failed=0, exit=0, restart=0))
         self.guest.answers("start", out(state="running"), out(reason="no"))
         job, (status, output, errors, outputs) = self.go(servers=[make_server(id=1, hostname="a"),
                                                                   make_server(id=2, hostname="b")])
-        self.assertEqual(status, "WARNING")
+        self.assertEqual(status, "FAILURE")
 
 
 class OldKernelStepTests(Base):

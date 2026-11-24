@@ -590,9 +590,13 @@ def _resource_path(resource_id):
     return contained(RESOURCES_DIR, "{}.json".format(int(resource_id)))
 
 
+def _resource_patch_path(resource_id):
+    return contained(RESOURCES_DIR, "{}.patch.json".format(int(resource_id)))
+
+
 def read_resource_run(resource_id):
-    """The marker {"job_id","started","requested_by","server_ids"} or None when there is none or it is
-    damaged. A file that exists but cannot be read raises StoreError."""
+    """The marker {"job_id","started","requested_by","server_ids"} (plus "kind": "patch" for an install-updates
+    run; a marker without a kind is a scan) or None when there is none or it is damaged. A file that exists but cannot be read raises StoreError."""
     found = _read_json(_resource_path(resource_id), None)
     return found if isinstance(found, dict) else None
 
@@ -601,6 +605,34 @@ def set_resource_run(resource_id, marker):
     """Record the scan run in progress (atomic write)."""
     with _resource_data_lock(resource_id):
         _write_json(_resource_path(resource_id), marker)
+
+
+def read_resource_patch(resource_id):
+    """The record of the last install-updates run on the resource, or None when there is none or it is
+    damaged. A file that exists but cannot be read raises StoreError. It is not the run marker: it stays
+    after the run and the marker never holds it."""
+    found = _read_json(_resource_patch_path(resource_id), None)
+    return found if isinstance(found, dict) else None
+
+
+def set_resource_patch(resource_id, record):
+    """Replace the last-run record (atomic write, the lock of the marker's data)."""
+    with _resource_data_lock(resource_id):
+        _write_json(_resource_patch_path(resource_id), record)
+
+
+def clear_resource_patch(resource_id):
+    """Remove the last-run record. Returns True when one was removed."""
+    path = _resource_patch_path(resource_id)
+    with _resource_data_lock(resource_id):
+        try:
+            os.unlink(path)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise StoreError("The install-updates record of resource {} cannot be cleared: {}".format(
+                int(resource_id), exc.strerror or exc))
 
 
 def clear_resource_run(resource_id, job_id=None):
