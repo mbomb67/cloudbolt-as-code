@@ -2,14 +2,17 @@
 
 Deletes every Route, Service and NetworkPolicy labelled with the resource
 (shared_modules/SHM-5t7bom9y) and the web tier's certificate in Azure Key Vault
-(shared_modules/SHM-ny8h0nx0). CloudBolt deletes the VMs itself. Safe to run twice: whatever is
+(shared_modules/SHM-ny8h0nx0), and the web tier's ApacheDown rule (shared_modules/SHM-sud926fb). CloudBolt deletes the VMs itself. Safe to run twice: whatever is
 already gone is skipped, and a failed part is reported as a warning so the VMs are still removed.
 """
 
 from common.methods import set_progress
 from infrastructure.models import Environment
 from shared_modules import azure_key_vault_certificates as kv
+from shared_modules import openshift_vm_alerts
 from shared_modules import openshift_vm_network as vmnet
+
+WEB_TIER = "Web"
 
 
 def _delete_cluster_objects(resource):
@@ -34,6 +37,18 @@ def _delete_cluster_objects(resource):
     return " ".join(messages)
 
 
+def _remove_apache_alert(resource):
+    # Best effort: the rule is removed while the VM still exists; a failure here never fails the teardown.
+    try:
+        servers = list(resource.server_set.filter(status="ACTIVE", service_item__name=WEB_TIER))
+        notes = []
+        for server in servers:
+            notes.extend(openshift_vm_alerts.remove_apache_alert(server))
+        return " ".join(notes) or "The resource has no active Web VM, so there is no Apache alert rule to remove."
+    except Exception as error:  # noqa: BLE001
+        return "Could not remove the Apache alert rule: %s" % error
+
+
 def _delete_certificate(resource):
     certificate_id = resource.get_value_for_custom_field("web_app_certificate")
     vault = resource.get_value_for_custom_field("web_app_key_vault")
@@ -54,7 +69,7 @@ def run(job, resource=None, **kwargs):
     if resource is None:
         return "WARNING", "", "No resource to tear down."
     done, problems = [], []
-    for step in (_delete_cluster_objects, _delete_certificate):
+    for step in (_remove_apache_alert, _delete_cluster_objects, _delete_certificate):
         try:
             message = step(resource)
             set_progress(message)

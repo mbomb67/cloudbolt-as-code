@@ -4,7 +4,8 @@
     "dependencies": {
         "sharedModules": [
             "shared_modules/SHM-5t7bom9y",
-            "shared_modules/SHM-ny8h0nx0"
+            "shared_modules/SHM-ny8h0nx0",
+            "shared_modules/SHM-sud926fb"
         ]
     },
     "description": "Deletes the Routes, Services and NetworkPolicies a 3-tier web app created on OpenShift and its certificate in Azure Key Vault.",

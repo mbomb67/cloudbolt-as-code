@@ -3,8 +3,7 @@
     "action_inputs_sequence": [],
     "dependencies": {
         "sharedModules": [
-            "shared_modules/SHM-5t7bom9y",
-            "shared_modules/SHM-qlvol7k8"
+            "shared_modules/SHM-sud926fb"
         ]
     },
     "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",

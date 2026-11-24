@@ -522,6 +522,30 @@
             "run_on_scale_up": false,
             "show_on_order_form": false,
             "tier_type": "plugin"
+        },
+        {
+            "action_name": "Enable Apache Down Alert for Tier",
+            "continue_on_failure": true,
+            "dependencies": {
+                "hook": "plugins/OHK-jjltp87s"
+            },
+            "deploy_seq": 19,
+            "description": "Turns on the ApacheDown alert for the web VM: a readiness probe on port 443, one restart of the VM, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+            "enabled": true,
+            "execute_in_parallel": false,
+            "id": "BDI-gzee8hqn",
+            "name": "Enable Apache Down Alert",
+            "parameter_defaults": [
+                {
+                    "label": "Tier",
+                    "name": "tier_a1",
+                    "value": "Web"
+                }
+            ],
+            "rate": null,
+            "run_on_scale_up": false,
+            "show_on_order_form": false,
+            "tier_type": "plugin"
         }
     ],
     "deployment_permissions": [],
@@ -546,7 +570,7 @@
             "sequence": 0
         }
     ],
-    "last_updated": "2026-11-20",
+    "last_updated": "2026-11-24",
     "management_actions": [],
     "metadata_version": "2026.1.0",
     "name": "3-Tier Web App on OpenShift Virtualization",

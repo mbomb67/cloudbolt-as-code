@@ -560,6 +560,7 @@
       "plugins/OHK-92i4lt1y",
       "plugins/OHK-ca90z6g2",
       "plugins/OHK-d9ujne9z",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-jru4jomd",
       "plugins/OHK-lwhuaezv",
       "plugins/OHK-mfcauahq",
@@ -3762,6 +3763,22 @@
     "plugin_type": "CloudBolt Plug-in"
   },
   {
+    "id": "OHK-jjltp87s",
+    "type": "plugins",
+    "name": "Enable Apache Down Alert for Tier",
+    "description": "Sets up the ApacheDown alert for one tier's OpenShift Virtualization VM: a readiness probe, one restart, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+    "path": "plugins/OHK-jjltp87s",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-sud926fb"
+    ],
+    "used_by": [
+      "blueprints/BP-sy5pb325"
+    ],
+    "plugin_type": "CloudBolt Plug-in"
+  },
+  {
     "id": "OHK-jm8j1513",
     "type": "plugins",
     "name": "Teardown GKE Namespace",
@@ -4039,7 +4056,8 @@
     "readme": null,
     "uses": [
       "shared_modules/SHM-5t7bom9y",
-      "shared_modules/SHM-ny8h0nx0"
+      "shared_modules/SHM-ny8h0nx0",
+      "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
       "blueprints/BP-sy5pb325"
@@ -4854,8 +4872,7 @@
     "path": "plugins/OHK-ut5c0igl",
     "readme": null,
     "uses": [
-      "shared_modules/SHM-5t7bom9y",
-      "shared_modules/SHM-qlvol7k8"
+      "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
       "server_actions/SVA-t1z9yt6d"
@@ -6697,9 +6714,9 @@
     "used_by": [
       "plugins/OHK-0q5dbdq6",
       "plugins/OHK-ulnznmqb",
-      "plugins/OHK-ut5c0igl",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-ca90z6g2",
+      "shared_modules/SHM-sud926fb",
       "plugins/OHK-njnsxqbf",
       "plugins/OHK-yf2kpzkx",
       "plugins/OHK-mfcauahq",
@@ -6817,6 +6834,7 @@
     "used_by": [
       "plugins/OHK-0q5dbdq6",
       "plugins/OHK-ulnznmqb",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-d9ujne9z",
       "plugins/OHK-lwhuaezv",
@@ -7009,8 +7027,8 @@
       "shared_modules/SHM-ww6b1uwj"
     ],
     "used_by": [
-      "plugins/OHK-ut5c0igl",
       "plugins/OHK-ogu8lqt2",
+      "shared_modules/SHM-sud926fb",
       "plugins/OHK-eba8nsot"
     ]
   },
@@ -7084,6 +7102,23 @@
       "plugins/OHK-h9moajbi",
       "plugins/OHK-arour20h",
       "plugins/OHK-bnano0nc"
+    ]
+  },
+  {
+    "id": "SHM-sud926fb",
+    "type": "shared_modules",
+    "name": "openshift_vm_alerts",
+    "description": "Enables or removes an ApacheDown alert for an OpenShift Virtualization VM: a readiness probe, a PrometheusRule and delivery to the Monitoring Alerts webhook.",
+    "path": "shared_modules/SHM-sud926fb",
+    "readme": null,
+    "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-qlvol7k8"
+    ],
+    "used_by": [
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
+      "plugins/OHK-mfcauahq"
     ]
   },
   {
