@@ -38,6 +38,7 @@ import zlib
 from utilities.logger import ThreadLogger
 
 from . import vuln_match
+from . import vuln_msrc
 from . import vuln_store as store
 
 logger = ThreadLogger(__name__)
@@ -96,6 +97,8 @@ class ToolError(Exception):
         super().__init__(public)
         self.public = public
         self.detail = detail or public
+        # Set by setup() when the Microsoft update ran next to a failed scanner setup: {"updated", "built"[, "error"]}.
+        self.msrc = None
 
 
 # ---------------------------------------------------------------- small helpers
@@ -219,7 +222,9 @@ def status():
         # The last setup failure, shown on the settings page; empty when the last setup worked.
         "last_error": str(data.get("last_error") or ""),
         "last_error_at": str(data.get("last_error_at") or ""),
-        "ready": bool(grype_there and present),
+        "ready": bool(grype_there and present),  # the Linux scanner; Windows needs only the Microsoft data
+        "ready_windows": vuln_msrc.ready(),
+        "msrc": vuln_msrc.status(),
         "grype": {"installed": grype_there, "version": GRYPE_VERSION if grype_there else ""},
         "syft": {
             "amd64": os.path.isfile(syft_asset("amd64")["path"]),
@@ -554,10 +559,8 @@ def _install_syft(progress):
         _download(asset["url"], asset["sha256"], asset["path"], label="the software list tool")
 
 
-def setup(progress=None):
-    """Install the scanner program, the guest tarballs and the database, under
-    the exclusive scanner lock. Safe to run again: files that are present with
-    the right hash are kept."""
+def _setup_grype(progress):
+    """The Linux part of setup(), under the exclusive scanner lock."""
     with _locked(True):
         store.ensure_dir(store.TOOLS_DIR)
         store.ensure_dir(store.GRYPE_DB_DIR)
@@ -573,7 +576,43 @@ def setup(progress=None):
         # says the database is unchanged.
         result = db_update(progress, force=installed)
         _update_status(last_error="", last_error_at="")
-    return {"grype": GRYPE_VERSION, "syft": SYFT_VERSION, "db": result}
+    return result
+
+
+def _setup_microsoft(progress):
+    """The Microsoft part of setup(): {"updated", "built"} or, on failure (recorded for the settings page by
+    vuln_msrc.update), {"updated": False, "built": "", "error": public text}. Never raises."""
+    try:
+        return update_microsoft(progress)
+    except vuln_msrc.MsrcError as exc:
+        logger.warning("Vulnerabilities: Microsoft data was not downloaded during setup: %s", exc.detail)
+        return {"updated": False, "built": "", "error": exc.public}
+    except Exception:
+        logger.exception("Vulnerabilities: Microsoft data was not downloaded during setup")
+        return {"updated": False, "built": "", "error": "The Microsoft security data update failed unexpectedly."}
+
+
+def setup(progress=None):
+    """Install the scanner program, the guest tarballs and the database (under the exclusive scanner lock), then
+    download the Microsoft security data. Safe to run again: files that are present with the right hash are kept.
+
+    The two parts are independent: an appliance that cannot reach github.com or grype.anchore.io still gets the
+    Microsoft data, and one that cannot reach Microsoft still gets the scanner. The Microsoft update runs after
+    the scanner lock is released and takes its own lock.
+
+    Contract:
+    * Success: returns a dict with keys grype, syft, db ({"updated", "built"}) and msrc, which is
+      {"updated", "built"} or, when the Microsoft update failed, {"updated": False, "built": "", "error": text}.
+      A Microsoft failure never fails the Linux setup.
+    * The scanner part fails: the Microsoft update is still attempted, then the original exception (a ToolError
+      for the expected failures) is raised with the attribute .msrc set to the same dict as above, so the caller
+      can report both."""
+    try:
+        result = _setup_grype(progress)
+    except Exception as exc:
+        exc.msrc = _setup_microsoft(progress)
+        raise
+    return {"grype": GRYPE_VERSION, "syft": SYFT_VERSION, "db": result, "msrc": _setup_microsoft(progress)}
 
 
 def record_setup_error(message):
@@ -658,6 +697,13 @@ def db_update(progress=None, force=False):
         raise ToolError("The vulnerability database update finished but no database file was found.")
     _update_status(db={"built": built, "checked": store.stamp(), "checksum": checksum, "status": db_status})
     return {"updated": True, "built": built}
+
+
+def update_microsoft(progress=None):
+    """Download Microsoft's security data for Windows Server (vuln_msrc.update). It takes its own lock, not the
+    scanner lock. Returns {"updated": bool, "built": stamp}; raises vuln_msrc.MsrcError, whose public text is
+    safe to show."""
+    return vuln_msrc.update(progress)
 
 
 def update_database(progress=None):

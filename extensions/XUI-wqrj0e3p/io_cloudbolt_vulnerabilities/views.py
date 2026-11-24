@@ -1,10 +1,12 @@
 """
 Vulnerabilities XUI
 
-Adds a Vulnerabilities tab to Linux servers (or to servers labelled
-Vulnerabilities). The tab collects a software list from the server as a
-CloudBolt job, matches it against a vulnerability database on the appliance and
-shows the findings, paged and filtered on the server side.
+Adds a Vulnerabilities tab to Linux and Windows servers (or to servers labelled
+Vulnerabilities). The tab collects a software list from a Linux server, or the
+Windows build and installed updates of a Windows server, as a CloudBolt job,
+matches it against a vulnerability database on the appliance (Grype for Linux,
+Microsoft's published security updates for Windows) and shows the findings,
+paged and filtered on the server side.
 
 - The tab itself renders a shell and loads its panel asynchronously; nothing on
   the tab render touches the network, the server or the findings file.
@@ -67,7 +69,7 @@ from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.permissions import cbadmin_required
 
-from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_repo, vuln_store as store,
+from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_msrc, vuln_repo, vuln_store as store,
                vuln_tools)
 
 logger = ThreadLogger(__name__)
@@ -83,9 +85,14 @@ FLEET_VIEW = "vulnerabilities"
 # The server page opens a tab named by its slug (the lower-cased title) after a "#tab-".
 SERVER_TAB_HASH = "#tab-vulnerabilities"
 FLEET_PAGE_SIZE = 25
+# The root OS family of Windows servers in CloudBolt (core's Server.is_windows() looks for this name).
+WINDOWS_FAMILY = "Windows"
 # What a CVE or advisory id may look like when it comes from a URL: letters, digits and a few
 # separators, 64 characters at most. It is user input and reaches the findings store.
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+
+# A Windows row's db_built is the Microsoft index's own stamp ("2026-11-10.26edfc27ff"), not a time.
+MSRC_STAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}\.")
 
 PANEL_ERROR = "Could not load this panel. The CloudBolt application log has the details."
 STORE_ERROR = "The scan history of this server cannot be read. The CloudBolt application log has the details."
@@ -126,10 +133,73 @@ def _fleet_url():
 
 
 # ---------------------------------------------------------------------------
+# Database dates
+# ---------------------------------------------------------------------------
+def _is_msrc_stamp(value):
+    return bool(MSRC_STAMP_RE.match(str(value or "")))
+
+
+def _stamp_date(value):
+    """"YYYY-MM-DD" of a Microsoft index stamp, or "" when it is not one."""
+    if not _is_msrc_stamp(value):
+        return ""
+    try:
+        return vuln_msrc.stamp_date(value) or ""
+    except Exception:
+        return str(value)[:10]
+
+
+def _display_built(value):
+    """A stored db_built as the pages show it. A Grype build time is returned as it is. A Microsoft stamp becomes
+    its date at noon UTC ("2026-11-10T12:00:00Z"): the pages format it in the browser's own zone, and midnight UTC
+    would show the day before in the Americas. What is stored does not change."""
+    day = _stamp_date(value)
+    return day + "T12:00:00Z" if day else value
+
+
+def _display_builts(values):
+    """The db_builts list of a summary, converted. One build of each kind is the normal state (a Linux database
+    and the Microsoft data are both current), so then one entry is left and the pages show no older-database
+    note; more than one of a kind keeps them all."""
+    values = [value for value in (values or []) if value]
+    shown = []
+    for value in values:
+        day = _display_built(value)
+        if day not in shown:
+            shown.append(day)
+    per_kind = {True: 0, False: 0}
+    for value in values:
+        per_kind[_is_msrc_stamp(value)] += 1
+    if shown and max(per_kind.values()) <= 1:
+        return shown[:1]
+    return shown
+
+
+def _with_built_display(result):
+    """The page dict with db_built of each row (and db_builts of a summary) converted for display."""
+    if isinstance(result, dict):
+        for row in result.get("rows") or []:
+            if isinstance(row, dict) and row.get("db_built"):
+                row["db_built"] = _display_built(row["db_built"])
+        if isinstance(result.get("db_builts"), list):
+            result["db_builts"] = _display_builts(result["db_builts"])
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Tab
 # ---------------------------------------------------------------------------
+def _is_windows(server):
+    """Whether the server is a Windows server; False when that cannot be told."""
+    try:
+        return bool(vuln_jobs.is_windows(server))
+    except Exception:
+        logger.exception("Vulnerabilities: cannot tell whether server %s is Windows", getattr(server, "id", ""))
+        return False
+
+
 class VulnerabilitiesTabDelegate(TabExtensionDelegate):
-    """Linux servers, or servers labelled Vulnerabilities. Cheap: no network, no remote call."""
+    """Linux and Windows servers, or servers labelled Vulnerabilities. Cheap: no network, no remote call."""
 
     def should_display(self):
         return vuln_jobs.shows_tab(self.instance, store.get_settings()["visibility"])
@@ -139,8 +209,9 @@ class VulnerabilitiesTabDelegate(TabExtensionDelegate):
     model=Server,
     title="Vulnerabilities",
     delegate=VulnerabilitiesTabDelegate,
-    description="Known vulnerabilities on the server, found by matching its installed software against a "
-    "vulnerability database, with the fix version and the CISA known-exploited flag",
+    description="Known vulnerabilities on the server, found by matching its installed software (Linux) or its "
+    "Windows build and installed updates against a vulnerability database, with the fix version and the CISA "
+    "known-exploited flag",
 )
 def vulnerabilities_tab(request, obj_id):
     server = _viewable_server(request, obj_id)
@@ -150,6 +221,7 @@ def vulnerabilities_tab(request, obj_id):
     is_admin = bool(profile.is_cbadmin)
     return render(request, TEMPLATES + "vuln_tab.html", {
         "server": server,
+        "windows": _is_windows(server),
         "panel_url": reverse("vuln_panel", args=[server.id]),
         "shell": {
             "can_scan": vuln_jobs.can_scan(profile, server),
@@ -180,15 +252,23 @@ def _panel_context(server, profile):
         str((last or {}).get("status") or ""),
     ])
     tools = vuln_tools.status()
+    windows = _is_windows(server)
+    if summary and summary.get("db_built"):
+        summary = dict(summary, db_built=_display_built(summary["db_built"]))
+    if summary and windows:
+        # The Windows "software list" is the build and the installed updates; its OS name ends in "build <number>".
+        found = re.search(r"build\s+(\S+)\s*$", str(summary.get("os_name") or ""))
+        summary = dict(summary, windows_build=found.group(1) if found else (summary.get("os_name") or ""))
     vuln = {
         "denied": False,
+        "windows": windows,
         "can_scan": vuln_jobs.can_scan(profile, server),
         "unassigned": vuln_jobs.in_unassigned_group(server),
         "unassigned_text": vuln_jobs.UNASSIGNED,
         "is_admin": bool(profile.is_cbadmin),
         "start_url": reverse("vuln_start", args=[server.id]),
         "tools": tools,
-        "ready": bool(tools.get("ready")),
+        "ready": bool(tools.get("ready_windows" if windows else "ready")),
         "summary": summary,
         "last_failed": last_failed,
         "ever_scanned": bool(summary or last),
@@ -353,7 +433,9 @@ def vuln_tool(request, scan_id, name):
 # Settings page
 # ---------------------------------------------------------------------------
 def _db_age_days(built):
-    """Whole days since the database was built, or None when unknown."""
+    """Whole days since the database was built, or None when unknown. A Microsoft stamp counts from its date."""
+    if _is_msrc_stamp(built):
+        built = _stamp_date(built)
     try:
         when = datetime.fromisoformat(str(built).replace("Z", "+00:00"))
     except ValueError:
@@ -374,16 +456,26 @@ def _local_time(stamp):
     return when.astimezone().replace(tzinfo=None)
 
 
+def _msrc_tile(tools):
+    """What the Microsoft security data tile shows. Read defensively: while a sync is half done the
+    status has no "msrc". None when there is nothing to show."""
+    msrc = (tools or {}).get("msrc")
+    if not isinstance(msrc, dict):
+        return None
+    return dict(msrc, age_days=_db_age_days(msrc.get("built")) if msrc.get("built") else None,
+                checked_local=_local_time(msrc.get("checked")) if msrc.get("checked") else None)
+
+
 PROVISION_ERROR = ("The settings were saved, but the scan after provisioning could not be switched. "
                    "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
 SCHEDULES_ERROR = "The schedules cannot be read. The CloudBolt application log has the details."
 
 # What each schedule does, in one sentence, by the key ensure_schedules returns.
 SCHEDULE_TEXT = {
-    "rematch": "Matches every stored software list against the newest vulnerability database, "
+    "rematch": "Matches every stored software list or Windows build against the newest vulnerability data, "
                "and removes the results of servers that no longer exist.",
-    "inventory": "Collects a fresh software list from every server that can be scanned without anyone "
-                 "present, a few at a time.",
+    "inventory": "Collects a fresh software list or Windows build from every server that can be scanned without "
+                 "anyone present, a few at a time.",
 }
 WEEKDAYS = ("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
 
@@ -425,11 +517,12 @@ def _scanner_context():
     """What the Scanner card shows. Each part is read on its own so one failure
     leaves the rest of the page usable."""
     context = {"setup_active": None, "tools": None, "store_stats": None, "db_age_days": None, "db_checked": None,
-               "scanner_error": ""}
+               "msrc": None, "scanner_error": ""}
     try:
         context["tools"] = vuln_tools.status()
         context["db_age_days"] = _db_age_days(context["tools"].get("db", {}).get("built"))
         context["db_checked"] = _local_time(context["tools"].get("db", {}).get("checked"))
+        context["msrc"] = _msrc_tile(context["tools"])
         context["setup_active"] = vuln_jobs.setup_active()
     except Exception:
         logger.exception("Vulnerabilities: cannot read the scanner status")
@@ -443,8 +536,8 @@ def _scanner_context():
 
 @admin_extension(
     title="Vulnerability Settings",
-    description="Set up the vulnerability scanner on this appliance, choose how long scans may run and which "
-    "servers show the Vulnerabilities tab.",
+    description="Set up the vulnerability scanner and the Microsoft security data on this appliance, choose how "
+    "long scans may run and which servers show the Vulnerabilities tab.",
 )
 @cbadmin_required
 def settings(request):
@@ -596,7 +689,9 @@ def vuln_fleet_summary(request):
     except Exception:
         logger.exception("Vulnerabilities: cannot read the database date")
     summary, state = _fleet_summary_state()
-    return JsonResponse({"state": state, "summary": summary, "db_built": db_built})
+    if isinstance(summary, dict):
+        summary = _with_built_display(dict(summary))
+    return JsonResponse({"state": state, "summary": summary, "db_built": _display_built(db_built)})
 
 
 @_api
@@ -646,7 +741,8 @@ def vuln_fleet_cve_servers(request):
         return JsonResponse({"error": "That is not a valid CVE or advisory id."}, status=400)
     if cve.upper().startswith("CVE-"):
         cve = cve.upper()
-    result = _with_urls(vuln_db.cve_servers(cve, search=request.GET.get("q", "").strip()[:100], **_page_args(request)))
+    result = _with_built_display(_with_urls(vuln_db.cve_servers(
+        cve, search=request.GET.get("q", "").strip()[:100], **_page_args(request))))
     result["cve_info"] = _cve_info(cve)
     return JsonResponse(result)
 
@@ -662,31 +758,34 @@ def vuln_fleet_servers(request):
         kev_only=request.GET.get("kev") == "1",
         **_page_args(request)
     )
-    return JsonResponse(_with_urls(result))
+    return JsonResponse(_with_built_display(_with_urls(result)))
 
 
 # ---------------------------------------------------------------------------
 # Resource tab (the findings of one resource's own servers)
 # ---------------------------------------------------------------------------
-# Linux at the server's own OS family or one or two levels up: the same meaning as
-# vuln_jobs.is_linux (the root family is named Linux), written as a filter so should_display
-# costs one query and no Python loop over the servers.
-_LINUX = (Q(os_family__name=vuln_jobs.LINUX_FAMILY)
-          | Q(os_family__parent__name=vuln_jobs.LINUX_FAMILY)
-          | Q(os_family__parent__parent__name=vuln_jobs.LINUX_FAMILY))
+# Linux or Windows at the server's own OS family or one or two levels up: the same meaning as
+# vuln_jobs.is_linux and vuln_jobs.is_windows (the root families are named Linux and Windows), written
+# as a filter so should_display costs one query and no Python loop over the servers.
+_SUPPORTED = (Q(os_family__name=vuln_jobs.LINUX_FAMILY)
+              | Q(os_family__parent__name=vuln_jobs.LINUX_FAMILY)
+              | Q(os_family__parent__parent__name=vuln_jobs.LINUX_FAMILY)
+              | Q(os_family__name=WINDOWS_FAMILY)
+              | Q(os_family__parent__name=WINDOWS_FAMILY)
+              | Q(os_family__parent__parent__name=WINDOWS_FAMILY))
 RESOURCE_NOT_FOUND = "This resource was not found."
 NOTHING_TO_SCAN = ("None of the servers of this resource can be scanned right now. They may be powered off or in an "
                    "Unassigned group, or you may not have permission to scan them.")
 
 
 class VulnerabilitiesResourceTabDelegate(TabExtensionDelegate):
-    """Resources with at least one live server that would get the server tab. Runs on every view of
+    """Resources with at least one live Linux or Windows server that would get the server tab. Runs on every view of
     every resource page for every user, so it is one query and never raises. It checks no permission:
     the tab and its routes restrict everything to the servers the viewer may see."""
 
     def should_display(self):
         try:
-            servers = self.instance.server_set.exclude(status="HISTORICAL").filter(_LINUX)
+            servers = self.instance.server_set.exclude(status="HISTORICAL").filter(_SUPPORTED)
             if store.get_settings()["visibility"] == "label":
                 servers = servers.filter(tags__name=vuln_jobs.LABEL)
             return servers.exists()
@@ -710,7 +809,7 @@ def _visible_ids(profile, resource):
     title="Vulnerabilities",
     delegate=VulnerabilitiesResourceTabDelegate,
     description="Known vulnerabilities across the servers of a resource, with the servers each one affects and "
-    "a button that collects the software lists of all of them",
+    "a button that scans all of them",
 )
 def vulnerabilities_resource_tab(request, obj_id):
     resource = _viewable_resource(request, obj_id)
@@ -785,7 +884,7 @@ def vuln_resource_summary(request, resource_id):
         _upgrade_store()
         found = vuln_db.set_summary(ids)
         if found is not None:
-            summary = dict(found)
+            summary = _with_built_display(dict(found))
             summary["servers"] = summary.get("scanned", 0)
             summary["servers_total"] = len(ids)
             if summary.get("truncated"):
@@ -799,7 +898,8 @@ def vuln_resource_summary(request, resource_id):
             can_scan = bool(vuln_fleet.any_scannable(profile, resource, store.get_settings()["visibility"]))
         except Exception:
             logger.exception("Vulnerabilities: cannot tell whether the viewer may scan servers of resource %s", resource.id)
-    return JsonResponse({"state": state, "summary": summary, "db_built": db_built, "run": run, "can_scan": can_scan})
+    return JsonResponse({"state": state, "summary": summary, "db_built": _display_built(db_built), "run": run,
+                         "can_scan": can_scan})
 
 
 @_api
@@ -846,8 +946,8 @@ def vuln_resource_cve_servers(request, resource_id):
         return JsonResponse({"error": "That is not a valid CVE or advisory id."}, status=400)
     if cve.upper().startswith("CVE-"):
         cve = cve.upper()
-    result = _with_urls(vuln_db.set_cve_servers(ids, cve, search=request.GET.get("q", "").strip()[:100],
-                                                **_page_args(request)))
+    result = _with_built_display(_with_urls(vuln_db.set_cve_servers(
+        ids, cve, search=request.GET.get("q", "").strip()[:100], **_page_args(request))))
     result["cve_info"] = _set_cve_info(ids, cve)
     return JsonResponse(result)
 

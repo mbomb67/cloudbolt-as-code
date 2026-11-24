@@ -10,7 +10,7 @@
     <div>
       <div class="vuln-eyebrow"><i class="bi bi-bug" aria-hidden="true"></i> {% trans "Vulnerabilities" %}</div>
       <div class="vuln-title">{{ server.hostname }}</div>
-      <div class="vuln-sub">{% trans "Known vulnerabilities in the software installed on this server." %}</div>
+      <div class="vuln-sub">{% if windows %}{% trans "Known vulnerabilities in this Windows server, from its build and installed updates." %}{% else %}{% trans "Known vulnerabilities in the software installed on this server." %}{% endif %}</div>
     </div>
     <div class="vuln-tools">
       <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="reload">

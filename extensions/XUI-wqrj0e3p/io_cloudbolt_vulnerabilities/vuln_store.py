@@ -421,7 +421,7 @@ def validate_settings(data):
 
     visibility = str(data.get("visibility", "linux")).strip()
     if visibility not in VISIBILITIES:
-        errors["visibility"] = "Show the tab on must be Linux servers or servers labelled {}.".format("Vulnerabilities")
+        errors["visibility"] = "Show the tab on must be every Linux and Windows server or servers labelled {}.".format("Vulnerabilities")
         visibility = "linux"
     clean["visibility"] = visibility
 

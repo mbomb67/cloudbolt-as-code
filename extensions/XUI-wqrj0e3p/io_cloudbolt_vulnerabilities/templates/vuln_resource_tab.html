@@ -37,7 +37,7 @@
     <div>
       <div class="vuln-eyebrow">{% trans "Vulnerabilities" %}</div>
       <h2 class="vuln-title">{{ resource.name }}</h2>
-      <div class="vuln-sub">{% trans "Known vulnerabilities in the software installed on the servers of this resource." %}</div>
+      <div class="vuln-sub">{% trans "Known vulnerabilities in the software and Windows updates of the servers of this resource." %}</div>
     </div>
     <div class="vuln-tools">
       {% if not no_servers %}
@@ -66,7 +66,7 @@
 
   <div class="vuln-card vuln-state" data-vuln-empty hidden>
     <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No server has been scanned yet" %}</span></div>
-    <div class="vuln-empty">{% trans "Results appear here as soon as one server of this resource has a stored software list. Scan all servers, when it is shown, collects one from each server." %}</div>
+    <div class="vuln-empty">{% trans "Results appear here as soon as one server of this resource has been scanned. Scan all servers, when it is shown, scans each server." %}</div>
   </div>
 
   <div class="vuln-loading-note" data-vuln-updating hidden>{% trans "The results are being updated. This page will retry." %}</div>
