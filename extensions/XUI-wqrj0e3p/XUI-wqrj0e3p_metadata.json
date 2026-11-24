@@ -1,5 +1,5 @@
 {
-    "description": "Adds a Vulnerabilities tab to Linux servers that lists the known CVEs in their installed software, found by matching a software list against a vulnerability database on the appliance.",
+    "description": "Finds known CVEs on Linux servers by matching each server's software list against a vulnerability database on the appliance, with a tab per server, a search across all servers, and a nightly re-match.",
     "enabled": true,
     "icon_url": "",
     "id": "XUI-wqrj0e3p",
@@ -21,12 +21,18 @@
         "vuln_job.py",
         "vuln_setup_job.py",
         "vuln_jobs.py",
+        "vuln_fleet.py",
+        "vuln_rematch_job.py",
+        "vuln_inventory_job.py",
+        "vuln_provision_job.py",
         "vuln_scan.sh",
         "templates/vuln_styles.html",
         "templates/vuln_assets.html",
         "templates/vuln_tab.html",
         "templates/vuln_panel.html",
-        "templates/vuln_settings.html"
+        "templates/vuln_settings.html",
+        "templates/vuln_fleet.html",
+        "templates/vuln_fleet_assets.html"
     ],
     "version": ""
 }

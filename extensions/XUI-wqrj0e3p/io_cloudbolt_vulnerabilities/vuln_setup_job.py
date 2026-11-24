@@ -19,6 +19,7 @@ MODULES = (
     "xui.io_cloudbolt_vulnerabilities.vuln_repo",
     "xui.io_cloudbolt_vulnerabilities.vuln_hooks",
     "xui.io_cloudbolt_vulnerabilities.vuln_jobs",
+    "xui.io_cloudbolt_vulnerabilities.vuln_fleet",
 )
 
 

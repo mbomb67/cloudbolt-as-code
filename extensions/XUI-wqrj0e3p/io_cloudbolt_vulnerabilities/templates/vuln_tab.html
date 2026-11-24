@@ -16,6 +16,9 @@
       <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="reload">
         <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Reload" %}
       </button>
+      {% if shell.fleet_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ shell.fleet_url }}">{% trans "All servers" %}</a>
+      {% endif %}
       {% if shell.settings_url %}
       <a class="btn btn-sm btn-outline-secondary" href="{{ shell.settings_url }}">
         <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}

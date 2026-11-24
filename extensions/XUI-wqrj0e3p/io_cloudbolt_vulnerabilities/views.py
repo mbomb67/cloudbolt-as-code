@@ -22,14 +22,22 @@ shows the findings, paged and filtered on the server side.
 - Setup (vuln_setup) installs or updates the scanner as a job, for CloudBolt
   admins.
 - Settings is an admin page (Admin > Custom Extensions > Vulnerability
-  Settings). Its title must differ from the tab's: CloudBolt indexes both by
-  title.
+  Settings). CloudBolt indexes every tab and admin page of an extension as one
+  component per title, whatever its type, and refuses a repeated title, so the
+  three titles here ("Vulnerabilities", "Vulnerability Settings",
+  "Vulnerability Search") must stay distinct.
+- Vulnerability Search (admin page under Custom Extensions, function
+  vulnerabilities) is the fleet search: a shell page plus four JSON routes
+  (vuln_fleet_summary, vuln_fleet_cves, vuln_fleet_cve_servers,
+  vuln_fleet_servers) that return one page of the findings store each.
 
 Viewing needs the view permission on the server (Server.objects_for_profile).
 Starting a scan needs vuln_jobs.can_scan, checked per server.
 """
 import functools
 import json
+import os
+import re
 from datetime import datetime, timezone
 
 from django.core.exceptions import PermissionDenied
@@ -44,7 +52,7 @@ from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.permissions import cbadmin_required
 
-from . import vuln_db, vuln_jobs, vuln_match, vuln_repo, vuln_store as store, vuln_tools
+from . import vuln_db, vuln_hooks, vuln_jobs, vuln_match, vuln_repo, vuln_store as store, vuln_tools
 
 logger = ThreadLogger(__name__)
 
@@ -54,6 +62,14 @@ TEMPLATES = "io_cloudbolt_vulnerabilities/templates/"
 # form the settings page URL /extensions/admin/<package>/<view>.
 XUI_PACKAGE = "io_cloudbolt_vulnerabilities"
 PAGE_VIEW = "settings"
+FLEET_VIEW = "vulnerabilities"
+
+# The server page opens a tab named by its slug (the lower-cased title) after a "#tab-".
+SERVER_TAB_HASH = "#tab-vulnerabilities"
+FLEET_PAGE_SIZE = 25
+# What a CVE or advisory id may look like when it comes from a URL: letters, digits and a few
+# separators, 64 characters at most. It is user input and reaches the findings store.
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 
 PANEL_ERROR = "Could not load this panel. The CloudBolt application log has the details."
 STORE_ERROR = "The scan history of this server cannot be read. The CloudBolt application log has the details."
@@ -81,6 +97,10 @@ def _base_url(request):
 
 def _settings_url():
     return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": PAGE_VIEW})
+
+
+def _fleet_url():
+    return reverse("render_admin_extension", kwargs={"package": XUI_PACKAGE, "view_id": FLEET_VIEW})
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +133,7 @@ def vulnerabilities_tab(request, obj_id):
             "can_scan": vuln_jobs.can_scan(profile, server),
             "is_admin": is_admin,
             "settings_url": _settings_url() if is_admin else "",
+            "fleet_url": _fleet_url() if is_admin else "",
             "start_url": reverse("vuln_start", args=[server.id]),
             "findings_url": reverse("vuln_findings", args=[server.id]),
         },
@@ -331,6 +352,53 @@ def _local_time(stamp):
     return when.astimezone().replace(tzinfo=None)
 
 
+PROVISION_ERROR = ("The settings were saved, but the scan after provisioning could not be switched. "
+                   "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
+SCHEDULES_ERROR = "The schedules cannot be read. The CloudBolt application log has the details."
+
+# What each schedule does, in one sentence, by the key ensure_schedules returns.
+SCHEDULE_TEXT = {
+    "rematch": "Matches every stored software list against the newest vulnerability database, "
+               "and removes the results of servers that no longer exist.",
+    "inventory": "Collects a fresh software list from every server that can be scanned without anyone "
+                 "present, a few at a time.",
+}
+WEEKDAYS = ("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+
+
+def _cron_words(cron):
+    """A plain-words reading of the two cron shapes this extension creates (a daily and a weekly
+    time); anything else is "Custom"."""
+    parts = str(cron or "").split()
+    if len(parts) == 5 and parts[0].isdigit() and parts[1].isdigit() and parts[2] == parts[3] == "*":
+        time = "{:02d}:{:02d}".format(int(parts[1]) % 24, int(parts[0]) % 60)
+        if parts[4] == "*":
+            return "Every day at " + time
+        if parts[4].isdigit():
+            return "Every {} at {}".format(WEEKDAYS[int(parts[4]) % 7], time)
+    return "Custom"
+
+
+def _schedule_rows(rows):
+    """The Schedules card's rows from vuln_hooks.ensure_schedules()."""
+    out = []
+    for row in rows or []:
+        last = row.get("last_run")
+        if isinstance(last, str):
+            last = _local_time(last)
+        out.append({
+            "name": row.get("name") or "",
+            "what": SCHEDULE_TEXT.get(row.get("key"), ""),
+            "cron": row.get("schedule") or "",
+            "words": _cron_words(row.get("schedule")),
+            "enabled": bool(row.get("enabled")),
+            "last_run": last,
+            "url": row.get("url") or "",
+            "error": row.get("error") or "",
+        })
+    return out
+
+
 def _scanner_context():
     """What the Scanner card shows. Each part is read on its own so one failure
     leaves the rest of the page usable."""
@@ -360,6 +428,7 @@ def _scanner_context():
 def settings(request):
     saved = False
     errors = {}
+    post_warnings = []
     current = store.get_settings()
     if request.method == "POST":
         clean, errors = store.validate_settings(request.POST)
@@ -374,12 +443,196 @@ def settings(request):
             store.save_settings(clean)
             current = store.get_settings()
             saved = True
+            # The settings are saved; a failure here is shown without losing them.
+            try:
+                vuln_hooks.apply_provision_setting(bool(clean.get("scan_on_provision")))
+            except Exception:
+                logger.exception("Vulnerabilities: cannot update the scan after provisioning action")
+                post_warnings.append(PROVISION_ERROR)
     context = {
         "settings": current,
         "saved": saved,
         "errors": list(errors.values()),
+        "warnings": post_warnings,
         "field_errors": errors,
         "start_url": reverse("vuln_setup"),
+        "fleet_url": "",
+        "schedules": [],
+        "schedules_error": "",
     }
+    try:
+        context["fleet_url"] = _fleet_url()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the Vulnerabilities page URL")
+    try:
+        context["schedules"] = _schedule_rows(vuln_hooks.ensure_schedules())
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the schedules")
+        context["schedules_error"] = SCHEDULES_ERROR
     context.update(_scanner_context())
     return render(request, TEMPLATES + "vuln_settings.html", context)
+
+
+# ---------------------------------------------------------------------------
+# Vulnerabilities page (fleet search for CloudBolt admins)
+# ---------------------------------------------------------------------------
+def _server_urls(rows):
+    """{server id: server page URL on the Vulnerabilities tab} for the servers of one page of
+    rows that still exist and are not historical. One Server query for the whole page; a
+    failure leaves every row without a link."""
+    ids = set()
+    for row in rows:
+        try:
+            ids.add(int(row.get("server_id")))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return {}
+    try:
+        servers = Server.objects.filter(id__in=ids).exclude(status="HISTORICAL")
+        return {server.id: server.get_absolute_url() + SERVER_TAB_HASH for server in servers}
+    except Exception:
+        logger.exception("Vulnerabilities: cannot resolve the server links of a page")
+        return {}
+
+
+def _with_urls(result):
+    """The page dict with a url on each row whose server still exists and is not historical."""
+    rows = result.get("rows") or []
+    urls = _server_urls(rows)
+    for row in rows:
+        try:
+            link = urls.get(int(row.get("server_id")))
+        except (TypeError, ValueError):
+            link = None
+        if link:
+            row["url"] = link
+    return result
+
+
+def _page_args(request):
+    return {"page": _int_param(request, "page", 1), "page_size": FLEET_PAGE_SIZE}
+
+
+@admin_extension(
+    title="Vulnerability Search",
+    description="Search every scanned server for a CVE or advisory, see which vulnerabilities affect the "
+    "most servers, and open a server's Vulnerabilities tab.",
+)
+@cbadmin_required
+def vulnerabilities(request):
+    """The page is a shell; its data arrives from the four JSON routes. Each URL is built on its
+    own so one failure leaves the others."""
+    context = {"urls": {}, "settings_url": "", "page_error": ""}
+    for key, name in (("summary", "vuln_fleet_summary"), ("cves", "vuln_fleet_cves"),
+                      ("cve_servers", "vuln_fleet_cve_servers"), ("servers", "vuln_fleet_servers")):
+        try:
+            context["urls"][key] = reverse(name)
+        except Exception:
+            logger.exception("Vulnerabilities: cannot build the URL %s", name)
+            context["page_error"] = "This page could not be set up. The CloudBolt application log has the details."
+    try:
+        context["settings_url"] = _settings_url()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the settings URL")
+    return render(request, TEMPLATES + "vuln_fleet.html", context)
+
+
+def _fleet_summary_state():
+    """(summary dict or None, state). A store written by the previous release is upgraded here, once,
+    because readers never do (the upgrade is idempotent and transactional; this route is for CB Admins)."""
+    try:
+        version = vuln_db.schema_version()
+        if version is not None and version < vuln_db.SCHEMA_VERSION:
+            vuln_db.upgrade()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot upgrade the findings store")
+    summary = vuln_db.fleet_summary()
+    if summary is not None:
+        return (summary, "ready") if summary.get("servers") else (summary, "empty")
+    if not os.path.exists(store.FINDINGS_DB):
+        return None, "empty"
+    return None, "unavailable"
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_summary(request):
+    """GET: the fleet totals and the scanner's database date: {state, summary, db_built}. state is
+    "ready" (summary is the totals), "empty" (no store yet, or no server in it) or "unavailable" (a
+    store exists but cannot be read or upgraded right now; the page retries)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    db_built = ""
+    try:
+        db_built = vuln_tools.status().get("db", {}).get("built") or ""
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the database date")
+    summary, state = _fleet_summary_state()
+    return JsonResponse({"state": state, "summary": summary, "db_built": db_built})
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_cves(request):
+    """GET ?q=&severity=&kev=1&page=: one page of the vulnerabilities that affect scanned servers."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    severity = request.GET.get("severity", "").strip().capitalize()
+    if severity not in vuln_match.SEVERITIES:
+        severity = ""
+    result = vuln_db.fleet_cves(
+        search=request.GET.get("q", "").strip()[:100],
+        severity=severity,
+        kev_only=request.GET.get("kev") == "1",
+        **_page_args(request)
+    )
+    return JsonResponse(result)
+
+
+def _cve_info(cve):
+    """The fleet-wide row {cve, severity, sev_rank, kev, servers, fixable} of exactly this id, or None
+    when the fleet table has none. fleet_cves searches by substring, so the pages of that search are
+    walked (at most five of 100) until the exact id appears."""
+    try:
+        for page in range(1, 6):
+            result = vuln_db.fleet_cves(search=cve, page=page, page_size=100)
+            for row in result.get("rows") or []:
+                if str(row.get("cve", "")).lower() == cve.lower():
+                    return row
+            if page >= (result.get("pages") or 1):
+                break
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the fleet row of %s", cve)
+    return None
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_cve_servers(request):
+    """GET ?cve=&q=&page=: one page of the servers a vulnerability affects, plus cve_info, the
+    fleet-wide severity, exploited flag and counts of that id (null when the fleet table has none)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    cve = request.GET.get("cve", "").strip()
+    if not ID_RE.match(cve):
+        return JsonResponse({"error": "That is not a valid CVE or advisory id."}, status=400)
+    if cve.upper().startswith("CVE-"):
+        cve = cve.upper()
+    result = _with_urls(vuln_db.cve_servers(cve, search=request.GET.get("q", "").strip()[:100], **_page_args(request)))
+    result["cve_info"] = _cve_info(cve)
+    return JsonResponse(result)
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_servers(request):
+    """GET ?q=&kev=1&page=: one page of the scanned servers, worst first."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    result = vuln_db.fleet_servers(
+        search=request.GET.get("q", "").strip()[:100],
+        kev_only=request.GET.get("kev") == "1",
+        **_page_args(request)
+    )
+    return JsonResponse(_with_urls(result))

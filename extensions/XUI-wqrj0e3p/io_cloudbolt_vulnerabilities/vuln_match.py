@@ -299,28 +299,100 @@ def parse_grype(doc):
     return {"matches": list(merged.values()), "distro": _distro(doc), "db_built": _db_built(doc)}
 
 
-def summarize(matches):
+def vuln_rows(matches):
+    """One dict per vulnerability identity found in the matches, sorted by cve.
+
+    The identity is the CVE id, or the advisory id (vuln_id) for a match that
+    carries no CVE: the same rule summarize and package_rows use, kept here so
+    the findings store and the totals can never disagree. A match that lists
+    several CVEs counts under each of them.
+
+    Each dict has cve, sev_rank (the worst of its matches), kev (any exploited
+    entry), pkg_name, pkg_version and fix_version (those of the representative
+    match: the worst severity, then exploited first, then package name, version,
+    type and path) and pkg_count (distinct packages carrying it). A missing fix
+    version is the empty string."""
+    found = {}
+    for match in matches:
+        rank = sev_rank(match.get("severity"))
+        links = match.get("cves") or []
+        if links:
+            entries = [(link["cve"], bool(link.get("kev"))) for link in links]
+        else:
+            entries = [(match.get("vuln_id"), bool(match.get("kev")))]
+        pkg = (match.get("pkg_name") or "", match.get("pkg_version") or "", match.get("pkg_type") or "",
+               match.get("path") or "")
+        for ident, kev in entries:
+            item = found.get(ident)
+            if item is None:
+                # [identity rank, identity kev, rep rank, rep kev, rep package, rep match, packages]
+                found[ident] = [rank, kev, rank, kev, pkg, match, {pkg}]
+                continue
+            item[6].add(pkg)
+            if rank > item[0]:
+                item[0] = rank
+            if kev:
+                item[1] = True
+            if (rank > item[2] or (rank == item[2] and ((kev and not item[3]) or (kev == item[3] and pkg < item[4])))):
+                item[2], item[3], item[4], item[5] = rank, kev, pkg, match
+    rows = []
+    for ident, item in found.items():
+        rows.append({
+            "cve": ident,
+            "sev_rank": item[0],
+            "kev": item[1],
+            "pkg_name": item[4][0],
+            "pkg_version": item[4][1],
+            "fix_version": item[5].get("fix_version") or "",
+            "pkg_count": len(item[6]),
+        })
+    rows.sort(key=lambda row: str(row["cve"]))
+    return rows
+
+
+def match_hash(matches):
+    """A stable hash of a server's matches, whatever their order: every field the
+    findings store keeps, including the severity, the fix version, the exploited
+    flag, the CVE list and the path. Equal hashes mean nothing in the store's
+    per-server tables would change."""
+    lines = []
+    for match in matches:
+        links = tuple(sorted((link["cve"], bool(link.get("kev"))) for link in match.get("cves") or []))
+        lines.append(repr((
+            match.get("pkg_name"), match.get("pkg_version"), match.get("pkg_type"), match.get("path"),
+            match.get("vuln_id"), match.get("severity"), match.get("sev_rank"), match.get("fix_state"),
+            match.get("fix_version"), bool(match.get("kev")), match.get("epss"), match.get("risk"),
+            match.get("data_source"), links,
+        )))
+    lines.sort()
+    digest = hashlib.sha256(b"vuln-matches-v1\n")
+    for line in lines:
+        digest.update(line.encode("utf-8"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def summarize(matches, rows=None):
     """Counts for the servers row: match counts (findings and the severity keys),
     distinct CVE ids (cves), and distinct vulnerabilities (vulns, vuln_<severity>)
-    where each vulnerability counts once at the worst severity of its matches."""
+    where each vulnerability counts once at the worst severity of its matches.
+    rows is vuln_rows(matches) when the caller has it already."""
     counts = {name.lower(): 0 for name in SEVERITIES}
     cves, exploited = set(), set()
-    worst = {}
     for match in matches:
         counts[normalise_severity(match.get("severity")).lower()] += 1
-        # Same identity as package_rows: a match with no CVE is its own entry.
-        for entry in [c["cve"] for c in match.get("cves") or []] or [match.get("vuln_id")]:
-            worst[entry] = max(worst.get(entry, 0), sev_rank(match.get("severity")))
         for item in match.get("cves") or []:
             cves.add(item["cve"])
             if item.get("kev"):
                 exploited.add(item["cve"])
+    if rows is None:
+        rows = vuln_rows(matches)
     counts["findings"] = len(matches)
     counts["kev"] = len(exploited)
     counts["cves"] = len(cves)
-    counts["vulns"] = len(worst)
+    counts["vulns"] = len(rows)
     for name in SEVERITIES:
-        counts["vuln_" + name.lower()] = sum(1 for rank in worst.values() if rank == _RANKS[name])
+        counts["vuln_" + name.lower()] = sum(1 for row in rows if row["sev_rank"] == _RANKS[name])
     return counts
 
 

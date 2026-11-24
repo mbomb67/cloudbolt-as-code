@@ -185,6 +185,29 @@ def prune(server_id, keep_scan_id):
             logger.warning("Vulnerabilities: could not remove old inventory file %s", entry.name)
 
 
+def forget(server_id):
+    """Remove a deleted server's whole inventories/<id>/ folder (its stored software list, any
+    pending marker). Returns True when the folder existed. The caller makes sure no scan is
+    running on the server."""
+    try:
+        base = _server_dir(server_id)
+    except Http404:
+        return False
+    if not os.path.isdir(base):
+        return False
+    shutil.rmtree(base, ignore_errors=True)
+    return True
+
+
+def known_ids():
+    """The ids of every server that has an inventories/<id>/ folder, as a sorted list."""
+    try:
+        names = os.listdir(store.INVENTORY_DIR)
+    except OSError:
+        return []
+    return sorted(int(name) for name in names if name.isascii() and name.isdigit())
+
+
 def _room_for(size):
     try:
         return shutil.disk_usage(store.ROOT if os.path.isdir(store.ROOT) else os.path.dirname(store.ROOT)).free \
