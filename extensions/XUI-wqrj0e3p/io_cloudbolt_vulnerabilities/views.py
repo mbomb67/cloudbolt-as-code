@@ -238,6 +238,7 @@ def vulnerabilities_tab(request, obj_id):
 # Panel (HTML fragment loaded asynchronously by the tab)
 # ---------------------------------------------------------------------------
 def _panel_context(server, profile):
+    _upgrade_store()  # readers never upgrade, and the summary selects the newest columns
     summary = vuln_db.server_summary(server.id)
     state = store.read_state(server.id)
     active = vuln_jobs.panel_active(server.id)
@@ -344,7 +345,7 @@ def _int_param(request, name, default):
 
 @_api
 def vuln_findings(request, server_id):
-    """GET ?view=packages|cves&q=&severity=&kev=1&page=&page_size=: one page of the
+    """GET ?view=packages|cves&q=&severity=&kev=1&fix=1&page=&page_size=: one page of the
     findings, the store's dict unchanged. Bad parameters fall back to the defaults."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
@@ -362,6 +363,7 @@ def vuln_findings(request, server_id):
         kev_only=request.GET.get("kev") == "1",
         page=_int_param(request, "page", 1),
         page_size=_int_param(request, "page_size", 25),
+        fix_only=request.GET.get("fix") == "1",
     )
     return JsonResponse(result)
 
@@ -697,7 +699,7 @@ def vuln_fleet_summary(request):
 @_api
 @cbadmin_required
 def vuln_fleet_cves(request):
-    """GET ?q=&severity=&kev=1&page=: one page of the vulnerabilities that affect scanned servers."""
+    """GET ?q=&severity=&kev=1&fix=1&page=: one page of the vulnerabilities that affect scanned servers."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
     severity = request.GET.get("severity", "").strip().capitalize()
@@ -707,6 +709,7 @@ def vuln_fleet_cves(request):
         search=request.GET.get("q", "").strip()[:100],
         severity=severity,
         kev_only=request.GET.get("kev") == "1",
+        fix_only=request.GET.get("fix") == "1",
         **_page_args(request)
     )
     return JsonResponse(result)
@@ -904,7 +907,7 @@ def vuln_resource_summary(request, resource_id):
 
 @_api
 def vuln_resource_cves(request, resource_id):
-    """GET ?q=&severity=&kev=1&page=: one page of the vulnerabilities that affect the viewer's servers
+    """GET ?q=&severity=&kev=1&fix=1&page=: one page of the vulnerabilities that affect the viewer's servers
     of the resource (vuln_db.set_cves: servers and fixable count the servers in that set)."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
@@ -916,6 +919,7 @@ def vuln_resource_cves(request, resource_id):
         search=request.GET.get("q", "").strip()[:100],
         severity=_severity(request),
         kev_only=request.GET.get("kev") == "1",
+        fix_only=request.GET.get("fix") == "1",
         **_page_args(request)
     )
     return JsonResponse(result)

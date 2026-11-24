@@ -332,14 +332,14 @@
     }
 
     makePane("cves", {
-      fresh: function () { return { q: "", sev: "", kev: false, page: 1 }; },
+      fresh: function () { return { q: "", sev: "", kev: false, fix: false, page: 1 }; },
       url: function () { return urls.cves; },
-      params: function (st) { var q = { q: st.q, severity: st.sev, page: st.page, page_size: PAGE_SIZE }; if (st.kev) { q.kev = 1; } return q; },
+      params: function (st) { var q = { q: st.q, severity: st.sev, page: st.page, page_size: PAGE_SIZE }; if (st.kev) { q.kev = 1; } if (st.fix) { q.fix = 1; } return q; },
       build: function (rows) { return buildCves(rows, nohash); },
       noun: "vulnerabilities",
       empty: function (st) {
-        if (st.q && looksLikeCve(st.q) && !st.sev && !st.kev) { return notAffected(st.q.trim()); }
-        if (st.q || st.sev || st.kev) { return "No vulnerabilities match these filters."; }
+        if (st.q && looksLikeCve(st.q) && !st.sev && !st.kev && !st.fix) { return notAffected(st.q.trim()); }
+        if (st.q || st.sev || st.kev || st.fix) { return "No vulnerabilities match these filters."; }
         return "No known vulnerabilities were found on the scanned servers.";
       }
     });
@@ -589,6 +589,7 @@
       figs.appendChild(fig("Critical", s.critical, s.critical ? "vuln-c-crit" : ""));
       figs.appendChild(fig("High", s.high, s.high ? "vuln-c-high" : ""));
       vulns.appendChild(figs);
+      vulns.appendChild(el("span", "vuln-card-sub", num(s.vuln_fixable) + " with a fix"));
       box.appendChild(vulns);
       var n = s.servers_exploited || 0;
       box.appendChild(card("Known exploited", num(s.exploited), s.exploited ? "vuln-c-crit" : "",
@@ -860,6 +861,13 @@
       var p = paneOf(this);
       if (!p) { return; }
       p.st.kev = this.checked;
+      p.st.page = 1;
+      fetchPane(p);
+    });
+    $(rootEl).on("change", "[data-vuln-fix]", function () {
+      var p = paneOf(this);
+      if (!p) { return; }
+      p.st.fix = this.checked;
       p.st.page = 1;
       fetchPane(p);
     });

@@ -39,7 +39,7 @@ from . import vuln_match, vuln_store
 
 logger = logging.getLogger(__name__)  # stdlib only, so the module imports anywhere
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 BUSY_MS = 30000
 MAX_SEARCH = 100
 PAGE_MIN, PAGE_MAX = 10, 100
@@ -51,7 +51,9 @@ _SERVER_BASE_COLUMNS = (
 )
 # Added after the first release; a file made by that release gets them by ALTER in the upgrade.
 _SERVER_ADDED_COLUMNS = ("vulns", "vuln_critical", "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown")
-_SERVER_COLUMNS = _SERVER_BASE_COLUMNS + _SERVER_ADDED_COLUMNS
+# Added by version 3: the vulnerabilities of the server that have a fix. NOT NULL DEFAULT 0, set by the upgrade.
+_SERVER_FIXABLE_COLUMN = "vuln_fixable"
+_SERVER_COLUMNS = _SERVER_BASE_COLUMNS + _SERVER_ADDED_COLUMNS + (_SERVER_FIXABLE_COLUMN,)
 # What the server's snapshot supplies; every other column comes from the totals.
 _SNAPSHOT_COLUMNS = ("hostname", "os_name", "group_name", "environment", "scan_id", "inventory_at", "packages",
                      "matched_at")
@@ -62,7 +64,8 @@ _TABLES = (
         scan_id TEXT, inventory_at TEXT, packages INTEGER, matched_at TEXT, db_built TEXT,
         findings INTEGER, critical INTEGER, high INTEGER, medium INTEGER, low INTEGER, unknown INTEGER,
         kev INTEGER, cves INTEGER, vulns INTEGER, vuln_critical INTEGER, vuln_high INTEGER,
-        vuln_medium INTEGER, vuln_low INTEGER, vuln_unknown INTEGER, match_hash TEXT)""",
+        vuln_medium INTEGER, vuln_low INTEGER, vuln_unknown INTEGER, vuln_fixable INTEGER NOT NULL DEFAULT 0,
+        match_hash TEXT)""",
     """CREATE TABLE IF NOT EXISTS matches(
         id INTEGER PRIMARY KEY, pkg_name TEXT, pkg_version TEXT, pkg_type TEXT, vuln_id TEXT,
         severity TEXT, sev_rank INTEGER, fix_state TEXT, fix_version TEXT, kev INTEGER, epss REAL,
@@ -108,7 +111,8 @@ _FLEET_FROM_SERVERS = (
 
 # The same identity rule as vuln_match.vuln_rows, in SQL, for the rows a version-1 file already holds:
 # one row per (server, CVE or advisory id), the worst severity, exploited if any entry is, and the
-# representative package (worst severity, then exploited, then package name).
+# representative package (one with a fix, then worst severity, then exploited, then package name), as vuln_rows
+# picks it, so a row has a fix exactly when any of its entries has.
 _BACKFILL_SERVER_CVES = """
 WITH e AS (
     SELECT COALESCE(c.cve, m.vuln_id) AS cve, m.sev_rank AS sev_rank, COALESCE(c.kev, m.kev, 0) AS kev,
@@ -124,7 +128,7 @@ n AS (
 r AS (
     SELECT cve, pkg_name, pkg_version, fix_version,
            ROW_NUMBER() OVER (PARTITION BY cve
-               ORDER BY sev_rank DESC, kev DESC, pkg_name, pkg_version, pkg_type, path) AS rn,
+               ORDER BY (fix_version <> '') DESC, sev_rank DESC, kev DESC, pkg_name, pkg_version, pkg_type, path) AS rn,
            MAX(sev_rank) OVER (PARTITION BY cve) AS top_rank, MAX(kev) OVER (PARTITION BY cve) AS top_kev
     FROM e)
 INSERT INTO server_cves(server_id, cve, sev_rank, kev, pkg_name, pkg_version, fix_version, pkg_count)
@@ -147,12 +151,20 @@ def _upgrade(conn, before):
             conn.execute("ALTER TABLE servers ADD COLUMN {} INTEGER".format(column))
     if "match_hash" not in have:
         conn.execute("ALTER TABLE servers ADD COLUMN match_hash TEXT")  # NULL: the first save is a full one
+    if _SERVER_FIXABLE_COLUMN not in have:
+        conn.execute("ALTER TABLE servers ADD COLUMN {} INTEGER NOT NULL DEFAULT 0".format(_SERVER_FIXABLE_COLUMN))
     for statement in _INDEXES:
         conn.execute(statement)
-    if before < 2:
+    if before < 3:
+        # Version 2 rows took the representative match's fix; version 3 counts a fix on any match, so the rows
+        # are rebuilt from the stored matches (a no-op delete for a version-1 file, which has none yet).
         # One server at a time keeps the window function's working set small.
+        conn.execute("DELETE FROM server_cves")
         for (server_id,) in conn.execute("SELECT server_id FROM servers").fetchall():
             conn.execute(_BACKFILL_SERVER_CVES, (server_id, server_id))
+            conn.execute(
+                "UPDATE servers SET vuln_fixable = (SELECT COUNT(*) FROM server_cves WHERE server_id = ? "
+                "AND fix_version <> '') WHERE server_id = ?", (server_id, server_id))
         conn.execute("DELETE FROM fleet_cves")
         conn.execute("INSERT INTO fleet_cves(cve, sev_rank, kev, servers, fixable) {} GROUP BY cve".format(
             _FLEET_FROM_SERVERS))
@@ -267,7 +279,8 @@ def readable():
             if conn is None:
                 return None if not os.path.exists(vuln_store.FINDINGS_DB) else False
             conn.execute("SELECT {} FROM servers s LEFT JOIN server_cves c ON 0 LIMIT 1".format(
-                ", ".join(["s." + name for name in _SERVER_ADDED_COLUMNS] + ["c.cve"]))).fetchone()
+                ", ".join(["s." + name for name in _SERVER_ADDED_COLUMNS + (_SERVER_FIXABLE_COLUMN,)] + ["c.cve"]))
+            ).fetchone()
             return True
     except Exception as exc:
         if not isinstance(exc, sqlite3.Error) or not _missing_table(exc):
@@ -696,7 +709,7 @@ def _package_row(row):
     return data
 
 
-def server_packages(server_id, search="", severity="", kev_only=False, page=1, page_size=25):
+def server_packages(server_id, search="", severity="", kev_only=False, page=1, page_size=25, fix_only=False):
     page, page_size = _paging(page, page_size)
     where, params = ["sp.server_id = ?"], [int(server_id)]
     rank = _rank_filter(severity)
@@ -705,6 +718,8 @@ def server_packages(server_id, search="", severity="", kev_only=False, page=1, p
         params.append(rank)
     if kev_only:
         where.append("sp.kev = 1")
+    if fix_only:
+        where.append("COALESCE(sp.fix_version, '') <> ''")
     pattern = _like(search)
     if pattern:
         # Search the package name, and every advisory and CVE of its matches
@@ -733,13 +748,19 @@ def server_packages(server_id, search="", severity="", kev_only=False, page=1, p
 
 # One row per (CVE, package): an advisory with two CVEs is two rows, and the
 # same CVE reached through two advisories of one package collapses to the
-# worst of them. A match with no CVE shows under its advisory id.
+# worst of them. A match with no CVE shows under its advisory id. The fix shown is the picked match's own,
+# or, when it has none, the highest string among the collapsed matches (the same package), so the with-a-fix
+# filter keeps every row of a vulnerability that has a fix on that package.
 _CVE_SOURCE = """(
-    SELECT * FROM (
+    SELECT cve, vuln_id, severity, sev_rank, kev, epss, risk, pkg_name, pkg_version, pkg_type, path,
+           CASE WHEN COALESCE(own_fix, '') <> '' THEN own_fix ELSE any_fix END AS fix_version,
+           fix_state, data_source FROM (
         SELECT COALESCE(c.cve, m.vuln_id) AS cve, m.vuln_id AS vuln_id, m.severity AS severity,
                m.sev_rank AS sev_rank, COALESCE(c.kev, m.kev) AS kev, m.epss AS epss, m.risk AS risk,
                m.pkg_name AS pkg_name, m.pkg_version AS pkg_version, m.pkg_type AS pkg_type, sm.path AS path,
-               m.fix_version AS fix_version, m.fix_state AS fix_state, m.data_source AS data_source,
+               m.fix_version AS own_fix, m.fix_state AS fix_state, m.data_source AS data_source,
+               MAX(COALESCE(m.fix_version, '')) OVER (
+                   PARTITION BY COALESCE(c.cve, m.vuln_id), m.pkg_name, m.pkg_version, m.pkg_type, sm.path) AS any_fix,
                ROW_NUMBER() OVER (
                    PARTITION BY COALESCE(c.cve, m.vuln_id), m.pkg_name, m.pkg_version, m.pkg_type, sm.path
                    ORDER BY m.sev_rank DESC, COALESCE(c.kev, m.kev) DESC, m.id) AS rn
@@ -761,7 +782,7 @@ def _cve_row(row):
     return data
 
 
-def server_cves(server_id, search="", severity="", kev_only=False, page=1, page_size=25):
+def server_cves(server_id, search="", severity="", kev_only=False, page=1, page_size=25, fix_only=False):
     page, page_size = _paging(page, page_size)
     where, params = ["1 = 1"], []
     rank = _rank_filter(severity)
@@ -770,6 +791,8 @@ def server_cves(server_id, search="", severity="", kev_only=False, page=1, page_
         params.append(rank)
     if kev_only:
         where.append("v.kev = 1")
+    if fix_only:
+        where.append("COALESCE(v.fix_version, '') <> ''")
     pattern = _like(search)
     if pattern:
         where.append("(v.cve LIKE ? ESCAPE '\\' OR v.vuln_id LIKE ? ESCAPE '\\' OR v.pkg_name LIKE ? ESCAPE '\\')")
@@ -818,7 +841,7 @@ def fleet_summary():
             ).fetchone()
             fleet = conn.execute(
                 "SELECT COUNT(*), COALESCE(SUM(kev = 1), 0), COALESCE(SUM(sev_rank = 4), 0), "
-                "COALESCE(SUM(sev_rank = 3), 0) FROM fleet_cves"
+                "COALESCE(SUM(sev_rank = 3), 0), COALESCE(SUM(fixable > 0), 0) FROM fleet_cves"
             ).fetchone()
             builts = [row[0] for row in conn.execute(
                 "SELECT db_built FROM servers WHERE db_built <> '' GROUP BY db_built ORDER BY db_built DESC LIMIT 5")]
@@ -827,7 +850,7 @@ def fleet_summary():
         return None
     return {
         "servers": servers[0], "servers_exploited": servers[1], "vulns": fleet[0], "exploited": fleet[1],
-        "critical": fleet[2], "high": fleet[3], "oldest_matched": servers[2], "newest_matched": servers[3],
+        "critical": fleet[2], "high": fleet[3], "vuln_fixable": fleet[4], "oldest_matched": servers[2], "newest_matched": servers[3],
         "db_builts": builts,
     }
 
@@ -838,9 +861,10 @@ def _fleet_row(row):
             "fixable": row["fixable"]}
 
 
-def fleet_cves(search="", severity="", kev_only=False, page=1, page_size=25):
+def fleet_cves(search="", severity="", kev_only=False, page=1, page_size=25, fix_only=False):
     """The vulnerabilities across the fleet, worst first: exploited, severity,
-    most servers, id. fixable is how many of those servers have a fix.
+    most servers, id. fixable is how many of those servers have a fix; fix_only
+    keeps the vulnerabilities with fixable > 0.
 
     A search that contains CVE- (any case) is a substring match on the id. Any
     other term that equals an advisory id (exact, any case) selects that
@@ -853,6 +877,8 @@ def fleet_cves(search="", severity="", kev_only=False, page=1, page_size=25):
         params.append(rank)
     if kev_only:
         where.append("f.kev = 1")
+    if fix_only:
+        where.append("f.fixable > 0")
     term = str(search or "").strip()[:MAX_SEARCH]
     order = "f.kev DESC, f.sev_rank DESC, f.servers DESC, f.cve"
     columns = "f.cve, f.sev_rank, f.kev, f.servers, f.fixable"
@@ -1032,12 +1058,13 @@ def set_summary(ids):
     """Totals across the given servers: how many have stored findings and how
     many distinct vulnerabilities they have between them, each counted once at
     its worst severity and as exploited when any of them has it exploited.
+    vuln_fixable is how many of those vulnerabilities have a fix on at least one server of the set.
 
     None when the store is missing, not upgraded yet, or not readable. An empty
     set is a summary of nothing (scanned 0) and does not look at the store."""
     ids, truncated = _clean_ids(ids)
-    result = {"scanned": 0, "vulns": 0, "critical": 0, "high": 0, "exploited": 0, "servers_exploited": 0,
-              "oldest_inventory": None, "newest_matched": None, "db_builts": [], "truncated": truncated}
+    result = {"scanned": 0, "vulns": 0, "critical": 0, "high": 0, "exploited": 0, "vuln_fixable": 0,
+              "servers_exploited": 0, "oldest_inventory": None, "newest_matched": None, "db_builts": [], "truncated": truncated}
     if not ids:
         return result
     try:
@@ -1048,7 +1075,8 @@ def set_summary(ids):
                 # The one aggregation: the set's rows grouped by identity.
                 vulns = conn.execute(
                     "SELECT COUNT(*), COALESCE(SUM(worst = 4), 0), COALESCE(SUM(worst = 3), 0), "
-                    "COALESCE(SUM(hot = 1), 0) FROM (SELECT MAX(sev_rank) AS worst, MAX(kev) AS hot "
+                    "COALESCE(SUM(hot = 1), 0), COALESCE(SUM(fixed > 0), 0) FROM (SELECT MAX(sev_rank) AS worst, "
+                    "MAX(kev) AS hot, SUM(CASE WHEN fix_version <> '' THEN 1 ELSE 0 END) AS fixed "
                     "FROM server_cves WHERE server_id {} GROUP BY cve)".format(member), params).fetchone()
                 servers = conn.execute(
                     "SELECT kev, inventory_at, matched_at, db_built FROM servers WHERE server_id {}".format(member),
@@ -1061,6 +1089,7 @@ def set_summary(ids):
     builts = sorted({row["db_built"] for row in servers if row["db_built"]}, reverse=True)[:5]
     result.update({
         "scanned": len(servers), "vulns": vulns[0], "critical": vulns[1], "high": vulns[2], "exploited": vulns[3],
+        "vuln_fixable": vulns[4],
         "servers_exploited": sum(1 for row in servers if row["kev"] and row["kev"] > 0),
         "oldest_inventory": min(inventories) if inventories else None,
         "newest_matched": max(matched) if matched else None, "db_builts": builts,
@@ -1068,9 +1097,10 @@ def set_summary(ids):
     return result
 
 
-def set_cves(ids, search="", severity="", kev_only=False, page=1, page_size=25):
+def set_cves(ids, search="", severity="", kev_only=False, page=1, page_size=25, fix_only=False):
     """The vulnerabilities of the given servers, worst first: exploited,
-    severity, most servers, id. servers and fixable count servers in the set.
+    severity, most servers, id. servers and fixable count servers in the set;
+    fix_only keeps the identities with fixable > 0.
 
     Search works as in fleet_cves: a term containing CVE- is a substring match
     on the id; any other term that equals an advisory id (exact, any case)
@@ -1088,6 +1118,8 @@ def set_cves(ids, search="", severity="", kev_only=False, page=1, page_size=25):
         params.append(rank)
     if kev_only:
         where.append("a.kev = 1")
+    if fix_only:
+        where.append("a.fixable > 0")
     term = str(search or "").strip()[:MAX_SEARCH]
     order = "a.kev DESC, a.sev_rank DESC, a.servers DESC, a.cve"
     columns = "a.cve, a.sev_rank, a.kev, a.servers, a.fixable"

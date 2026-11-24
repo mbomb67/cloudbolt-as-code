@@ -480,6 +480,7 @@ class RunTests(base.Base):
         self.assertEqual(self.recorded[0][1]["packages"], 3)
         self.assertEqual(outputs["findings"], 2)
         self.assertEqual((outputs["critical"], outputs["high"], outputs["kev"], outputs["cves"]), (1, 1, 1, 2))
+        self.assertEqual(outputs["vuln_fixable"], outputs["vulns"])  # a Windows row always carries its fixing build
         self.assertIn("Windows build 10.0.26100.33650", message)
         self.assertEqual(len(self.events), 1)
 
@@ -1476,6 +1477,39 @@ class DisplayDateTests(unittest.TestCase):
         self.assertEqual(shown["windows_build"], "26100.33650")
         self.assertEqual(shown["packages"], 0)
         self.assertEqual(summary["db_built"], STAMP)       # what is stored is not changed
+
+    def test_the_server_panel_upgrades_an_older_store_before_it_reads_the_summary(self):
+        # On a version-2 store the summary SELECT fails until a writer upgrades the file, which made a scanned
+        # server look unscanned; the panel route upgrades first, as the summary routes do.
+        calls = []
+        summary = {"os_name": "Windows Server 2025", "db_built": STAMP, "packages": 0, "vulns": 1, "vuln_fixable": 1}
+        profile = types.SimpleNamespace(is_cbadmin=False)
+
+        def read(server_id):
+            return summary if "upgrade" in calls else None
+
+        with contextlib.ExitStack() as stack:
+            for patcher in (
+                mock.patch.object(views.vuln_db, "schema_version", create=True, side_effect=lambda: calls.append("version") or 2),
+                mock.patch.object(views.vuln_db, "SCHEMA_VERSION", 3, create=True),
+                mock.patch.object(views.vuln_db, "upgrade", create=True, side_effect=lambda: calls.append("upgrade") or 3),
+                mock.patch.object(views.vuln_db, "server_summary", side_effect=read),
+                mock.patch.object(views.store, "read_state",
+                                  return_value={"active": None, "last": None, "history": []}),
+                mock.patch.object(views.vuln_jobs, "panel_active", return_value=None),
+                mock.patch.object(views.vuln_jobs, "can_scan", return_value=True),
+                mock.patch.object(views.vuln_jobs, "in_unassigned_group", return_value=False),
+                mock.patch.object(views.vuln_tools, "status", return_value={"ready_windows": True}),
+                mock.patch.object(views, "_is_windows", return_value=True),
+            ):
+                stack.enter_context(patcher)
+            shown = views._panel_context(windows_server(), profile)["vuln"]["summary"]
+            self.assertEqual(calls, ["version", "upgrade"])
+            self.assertEqual(shown["vuln_fixable"], 1)
+            calls[:] = ["upgrade"]
+            views.vuln_db.schema_version.side_effect = lambda: calls.append("version") or 3  # current: no upgrade
+            views._panel_context(windows_server(), profile)
+            self.assertEqual(calls, ["upgrade", "version"])
 
 
 if __name__ == "__main__":
