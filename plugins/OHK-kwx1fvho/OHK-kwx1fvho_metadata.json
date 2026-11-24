@@ -1,0 +1,37 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "SCC profile id, such as MAC-1_Classified. Empty uses the Windows default profile of the Compliance settings page.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-5h2z8wdj",
+            "label": "Profile",
+            "name": "profile",
+            "placeholder": "MAC-1_Classified",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "profile"
+    ],
+    "description": "Installs DISA SCC on each new Windows server and starts a first scan with the Compliance UI extension as a sub-job, so provisioning does not wait and the report appears on the server's Compliance tab when the scan ends.",
+    "id": "OHK-kwx1fvho",
+    "max_retries": 0,
+    "name": "Install SCC and Run First Scan (Windows)",
+    "resource_technologies": [],
+    "script_filename": "OHK-kwx1fvho_script.py",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "CloudBolt Plug-in"
+}
