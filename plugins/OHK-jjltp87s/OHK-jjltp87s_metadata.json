@@ -26,7 +26,9 @@
     "dependencies": {
         "sharedModules": [
             "shared_modules/SHM-eanos2e0",
-            "shared_modules/SHM-sud926fb"
+            "shared_modules/SHM-sud926fb",
+            "shared_modules/SHM-5t7bom9y",
+            "shared_modules/SHM-qlvol7k8"
         ]
     },
     "description": "Sets up the ApacheDown alert for one tier's OpenShift Virtualization VM: a readiness probe, one restart, a PrometheusRule and delivery to the Monitoring Alerts webhook.",

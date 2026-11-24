@@ -3,7 +3,7 @@
     from shared_modules import openshift_vm_alerts as alerts
 
     status, output, errors = alerts.enable_apache_alert(server, job)   # build item or server action
-    notes = alerts.remove_apache_alert(server)                          # teardown; never raises
+    notes, failed = alerts.remove_apache_alert(server)                          # teardown; returns (notes, failed), never raises
 
 enable_apache_alert works through the handler's own credential, on objects in the VM's namespace:
   1. a readiness probe on the VirtualMachine (TCP port 443), so the virt-launcher pod goes not-ready
@@ -23,6 +23,7 @@ per-VM PrometheusRule.
 
 import re
 import time
+from urllib.parse import quote
 
 from common.methods import set_progress
 from shared_modules import openshift_vm_network as vmnet
@@ -65,6 +66,11 @@ ROUTING_PERMISSION = (
     "Grant it the alert-routing-edit role in the namespace: "
     "oc adm policy add-role-to-user alert-routing-edit <account> -n <namespace>. "
     "https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/managing-alerts"
+)
+SECRET_PERMISSION = (
+    "The resource handler's account is not allowed to manage Secrets in this namespace. "
+    "Grant it the edit role in the namespace, or any role that may create and update Secrets: "
+    "oc adm policy add-role-to-user edit <account> -n <namespace>."
 )
 ROUTING_FIX = (
     "A cluster admin turns user-defined alert routing on in the ConfigMap user-workload-monitoring-config "
@@ -157,7 +163,7 @@ def ensure_probe(cluster, namespace, vm_name):
     vm = cluster.request("GET", VM_PATH % (namespace, vm_name))
     current = ((vm.get("spec", {}).get("template", {}) or {}).get("spec", {}) or {}).get("readinessProbe")
     wanted = wanted_probe()
-    if current == wanted:
+    if current and all(current.get(key) == value for key, value in wanted.items()):
         set_progress("The VM already has the readiness probe on port %d" % PORT)
         return False
     # A merge patch merges objects, so null removes any other handler the old probe used.
@@ -196,7 +202,12 @@ def restart_and_wait(cluster, namespace, vm_name):
     state = "no VirtualMachineInstance yet"
     while time.time() < deadline:
         time.sleep(POLL_SECONDS)
-        vmi = cluster.request("GET", VMI_PATH % (namespace, vm_name), allow_404=True)
+        try:
+            vmi = cluster.request("GET", VMI_PATH % (namespace, vm_name), allow_404=True)
+        except vmnet.OpenShiftApiError as error:
+            state = "the VM could not be read (%s)" % error
+            set_progress("Waiting for the restarted VM: " + state)
+            continue
         if vmi is not None and vmi.get("metadata", {}).get("uid") == old_uid:
             state = "the old VirtualMachineInstance is still shutting down"
         elif vmi is None:
@@ -260,7 +271,7 @@ def webhook_url():
     base = alert_escalation.absolute_url(WEBHOOK_RUN_PATH)
     if "://" not in base:
         return None, None, "Delivery not configured: CloudBolt has no site URL (Admin > Portals), so the webhook address is unknown"
-    return base + "?token=" + token, base, None
+    return base + "?token=" + quote(token, safe=""), base, None
 
 
 def alertmanager_version(cluster):
@@ -358,6 +369,7 @@ def deliver(cluster, namespace):
     if problem:
         set_progress(problem)
         return "not configured"
+    stage = "secret"
     try:
         set_progress("Creating or replacing the Secret %s holding the webhook URL (%s)" % (SECRET_NAME, shown))
         cluster.apply(SECRETS_PATH % namespace, {
@@ -366,6 +378,7 @@ def deliver(cluster, namespace):
             "type": "Opaque",
             "stringData": {"url": url},
         })
+        stage = "config"
         version = alertmanager_version(cluster)
         if version is None:
             set_progress("Delivery not set up: the cluster serves no AlertmanagerConfig API (monitoring.coreos.com v1beta1 or v1alpha1)")
@@ -373,9 +386,10 @@ def deliver(cluster, namespace):
         set_progress("Creating or replacing the AlertmanagerConfig %s (%s)" % (ALERTMANAGER_CONFIG_NAME, version))
         cluster.apply(ALERTMANAGER_CONFIGS_PATH % (version, namespace), alertmanager_config(version, namespace))
     except Exception as error:
-        text = str(error)
+        # The URL carries the webhook token; keep it out of the job log.
+        text = str(error).replace(url, shown)
         if "(403)" in text:
-            text += " " + ROUTING_PERMISSION
+            text += " " + (SECRET_PERMISSION if stage == "secret" else ROUTING_PERMISSION)
         set_progress("Delivery not set up: " + text)
         return "refused"
     set_progress("Delivery set up: Alertmanager will post ApacheDown to %s" % shown)
@@ -483,6 +497,7 @@ def enable_apache_alert(server, job=None):
     vm_name = server.hostname
     set_progress("Enabling the %s alert for %s in namespace %s" % (ALERT_NAME, vm_name, namespace))
 
+    timeout = None
     try:
         probe_changed = ensure_probe(cluster, namespace, vm_name)
         restarted = False
@@ -490,30 +505,29 @@ def enable_apache_alert(server, job=None):
         # could not restart the VM is still not in effect.
         running = cluster.request("GET", VMI_PATH % (namespace, vm_name), allow_404=True)
         in_effect = (((running or {}).get("spec", {}).get("readinessProbe") or {}).get("tcpSocket") or {}).get("port")
-        if probe_changed or (running is not None and str(in_effect) != str(PORT)):
-            problem, restarted = restart_and_wait(cluster, namespace, vm_name)
-            if problem:
-                report_status(cluster, server, namespace, vm_name)
-                return "FAILURE", "", problem
+        if running is not None and str(in_effect) != str(PORT):
+            timeout, restarted = restart_and_wait(cluster, namespace, vm_name)
         rule = apply_rule(cluster, namespace, vm_name, server)
     except vmnet.OpenShiftApiError as error:
         return failure(error)
+    except Exception as error:
+        return "FAILURE", "", "%s: %s" % (type(error).__name__, error)
 
     delivery = deliver(cluster, namespace)
     report_status(cluster, server, namespace, vm_name)
+    if timeout:
+        return "FAILURE", "", timeout
     summary = "Probe: %s. Rule: %s. Delivery: %s.\nRestarted: %s." % (
-        "added" if probe_changed else "already set", rule, delivery, "yes" if restarted else "no")
+        "updated" if probe_changed else "already set", rule, delivery, "yes" if restarted else "no")
     return "SUCCESS", summary, ""
 
 
 def remove_apache_alert(server):
-    """Delete the per-VM PrometheusRule; return note lines. A missing rule is fine, and nothing is raised."""
-    notes = []
+    """Delete the per-VM PrometheusRule; return (note lines, failed). A missing rule is fine; nothing is raised."""
     try:
         cluster, namespace = vmnet.for_server(server)
         name = "apache-down-" + server.hostname
         cluster.request("DELETE", RULES_PATH % namespace + "/" + name, allow_404=True)
-        notes.append("Removed the PrometheusRule %s from %s if it existed" % (name, namespace))
+        return ["Removed the PrometheusRule %s from %s if it existed" % (name, namespace)], False
     except Exception as error:
-        notes.append("Could not remove the Apache alert rule: %s" % error)
-    return notes
+        return ["Could not remove the Apache alert rule of %s: %s" % (getattr(server, "hostname", "?"), error)], True

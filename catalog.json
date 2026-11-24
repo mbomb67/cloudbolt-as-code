@@ -3770,7 +3770,9 @@
     "path": "plugins/OHK-jjltp87s",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-5t7bom9y",
       "shared_modules/SHM-eanos2e0",
+      "shared_modules/SHM-qlvol7k8",
       "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
@@ -4057,6 +4059,7 @@
     "uses": [
       "shared_modules/SHM-5t7bom9y",
       "shared_modules/SHM-ny8h0nx0",
+      "shared_modules/SHM-qlvol7k8",
       "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
@@ -4872,6 +4875,8 @@
     "path": "plugins/OHK-ut5c0igl",
     "readme": null,
     "uses": [
+      "shared_modules/SHM-5t7bom9y",
+      "shared_modules/SHM-qlvol7k8",
       "shared_modules/SHM-sud926fb"
     ],
     "used_by": [
@@ -6714,6 +6719,8 @@
     "used_by": [
       "plugins/OHK-0q5dbdq6",
       "plugins/OHK-ulnznmqb",
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-vmmz9jfq",
       "plugins/OHK-ca90z6g2",
       "shared_modules/SHM-sud926fb",
@@ -7027,9 +7034,12 @@
       "shared_modules/SHM-ww6b1uwj"
     ],
     "used_by": [
+      "plugins/OHK-ut5c0igl",
+      "plugins/OHK-jjltp87s",
       "plugins/OHK-ogu8lqt2",
       "shared_modules/SHM-sud926fb",
-      "plugins/OHK-eba8nsot"
+      "plugins/OHK-eba8nsot",
+      "plugins/OHK-mfcauahq"
     ]
   },
   {
