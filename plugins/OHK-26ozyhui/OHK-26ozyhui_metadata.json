@@ -1,0 +1,55 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "true lists the web workers that would be restarted without restarting them; false (default) restarts them.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-5wapmc7a",
+            "label": "Dry run (true lists workers without restarting)",
+            "name": "dev_web_restart_dry_run",
+            "placeholder": "false",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Restart mode: rolling (default) recycles one worker at a time so the portal keeps answering; all signals every worker at once.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-7gyb90b0",
+            "label": "Restart mode (rolling or all, default rolling)",
+            "name": "dev_web_restart_mode",
+            "placeholder": "rolling",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "dev_web_restart_dry_run",
+        "dev_web_restart_mode"
+    ],
+    "description": "Recycles the mod_wsgi web worker processes on a development appliance, one at a time by default, so freshly synced extension routes and views load.",
+    "id": "OHK-26ozyhui",
+    "max_retries": 0,
+    "name": "Restart Web Workers (Dev Appliances Only)",
+    "resource_technologies": [],
+    "script_filename": "OHK-26ozyhui_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

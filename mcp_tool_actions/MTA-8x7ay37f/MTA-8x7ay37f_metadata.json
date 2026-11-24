@@ -1,0 +1,58 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "true lists the web workers that would be restarted without restarting them; false (default) restarts them.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-5wapmc7a",
+            "label": "Dry run (true lists workers without restarting)",
+            "name": "dev_web_restart_dry_run",
+            "placeholder": "false",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Restart mode: rolling (default) recycles one worker at a time so the portal keeps answering; all signals every worker at once.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-7gyb90b0",
+            "label": "Restart mode (rolling or all, default rolling)",
+            "name": "dev_web_restart_mode",
+            "placeholder": "rolling",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-26ozyhui"
+    },
+    "enabled": true,
+    "id": "MTA-8x7ay37f",
+    "is_synchronous": false,
+    "label": "Restart Web Workers (Dev Appliances Only)",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Recycle CloudBolt's web worker processes so a UI extension (XUI) you just synced loads its new routes and views, instead of asking a human to run systemctl restart httpd. For DEVELOPMENT appliances only: it refuses unless the file /var/opt/cloudbolt/proserv/allow_dev_web_restart exists on the appliance, and requires a CloudBolt admin caller. Set dev_web_restart_dry_run to true to list the workers without restarting them. dev_web_restart_mode is rolling (default) or all. Rolling recycles one worker at a time and waits for each to finish importing before the next, so the portal keeps answering; for a few minutes some requests may still hit old-code workers (a new extension route can 404 until the roll finishes) and a request in flight on the worker being recycled is cut off. All restarts every worker at once: faster, but the web tier is unavailable for the whole re-import window, so MCP and UI calls fail briefly and should be retried. Returns a job id to poll with fetch_job_log; the output has mode, perWorker, totalSeconds, oldWorkerPids, newWorkerPids, signalledCount and the HTTP probe result. Never use on a production appliance.",
+    "mcp_tool_name": "dev_restart_web_workers",
+    "mcp_tool_title": "Restart Web Workers (Dev Appliances Only)"
+}
