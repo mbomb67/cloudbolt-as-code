@@ -1,0 +1,21 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-5t7bom9y",
+            "shared_modules/SHM-qlvol7k8"
+        ]
+    },
+    "description": "Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook.",
+    "id": "OHK-ut5c0igl",
+    "max_retries": 0,
+    "name": "Enable Apache Down Alert",
+    "resource_technologies": [
+        "OpenShift Virtualization"
+    ],
+    "script_filename": "OHK-ut5c0igl_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
