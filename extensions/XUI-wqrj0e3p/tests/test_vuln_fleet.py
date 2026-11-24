@@ -242,6 +242,12 @@ class EligibilityTests(Base):
         server = make_server(group=types.SimpleNamespace(is_unassigned=True, name="Unassigned"))
         self.assertEqual(fleet.eligibility(server, "linux"), "unassigned")
 
+    def test_a_server_that_is_not_active_has_its_own_reason(self):
+        for status in ("PROVFAILED", "DECOMMISSIONING", "PROVISIONING"):
+            self.assertEqual(fleet.eligibility(make_server(status=status), "linux"), "not_active", status)
+        self.assertEqual(fleet.eligibility(make_server(status="HISTORICAL"), "linux"), "historical")
+        self.assertEqual(fleet.REASONS["not_active"], "not active")
+
     def test_not_linux_and_hidden(self):
         windows = make_server(os_family=types.SimpleNamespace(get_base_name=lambda: "Windows", name="Windows"))
         self.assertEqual(fleet.eligibility(windows, "linux"), "not_linux")
@@ -446,12 +452,12 @@ class StateFilesTests(unittest.TestCase):
 class SettingsTests(unittest.TestCase):
     def test_defaults(self):
         self.assertIs(store.DEFAULT_SETTINGS["scan_on_provision"], False)
-        self.assertEqual(store.DEFAULT_SETTINGS["rematch_workers"], 2)
+        self.assertEqual(store.DEFAULT_SETTINGS["rematch_workers"], 1)
         self.assertEqual(store.DEFAULT_SETTINGS["inventory_parallel"], 4)
         clean, errors = store.validate_settings({})
         self.assertEqual(errors, {})
         self.assertIs(clean["scan_on_provision"], False)
-        self.assertEqual((clean["rematch_workers"], clean["inventory_parallel"]), (2, 4))
+        self.assertEqual((clean["rematch_workers"], clean["inventory_parallel"]), (1, 4))
 
     def test_valid_values(self):
         clean, errors = store.validate_settings({"scan_on_provision": "on", "rematch_workers": "4",
@@ -462,7 +468,7 @@ class SettingsTests(unittest.TestCase):
 
     def test_invalid_values_are_errors_and_clamped(self):
         for key, bad, expect in (("rematch_workers", "0", 1), ("rematch_workers", "5", 4),
-                                 ("rematch_workers", "two", 2), ("inventory_parallel", "11", 10),
+                                 ("rematch_workers", "two", 1), ("inventory_parallel", "11", 10),
                                  ("inventory_parallel", "-1", 1), ("inventory_parallel", "", 4)):
             clean, errors = store.validate_settings({key: bad})
             self.assertIn(key, errors, (key, bad))
@@ -486,7 +492,13 @@ class SettingsTests(unittest.TestCase):
         with mock.patch.object(store, "_read_json", return_value={}):
             result = store.get_settings()
         self.assertEqual((result["rematch_workers"], result["inventory_parallel"], result["scan_on_provision"]),
-                         (2, 4, False))
+                         (1, 4, False))
+
+    def test_a_saved_match_limit_is_kept_and_the_message_names_the_new_label(self):
+        with mock.patch.object(store, "_read_json", return_value={"rematch_workers": 3}):
+            self.assertEqual(store.get_settings()["rematch_workers"], 3)
+        clean, errors = store.validate_settings({"rematch_workers": "9"})
+        self.assertEqual(errors["rematch_workers"], "Vulnerability matches at once must be a whole number from 1 to 4.")
 
 
 # ---------------------------------------------------------------- the nightly re-match
@@ -863,7 +875,7 @@ class InventoryTests(Base):
         self.assertEqual(outputs["failed"], 2)
         self.assertEqual(outputs["skipped"], {"no_address": 1, "no_script_channel": 1, "recent": 1, "refused": 1})
         self.assertEqual(outputs["forgotten"], 2)
-        self.assertEqual(status, "SUCCESS")
+        self.assertEqual(status, "WARNING")      # two scanned, two failed
         self.assertIn("Scanned 2 servers", output)
         self.assertEqual(VIOLATIONS, [])
 
@@ -916,6 +928,29 @@ class InventoryTests(Base):
         self.assertEqual([entry[1] for entry in self.started], [1, 2, 3])
         self.assertEqual(outputs["failed"], 2)        # server 1 (could not start) and server 3 (odd id: fails)
         self.assertEqual(outputs["scanned"], 1)
+        self.assertEqual(status, "WARNING")
+
+    def test_success_only_when_no_server_failed(self):
+        status, output, errors, outputs = self.run_it([make_server(id=2), make_server(id=4)])    # even ids succeed
+        self.assertEqual((status, outputs["failed"]), ("SUCCESS", 0))
+        status, output, errors, outputs = self.run_it([make_server(id=2), make_server(id=3)])    # one fails
+        self.assertEqual((status, outputs["scanned"], outputs["failed"]), ("WARNING", 1, 1))
+        status, output, errors, outputs = self.run_it([make_server(id=3)])
+        self.assertEqual(status, "FAILURE")
+
+    def test_a_server_skipped_during_the_run_counts_as_done(self):
+        progress = []
+        self.job = types.SimpleNamespace(id=500, set_progress=lambda *a, **k: progress.append((a, k)))
+        self.settings["inventory_parallel"] = 1
+        servers = [make_server(id=i) for i in (2, 4, 6)]
+        by_id = {s.id: s for s in servers}
+        self.after_start = lambda server: setattr(by_id[4], "power_status", "POWEROFF") if server.id == 2 else None
+        status, output, errors, outputs = self.run_it(servers)
+        self.assertEqual(outputs["skipped"], {"powered_off": 1})
+        self.assertEqual((outputs["scanned"], outputs["failed"]), (2, 0))
+        counted = [(a[0], k["tasks_done"], k["total_tasks"]) for a, k in progress if "tasks_done" in k]
+        self.assertEqual(counted[-1], ("3 of 3 servers done", 3, 3))
+        self.assertEqual([c[1] for c in counted], sorted(set(c[1] for c in counted)))   # only when it changes
         self.assertEqual(status, "SUCCESS")
 
     def test_the_time_budget_stops_new_scans_and_waits_for_the_running_ones(self):
@@ -1104,6 +1139,14 @@ class StartWithoutProfileTests(Base):
         self.assertEqual(queued["parent_job"], "parent")
         self.assertEqual(queued["context"]["vuln_requested_by"], "schedule")
         self.assertEqual(marker["requested_by"], "schedule")
+
+    def test_start_refuses_a_server_that_is_not_active(self):
+        for status in ("PROVFAILED", "DECOMMISSIONING"):
+            refused = jobs.start(None, make_server(status=status), "https://cb.example.com")
+            self.assertIsInstance(refused, jobs.Refusal, status)
+            self.assertEqual((refused.message, refused.status), (jobs.NOT_ACTIVE, 409))
+        self.assertEqual(jobs.start(None, make_server(status="HISTORICAL"), "https://cb").message,
+                         "This server is historical.")
 
     def test_a_scan_no_longer_prunes_the_findings_store(self):
         with open(os.path.join(EXT, "io_cloudbolt_vulnerabilities", "vuln_jobs.py"), encoding="utf-8") as handle:
@@ -1805,7 +1848,7 @@ class RunResourceScanTests(ResourceBase):
                             for entry in self.started))
         self.assertEqual(self.peak, 2)
         self.assertEqual((outputs["scanned"], outputs["failed"]), (3, 3))
-        self.assertEqual(status, "SUCCESS")
+        self.assertEqual(status, "WARNING")
         self.assertIn("Scanned 3 servers; 3 failed", output)
         self.assertEqual(VIOLATIONS, [])
 
@@ -1972,7 +2015,7 @@ class RunResourceScanTests(ResourceBase):
         status, output, errors, outputs = self.run_it(self.servers((1, 2, 3)))
         self.assertEqual([entry[1] for entry in self.started], [1, 2, 3])
         self.assertEqual((outputs["scanned"], outputs["failed"]), (1, 2))
-        self.assertEqual(status, "SUCCESS")
+        self.assertEqual(status, "WARNING")
 
     def test_failure_only_when_nothing_could_run(self):
         status, output, errors, outputs = self.run_it(self.servers((1,)))     # server 1's scan fails (odd id)
@@ -1982,6 +2025,8 @@ class RunResourceScanTests(ResourceBase):
         self.assertEqual(status, "FAILURE")
         status, output, errors, outputs = self.run_it(self.servers((2, 4)))   # one refused, one scanned
         self.assertEqual(status, "SUCCESS")
+        status, output, errors, outputs = self.run_it(self.servers((4, 3)))   # one scanned, one failed
+        self.assertEqual((status, outputs["scanned"], outputs["failed"]), ("WARNING", 1, 1))
 
     def test_nothing_given_to_scan_is_a_failure_without_a_start(self):
         status, output, errors, outputs = self.run_it(self.servers(), ids=[])
@@ -2060,6 +2105,250 @@ class RunResourceScanTests(ResourceBase):
 
 
 # ---------------------------------------------------------------- the job files
+# ---------------------------------------------------------------- the match slots and the shared match helper
+class FakeFcntl:
+    """flock over files that are really opened, for a platform without fcntl: a lock belongs to the open
+    file descriptor and goes when that descriptor is closed, so two descriptors of one file conflict, as
+    with the real flock."""
+    LOCK_EX = 2
+    LOCK_SH = 1
+    LOCK_NB = 4
+
+    def __init__(self):
+        self.held = {}
+        self.mutex = threading.Lock()
+
+    @staticmethod
+    def _key(fd):
+        info = os.fstat(fd)
+        return info.st_dev, info.st_ino
+
+    def flock(self, fd, flags):
+        with self.mutex:
+            key = self._key(fd)
+            holder = self.held.get(key)
+            if holder is not None and holder != fd:
+                try:
+                    alive = self._key(holder) == key
+                except OSError:
+                    alive = False
+                if alive:
+                    raise BlockingIOError("held")
+            self.held[key] = fd
+
+
+class MatchSlotTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.fcntl = FakeFcntl()
+        for patcher in (mock.patch.object(store, "fcntl", self.fcntl),
+                        mock.patch.object(store, "MATCH_SLOT_POLL_S", 0.01),
+                        mock.patch.object(store, "own", lambda *a, **k: None)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_at_most_slots_run_at_once_across_threads(self):
+        state = {"now": 0, "peak": 0}
+        guard = threading.Lock()
+
+        def work():
+            with store.match_slot(2):
+                with guard:
+                    state["now"] += 1
+                    state["peak"] = max(state["peak"], state["now"])
+                threading.Event().wait(0.05)
+                with guard:
+                    state["now"] -= 1
+
+        threads = [threading.Thread(target=work) for _ in range(6)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(state["peak"], 2)
+        self.assertTrue(os.path.isfile(os.path.join(store.ROOT, "match-slot-0.lock")))
+        self.assertTrue(os.path.isfile(os.path.join(store.ROOT, "match-slot-1.lock")))
+        self.assertFalse(os.path.exists(os.path.join(store.ROOT, "match-slot-2.lock")))
+
+    def test_a_pool_larger_than_the_limit_waits_and_finishes(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        def work(number):
+            with store.match_slot(1):
+                return number
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            self.assertEqual(sorted(pool.map(work, range(8), timeout=30)), list(range(8)))
+
+    def test_a_slot_is_free_again_after_use_and_after_an_error(self):
+        with self.assertRaises(RuntimeError):
+            with store.match_slot(1):
+                raise RuntimeError("the match failed")
+        with store.match_slot(1, wait_s=0):
+            pass
+
+    def test_no_free_slot_in_time_is_the_busy_error_and_on_wait_is_called_once(self):
+        calls = []
+        errors = []
+        with store.match_slot(1):
+
+            def other():
+                try:
+                    with store.match_slot(1, wait_s=0.1, on_wait=lambda: calls.append("wait")):
+                        pass
+                except store.StoreError as exc:
+                    errors.append(str(exc))
+
+            thread = threading.Thread(target=other)
+            thread.start()
+            thread.join(30)
+        self.assertEqual(errors, ["The scanner is busy. Try again later."])
+        self.assertEqual(calls, ["wait"])
+
+    def test_a_nested_slot_in_one_thread_is_refused_not_a_deadlock(self):
+        with store.match_slot(4):
+            with self.assertRaises(store.StoreError):
+                with store.match_slot(4, wait_s=0):
+                    pass
+        with store.match_slot(4, wait_s=0):      # the refusal did not leak the flag
+            pass
+
+    def test_without_fcntl_it_does_nothing(self):
+        with mock.patch.object(store, "fcntl", None):
+            with store.match_slot(1):
+                with store.match_slot(1):
+                    pass
+
+    def test_the_slot_files_are_not_the_scanner_lock(self):
+        self.assertNotEqual(store.MATCH_SLOT_FILE.format(0), store.SCANNER_LOCK_FILE)
+
+
+class MatchAndParseTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.events = []
+        self.messages = []
+        self.out = os.path.join(TMP, "work", "helper.grype.json")
+        os.makedirs(os.path.dirname(self.out), exist_ok=True)
+        self.limit = 1
+        self.wait = False
+
+    @contextlib.contextmanager
+    def fake_slot(self, slots, wait_s=None, on_wait=None):
+        self.events.append(("slot", slots))
+        if self.wait:
+            on_wait()
+        try:
+            yield
+        finally:
+            self.events.append(("slot released",))
+
+    def fake_match(self, path, out):
+        self.events.append(("match",))
+        with open(out, "w", encoding="utf-8") as handle:
+            json.dump({"matches": []}, handle)
+
+    def parse(self, document):
+        self.events.append(("parse",))
+        return {"matches": [], "db_built": "b"}
+
+    def run_it(self, **kwargs):
+        with contextlib.ExitStack() as stack:
+            for patcher in (
+                mock.patch.object(store, "match_slot", self.fake_slot),
+                mock.patch.object(store, "get_settings", lambda: {"rematch_workers": self.limit}),
+                mock.patch.object(tools, "match", side_effect=self.fake_match),
+                mock.patch.object(jobs.vuln_match, "parse_grype", side_effect=self.parse),
+            ):
+                stack.enter_context(patcher)
+            return jobs.match_and_parse("/lists/x.gz", self.out, **kwargs)
+
+    def test_the_slot_covers_the_match_the_load_and_the_parse_and_the_files_are_gone(self):
+        self.limit = 3
+        result = self.run_it()
+        self.assertEqual(result, {"matches": [], "db_built": "b"})
+        self.assertEqual(self.events, [("slot", 3), ("match",), ("parse",), ("slot released",)])
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_the_slot_is_released_and_the_file_deleted_when_the_match_fails(self):
+        def fails(path, out):
+            with open(out, "w") as handle:
+                handle.write("{}")
+            raise tools.ToolError("The vulnerability match failed.")
+
+        with mock.patch.object(self, "fake_match", fails):
+            with self.assertRaises(tools.ToolError):
+                self.run_it()
+        self.assertEqual(self.events[-1], ("slot released",))
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_a_report_over_the_limit_fails_the_scan(self):
+        with mock.patch.object(jobs, "MAX_REPORT_BYTES", 1):
+            with self.assertRaises(jobs.ScanFailed):
+                self.run_it()
+        self.assertNotIn(("parse",), self.events)
+        self.assertEqual(self.events[-1], ("slot released",))
+
+    def test_a_scan_that_has_to_wait_says_so_and_then_says_it_is_matching(self):
+        self.wait = True
+        self.run_it(progress=self.messages.append)
+        self.assertEqual(self.messages, [jobs.WAITING_FOR_SLOT, jobs.MATCHING])
+        self.assertIn("Waiting for the vulnerability database to be free", self.messages[0])
+
+    def test_no_wait_no_message(self):
+        self.run_it(progress=self.messages.append)
+        self.assertEqual(self.messages, [])
+
+    def test_the_default_limit_is_used_when_the_setting_cannot_be_read(self):
+        def broken():
+            raise OSError("no")
+
+        with contextlib.ExitStack() as stack:
+            for patcher in (
+                mock.patch.object(store, "get_settings", broken),
+                mock.patch.object(store, "match_slot", self.fake_slot),
+                mock.patch.object(tools, "match", side_effect=self.fake_match),
+                mock.patch.object(jobs.vuln_match, "parse_grype", side_effect=self.parse),
+            ):
+                stack.enter_context(patcher)
+            jobs.match_and_parse("/lists/x.gz", self.out)
+        self.assertEqual(self.events[0], ("slot", store.DEFAULT_SETTINGS["rematch_workers"]))
+
+    def test_the_rematch_worker_goes_through_the_helper(self):
+        seen = []
+        with mock.patch.object(jobs, "match_and_parse", side_effect=lambda *a, **k: seen.append(a) or {"x": 1}):
+            with mock.patch.object(store, "WORK_DIR", os.path.join(TMP, "work")):
+                result = fleet._match_worker({"server_id": 4, "scan_id": "s4", "path": "/lists/4.gz"})
+        self.assertEqual(result, {"x": 1})
+        self.assertEqual(seen[0][0], "/lists/4.gz")
+        self.assertTrue(seen[0][1].endswith("rematch-4-s4.grype.json"))
+
+
+class SignalMessageTests(Base):
+    def run_with(self, code, what=None):
+        done = types.SimpleNamespace(returncode=code, stderr=b"", stdout=b"")
+        with mock.patch.object(tools.subprocess, "run", return_value=done):
+            with self.assertRaises(tools.ToolError) as caught:
+                tools._run(["grype"], {}, 60, what or tools.MATCH_WHAT)
+        return caught.exception.public
+
+    def test_signal_9_during_the_match_is_the_out_of_memory_message(self):
+        self.assertEqual(
+            self.run_with(-9),
+            "The appliance ran out of memory while matching the software list. Lower 'Vulnerability matches at "
+            "once' in the Vulnerability Settings, or give the appliance more memory.")
+
+    def test_another_signal_is_named(self):
+        self.assertEqual(self.run_with(-11), "The scanner was stopped by signal 11.")
+
+    def test_a_signal_outside_the_match_does_not_blame_the_memory(self):
+        self.assertEqual(self.run_with(-9, "The database update"), "The database update was stopped by signal 9.")
+
+    def test_a_plain_exit_code_keeps_its_message(self):
+        self.assertEqual(self.run_with(2), "The vulnerability match failed (exit code 2).")
+
+
 class JobFileTests(unittest.TestCase):
     FILES = ("vuln_job.py", "vuln_setup_job.py", "vuln_rematch_job.py", "vuln_inventory_job.py", "vuln_provision_job.py",
              "vuln_resource_job.py")

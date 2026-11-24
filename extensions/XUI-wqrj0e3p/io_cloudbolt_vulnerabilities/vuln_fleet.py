@@ -22,8 +22,6 @@ Rules that hold everywhere here:
     that nothing closes): every ORM call runs in the job's own thread. The worker threads of the
     re-match only run the scanner and parse its report; the main thread saves the results.
 """
-import json
-import os
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -32,7 +30,7 @@ from infrastructure.models import Server
 from jobs.models import Job
 from utilities.logger import ThreadLogger
 
-from . import vuln_db, vuln_hooks, vuln_jobs, vuln_match, vuln_repo, vuln_store as store, vuln_tools as tools
+from . import vuln_db, vuln_hooks, vuln_jobs, vuln_repo, vuln_store as store, vuln_tools as tools
 
 logger = ThreadLogger(__name__)
 
@@ -154,12 +152,14 @@ def _plural(count, noun):
 
 # ---------------------------------------------------------------- which servers
 def eligibility(server, visibility):
-    """"" when an unattended job may scan the server, else a short reason code: historical, unassigned,
-    not_linux, hidden, powered_off, no_script_channel, no_address, no_credentials (or unknown when a
+    """"" when an unattended job may scan the server, else a short reason code: historical, not_active (any
+    other status than ACTIVE, such as a failed build), unassigned, not_linux, hidden, powered_off, no_script_channel, no_address, no_credentials (or unknown when a
     check itself failed). No network call; the resource handler may be None."""
     try:
         if server.status == "HISTORICAL":
             return "historical"
+        if server.status != "ACTIVE":
+            return "not_active"
         if vuln_jobs.in_unassigned_group(server):
             return "unassigned"
         if not vuln_jobs.is_linux(server):
@@ -269,27 +269,13 @@ def forget_stale(progress=None):
 
 
 # ---------------------------------------------------------------- nightly re-match
-class _ReportTooLarge(Exception):
-    pass
-
-
 def _match_worker(item):
     """Match one stored software list and parse the report. Runs in a worker thread: scanner, files
-    and parsing only, no Django ORM. Returns what vuln_match.parse_grype returns."""
+    and parsing only, no Django ORM. The pool may be larger than the match limit; a thread waits in
+    vuln_jobs.match_and_parse for a slot. Returns what vuln_match.parse_grype returns."""
     out_json = store.contained(store.WORK_DIR, "rematch-{}-{}.grype.json".format(item["server_id"], item["scan_id"]))
     store.ensure_dir(store.WORK_DIR)
-    try:
-        tools.match(item["path"], out_json)
-        if os.path.getsize(out_json) > vuln_jobs.MAX_REPORT_BYTES:
-            raise _ReportTooLarge("The scanner's report is larger than the limit.")
-        with open(out_json, encoding="utf-8") as handle:
-            document = json.load(handle)
-    finally:
-        try:
-            os.unlink(out_json)
-        except OSError:
-            pass
-    return vuln_match.parse_grype(document)
+    return vuln_jobs.match_and_parse(item["path"], out_json)
 
 
 def _rematch_items(known, built, counts):
@@ -568,7 +554,7 @@ def _run_queue(job, queue, base_url, parallel, profile, check, counts, what, own
     Returns {"scanned", "failed", "left" (never started because of the budget), "stopped", "out_of_time"}."""
     total = len(queue)
     queue = list(queue)
-    scanned = failed = left = 0
+    scanned = failed = left = skipped = 0
     stopped = out_of_time = False
     started_at = _clock()
     running = {}
@@ -593,6 +579,7 @@ def _run_queue(job, queue, base_url, parallel, profile, check, counts, what, own
                 reason = "unknown"
             if reason:
                 counts[reason] += 1
+                skipped += 1
                 continue
             try:
                 started = vuln_jobs.start(owner_of() if owner_of else profile, server, base_url, parent_job=job)
@@ -605,9 +592,13 @@ def _run_queue(job, queue, base_url, parallel, profile, check, counts, what, own
             started_id = _started_id(started)
             if started_id is None:
                 counts["refused"] += 1
+                skipped += 1
                 logger.info("Vulnerabilities: %s skipped server %s: %s", what, server_id, getattr(started, "message", ""))
             else:
                 running[started_id] = server
+        if skipped + scanned + failed != reported:
+            reported = skipped + scanned + failed
+            _progress(job, "{} of {} servers done".format(reported, total), reported, max(total, 1))
         if not running:
             continue
         time.sleep(POLL_S)
@@ -623,9 +614,9 @@ def _run_queue(job, queue, base_url, parallel, profile, check, counts, what, own
             elif state is None:
                 failed += 1
                 del running[job_id]
-        if scanned + failed != reported:
-            reported = scanned + failed
-            _progress(job, "Scanned {} of {}".format(reported, total), reported, max(total, 1))
+        if scanned + failed + skipped != reported:
+            reported = scanned + failed + skipped
+            _progress(job, "{} of {} servers done".format(reported, total), reported, max(total, 1))
     return {"scanned": scanned, "failed": failed, "left": left, "stopped": stopped, "out_of_time": out_of_time}
 
 
@@ -668,10 +659,7 @@ def _inventory(job):
     _progress(job, "Scanning {}".format(_plural(total, "server")))
 
     def check(server):
-        reason = eligibility(server, visibility)
-        if not reason and server.status != "ACTIVE":
-            reason = "not_active"
-        return reason
+        return eligibility(server, visibility)
 
     ran = _run_queue(job, queue, base_url, parallel, None, check, counts, "the weekly inventory")
     scanned, failed, left = ran["scanned"], ran["failed"], ran["left"]
@@ -694,7 +682,8 @@ def _inventory(job):
     outputs = {"scanned": scanned, "failed": failed, "skipped": skipped, "forgotten": forgotten, "left": left}
     if total and scanned == 0 and (failed or counts["refused"]) and not stopped:
         return "FAILURE", message, "No server could be scanned.", outputs
-    return ("WARNING" if stopped or out_of_time else "SUCCESS"), message, "", outputs
+    # Something to tell the reader: a stop, the time limit, or a server that failed among those that were scanned.
+    return ("WARNING" if stopped or out_of_time or failed else "SUCCESS"), message, "", outputs
 
 
 # ---------------------------------------------------------------- scan all servers of a resource
@@ -908,10 +897,7 @@ def _resource_scan(job, resource_id, server_ids):
         # As the person who started the scan: view (Server.objects_for_profile) and scan (server.all_actions).
         if not (vuln_jobs.can_view(fresh, server) and vuln_jobs.can_scan(fresh, server)):
             return "no_permission"
-        reason = eligibility(server, visibility)
-        if not reason and server.status != "ACTIVE":
-            reason = "not_active"
-        return reason
+        return eligibility(server, visibility)
 
     total = len(queue)
     _progress(job, "Scanning {}".format(_plural(total, "server")), 0, total)
@@ -935,7 +921,7 @@ def _resource_scan(job, resource_id, server_ids):
     outputs = {"scanned": scanned, "failed": failed, "skipped": skipped, "left": left}
     if scanned == 0 and not stopped:
         return "FAILURE", message, "No server could be scanned.", outputs
-    return ("WARNING" if stopped or out_of_time else "SUCCESS"), message, "", outputs
+    return ("WARNING" if stopped or out_of_time or failed else "SUCCESS"), message, "", outputs
 
 
 # ---------------------------------------------------------------- scan after provisioning
@@ -970,8 +956,7 @@ def _provision(job, kwargs):
         return "No scan was started: the build made no server."
     started, skipped = [], {}
     for server in servers:
-        reason = "" if server.status == "ACTIVE" else "not_active"
-        reason = reason or eligibility(server, cfg["visibility"])
+        reason = eligibility(server, cfg["visibility"])
         if reason:
             skipped[reason] = skipped.get(reason, 0) + 1
             continue

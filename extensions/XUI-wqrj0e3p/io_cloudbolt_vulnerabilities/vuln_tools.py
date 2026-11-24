@@ -83,6 +83,12 @@ DETAIL_TAIL = 800
 REDACT_INPUT = 4000
 
 
+# Names the match in its error messages; _run words a kill by signal 9 for it as an out-of-memory stop.
+MATCH_WHAT = "The vulnerability match"
+OUT_OF_MEMORY = ("The appliance ran out of memory while matching the software list. Lower 'Vulnerability matches at "
+                 "once' in the Vulnerability Settings, or give the appliance more memory.")
+
+
 class ToolError(Exception):
     """public is a one-line message safe to show; detail is for the log only."""
 
@@ -363,6 +369,15 @@ def _run(argv, env, timeout, what, stdout=None):
     except OSError as exc:
         raise ToolError("{} could not be started.".format(what), "{}: {}".format(type(exc).__name__, exc))
     err = _tail(done.stderr.decode("utf-8", "replace") if done.stderr else "")
+    if done.returncode < 0:
+        # subprocess reports a process the kernel or a person stopped with a signal as -signal. Signal 9 during
+        # the match is almost always the kernel's out-of-memory killer.
+        signal_number = -done.returncode
+        if what == MATCH_WHAT:
+            public = OUT_OF_MEMORY if signal_number == 9 else "The scanner was stopped by signal {}.".format(signal_number)
+        else:
+            public = "{} was stopped by signal {}.".format(what, signal_number)
+        raise ToolError(public, "signal {}: {}".format(signal_number, err))
     if done.returncode != 0:
         raise ToolError("{} failed (exit code {}).".format(what, done.returncode),
                         "exit {}: {}".format(done.returncode, err))
@@ -689,7 +704,7 @@ def match(sbom_gz_path, out_json_path):
             # https://oss.anchore.com/docs/reference/grype/configuration/
             with open(out_temp, "wb") as handle:
                 _run([grype_path(), "sbom:" + plain, "-o", "json", "-q"], _grype_env(True), MATCH_TIMEOUT,
-                     "The vulnerability match", stdout=handle)
+                     MATCH_WHAT, stdout=handle)
         if os.path.getsize(out_temp) == 0:
             raise ToolError("The scanner produced no report.")
         store.own(out_temp)

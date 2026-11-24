@@ -89,6 +89,9 @@ NOT_SET_UP = ("The scanner is not set up yet. A CloudBolt admin can set it up on
 NO_SITE_URL = "The default portal has no site URL, so servers cannot be told where to send their software list."
 STATE_ERROR = "The scan history for this server cannot be read or written; ask an administrator to check the Vulnerabilities folder."
 COOLDOWN = "This server's software list was collected less than a minute ago. Try again shortly."
+WAITING_FOR_SLOT = "Waiting for the vulnerability database to be free"
+MATCHING = "Matching against the vulnerability database"
+NOT_ACTIVE = "This server is not active, so it cannot be scanned."
 NOT_HELD = "the server could not keep the software list for CloudBolt to collect"
 
 
@@ -435,6 +438,8 @@ def start(profile, server, base_url, parent_job=None):
     the Job, or a Refusal."""
     if server.status == "HISTORICAL":
         return Refusal("This server is historical.")
+    if server.status != "ACTIVE":
+        return Refusal(NOT_ACTIVE, 409)
     if in_unassigned_group(server):
         return Refusal(UNASSIGNED, 409)
     if not is_linux(server):
@@ -722,6 +727,54 @@ def _fail(job, server, scan_id, started, began, message):
     return "FAILURE", "", message, {"scan_id": scan_id, "status": "failed"}
 
 
+def match_and_parse(sbom_path, out_json, progress=None):
+    """The one place heavy matching work happens, for a scan and for the nightly re-match: takes one of
+    the appliance's match slots (store.match_slot, as many at once as the setting "Vulnerability matches
+    at once" says), runs the scanner on the stored software list (tools.match), loads its JSON report,
+    reduces it (vuln_match.parse_grype), deletes the work files and returns what parse_grype returns. The
+    slot is held until the big report document has been released, so it covers exactly the memory-heavy
+    span. progress(message), when given, is told when the call has to wait for a slot and when the wait
+    is over; it must be safe to call from the calling thread. A scan that is waiting for a slot holds
+    no other lock, so never call this while holding a match slot. Raises ScanFailed (report too large),
+    tools.ToolError (scanner problems) or store.StoreError ("The scanner is busy": no slot in time)."""
+    try:
+        slots = int(store.get_settings()["rematch_workers"])
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the match limit; using the default")
+        slots = store.DEFAULT_SETTINGS["rematch_workers"]
+    waited = []
+
+    def waiting():
+        waited.append(True)
+        _say(progress, WAITING_FOR_SLOT)
+
+    with store.match_slot(slots, on_wait=waiting):
+        if waited:
+            _say(progress, MATCHING)
+        document = None
+        try:
+            tools.match(sbom_path, out_json)
+            if os.path.getsize(out_json) > MAX_REPORT_BYTES:
+                raise ScanFailed("The scanner's report is larger than the limit.")
+            with open(out_json, encoding="utf-8") as handle:
+                document = json.load(handle)
+            return vuln_match.parse_grype(document)
+        finally:
+            document = None  # release the report before the slot is given back
+            try:
+                os.unlink(out_json)
+            except OSError:
+                pass
+
+
+def _say(progress, message):
+    if progress is not None:
+        try:
+            progress(message)
+        except Exception:
+            logger.exception("Vulnerabilities: progress callback failed")
+
+
 class TransportError(Exception):
     """The script could not be delivered to the server; the message says why."""
 
@@ -952,23 +1005,11 @@ def _run(job, server, scan_id, cfg, upload_url, targets_tools, token, pull, star
             raise ScanFailed("The software list the server sent is larger than the limit.")
         raise ScanFailed("The software list the server sent could not be read.")
 
-    # 4. Match it against the vulnerability database.
-    _progress(job, "Matching against the vulnerability database")
+    # 4. Match it against the vulnerability database (one of the appliance's match slots).
+    _progress(job, MATCHING)
     out_json = store.contained(store.WORK_DIR, "{}.grype.json".format(scan_id))
     store.ensure_dir(store.WORK_DIR)
-    try:
-        tools.match(path, out_json)
-        if os.path.getsize(out_json) > MAX_REPORT_BYTES:
-            raise ScanFailed("The scanner's report is larger than the limit.")
-        with open(out_json, encoding="utf-8") as handle:
-            document = json.load(handle)
-    finally:
-        try:
-            os.unlink(out_json)
-        except OSError:
-            pass
-    parsed_grype = vuln_match.parse_grype(document)
-    document = None
+    parsed_grype = match_and_parse(path, out_json, lambda message: _progress(job, message))
 
     # 5. Replace the server's findings. This is the only step that changes them.
     _progress(job, "Saving the findings")

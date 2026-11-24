@@ -69,7 +69,7 @@ Turn on **Scan new servers after they are built** on the settings page. The exte
 - Extra folders the software list skips, one absolute path per line, at most 20. System, container and network folders are always skipped.
 - Whether the tab shows on every Linux server or only on servers labelled `Vulnerabilities`.
 - Scan new servers after they are built (off by default).
-- Servers re-matched at once by the nightly job (1 to 4, default 2).
+- Vulnerability matches at once on the appliance, for scans and the nightly re-match (1 to 4, default 1). Each can use more than a gigabyte of memory; further scans wait for a free slot.
 - Servers scanned at once by the weekly inventory and by Scan all servers on a resource (1 to 10, default 4).
 
 An Unassigned group is never scanned or re-matched by any job. The nightly job removes the stored results of deleted servers and of servers moved to an Unassigned group; with that job off they stay in the results until it is run by hand.

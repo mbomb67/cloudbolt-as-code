@@ -15,7 +15,10 @@
                            summary says can_scan) posts here, and the summary's run object draws a
                            banner into [data-vuln-run]; while a run is in progress a light request
                            (summary?run=1) runs every 5 s and the summary and the open pane reload
-                           only when the run's progress changes or the run ends.
+                           only when the run's progress changes or the run ends. When a run goes
+                           from absent to live (the button was just used) the visible pane is also
+                           reloaded once, quietly, on the next light poll, because the rows were
+                           fetched before the scans' jobs existed and must now read "Scanning".
     summary.servers_total > 0  with summary.servers = 0 (a resource whose servers are all unscanned)
                            keeps the explanation and shows the Servers list instead of the cards,
                            the view switch ([data-vuln-switch]) and the Vulnerabilities view.
@@ -280,6 +283,7 @@
     var runWaiting = false;     // a visibilitychange listener is waiting to resume the refresh
     var scanBusy = false;       // the scan request is in flight
     var listOnly = false;       // resource mode, servers visible but none scanned: the explanation and the Servers list
+    var refreshOnPoll = false;  // a run just became live: the next light poll reloads the visible pane once
     var canScan = null;         // true shows the scan button, false hides it; null (a run is live) leaves it as it is
 
     function alive() { return document.body.contains(rootEl); }
@@ -655,7 +659,10 @@
     }
 
     function applyRun(data) {
+      var was = run;
       run = (data && data.run) || null;
+      // Resource mode only (scanUrl): the admin page never has a run, and its behaviour is unchanged.
+      refreshOnPoll = !!scanUrl && !!run && (!was || refreshOnPoll);
       canScan = data && data.can_scan === true ? true : (data && data.can_scan === false ? false : null);
       drawRun();
       syncScan();
@@ -684,7 +691,10 @@
       req.done(function (data) {
         if (runXhr !== req || !alive()) { return; }
         var next = data && data.run;
-        if (!next || !run || next.job_id !== run.job_id || next.done !== run.done) { loadSummary({ quiet: true }); }
+        if (!next || !run || next.job_id !== run.job_id || next.done !== run.done || refreshOnPoll) {
+          refreshOnPoll = false;
+          loadSummary({ quiet: true });
+        }
       }).always(function () { if (runXhr === req) { runXhr = null; scheduleRun(); } });
     }
     function waitRun() {
