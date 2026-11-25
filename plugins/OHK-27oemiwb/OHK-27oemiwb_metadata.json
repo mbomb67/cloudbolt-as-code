@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4"
+        ]
+    },
+    "description": "Deletes the AKS cluster with its CloudBolt container orchestrator, environment, and node pool sub-resources, refusing while namespace landing zones remain.",
+    "id": "OHK-27oemiwb",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "AKS Cluster Teardown",
+    "resource_technologies": [],
+    "script_filename": "OHK-27oemiwb_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

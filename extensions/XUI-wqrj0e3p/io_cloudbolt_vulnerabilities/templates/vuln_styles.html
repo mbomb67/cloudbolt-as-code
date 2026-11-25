@@ -1,0 +1,112 @@
+{% comment %}
+  Styles of the Vulnerabilities server tab. vuln_assets.html includes this; the tab
+  is a page of its own, so it is injected once per page.
+  Colors derive from CloudBolt's theme tokens (--bs-body-color, --surface,
+  --bs-primary/-warning/-danger), so Branded Themes and dark mode
+  (html[data-bs-theme="dark"]) re-theme the tab. Cards are a transparent
+  overlay of the text color, never a hardcoded fill. The header and the table
+  are unframed. Everything is scoped under the root element.
+{% endcomment %}
+<style>
+  #vuln-root {
+    --vuln-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
+    --vuln-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --vuln-card: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
+    --vuln-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --vuln-rule: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent);
+    --vuln-primary: var(--bs-primary, #0d6efd);
+    --vuln-warn: var(--bs-warning, #ffc107);
+    --vuln-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --vuln-bad: var(--bs-danger, #dc3545);
+  }
+  #vuln-root [hidden] { display: none !important; }
+  #vuln-root .vuln-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #vuln-root .vuln-card { background: var(--vuln-card); border: 1px solid var(--vuln-line); border-radius: 12px; margin-bottom: 16px; padding: 12px 16px; }
+  #vuln-root .vuln-hero-top { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px; }
+  #vuln-root .vuln-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--vuln-muted); }
+  #vuln-root .vuln-eyebrow .bi { font-size: 14px; color: var(--vuln-primary); }
+  #vuln-root .vuln-title { font-size: 27px; font-weight: 800; line-height: 1.2; margin: 4px 0 0; overflow-wrap: anywhere; }
+  #vuln-root .vuln-sub { font-size: 13.5px; font-weight: 600; color: var(--vuln-muted); margin-top: 6px; }
+  #vuln-root .vuln-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #vuln-root .btn:focus-visible, #vuln-root a:focus-visible, #vuln-root button:focus-visible,
+  #vuln-root input:focus-visible, #vuln-root select:focus-visible { outline: 2px solid var(--vuln-primary); outline-offset: 2px; }
+  #vuln-root .vuln-link { color: var(--vuln-primary); font-weight: 700; text-decoration: none; }
+  #vuln-root .vuln-link:hover { text-decoration: underline; }
+  #vuln-root .vuln-section { margin-bottom: 26px; }
+  #vuln-root .vuln-card-h { display: flex; align-items: center; gap: 12px; padding: 0 0 12px; flex-wrap: wrap; }
+  #vuln-root .vuln-card-t { font-size: 16px; font-weight: 700; margin: 0; }
+  #vuln-root .vuln-card-flush { padding: 0; overflow: hidden; }
+  #vuln-root .vuln-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--vuln-bad); overflow-wrap: anywhere; }
+  #vuln-root .vuln-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  #vuln-root .vuln-note { padding: 12px 0 0; font-size: 12px; color: var(--vuln-muted); font-weight: 600; }
+  #vuln-root .vuln-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+  #vuln-root .vuln-dim { color: var(--vuln-muted); font-weight: 600; }
+  #vuln-root .vuln-spin { display: inline-block; animation: vuln-spin 1s linear infinite; }
+  #vuln-root.vuln-loading [data-vuln-act="reload"] .bi { animation: vuln-spin 1s linear infinite; }
+  @keyframes vuln-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    #vuln-root .vuln-spin, #vuln-root.vuln-loading [data-vuln-act="reload"] .bi { animation: none; }
+  }
+
+  #vuln-root .vuln-loading-note { padding: 20px 0; font-size: 12.5px; font-weight: 600; color: var(--vuln-muted); display: flex; align-items: center; gap: 8px; }
+  #vuln-root .vuln-banner { --vuln-tint: var(--vuln-warn); display: flex; gap: 12px; padding: 16px 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--vuln-tint) 35%, transparent); background: color-mix(in srgb, var(--vuln-tint) 12%, transparent); }
+  #vuln-root .vuln-banner > .bi { font-size: 18px; color: var(--vuln-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  #vuln-root .vuln-banner-info { --vuln-tint: var(--vuln-primary); }
+  #vuln-root .vuln-banner-info > .bi { color: var(--vuln-primary); }
+  #vuln-root .vuln-banner-bad { --vuln-tint: var(--vuln-bad); }
+  #vuln-root .vuln-banner-bad > .bi { color: var(--vuln-bad); }
+  #vuln-root .vuln-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
+  #vuln-root .vuln-banner-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #vuln-root .vuln-banner-t { font-size: 13.5px; font-weight: 700; }
+  #vuln-root .vuln-banner-s { font-size: 12.5px; color: var(--vuln-muted); font-weight: 600; }
+  #vuln-root .vuln-empty { color: var(--vuln-muted); font-weight: 600; font-size: 12.5px; padding: 0 0 14px; max-width: 640px; }
+
+  /* Summary cards: compact, content-width, left-aligned in a wrapping row. */
+  #vuln-root .vuln-cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  #vuln-root .vuln-cards .vuln-card { margin-bottom: 0; flex: 0 1 auto; min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 4px; }
+  #vuln-root .vuln-big { font-size: 24px; font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #vuln-root .vuln-card-sub { font-size: 12px; font-weight: 600; color: var(--vuln-muted); }
+  #vuln-root .vuln-sev-figs { display: flex; gap: 14px; align-items: baseline; font-variant-numeric: tabular-nums; }
+  #vuln-root .vuln-sev-fig { display: flex; flex-direction: column; }
+  #vuln-root .vuln-sev-fig .n { font-size: 20px; font-weight: 800; line-height: 1.15; }
+  #vuln-root .vuln-sev-fig small { font-size: 11.5px; font-weight: 600; color: var(--vuln-muted); }
+  #vuln-root .vuln-c-crit { color: var(--vuln-bad); }
+  #vuln-root .vuln-c-high { color: var(--vuln-warn-text); }
+
+  /* Toolbar */
+  #vuln-root .vuln-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  #vuln-root .vuln-spacer { flex: 1 1 auto; }
+  #vuln-root .vuln-seg { display: inline-flex; border: 1px solid var(--vuln-line); border-radius: 8px; overflow: hidden; }
+  #vuln-root .vuln-seg button { border: 0; background: transparent; color: var(--vuln-muted); font-size: 13px; font-weight: 600; padding: 5px 14px; cursor: pointer; }
+  #vuln-root .vuln-seg button + button { border-left: 1px solid var(--vuln-line); }
+  #vuln-root .vuln-seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--vuln-primary) 14%, transparent); color: var(--vuln-primary); }
+  #vuln-root .vuln-seg button:focus-visible { outline-offset: -2px; }
+  #vuln-root .vuln-q { flex: 1 1 220px; max-width: 360px; }
+  #vuln-root .vuln-sev { width: auto; }
+  #vuln-root .vuln-kev-check { margin: 0 0 0 4px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; padding-left: 0; }
+  #vuln-root .vuln-kev-check .form-check-input { float: none; margin: 0; }
+
+  /* Table and pager */
+  #vuln-root .vuln-table-wrap { overflow-x: auto; transition: opacity .12s; }
+  #vuln-root .vuln-table-wrap.vuln-busy { opacity: .55; }
+  #vuln-root .vuln-table { width: 100%; font-size: 13.5px; border-collapse: collapse; margin: 0; }
+  #vuln-root .vuln-table th { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--vuln-muted); padding: 12px 12px 10px 0; border-bottom: 1px solid var(--vuln-rule); text-align: left; white-space: nowrap; vertical-align: bottom; }
+  #vuln-root .vuln-table td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--vuln-rule); vertical-align: top; font-weight: 600; }
+  #vuln-root .vuln-table tbody tr:hover td { box-shadow: inset 0 0 0 999px var(--vuln-card); }
+  #vuln-root .vuln-table .vuln-name { font-weight: 700; overflow-wrap: anywhere; }
+  #vuln-root .vuln-table .vuln-ver { white-space: nowrap; }
+  #vuln-root .vuln-nomatch { padding: 24px 0; color: var(--vuln-muted); font-size: 13px; font-weight: 600; }
+  #vuln-root .vuln-pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; color: var(--vuln-muted); font-size: 12.5px; font-weight: 600; }
+  #vuln-root .vuln-pages { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  #vuln-root .vuln-pages button { border: 1px solid var(--vuln-line); background: transparent; color: var(--bs-body-color, #212529); border-radius: 6px; padding: 2px 10px; font-size: 12.5px; font-weight: 600; min-width: 30px; cursor: pointer; }
+  #vuln-root .vuln-pages button:hover:not(:disabled) { background: var(--vuln-card); }
+  #vuln-root .vuln-pages button[aria-current="page"] { background: color-mix(in srgb, var(--vuln-primary) 14%, transparent); color: var(--vuln-primary); border-color: transparent; font-weight: 700; }
+  #vuln-root .vuln-pages button:disabled { opacity: .45; cursor: default; }
+  #vuln-root .vuln-gap { color: var(--vuln-muted); padding: 0 2px; }
+
+  /* Severity pills; only Critical and High are colored. The exploited marker also carries a word. */
+  #vuln-root .vuln-pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--vuln-soft); }
+  #vuln-root .vuln-pill-crit { background: color-mix(in srgb, var(--vuln-bad) 14%, transparent); color: var(--vuln-bad); }
+  #vuln-root .vuln-pill-high { background: color-mix(in srgb, var(--vuln-warn) 22%, transparent); color: var(--vuln-warn-text); }
+  #vuln-root .vuln-kev { color: var(--vuln-bad); font-weight: 700; white-space: nowrap; }
+</style>

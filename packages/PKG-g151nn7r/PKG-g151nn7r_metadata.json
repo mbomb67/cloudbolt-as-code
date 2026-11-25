@@ -1,0 +1,13 @@
+{
+    "contents": [
+        "webhooks/IWH-x82773zb",
+        "blueprints/BP-j25t4xpv"
+    ],
+    "description": "Reserves IP addresses from CloudBolt IP pools for servers and devices CloudBolt does not build, through an order or an inbound webhook, and tracks each reservation as a resource.",
+    "id": "PKG-g151nn7r",
+    "last_updated": "2026-11-04",
+    "metadata_version": "2026.1.0",
+    "minimum_version_required": "",
+    "name": "IP Reservations",
+    "version": "1.0.0"
+}

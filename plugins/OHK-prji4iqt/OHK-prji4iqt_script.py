@@ -174,6 +174,8 @@ def create_eks_nodegroup_cb_subresource(
 
     res.eks_nodegroup_resource_status = nodegroup_resp["status"]
     res.eks_nodegroup_arn = nodegroup_resp["nodegroupArn"]
+    # The AWS EKS discovery matches node group records by arn.
+    res.arn = nodegroup_resp["nodegroupArn"]
     res.eks_nodegroup_ami_type = nodegroup_resp["amiType"]
     res.eks_nodegroup_instance_types = nodegroup_resp["instanceTypes"]
     res.eks_nodegroup_noderole_arn = nodegroup_resp["nodeRole"]
@@ -236,6 +238,10 @@ def list_eks_nodegroup(client, sub_resources, resource_type, resource):
         else:
 
             res.eks_nodegroup_resource_status = nodegroup_status
+            # Records made before the ARN was stored under arn get it here,
+            # so the AWS EKS discovery can match them.
+            res.eks_nodegroup_arn = nodegroup_resp["nodegroupArn"]
+            res.arn = nodegroup_resp["nodegroupArn"]
             res.save()
 
     return discovered_objects

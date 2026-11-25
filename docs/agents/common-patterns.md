@@ -100,6 +100,10 @@ def _ensure_custom_fields():
     )
 ```
 
+### Filter models by their own fields, not by custom field names
+
+`Environment`, `Group`, and `Server` use `CustomFieldAsAttributeManager` (`common/configuration.py`; `Resource` does not): a `filter()` keyword that matches a custom field's name is read as a parameter lookup, not as the model field. Content that creates a custom field named like a model attribute (the Kubernetes blueprints create `container_orchestrator_id` for their cluster resources) silently breaks queries on that attribute: `Environment.objects.filter(container_orchestrator_id=7)` returns nothing even though the environments point at orchestrator 7. Filter on the relation instead, `filter(container_orchestrator=orchestrator)` or `filter(container_orchestrator__id=7)`; `values_list("container_orchestrator_id")` is not affected. Found on 2026-10-19, when AKS Namespace discovery pinned a new environment on every run.
+
 ## RBAC-Aware Environment Selection
 
 **Standard — the only accepted pattern.** Build every Environment dropdown from `group.get_available_environments()`. It returns the environments explicitly entitled to the requesting group (and its ancestors) **plus** all unconstrained environments (no groups assigned), and users must be able to order into both. `Environment.objects.filter(group__in=[group])` is not an alternative: it silently drops unconstrained environments. Full rule and rationale: [rbac-and-security.md → Environment Dropdown Standard](rbac-and-security.md#environment-dropdown-standard).
@@ -255,6 +259,8 @@ def discover_resources(**kwargs):
                     continue
         except Exception as e:
             set_progress(f"Error discovering vaults for handler {rh.name}: {str(e)}")
+            # Return this handler's tracked vaults by identifier here, or the
+            # sync can mark them Historical: plugin-templates.md §2, rule 10
             continue
 
     return discovered_vaults
@@ -557,6 +563,7 @@ When implementing a new blueprint, also ensure:
 - [ ] Handle both `ResourceNotFoundError` and generic `HttpResponseError` for Azure
 - [ ] Check specific error codes for AWS `ClientError` (`NoSuchBucket`, `BucketNotEmpty`, etc.)
 - [ ] Use `isinstance()` checks before casting handlers to specific types
-- [ ] Log and continue (don't fail) when individual items error during discovery
+- [ ] Log and continue (don't fail) when an item or handler errors during discovery, and return the identifiers of a skipped handler's tracked resources so the sync does not mark them Historical ([plugin-templates.md](plugin-templates.md#2-discovery-plugins))
+- [ ] Discovery returns dictionaries only; the sync creates the resources and parameters (never `Resource.objects.create` or `CustomField` in a discovery plugin)
 - [ ] Call `server.refresh_info()` and `server.refresh_from_db()` after provider API changes
 - [ ] When calling any external vendor API, reference the vendor's current documentation — see [external-apis.md](external-apis.md). Do not extrapolate endpoint shapes from memory.

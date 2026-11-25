@@ -1,0 +1,1 @@
+{% comment %}The firing-alert count views._mark_alerts() put on an inventory row passed as row, after its status pill.{% endcomment %}{% if row.alerts %} <span class="ocp-pill ocp-pill-{{ row.alerts.style }}"><i class="bi {{ row.alerts.icon }}" aria-hidden="true"></i> {{ row.alerts.text }}</span>{% endif %}

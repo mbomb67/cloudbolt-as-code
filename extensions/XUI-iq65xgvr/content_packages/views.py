@@ -3,7 +3,7 @@ Content Package Manager XUI
 
 An admin page (Admin > Custom Extensions > Content Packages) for defining
 content packages: named sets of blueprints, actions, plugins, shared modules,
-UI extensions and parameters that belong together. Definitions live in store.py; export,
+UI extensions, parameters and Runbooks workflows that belong together. Definitions live in store.py; export,
 sync and import run through services.py. This module renders the list page, a
 details page per package, the Add/Edit, Delete, Export, Sync and Import
 dialogs, and the JSON API under xui/content_packages/api/.
@@ -16,7 +16,9 @@ each member's and dependency's README from its repository (docs.py).
 
 Export and Sync both run as CloudBolt jobs and return at once: Export through
 the self-registering plugin in hooks.py, Sync as one sourcecodereposync job per
-member, except a parameter, which gets the extension's parameter job.
+member, except a parameter or workflow, which gets one of the extension's
+own jobs. Sync takes the members from the package's manifest on the branch
+before it creates them.
 Everything here requires CB Admin.
 """
 import functools
@@ -108,7 +110,7 @@ def _member(ref, obj, repo, branch):
     except store.PackageError:
         return {
             "ref": ref, "type": "", "type_title": "Unknown", "prefix": "?", "global_id": "",
-            "name": str(ref), "exists": False, "drift": False, "state": "missing", "pill": "bad",
+            "name": str(ref), "exists": False, "drift": False, "written": False, "state": "missing", "pill": "bad",
             "note": 'Not a content reference of the form "<top_level_dir>/<GLOBAL_ID>".',
             "url": None, "remote_source_url": "",
         }
@@ -121,6 +123,7 @@ def _member(ref, obj, repo, branch):
         "name": global_id,
         "exists": obj is not None,
         "drift": False,
+        "written": not member_type.synced,
         "state": "ok",
         "pill": "",
         "note": "{} {}".format(member_type.singular, global_id),
@@ -140,9 +143,11 @@ def _member(ref, obj, repo, branch):
         info["url"] = None
     if not member_type.synced:
         # Written and read by this extension, not linked to a repository.
-        info["note"] = "Parameter {}; Export writes it to {}/{}/.".format(obj.name, store.PARAMETERS_DIR, global_id)
+        info["note"] = "{} {}; Export writes it to {}/.".format(member_type.singular, obj.name, ref)
         if obj.global_id != global_id:
             info["note"] += " Here it is {}, matched by name.".format(obj.global_id)
+        if getattr(obj, "enabled", True) is False:
+            info["note"] += " It is disabled on this appliance."
         return info
     remote_url = getattr(obj, "remote_source_url", "") or ""
     info["remote_source_url"] = remote_url
@@ -233,6 +238,19 @@ def _sync_jobs(local, jobs):
     return rows
 
 
+def _via_kind(ref, via):
+    """Why a unit was pushed or synced for via, for its label: "pin" for a
+    workflow a blueprint pins, "step" for a workflow's step plugin, "options"
+    for a parameter's generated-options action, "" when it is a member."""
+    if not isinstance(via, str) or not via:
+        return ""
+    if isinstance(ref, str) and ref.startswith(store.WORKFLOWS_DIR):
+        return "pin"
+    if via.startswith(store.WORKFLOWS_DIR + "/"):
+        return "step"
+    return "options"
+
+
 def _export_job(local, jobs):
     """The last export job with a display status and, once it has finished,
     the per-member results it returned as outputs."""
@@ -253,7 +271,7 @@ def _export_job(local, jobs):
         "text": text,
         "active": job.status in ACTIVE_JOB_STATUSES,
         "branch": outputs.get("branch") or local.get("last_export_branch") or "",
-        "results": outputs.get("results") or [],
+        "results": [dict(r, via_kind=_via_kind(r.get("ref"), r.get("via"))) for r in outputs.get("results") or []],
         "pr_url": outputs.get("pr_url") or "",
         "pr_term": outputs.get("pr_term") or "Pull Request",
         "service_name": outputs.get("service_name") or "",
@@ -274,11 +292,24 @@ def _row(item, jobs=None):
     item["problems"] = sum(1 for m in item["members"] if m["state"] != "ok")
     item["sync_jobs"] = _sync_jobs(local, jobs or {})
     members = {m["ref"]: m for m in item["members"]}
+    # Units synced for a member (pinned workflows, step plugins, options
+    # actions) are not members; resolve their names here.
+    others = store.resolve_refs(list(dict.fromkeys(
+        ref for job in item["sync_jobs"] for ref in (job["ref"], job["via"]) if ref and ref not in members
+    )))
+
+    def name_of(ref):
+        if ref in members:
+            return members[ref]["name"]
+        obj = others.get(ref)
+        return store.parse_ref(ref)[0].name_of(obj) if obj is not None else ref or ""
+
     for job in item["sync_jobs"]:
         member = members.get(job["ref"]) or {}
-        job["name"] = member.get("name") or job["ref"]
+        job["name"] = name_of(job["ref"])
         job["prefix"] = member.get("prefix") or (job["ref"] or "").split("/", 1)[-1].split("-", 1)[0]
-        job["via_name"] = (members.get(job["via"]) or {}).get("name") or job["via"] or ""
+        job["via_name"] = name_of(job["via"]) if job["via"] else ""
+        job["via_kind"] = _via_kind(job["ref"], job["via"])
     statuses = [j["status"] for j in item["sync_jobs"]]
     if "FAILURE" in statuses:
         item["sync_state"] = ("bad", "Sync failed")
@@ -304,8 +335,8 @@ def _row(item, jobs=None):
 # ---------------------------------------------------------------------------
 @admin_extension(
     title="Content Packages",
-    description="Define named sets of blueprints, actions, plugins, shared modules, UI extensions and "
-    "parameters that move between repositories and appliances together.",
+    description="Define named sets of blueprints, actions, plugins, shared modules, UI extensions, "
+    "parameters and Runbooks workflows that move between repositories and appliances together.",
 )
 def packages(request):
     profile = request.get_user_profile()
@@ -378,7 +409,7 @@ def package_docs(request, pkg_id):
     locations = {}
     for ref, obj in resolved.items():
         if not store.parse_ref(ref)[0].synced:
-            loc = docs.parameter_location(package, ref, home)
+            loc = docs.written_location(package, ref, home)
             if loc is not None:
                 locations[obj.global_id] = loc
     try:
@@ -393,8 +424,8 @@ def package_docs(request, pkg_id):
 @cbadmin_required
 def readme_dialog(request, global_id):
     """A member's or dependency's README, rendered from its repository. A
-    parameter member's README is found through its package, named by the
-    package query parameter."""
+    parameter or workflow member's README is found through its package, named
+    by the package query parameter."""
     obj, loc = docs.resolve([global_id]).get(global_id), None
     pkg_id = request.GET.get("package")
     if pkg_id:
@@ -402,7 +433,7 @@ def readme_dialog(request, global_id):
         for ref, member in store.resolve_package(package).items():
             if member is None or not ref.endswith("/" + global_id) or store.parse_ref(ref)[0].synced:
                 continue
-            obj, loc = member, docs.parameter_location(package, ref, _home_repo(package))
+            obj, loc = member, docs.written_location(package, ref, _home_repo(package))
             if loc is None:
                 return {
                     "title": "{} documentation".format(docs.name_of(obj)),
@@ -421,7 +452,10 @@ def readme_dialog(request, global_id):
 # Dialogs
 # ---------------------------------------------------------------------------
 def _repo_label(member_type, obj):
-    """The repository a unit is linked to, or a parameter's name."""
+    """The repository a unit is linked to, a parameter's name, or whether a
+    workflow is disabled."""
+    if member_type.dir == store.WORKFLOWS_DIR:
+        return "" if obj.enabled else "Disabled"
     if not member_type.synced:
         return obj.name
     return obj.source_code_repo.label if obj.source_code_repo_id else ""
@@ -436,9 +470,9 @@ def _picker(selected, aliases=None):
     chosen = set(selected)
     offered = set()
     sections = []
-    for member_type in store.MEMBER_TYPES.values():
+    for key, title, member_type, objects in store.picker_sections():
         items = []
-        for obj in member_type.pickable():
+        for obj in objects:
             ref = store.ref_for(member_type, obj, aliases)
             offered.add(ref)
             items.append({
@@ -450,8 +484,8 @@ def _picker(selected, aliases=None):
             })
         items.sort(key=lambda i: i["name"].lower())
         sections.append({
-            "key": member_type.dir,
-            "title": member_type.title,
+            "key": key,
+            "title": title,
             "items": items,
             "selected": sum(1 for i in items if i["checked"]),
         })
@@ -644,10 +678,24 @@ def package_export(request, pkg_id):
     return context
 
 
+def _manifest_note(changes, branch):
+    """What a sync took from the package's manifest on the branch, for its
+    success message."""
+    if changes is None:
+        return " Branch {} has no manifest for this package, so the members listed here were synced.".format(branch)
+    parts = []
+    if changes["added"]:
+        parts.append("added {}".format(", ".join(changes["added"])))
+    if changes["removed"]:
+        parts.append("removed {} (their content stays on this appliance)".format(", ".join(changes["removed"])))
+    return " From the package's manifest on {}: {}.".format(branch, "; ".join(parts)) if parts else ""
+
+
 @dialog_view(template_name=TEMPLATES + "sync_dialog.html")
 @cbadmin_required
 def package_sync(request, pkg_id):
-    """Create one CloudBolt sync job per member from a repository branch."""
+    """Read the package's manifest on a repository branch, then create one
+    CloudBolt sync job per member."""
     package = _get_or_404(pkg_id)
     title = "Sync {}".format(package["name"])
     repos = _repo_choices()
@@ -663,7 +711,7 @@ def package_sync(request, pkg_id):
             "ignore_action_enabled": bool(request.POST.get("ignore_action_enabled")),
         }
         try:
-            created = services.sync_package(
+            created, changes = services.sync_package(
                 package, services.get_repo(values["repo"]), values["branch"],
                 values["refresh_if_exists"], values["ignore_action_enabled"], request.get_user_profile(),
             )
@@ -673,9 +721,10 @@ def package_sync(request, pkg_id):
             extra = sum(1 for _ref, _job, via in created if via)
             messages.success(
                 request,
-                "Started {} sync job{} for {}, one per member{}; they run one after another.".format(
+                "Started {} sync job{} for {}, one per member{}; they run one after another.{}".format(
                     len(created), "" if len(created) == 1 else "s", package["name"],
-                    " plus {} for generated-options actions of its parameters".format(extra) if extra else "",
+                    " plus {} for the actions, plugins and workflows its members need".format(extra) if extra else "",
+                    _manifest_note(changes, values["branch"].strip()),
                 ),
             )
             return HttpResponseRedirect(_detail_url(package["id"]))
@@ -688,11 +737,13 @@ def package_sync(request, pkg_id):
         "values": values,
         "error": error,
         "notice": request.GET.get("imported") == "1",
-        "member_count": len(package.get("contents") or []),
         "has_blueprints": any(ref.startswith("blueprints/") for ref in package.get("contents") or []),
         "has_extensions": any(ref.startswith("extensions/") for ref in package.get("contents") or []),
         "has_parameters": any(
             ref.startswith(store.PARAMETERS_DIR + "/") for ref in package.get("contents") or []
+        ),
+        "has_workflows": any(
+            ref.startswith(store.WORKFLOWS_DIR + "/") for ref in package.get("contents") or []
         ),
     }
     context.update(_repo_context(package, values, repos))
@@ -827,7 +878,7 @@ def api_content(request):
     if request.method != "GET":
         return _method_not_allowed(["GET"])
     types = []
-    for member_type in store.MEMBER_TYPES.values():
+    for key, title, member_type, objects in store.picker_sections():
         items = [
             {
                 "ref": store.ref_for(member_type, obj),
@@ -835,10 +886,10 @@ def api_content(request):
                 "type_title": member_type.singular,
                 "repo_label": _repo_label(member_type, obj),
             }
-            for obj in member_type.pickable()
+            for obj in objects
         ]
         items.sort(key=lambda i: i["name"].lower())
-        types.append({"type": member_type.dir, "prefix": member_type.prefix, "title": member_type.title, "items": items})
+        types.append({"type": key, "prefix": member_type.prefix, "title": title, "items": items})
     return JsonResponse({"types": types})
 
 
@@ -867,8 +918,11 @@ def api_export(request, pkg_id):
 @cbadmin_required
 def api_sync(request, pkg_id):
     """POST {source_code_repo_id?, branch?, refresh_if_exists?,
-    ignore_action_enabled?}: one sync job per member, chained. Repository and
-    branch default to the package's home."""
+    ignore_action_enabled?}: read the package's manifest on the branch, then
+    one sync job per member, chained. Repository and branch default to the
+    package's home. manifest in the response is null when the branch has no
+    manifest for the package, else its path and the members it added or
+    removed."""
     if request.method != "POST":
         return _method_not_allowed(["POST"])
     data = _body(request)
@@ -880,7 +934,7 @@ def api_sync(request, pkg_id):
         if repo is None:
             raise store.PackageError("The package has no home repository yet; pass source_code_repo_id.")
     branch = data.get("branch") or package["local"].get("branch")
-    created = services.sync_package(
+    created, changes = services.sync_package(
         package, repo, branch,
         data.get("refresh_if_exists", True), data.get("ignore_action_enabled", False),
         request.get_user_profile(),
@@ -891,6 +945,7 @@ def api_sync(request, pkg_id):
              "url": job.get_absolute_url()}
             for ref, job, via in created
         ],
+        "manifest": changes,
     }, status=201)
 
 

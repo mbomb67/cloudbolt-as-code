@@ -1,0 +1,142 @@
+{% load i18n %}
+{% comment %}
+  Shell of the Vulnerabilities tab of a resource. It rolls up the known vulnerabilities of the
+  resource's own servers (not those of sub-resources) that the viewer may see, and can scan them
+  all. Everything in it is drawn by vuln_fleet_assets.html from five JSON routes (urls), one page
+  at a time. The tab is injected into the resource page after it loads, and can be injected again,
+  so the script starts at once and once per root. CloudBolt keeps the open tab in the URL hash
+  (#tab-vulnerabilities), so the root has data-vuln-nohash: the script keeps the view in memory and
+  never touches the hash.
+  The styles are vuln_styles.html, scoped to #vuln-root; the few rules this tab adds are in the
+  second style block, built from the same variables.
+  The "Scan all servers" button is always rendered, hidden: the summary answer's can_scan shows it,
+  so this view never works out which servers may be scanned.
+  Context: resource, no_servers, urls (summary, cves, cve_servers, servers, scan), shell (is_admin,
+  settings_url, fleet_url).
+{% endcomment %}
+{% include "io_cloudbolt_vulnerabilities/templates/vuln_styles.html" %}
+<style>
+  #vuln-root { padding-bottom: 24px; }
+  #vuln-root .vuln-num { text-align: right; padding-right: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #vuln-root .vuln-table th.vuln-num { text-align: right; }
+  #vuln-root .vuln-state { max-width: 640px; }
+  #vuln-root .vuln-pane-h { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+  #vuln-root .vuln-dtitle { font-size: 20px; font-weight: 800; margin: 0; overflow-wrap: anywhere; }
+  #vuln-root .vuln-dtitle:focus { outline: none; }
+  #vuln-root .vuln-dmeta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 13px; font-weight: 600; color: var(--vuln-muted); margin-bottom: 12px; }
+  #vuln-root .vuln-fleet-bar { margin-top: 4px; }
+  #vuln-root .vuln-linkbtn { background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; }
+  #vuln-root .vuln-plain { padding: 16px 24px; }
+</style>
+
+<div id="vuln-root"{% if not no_servers %} data-vuln-fleet="1" data-vuln-nohash="1" data-csrf="{{ csrf_token }}"
+     data-summary-url="{{ urls.summary }}" data-cves-url="{{ urls.cves }}"
+     data-cve-servers-url="{{ urls.cve_servers }}" data-servers-url="{{ urls.servers }}"
+     data-vuln-scan-url="{{ urls.scan }}"{% endif %}>
+  <div class="vuln-hero-top">
+    <div>
+      <div class="vuln-eyebrow">{% trans "Vulnerabilities" %}</div>
+      <h2 class="vuln-title">{{ resource.name }}</h2>
+      <div class="vuln-sub">{% trans "Known vulnerabilities in the software and Windows updates of the servers of this resource." %}</div>
+    </div>
+    <div class="vuln-tools">
+      {% if not no_servers %}
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="reload">{% trans "Reload" %}</button>
+      <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan-all" hidden>{% trans "Scan all servers" %}</button>
+      {% endif %}
+      {% if shell.fleet_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ shell.fleet_url }}">{% trans "All servers" %}</a>{% endif %}
+      {% if shell.settings_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ shell.settings_url }}">{% trans "Settings" %}</a>{% endif %}
+    </div>
+  </div>
+
+  {% if no_servers %}
+  <div class="vuln-card vuln-state">
+    <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No servers you can see" %}</span></div>
+    <div class="vuln-empty">{% trans "You do not have permission to view any of the servers of this resource, so there are no vulnerabilities to show here." %}</div>
+  </div>
+  {% else %}
+
+  <div class="vuln-sr" role="status" aria-live="polite" data-vuln-live></div>
+
+  <div data-vuln-alert hidden></div>
+
+  <div data-vuln-run hidden></div>
+
+  <div class="vuln-loading-note" data-vuln-loading>{% trans "Loading from CloudBolt…" %}</div>
+
+  <div class="vuln-card vuln-state" data-vuln-empty hidden>
+    <div class="vuln-card-h"><span class="vuln-card-t">{% trans "No server has been scanned yet" %}</span></div>
+    <div class="vuln-empty">{% trans "Results appear here as soon as one server of this resource has been scanned. Scan all servers, when it is shown, scans each server." %}</div>
+  </div>
+
+  <div class="vuln-loading-note" data-vuln-updating hidden>{% trans "The results are being updated. This page will retry." %}</div>
+
+  <div class="vuln-cards" data-vuln-cards hidden></div>
+
+  <div data-vuln-main hidden>
+    <div class="vuln-bar vuln-fleet-bar" data-vuln-switch>
+      <div class="vuln-seg" role="group" aria-label="{% trans 'View' %}">
+        <button type="button" data-vuln-act="view" data-vuln-view="cves" aria-pressed="true">{% trans "Vulnerabilities" %}</button>
+        <button type="button" data-vuln-act="view" data-vuln-view="servers" aria-pressed="false">{% trans "Servers" %}</button>
+      </div>
+    </div>
+
+    {# Vulnerabilities #}
+    <section data-vuln-pane="cves" aria-label="{% trans 'Vulnerabilities' %}">
+      <div class="vuln-bar">
+        <label class="vuln-sr" for="vuln-cq">{% trans "Search CVE or advisory" %}</label>
+        <input type="search" class="form-control form-control-sm vuln-q" id="vuln-cq" placeholder="{% trans 'Search CVE or advisory' %}" maxlength="100" autocomplete="off" data-vuln-q>
+        <label class="vuln-sr" for="vuln-csev">{% trans "Severity" %}</label>
+        <select class="form-select form-select-sm vuln-sev" id="vuln-csev" data-vuln-sev>
+          <option value="">{% trans "Severity: all" %}</option>
+          <option value="Critical">{% trans "Critical" %}</option>
+          <option value="High">{% trans "High" %}</option>
+          <option value="Medium">{% trans "Medium" %}</option>
+          <option value="Low">{% trans "Low" %}</option>
+          <option value="Unknown">{% trans "Unknown" %}</option>
+        </select>
+        <div class="form-check vuln-kev-check">
+          <input class="form-check-input" type="checkbox" id="vuln-ckev" data-vuln-kev>
+          <label class="form-check-label" for="vuln-ckev">{% trans "Exploited only" %}</label>
+        </div>
+        <div class="form-check vuln-kev-check">
+          <input class="form-check-input" type="checkbox" id="vuln-cfix" data-vuln-fix>
+          <label class="form-check-label" for="vuln-cfix">{% trans "With a fix" %}</label>
+        </div>
+      </div>
+      <div class="vuln-table-wrap" data-vuln-table></div>
+      <div class="vuln-pager" data-vuln-pager></div>
+      <div class="vuln-note" data-vuln-status aria-live="polite"></div>
+    </section>
+
+    {# One vulnerability: the servers of this resource it affects #}
+    <section data-vuln-pane="detail" aria-label="{% trans 'Servers affected' %}" hidden>
+      <div class="vuln-pane-h">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="back">{% trans "Back to vulnerabilities" %}</button>
+        <h3 class="vuln-dtitle" tabindex="-1" data-vuln-dtitle></h3>
+        <a class="vuln-link" data-vuln-dnvd target="_blank" rel="noopener noreferrer" hidden>{% trans "Details on NVD" %}</a>
+      </div>
+      <div class="vuln-dmeta" data-vuln-dmeta></div>
+      <div class="vuln-bar">
+        <label class="vuln-sr" for="vuln-dq">{% trans "Search hostname" %}</label>
+        <input type="search" class="form-control form-control-sm vuln-q" id="vuln-dq" placeholder="{% trans 'Search hostname' %}" maxlength="100" autocomplete="off" data-vuln-q>
+      </div>
+      <div class="vuln-table-wrap" data-vuln-table></div>
+      <div class="vuln-pager" data-vuln-pager></div>
+      <div class="vuln-note" data-vuln-status aria-live="polite"></div>
+    </section>
+
+    {# Servers #}
+    <section data-vuln-pane="servers" aria-label="{% trans 'Servers' %}" hidden>
+      <div class="vuln-bar">
+        <label class="vuln-sr" for="vuln-sq">{% trans "Search hostname" %}</label>
+        <input type="search" class="form-control form-control-sm vuln-q" id="vuln-sq" placeholder="{% trans 'Search hostname' %}" maxlength="100" autocomplete="off" data-vuln-q>
+      </div>
+      <div class="vuln-table-wrap" data-vuln-table></div>
+      <div class="vuln-pager" data-vuln-pager></div>
+      <div class="vuln-note" data-vuln-status aria-live="polite"></div>
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% if not no_servers %}{% include "io_cloudbolt_vulnerabilities/templates/vuln_fleet_assets.html" %}{% endif %}

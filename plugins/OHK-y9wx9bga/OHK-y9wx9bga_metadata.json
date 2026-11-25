@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Deletes the GKE cluster with its CloudBolt container orchestrator, environment, and node pool sub-resources, refusing while namespace landing zones remain.",
+    "id": "OHK-y9wx9bga",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "GKE Cluster Teardown",
+    "resource_technologies": [],
+    "script_filename": "OHK-y9wx9bga_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

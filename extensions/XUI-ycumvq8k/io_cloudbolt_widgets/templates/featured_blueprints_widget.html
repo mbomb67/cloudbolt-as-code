@@ -78,6 +78,16 @@
         color: #aaa;
     }
 
+    /* Dark Branded Theme: border and placeholder colors from /portal.css tokens */
+    html[data-bs-theme="dark"] .io-cbw-bp-card:not(:hover) {
+        border-color: var(--neutral-250);
+    }
+
+    html[data-bs-theme="dark"] .io-cbw-bp-placeholder {
+        background: var(--neutral-100);
+        color: var(--fg-2);
+    }
+
     .io-cbw-bp-name {
         font-size: 11px;
         line-height: 1.25;

@@ -1,0 +1,21 @@
+{
+    "about": "Settings for the Prepare Windows app host Runbooks workflow (runbook_workflows/SWF-7s01lyyk). Every step of the workflow attaches this file from File Archives, as runbook-examples/windows-app-host.json, and reads its section. Upload a changed copy under the same name and the next run uses the new version.",
+    "checkHost": {
+        "drive": "C:",
+        "minFreeGB": 5,
+        "minMemoryMB": 1500,
+        "requiredServices": ["EventLog", "Schedule", "Winmgmt"]
+    },
+    "appFolders": {
+        "appName": "DemoApp",
+        "root": "C:\\DemoApp",
+        "subfolders": ["bin", "conf", "logs"],
+        "operatorsGroup": "DemoApp Operators"
+    },
+    "appSettings": {
+        "environment": "Development",
+        "ownerTeam": "Platform Engineering",
+        "eventSource": "DemoApp",
+        "logRetentionDays": 14
+    }
+}

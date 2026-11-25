@@ -1,0 +1,41 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A node pool on an older version than the control plane, and the control plane version it moves to.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-vu87h9gm",
+            "label": "Node Pool",
+            "name": "gke_upgrade_pool",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_upgrade_pool"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Upgrades a GKE node pool that is behind the control plane to the control plane's version and refreshes its sub-resource.",
+    "id": "OHK-2rpjqm7u",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Upgrade GKE Node Pool",
+    "resource_technologies": [],
+    "script_filename": "OHK-2rpjqm7u_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

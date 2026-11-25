@@ -1,0 +1,41 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The node pool to delete, as AKS lists it. The cluster's only System pool is not offered.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-som56wf8",
+            "label": "Node Pool",
+            "name": "aks_delete_pool",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "aks_delete_pool"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4"
+        ]
+    },
+    "description": "Deletes a chosen node pool from the AKS cluster, refusing the cluster's only System pool, and removes its AKS Node Pool sub-resource.",
+    "id": "OHK-czexzrl1",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "Delete AKS Node Pool",
+    "resource_technologies": [],
+    "script_filename": "OHK-czexzrl1_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

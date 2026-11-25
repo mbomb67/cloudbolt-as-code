@@ -1,0 +1,62 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Business justification for the change. Recorded in the job log for approvers and auditors.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-v0slz9jt",
+            "label": "Reason",
+            "name": "aks_ns_change_reason",
+            "placeholder": "Load test for the Q4 release needs twice the memory",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "TXT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "New size tier for the namespace. Changes the CPU and memory quota AKS enforces, the storage and pod quota, and the matching CloudBolt environment quota.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-n6nn0ocz",
+            "label": "New Size Tier",
+            "name": "aks_ns_new_size_tier",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "aks_ns_new_size_tier",
+        "aks_ns_change_reason"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4",
+            "shared_modules/SHM-cozv547n"
+        ]
+    },
+    "description": "Moves an AKS namespace landing zone to a different size tier after approval and mirrors the new quota into its environment.",
+    "id": "OHK-jeighfcq",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "Request AKS Namespace Quota Change",
+    "resource_technologies": [],
+    "script_filename": "OHK-jeighfcq_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

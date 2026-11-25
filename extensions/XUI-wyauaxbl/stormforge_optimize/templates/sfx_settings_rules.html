@@ -1,0 +1,18 @@
+{% comment %}ClusterOptimizationConfiguration or OptimizationConfiguration objects: `objects` from settings_sources.rule_objects.{% endcomment %}
+{% for o in objects %}
+<div class="sfx-card">
+  <div class="sfx-section">
+    <div class="sfx-set-t"><span class="sfx-mono">{{ o.name }}</span> <span class="sfx-muted">&middot; order {{ o.order }}</span></div>
+    <div class="sfx-set-d" style="margin-bottom:0">Applies to: {{ o.match }}</div>
+  </div>
+  {% for rule in o.rules %}
+  <div class="sfx-section">
+    <div class="k">Rule {{ rule.name }}</div>
+    <div class="sfx-hint" style="margin:0 0 6px">Applies to: {{ rule.match }}</div>
+    <table class="sfx-mini" style="width:auto">
+      {% for name, value in rule.settings %}<tr><td class="sfx-mono" style="padding-right:24px">{{ name }}</td><td class="sfx-mono">{{ value }}</td></tr>{% endfor %}
+    </table>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
