@@ -1320,6 +1320,98 @@ class OldKernelStepTests(Base):
         self.assertEqual(self.state["patch"]["kernels_removed"], 5)
 
 
+class FailureMessageTests(Base):
+    CAUSE = ("file /usr/lib64/ossl-modules/fips.so from install of openssl-fips-provider-1:3.5.9-1.el9.x86_64 conflicts "
+             "with file from package openssl-fips-provider-so-3.0.7-11.el9_8.x86_64")
+
+    def failing(self, *details, failure="Error: Transaction test error:"):
+        lines = ["CBVULN|state|done", "CBVULN|updated|0", "CBVULN|failed|1", "CBVULN|exit|1", "CBVULN|failure|" + failure]
+        lines += ["CBVULN|detail|" + detail for detail in details]
+        self.guest.answers("poll", "\n".join(lines + ["CBVULN|done|1"]) + "\n")
+
+    def test_details_that_repeat_are_dropped(self):
+        parsed = patch._linux_parse("CBVULN|failure|Error: x\nCBVULN|detail|Error: x\nCBVULN|detail|a\n"
+                                    "CBVULN|detail|a\nCBVULN|detail|b\nCBVULN|done|1\n")
+        self.assertEqual(parsed["details"], ["a", "b"])
+        parsed = patch._linux_parse("CBVULN|detail|Error: x\nCBVULN|failure|Error: x\nCBVULN|done|1\n")
+        self.assertEqual(parsed["details"], [])
+
+    def test_the_record_message_carries_the_cause(self):
+        error = "Error: Transaction test error:"
+        self.failing(error, self.CAUSE, self.CAUSE)
+        job, (status, output, errors, outputs) = self.go()
+        message = self.state["patch"]["message"]
+        self.assertEqual(status, "FAILURE")
+        self.assertEqual(message, "The update failed on the server (exit code 1): " + error + " " + self.CAUSE)
+        self.assertLessEqual(len(message), 300)
+        # The job's errors keep the details, and the repeated line is there once.
+        self.assertEqual(errors.count(error), 1)
+        self.assertIn(self.CAUSE, errors)
+
+    def test_without_a_detail_the_message_is_the_failure_line(self):
+        self.failing()
+        self.go()
+        self.assertEqual(self.state["patch"]["message"],
+                         "The update failed on the server (exit code 1): Error: Transaction test error:")
+
+    def test_a_long_message_is_cut_at_a_word_with_three_dots(self):
+        self.failing("word " * 100)
+        self.go()
+        message = self.state["patch"]["message"]
+        self.assertLessEqual(len(message), 300)
+        self.assertTrue(message.endswith("word..."), message[-20:])
+        message.encode("ascii")
+        self.assertEqual(patch._cap("short", 300), "short")
+        self.assertEqual(patch._cap("alpha beta gamma", 12), "alpha...")
+
+    def test_the_job_output_keeps_the_details_up_to_the_cap(self):
+        self.failing(*["detail line {}".format(i) for i in range(12)])
+        job, (status, output, errors, outputs) = self.go()
+        self.assertIn("detail line 11", errors)
+        self.assertLessEqual(len(patch._detail_text(["x" * 300] * 12)), patch.DETAIL_TOTAL)
+
+
+class SingularTests(unittest.TestCase):
+    def record(self, **over):
+        record = {"status": "updated", "message": "", "updated": 1, "restarted": False, "restart_needed": False,
+                  "kernels_removed": 1, "before": None, "after": None, "family": "linux"}
+        record.update(over)
+        return record
+
+    def test_one_is_singular(self):
+        self.assertEqual(patch._sentence("h", self.record()), "h: 1 package updated, 1 old kernel package removed.")
+        self.assertEqual(patch._sentence("h", self.record(family="windows", kernels_removed=None)),
+                         "h: 1 update installed.")
+
+    def test_zero_and_many_are_plural(self):
+        self.assertEqual(patch._sentence("h", self.record(updated=0, kernels_removed=2)),
+                         "h: 0 packages updated, 2 old kernel packages removed.")
+        self.assertEqual(patch._sentence("h", self.record(family="windows", updated=2, kernels_removed=None)),
+                         "h: 2 updates installed.")
+        self.assertEqual(patch._sentence("h", self.record(family="windows", updated=0, kernels_removed=None)),
+                         "h: 0 updates installed.")
+
+    def test_minutes(self):
+        self.assertEqual(patch._minutes_text(1), "1 minute")
+        self.assertEqual(patch._minutes_text(0), "0 minutes")
+        self.assertEqual(patch._minutes_text(90), "90 minutes")
+
+    def test_failed_updates_note(self):
+        one = [{"result": 4, "kb": "KB1234567", "title": ""}]
+        self.assertEqual(patch._failed_note(one), "This update failed: KB1234567.")
+        two = one + [{"result": 3, "kb": "KB1234568", "title": ""}]
+        self.assertEqual(patch._failed_note(two), "These updates failed: KB1234567, KB1234568.")
+
+
+class OneMinuteTests(Base):
+    def test_a_one_minute_limit_is_singular(self):
+        self.settings["patch_timeout_min"] = 1
+        self.guest.answers("poll", out(state="running"))
+        job, (status, output, errors, outputs) = self.go()
+        self.assertIn("did not finish within 1 minute and may", errors)
+        self.assertNotIn("1 minutes", errors)
+
+
 class ShellTests(unittest.TestCase):
     RPM = "rpm() { printf '%s\\n' 'kernel 5.14.0-2.x86_64' 'kernel 5.14.0-1.x86_64'; }\n"
 
@@ -1427,18 +1519,19 @@ class DetailTests(Base):
         self.assertLessEqual(len(parsed["details"][0]), patch.MESSAGE_LEN)
         self.assertEqual(patch._linux_parse(out(state="done"))["details"], [])
 
-    def test_the_job_output_and_errors_carry_the_detail_the_record_does_not(self):
+    def test_the_record_carries_the_cause_and_the_output_and_errors_the_full_detail(self):
         self.guest.answers("poll", failed_poll(self.CONFLICTS))
         job, (status, output, errors, outputs) = self.go()
         self.assertEqual(status, "FAILURE")
-        first = "The update failed on the server (exit code 1): Error: Transaction test error:"
+        first = "The update failed on the server (exit code 1): Error: Transaction test error: file /usr/a conflicts with b-1"
         self.assertEqual(self.state["patch"]["message"], first)
         self.assertIn("file /usr/a conflicts with b-1", output)
         self.assertIn("file /usr/c conflicts with d-2", output)
         self.assertTrue(errors.startswith(first + "\n"), errors)
         self.assertIn("file /usr/c conflicts with d-2", errors)
         self.assertNotIn("detail", outputs["servers"]["7"])
-        self.assertNotIn("conflicts", " ".join(str(value) for value in self.state["patch"].values()))
+        # The repeated line is said once in the output.
+        self.assertEqual(output.count("Error: Transaction test error:"), 1)
 
     def test_the_detail_text_is_capped_at_two_thousand_characters(self):
         self.guest.answers("poll", failed_poll(["z" * 290 + str(i) for i in range(12)]))
@@ -1454,8 +1547,10 @@ class DetailTests(Base):
         servers = [make_server(id=i, hostname="h{}".format(i)) for i in (1, 2)]
         job, (status, output, errors, outputs) = self.go(servers=servers)
         self.assertTrue(errors.startswith("2 of 2 servers failed. First failure (h1): "), errors)
-        self.assertEqual(errors.count("file /usr/a conflicts with b-1"), 1)
-        self.assertEqual(output.count("file /usr/a conflicts with b-1"), 2)
+        # Once in the first failure's message (the cause), once in its full detail.
+        self.assertEqual(errors.count("file /usr/a conflicts with b-1"), 2)
+        self.assertEqual(errors.count("file /usr/c conflicts with d-2"), 1)
+        self.assertEqual(errors.count("Error: Transaction test error:"), 1)
 
     def test_a_failure_without_detail_lines_is_as_before(self):
         self.guest.answers("poll", out(state="done", updated=0, failed=1, exit=1, failure="Error: boom"))

@@ -331,8 +331,8 @@ def _execute(job, resource, owner, run):
                 if vuln_fleet._cancelled(job):
                     why_not = "not started, the job was canceled"
                 elif vuln_patch._clock() - began + worst_s > vuln_patch.JOB_LIMIT_S:
-                    why_not = ("not started, one more update could take up to {} minutes and the job has to end "
-                               "before CloudBolt's 8 hour limit".format(worst_s // 60))
+                    why_not = ("not started, one more update could take up to {} and the job has to end "
+                               "before CloudBolt's 8 hour limit".format(vuln_patch._minutes_text(worst_s // 60)))
             if why_not:
                 run.skip(server_id, why_not)
                 continue

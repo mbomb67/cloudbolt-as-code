@@ -324,10 +324,44 @@ def _linux_parse(text):
             result[key] = vuln_jobs.clean(value, MESSAGE_LEN)
         else:
             result[key] = vuln_jobs.clean(value, 120)
+    # A detail line that repeats the failure line or an earlier detail line says nothing new.
+    seen = {result["failure"]}
+    unique = []
+    for line in result["details"]:
+        if line and line not in seen:
+            seen.add(line)
+            unique.append(line)
+    result["details"] = unique
     return result
 
 
 parse_patch_output = _linux_parse
+
+
+def _minutes_text(minutes):
+    """"1 minute", "20 minutes": a count and its noun for plain-text job output."""
+    minutes = int(minutes)
+    return "{} minute{}".format(minutes, "" if minutes == 1 else "s")
+
+
+def _cap(text, limit):
+    """text cut to at most limit characters at a word boundary, with ... (ASCII) when it was cut."""
+    if len(text) <= limit:
+        return text
+    cut = text[:max(0, limit - 3)]
+    space = cut.rfind(" ")
+    if space > 0:
+        cut = cut[:space]
+    return cut.rstrip(" ,;:") + "..."
+
+
+def _failure_message(prefix, failure, details):
+    """The record message of a failed install: the failure line followed by the first detail line that adds
+    something (details are already free of repeats), cleaned and at most MESSAGE_LEN characters in all."""
+    text = "{} {}".format(prefix, failure or "no reason was reported.")
+    if details:
+        text += " " + details[0]
+    return _cap(vuln_jobs.clean(text, 10 * MESSAGE_LEN), MESSAGE_LEN)
 
 
 def _detail_text(lines):
@@ -377,9 +411,9 @@ def _linux_wait_for_install(job, server, run_id, limit_s):
     while True:
         _sleep(POLL_S)
         if _clock() - began > limit_s:
-            raise PatchFailed("The update did not finish within {} minutes and may still be running on the server; "
+            raise PatchFailed("The update did not finish within {} and may still be running on the server; "
                               "another update there is refused until it ends. {}".format(
-                                  int(limit_s // 60), CHECK_PACKAGE_MANAGER))
+                                  _minutes_text(limit_s // 60), CHECK_PACKAGE_MANAGER))
         try:
             polled = _linux_call(server, "poll", run_id, job=job)
         except CallFailed as exc:
@@ -428,7 +462,7 @@ def _linux_restart(job, server, run_id, old_boot_id, wait_s):
     while True:
         _sleep(PROBE_S)
         if _clock() - began > wait_s:
-            raise PatchFailed("The server did not come back within {} minutes of the restart.".format(int(wait_s // 60)))
+            raise PatchFailed("The server did not come back within {} of the restart.".format(_minutes_text(wait_s // 60)))
         try:
             probed = _linux_call(server, "probe", run_id, job=job)
         except Exception:
@@ -458,8 +492,8 @@ def _linux_patch(job, server, run_id, restart, cfg):
              "restarted": False, "kernels_removed": None, "notes": notes, "info": [], "no_updates": False}
     if polled["exit"]:
         facts["detail"] = polled["details"]
-        raise PatchFailed("The update failed on the server (exit code {}): {}".format(
-            polled["exit"], polled["failure"] or "no reason was reported."), facts)
+        raise PatchFailed(_failure_message("The update failed on the server (exit code {}):".format(polled["exit"]),
+                                           polled["failure"], polled["details"]), facts)
     needed = polled["restart"] == "1"
     facts["restart_needed"] = needed
     if polled["restart"] == "unknown":
@@ -708,8 +742,8 @@ def _windows_wait_for_install(job, server, run_id, limit_s, old_boot="", since=N
         if not more:
             _sleep(WIN_POLL_S)
         if _clock() - began > limit_s:
-            raise PatchFailed("The update did not finish within {} minutes and may still be running on the server. "
-                              "{}".format(int(limit_s // 60), CHECK_WINDOWS_UPDATE), _facts_of(parsed))
+            raise PatchFailed("The update did not finish within {} and may still be running on the server. "
+                              "{}".format(_minutes_text(limit_s // 60), CHECK_WINDOWS_UPDATE), _facts_of(parsed))
         try:
             polled = _windows_call(vuln_wintask.poll, server, run_id, offset)
         except CallFailed as exc:
@@ -776,7 +810,7 @@ def _windows_restart(job, server, old_boot, wait_s, since=None):
     while True:
         _sleep(WIN_PROBE_S)
         if _clock() - began > wait_s:
-            raise PatchFailed("The server did not come back within {} minutes of the restart.".format(int(wait_s // 60)))
+            raise PatchFailed("The server did not come back within {} of the restart.".format(_minutes_text(wait_s // 60)))
         try:
             probed = _windows_probe(server, job)
         except CallFailed:
@@ -802,7 +836,8 @@ def _failed_note(items):
         return ""
     names = [item["kb"] or item["title"] or "an update" for item in bad[:MAX_FAILED_LISTED]]
     more = len(bad) - len(names)
-    return "These updates failed: {}{}.".format(", ".join(names), " and {} more".format(more) if more > 0 else "")
+    return "{} failed: {}{}.".format("This update" if len(bad) == 1 else "These updates", ", ".join(names),
+                                     " and {} more".format(more) if more > 0 else "")
 
 
 def _windows_patch(job, server, run_id, restart, cfg):
@@ -891,7 +926,7 @@ def _rescan(job, server):
         # Polls the job every five seconds; cancels it and raises when the time is up (jobs/models.py).
         ended = started.wait_for_completion(timeout=wait)
     except TimeoutException:
-        return None, "The rescan did not finish within {} minutes.".format(wait // 60)
+        return None, "The rescan did not finish within {}.".format(_minutes_text(wait // 60))
     if getattr(ended, "status", "") not in ("SUCCESS", "WARNING"):
         return None, "The rescan failed (job {}).".format(started.id)
     summary = _summary(server.id)
@@ -1104,9 +1139,10 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
         lines.append("Stopped early because the job was canceled. {} not started. {}".format(
             counts["skipped"], GUEST_KEEPS_RUNNING))
     if out_of_time:
-        lines.append("{} server{} not started: one more update could take up to {} minutes, and the job has to end "
+        lines.append("{} server{} not started: one more update could take up to {}, and the job has to end "
                      "before CloudBolt's 8 hour limit. Run the update again for them.".format(
-                         counts["skipped"], " was" if counts["skipped"] == 1 else "s were", worst_s // 60))
+                         counts["skipped"], " was" if counts["skipped"] == 1 else "s were",
+                         _minutes_text(worst_s // 60)))
     outputs = {"servers": results, "counts": counts}
     output = "\n".join(lines)
     problem = ""

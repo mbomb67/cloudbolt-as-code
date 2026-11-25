@@ -270,7 +270,12 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("The server was restarted.", html)
         self.assertNotIn("kernel", html)
         html = render({"summary": None, "patch_last": dict(record(restarted=True, kernels_removed=1), job_url="")})
-        self.assertIn("The server was restarted. 1 old kernel packages were removed.", html)
+        self.assertIn("The server was restarted. 1 old kernel package was removed.", html)
+        for n in (1, 6):
+            for extra in ({}, {"summary": None}):
+                html = render(dict({"patch_last": dict(record(kernels_removed=n), job_url="")}, **extra))
+                word = "package was" if n == 1 else "packages were"
+                self.assertIn("%d old kernel %s removed." % (n, word), html)
 
     def test_restart_pending_line(self):
         html = render({"patch_last": dict(record(status="restart_pending"), job_url="")})
