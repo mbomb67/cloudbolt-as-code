@@ -845,6 +845,17 @@ RESOURCE_STATE_ERROR = ("The scan state for this resource cannot be read or writ
                         "the Vulnerabilities folder.")
 
 
+def supported_q():
+    """The Q that keeps servers of a Linux or Windows OS family (the family itself or one of its two parents
+    up), the same test the Vulnerabilities views use. Q is imported here so this module still imports
+    without Django's query layer."""
+    from django.db.models import Q
+    linux, windows = vuln_jobs.LINUX_FAMILY, "Windows"
+    return (Q(os_family__name=linux) | Q(os_family__parent__name=linux)
+            | Q(os_family__parent__parent__name=linux) | Q(os_family__name=windows)
+            | Q(os_family__parent__name=windows) | Q(os_family__parent__parent__name=windows))
+
+
 def resource_servers(resource):
     """The resource's own servers that are not historical (sub-resources are not included), with what
     eligibility() reads loaded ahead, ordered by hostname then id."""
@@ -890,8 +901,10 @@ def _live_run(resource_id):
 
 
 def resource_run(resource_id):
-    """The scan run in progress on the resource: {"job_id", "job_url", "started", "done", "total"}, or None
-    when there is none (a stale marker, or one that cannot be read, is no run). Never raises."""
+    """The run in progress on the resource: {"job_id", "job_url", "started", "done", "total", "kind", "message"}
+    (kind "scan", or "patch" for the install-updates run of vuln_patch_resource.py; message is the job's
+    progress text), or None when there is none (a stale marker, or one that cannot be read, is no run).
+    Never raises."""
     try:
         found = _live_run(resource_id)
         if found is None:
@@ -901,7 +914,8 @@ def resource_run(resource_id):
         # Job.get_absolute_url (line 1679).
         total = job.total_tasks or len(marker.get("server_ids") or [])
         return {"job_id": job.id, "job_url": job.get_absolute_url(), "started": marker.get("started") or "",
-                "done": job.tasks_done or 0, "total": total}
+                "done": job.tasks_done or 0, "total": total, "kind": marker.get("kind") or "scan",
+                "message": vuln_jobs._progress_text(job)}
     except Exception:
         logger.exception("Vulnerabilities: could not read the scan run of resource %s", resource_id)
         return None
@@ -934,8 +948,9 @@ def start_resource_scan(profile, resource, server_ids, base_url):
         with store.resource_lock(resource.id):
             running = _live_run(resource.id)
             if running is not None:
+                doing = "installing updates on" if running[0].get("kind") == "patch" else "scanning"
                 return vuln_jobs.Refusal(
-                    "Job {} is already scanning the servers of this resource.".format(running[1].id), 409)
+                    "Job {} is already {} the servers of this resource.".format(running[1].id, doing), 409)
             problems = prerequisites(base_url)
             if nothing_can_run(problems):
                 return vuln_jobs.Refusal(not_ready_message(problems), 409)

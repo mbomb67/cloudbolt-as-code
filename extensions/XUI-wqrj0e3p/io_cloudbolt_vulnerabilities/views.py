@@ -42,6 +42,8 @@ paged and filtered on the server side.
   Search script (vuln_fleet_assets.html). Neither the tab dispatcher nor the
   delegate checks permissions, so every route starts with _viewable_resource
   and works only on the viewer's servers of that resource, the scan included.
+  The summary also offers "Install updates on all servers" (a link to CloudBolt's own dialog for the resource
+  action) and the result of the last update run; a run of kind patch is drawn as progress by the same script.
 
 Viewing needs the view permission on the server (Server.objects_for_profile),
 and for the resource tab on the resource (Resource.objects_for_profile) and on
@@ -56,7 +58,6 @@ from datetime import datetime, timezone
 
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -69,8 +70,8 @@ from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.permissions import cbadmin_required
 
-from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_msrc, vuln_repo, vuln_store as store,
-               vuln_tools)
+from . import (vuln_db, vuln_fleet, vuln_hooks, vuln_jobs, vuln_match, vuln_msrc, vuln_patch, vuln_repo,
+               vuln_store as store, vuln_tools)
 
 logger = ThreadLogger(__name__)
 
@@ -237,13 +238,45 @@ def vulnerabilities_tab(request, obj_id):
 # ---------------------------------------------------------------------------
 # Panel (HTML fragment loaded asynchronously by the tab)
 # ---------------------------------------------------------------------------
-def _panel_context(server, profile):
+def _patch_offer(server, profile, request):
+    """The Install updates button for this server as {"offer", "url", "label"}. Any failure, a missing patch module
+    included, means no button: the panel never breaks because of it."""
+    none = {"offer": False, "url": "", "label": ""}
+    try:
+        if vuln_patch.eligibility(server):
+            return none
+        button = vuln_hooks.patch_button(server, profile, request)
+    except Exception:
+        logger.exception("Vulnerabilities: cannot work out the Install updates button for server %s",
+                         getattr(server, "id", ""))
+        return none
+    if not button or not button.get("url"):
+        return none
+    return {"offer": True, "url": button["url"], "label": button.get("label") or ""}
+
+
+def _patch_last(state):
+    """The stored record of the last update run, with the link to its job; None when there is none."""
+    record = state.get("patch")
+    if not isinstance(record, dict) or not record.get("status"):
+        return None
+    record = dict(record, job_url="")
+    try:
+        if record.get("job_id"):
+            record["job_url"] = reverse("job_detail", args=[record["job_id"]])
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the job link of an update run")
+    return record
+
+
+def _panel_context(server, profile, request=None):
     _upgrade_store()  # readers never upgrade, and the summary selects the newest columns
     summary = vuln_db.server_summary(server.id)
     state = store.read_state(server.id)
     active = vuln_jobs.panel_active(server.id)
     last = state.get("last") or None
     last_failed = last if last and last.get("status") == "failed" else None
+    patch_last = _patch_last(state)
     # The script re-fetches the table only when this changes, so it holds everything that
     # changes what the table shows: the match time, a scan starting or ending, the newest scan.
     key = "|".join([
@@ -251,6 +284,7 @@ def _panel_context(server, profile):
         "1" if active else "0",
         str((last or {}).get("scan_id") or ""),
         str((last or {}).get("status") or ""),
+        str((patch_last or {}).get("job_id") or ""),
     ])
     tools = vuln_tools.status()
     windows = _is_windows(server)
@@ -260,6 +294,10 @@ def _panel_context(server, profile):
         # The Windows "software list" is the build and the installed updates; its OS name ends in "build <number>".
         found = re.search(r"build\s+(\S+)\s*$", str(summary.get("os_name") or ""))
         summary = dict(summary, windows_build=found.group(1) if found else (summary.get("os_name") or ""))
+    if active:
+        patch = {"offer": False, "url": "", "label": ""}
+    else:
+        patch = _patch_offer(server, profile, request)
     vuln = {
         "denied": False,
         "windows": windows,
@@ -274,6 +312,8 @@ def _panel_context(server, profile):
         "last_failed": last_failed,
         "ever_scanned": bool(summary or last),
         "active": active,
+        "patch": patch,
+        "patch_last": patch_last,
         "key": key,
     }
     if vuln["is_admin"]:
@@ -292,7 +332,7 @@ def vuln_panel(request, server_id):
         return render(request, TEMPLATES + "vuln_panel.html", context)
     profile = request.get_user_profile()
     try:
-        context = _panel_context(server, profile)
+        context = _panel_context(server, profile, request)
     except store.StoreError:
         logger.exception("Vulnerabilities: the state of server %s cannot be read", server.id)
         context = {"vuln": {"denied": False}, "error": STORE_ERROR}
@@ -470,6 +510,30 @@ def _msrc_tile(tools):
 
 PROVISION_ERROR = ("The settings were saved, but the scan after provisioning could not be switched. "
                    "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
+def _resource_patch_action_state():
+    """{"exists", "enabled", "action_id"} of the resource action that installs updates on all servers of a
+    resource, or None when it cannot be read (the patch hooks may not be there yet): unknown is never an error."""
+    try:
+        state = vuln_hooks.resource_patch_action_state()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the Install Updates on All Servers action")
+        return None
+    return state if isinstance(state, dict) else None
+
+
+def _patch_action_state():
+    """The Install Updates action's state for the settings page; never raises."""
+    try:
+        return vuln_hooks.patch_action_state()
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the Install Updates action")
+        return {"exists": False, "enabled": False, "action_id": None}
+
+
+PATCHING_ERROR = ("The settings were saved, but the Install Updates action could not be switched. "
+                  "The CloudBolt application log has the details.")  # shown as a warning, not as a save error
+RESOURCE_PATCHING_ERROR = ("The settings were saved, but the Install Updates on All Servers action could not be "
+                           "switched. The CloudBolt application log has the details.")
 SCHEDULES_ERROR = "The schedules cannot be read. The CloudBolt application log has the details."
 
 # What each schedule does, in one sentence, by the key ensure_schedules returns.
@@ -557,6 +621,7 @@ def settings(request):
                 if key in request.POST:
                     current[key] = request.POST.get(key)
         else:
+            was_patching = bool(current.get("patching"))
             store.save_settings(clean)
             current = store.get_settings()
             saved = True
@@ -566,7 +631,29 @@ def settings(request):
             except Exception:
                 logger.exception("Vulnerabilities: cannot update the scan after provisioning action")
                 post_warnings.append(PROVISION_ERROR)
+            try:
+                patching = bool(clean["patching"])
+                # An unchanged setting must not re-enable an action the admin switched off in the action editor;
+                # only a missing action (an appliance set up before the resource action existed) is created.
+                resource_state = _resource_patch_action_state()
+                missing = (not _patch_action_state()["exists"]) or (resource_state is not None
+                                                                    and not resource_state.get("exists"))
+                if patching != was_patching or (patching and missing):
+                    # create_only: an unchanged setting creates what is missing and never re-enables an action.
+                    vuln_hooks.apply_patching_setting(patching, create_only=(patching == was_patching))
+            except Exception:
+                logger.exception("Vulnerabilities: cannot update the Install Updates action")
+                # The wrapper raises when either action could not be switched: name the one that did not follow.
+                server_state, resource_state = _patch_action_state(), _resource_patch_action_state()
+                server_off = bool(server_state.get("enabled")) != patching
+                resource_off = resource_state is not None and bool(resource_state.get("enabled")) != patching
+                if server_off or not resource_off:
+                    post_warnings.append(PATCHING_ERROR)
+                if resource_off:
+                    post_warnings.append(RESOURCE_PATCHING_ERROR)
     context = {
+        "patch_action": _patch_action_state(),
+        "resource_patch_action": _resource_patch_action_state() or {"exists": False, "enabled": False, "action_id": None},
         "settings": current,
         "saved": saved,
         "errors": list(errors.values()),
@@ -767,15 +854,6 @@ def vuln_fleet_servers(request):
 # ---------------------------------------------------------------------------
 # Resource tab (the findings of one resource's own servers)
 # ---------------------------------------------------------------------------
-# Linux or Windows at the server's own OS family or one or two levels up: the same meaning as
-# vuln_jobs.is_linux and vuln_jobs.is_windows (the root families are named Linux and Windows), written
-# as a filter so should_display costs one query and no Python loop over the servers.
-_SUPPORTED = (Q(os_family__name=vuln_jobs.LINUX_FAMILY)
-              | Q(os_family__parent__name=vuln_jobs.LINUX_FAMILY)
-              | Q(os_family__parent__parent__name=vuln_jobs.LINUX_FAMILY)
-              | Q(os_family__name=WINDOWS_FAMILY)
-              | Q(os_family__parent__name=WINDOWS_FAMILY)
-              | Q(os_family__parent__parent__name=WINDOWS_FAMILY))
 RESOURCE_NOT_FOUND = "This resource was not found."
 NOTHING_TO_SCAN = ("None of the servers of this resource can be scanned right now. They may be powered off or in an "
                    "Unassigned group, or you may not have permission to scan them.")
@@ -788,7 +866,9 @@ class VulnerabilitiesResourceTabDelegate(TabExtensionDelegate):
 
     def should_display(self):
         try:
-            servers = self.instance.server_set.exclude(status="HISTORICAL").filter(_SUPPORTED)
+            # vuln_fleet.supported_q: Linux or Windows at the server's own OS family or one or two levels up, as a
+            # filter so should_display costs one query and no Python loop over the servers.
+            servers = self.instance.server_set.exclude(status="HISTORICAL").filter(vuln_fleet.supported_q())
             if store.get_settings()["visibility"] == "label":
                 servers = servers.filter(tags__name=vuln_jobs.LABEL)
             return servers.exists()
@@ -853,15 +933,69 @@ def _severity(request):
     return severity if severity in vuln_match.SEVERITIES else ""
 
 
+def _resource_patch_offer(resource, profile, request, visibility):
+    """The Install updates on all servers button of the resource as {"offer", "url", "label"}, or None.
+    The caller has checked that no run is live and that the viewer sees servers. The action must be enabled and
+    listed for this resource and permitted to the viewer (vuln_hooks.resource_patch_button) and at least one
+    server must be patchable by the viewer (any_patchable stops at the first one). Any failure, a missing patch module included, means no button."""
+    try:
+        # Imported here, not at the top: the tab and every other view work whatever happens to this module.
+        from . import vuln_patch_resource
+        button = vuln_hooks.resource_patch_button(resource, profile, request)
+        url = (button or {}).get("url") or ""
+        if not url or not str(url).startswith("/"):
+            return None
+        if not vuln_patch_resource.any_patchable(profile, resource, visibility):
+            return None
+        return {"offer": True, "url": url, "label": button.get("label") or ""}
+    except Exception:
+        logger.exception("Vulnerabilities: cannot work out the Install updates on all servers button of resource %s",
+                         getattr(resource, "id", ""))
+        return None
+
+
+def _resource_patch_last(resource_id):
+    """The record of the last update run of the resource as {at, by, status, updated, restart_pending, failed,
+    skipped, job_url}, or None; no_updates, the number of servers that had nothing to install, is added when the
+    record counts it. Any failure means no line."""
+    try:
+        record = store.read_resource_patch(resource_id)
+        if not isinstance(record, dict) or not record.get("status"):
+            return None
+        counts = record.get("counts") if isinstance(record.get("counts"), dict) else {}
+
+        def count(name):
+            try:
+                return max(int(counts.get(name) or 0), 0)
+            except (TypeError, ValueError):
+                return 0
+
+        job_url = ""
+        if record.get("job_id"):
+            job_url = reverse("job_detail", args=[record["job_id"]])
+        return {"at": record.get("at") or "", "by": record.get("by") or "", "status": record["status"],
+                "updated": count("updated"), "restart_pending": count("restart_pending"),
+                "failed": count("failed"), "skipped": count("skipped"), "no_updates": count("no_updates"),
+                "job_url": job_url}
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the update record of resource %s", resource_id)
+        return None
+
+
 @_api
 def vuln_resource_summary(request, resource_id):
-    """GET: {state, summary, db_built, run, can_scan} for the viewer's servers of the resource.
+    """GET: {state, summary, db_built, run, can_scan, patch, patch_last} for the viewer's servers of the resource.
     summary is vuln_db.set_summary with servers (the same number as scanned, the name the shared
     script reads) and servers_total (the viewer's servers) added. state is "ready" (at least one
     server has a software list), "empty" or "unavailable" (a store exists but cannot be read now;
     the page retries). run is the scan in progress, or null (always null for a viewer who can see
     none of the resource's servers). can_scan is whether the viewer may scan at least one server
     (vuln_fleet.any_scannable); it is null while a run is in progress.
+    patch is the "Install updates on all servers" button, {offer, url, label}, or null: it is set only
+    when no run is live, the viewer sees servers, the setting is on, the action is enabled, listed for the
+    resource and permitted to the viewer, and at least one server is patchable by the viewer. patch_last is the
+    record of the last update run, {at, by, status, updated, restart_pending, failed, skipped, job_url}, or null
+    (null while a run is live). run.kind is "scan" or "patch".
     GET ?run=1: only {run}, without touching the findings store: the page polls this every 5 seconds
     while a scan runs and asks for the full answer when it changes."""
     if request.method != "GET":
@@ -901,8 +1035,18 @@ def vuln_resource_summary(request, resource_id):
             can_scan = bool(vuln_fleet.any_scannable(profile, resource, store.get_settings()["visibility"]))
         except Exception:
             logger.exception("Vulnerabilities: cannot tell whether the viewer may scan servers of resource %s", resource.id)
+    patch, patch_last = None, None
+    if run is None and ids:
+        patch_last = _resource_patch_last(resource.id)
+        try:
+            visibility = store.get_settings()["visibility"]
+        except Exception:
+            logger.exception("Vulnerabilities: cannot read the settings")
+            visibility = None
+        if visibility is not None:
+            patch = _resource_patch_offer(resource, profile, request, visibility)
     return JsonResponse({"state": state, "summary": summary, "db_built": _display_built(db_built), "run": run,
-                         "can_scan": can_scan})
+                         "can_scan": can_scan, "patch": patch, "patch_last": patch_last})
 
 
 @_api

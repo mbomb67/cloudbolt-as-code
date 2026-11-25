@@ -11,6 +11,10 @@
   second style block, built from the same variables.
   The "Scan all servers" button is always rendered, hidden: the summary answer's can_scan shows it,
   so this view never works out which servers may be scanned.
+  The "Install updates on all servers" link is rendered the same way: it has no data-vuln-act (the shared
+  click handler would cancel the click), it opens CloudBolt's own dialog for the resource action, and the
+  script un-hides it from the summary answer's patch. [data-vuln-patch-last] holds the result line of the
+  last update run.
   Context: resource, no_servers, urls (summary, cves, cve_servers, servers, scan), shell (is_admin,
   settings_url, fleet_url).
 {% endcomment %}
@@ -43,6 +47,7 @@
       {% if not no_servers %}
       <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="reload">{% trans "Reload" %}</button>
       <button type="button" class="btn btn-sm btn-primary" data-vuln-act="scan-all" hidden>{% trans "Scan all servers" %}</button>
+      <a class="btn btn-sm btn-outline-primary open-dialog" data-vuln-patch-all href="#" hidden>{% trans "Install updates on all servers" %}</a>
       {% endif %}
       {% if shell.fleet_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ shell.fleet_url }}">{% trans "All servers" %}</a>{% endif %}
       {% if shell.settings_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ shell.settings_url }}">{% trans "Settings" %}</a>{% endif %}
@@ -61,6 +66,8 @@
   <div data-vuln-alert hidden></div>
 
   <div data-vuln-run hidden></div>
+
+  <div data-vuln-patch-last hidden></div>
 
   <div class="vuln-loading-note" data-vuln-loading>{% trans "Loading from CloudBolt…" %}</div>
 

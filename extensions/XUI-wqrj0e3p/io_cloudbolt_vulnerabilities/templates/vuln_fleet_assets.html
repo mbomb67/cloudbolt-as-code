@@ -22,6 +22,15 @@
     summary.servers_total > 0  with summary.servers = 0 (a resource whose servers are all unscanned)
                            keeps the explanation and shows the Servers list instead of the cards,
                            the view switch ([data-vuln-switch]) and the Vulnerabilities view.
+    [data-vuln-patch-all]  the "Install updates on all servers" link (resource mode only: the admin page
+                           has neither the link nor [data-vuln-patch-last]). It is a plain anchor that
+                           opens CloudBolt's own dialog (class open-dialog), so it has no data-vuln-act and
+                           this script never handles its click; it is un-hidden when the summary's patch
+                           says offer and no run is live, and its href is used only when it starts with "/".
+                           A run whose kind is "patch" is drawn as "Installing updates", with the server it
+                           is on and the run's message; a change of message alone redraws the banner without
+                           reloading the panes. [data-vuln-patch-last] shows the summary's patch_last, the
+                           result of the last update run, and is hidden while a run is live.
   A root is initialised once (data-vuln-init), at once when the document has already loaded (the
   tab HTML is injected after the page), and its timers stop when it leaves the document.
 {% endcomment %}
@@ -285,6 +294,8 @@
     var listOnly = false;       // resource mode, servers visible but none scanned: the explanation and the Servers list
     var refreshOnPoll = false;  // a run just became live: the next light poll reloads the visible pane once
     var canScan = null;         // true shows the scan button, false hides it; null (a run is live) leaves it as it is
+    var patch = null;           // the summary's patch: the Install updates on all servers link (resource mode only)
+    var patchLast = null;       // the summary's patch_last: the result of the last update run of the resource
 
     function alive() { return document.body.contains(rootEl); }
     function one(sel) { return rootEl.querySelector(sel); }
@@ -624,7 +635,9 @@
     function drawRun() {
       var box = one("[data-vuln-run]");
       if (!box) { return; }
-      var key = run ? [run.job_id, run.done, run.total, run.started].join("|") : "";
+      var isPatch = !!run && run.kind === "patch";
+      var key = run ? [run.job_id, run.done, run.total, run.started, isPatch ? "patch" : "scan",
+        isPatch ? (run.message || "") : ""].join("|") : "";
       if (key === runKey && (run ? !box.hidden : true)) { return; }   // unchanged: do not redraw a live region
       runKey = key;
       while (box.firstChild) { box.removeChild(box.firstChild); }
@@ -632,11 +645,16 @@
       var banner = el("div", "vuln-banner vuln-banner-info");
       banner.setAttribute("role", "status");
       var body = el("div", "vuln-banner-body");
-      body.appendChild(el("div", "vuln-banner-t", "Scan in progress"));
+      body.appendChild(el("div", "vuln-banner-t", isPatch ? "Installing updates" : "Scan in progress"));
       var total = Number(run.total) || 0;
       var done = Math.min(Number(run.done) || 0, total);
       var parts = [];
-      if (total > 0) { parts.push(done + " of " + total + " servers done"); }
+      if (isPatch) {
+        // "Server n of m" and what the job is doing now; the message may already begin with the server count.
+        var said = run.message ? String(run.message) : "";
+        if (total > 0 && !/^Server \d+ of \d+/.test(said)) { parts.push("Server " + Math.min(done + 1, total) + " of " + total); }
+        if (said) { parts.push(said); }
+      } else if (total > 0) { parts.push(done + " of " + total + " servers done"); }
       if (run.started) { parts.push("started " + fmtTime(run.started, "when")); }
       body.appendChild(el("div", "vuln-banner-s", parts.join(" · ")));
       banner.appendChild(body);
@@ -659,14 +677,67 @@
       }
     }
 
+    // The "Install updates on all servers" link: shown only when the summary offers it and no run (scan or
+    // update) is live. Its href comes from the server and is used only when it is a path on this site.
+    function syncPatch() {
+      var link = one("[data-vuln-patch-all]");
+      if (!link) { return; }
+      var url = patch && patch.offer && typeof patch.url === "string" && patch.url.charAt(0) === "/" ? patch.url : "";
+      if (url) { link.setAttribute("href", url); }
+      link.hidden = !url || !!run;
+    }
+
+    function plural(n, one_, many) { return n + " " + (n === 1 ? one_ : many); }
+
+    // The result line of the last update run of the resource, from the stored record, with textContent only.
+    function drawPatchLast() {
+      var box = one("[data-vuln-patch-last]");
+      if (!box) { return; }
+      while (box.firstChild) { box.removeChild(box.firstChild); }
+      if (!patchLast || run) { box.hidden = true; return; }
+      var updated = Number(patchLast.updated) || 0;
+      var pending = Number(patchLast.restart_pending) || 0;
+      var failed = Number(patchLast.failed) || 0;
+      var skipped = Number(patchLast.skipped) || 0;
+      var unchanged = Number(patchLast.no_updates) || 0;
+      var text;
+      if (!updated && !pending && !failed && unchanged) {
+        text = "No updates were available on " + plural(unchanged, "server", "servers") + ".";
+      } else {
+        text = (patchLast.at ? "Updated " + fmtTime(patchLast.at, "when") : "Updated") +
+          (patchLast.by ? " by " + patchLast.by : "") + ": " + plural(updated, "server", "servers") + " updated";
+        if (pending) { text += ", " + pending + " pending a restart"; }
+        if (failed) { text += ", " + failed + " failed"; }
+        if (skipped) { text += ", " + skipped + " skipped"; }
+        text += ".";
+      }
+      var banner = el("div", "vuln-banner " + (failed > 0 ? "vuln-banner-bad" : "vuln-banner-info"));
+      banner.setAttribute("role", "status");
+      var body = el("div", "vuln-banner-body");
+      body.appendChild(el("div", "vuln-banner-s", text));
+      banner.appendChild(body);
+      if (patchLast.job_url && String(patchLast.job_url).charAt(0) === "/") {
+        var link = el("a", "btn btn-sm btn-outline-secondary vuln-banner-btn", "View job");
+        link.setAttribute("href", patchLast.job_url);
+        banner.appendChild(link);
+      }
+      box.appendChild(banner);
+      box.hidden = false;
+    }
+
     function applyRun(data) {
       var was = run;
       run = (data && data.run) || null;
       // Resource mode only (scanUrl): the admin page never has a run, and its behaviour is unchanged.
       refreshOnPoll = !!scanUrl && !!run && (!was || refreshOnPoll);
       canScan = data && data.can_scan === true ? true : (data && data.can_scan === false ? false : null);
+      // Resource mode only: the admin page's summary has no patch or patch_last.
+      patch = scanUrl && data && data.patch ? data.patch : null;
+      patchLast = scanUrl && data && data.patch_last ? data.patch_last : null;
       drawRun();
       syncScan();
+      syncPatch();
+      drawPatchLast();
     }
 
     // While a run is in progress a light request (summary?run=1, only the run) is made every 5
@@ -695,6 +766,10 @@
         if (!next || !run || next.job_id !== run.job_id || next.done !== run.done || refreshOnPoll) {
           refreshOnPoll = false;
           loadSummary({ quiet: true });
+        } else if (next.message !== run.message || next.kind !== run.kind) {
+          // Only what the job says it is doing changed: redraw the banner, the panes need no reload.
+          run = next;
+          drawRun();
         }
       }).always(function () { if (runXhr === req) { runXhr = null; scheduleRun(); } });
     }
