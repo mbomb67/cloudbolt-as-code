@@ -1,12 +1,17 @@
-from django.shortcuts import render
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, render
 
 from extensions.views import tab_extension, admin_extension, \
     TabExtensionDelegate
 from infrastructure.models import Server
+from resources.models import Resource
 from utilities.decorators import json_view
 from utilities.middleware import login_not_required
+from xui.io_cloudbolt_prometheus.kubevirt_metrics import is_kubevirt_server
+from xui.io_cloudbolt_prometheus.metrics import MONITORING_LABEL
 
 SERVER_TAB_TEMPLATE = "io_cloudbolt_prometheus/templates/server.html"
+RESOURCE_TAB_TEMPLATE = "io_cloudbolt_prometheus/templates/resource.html"
 ADMIN_TEMPLATE = "io_cloudbolt_prometheus/templates/admin.html"
 DEFAULT_EXPORTER_PORT = 9100
 DEFAULT_WINDOWS_EXPORTER_PORT = 9182
@@ -15,13 +20,38 @@ DEFAULT_WINDOWS_EXPORTER_PORT = 9182
 class ServerTabDelegate(TabExtensionDelegate):
 
     def should_display(self):
-        return "monitor" in self.instance.labels
+        # OpenShift Virtualization VMs need no exporter or tag: their cluster already collects them.
+        return "monitor" in self.instance.labels or is_kubevirt_server(self.instance)
 
 
 @tab_extension(model=Server, title="Monitoring", delegate=ServerTabDelegate)
 def server_view(request, server_id, **kwargs):
+    server = Server.objects.get(id=server_id)
     return render(request, SERVER_TAB_TEMPLATE, context={
-        "server_id": server_id
+        "server_id": server_id,
+        "hostname": server.hostname,
+        "source_label": (
+            "the OpenShift cluster's monitoring" if is_kubevirt_server(server) else "Prometheus"
+        ),
+    })
+
+
+class ResourceTabDelegate(TabExtensionDelegate):
+
+    def should_display(self):
+        # One query on every resource page: any live server that is an OpenShift Virtualization VM
+        # or carries the monitor label. Which servers the viewer may see is applied by the endpoints.
+        return Server.objects.filter(resource=self.instance).exclude(status="HISTORICAL").filter(
+            Q(ovirtserverinfo__isnull=False) | Q(tags__name__in=[MONITORING_LABEL])
+        ).exists()
+
+
+@tab_extension(model=Resource, title="Monitoring", delegate=ResourceTabDelegate)
+def resource_view(request, obj_id, **kwargs):
+    resource = get_object_or_404(Resource.objects_for_profile(request.get_user_profile()), pk=obj_id)
+    return render(request, RESOURCE_TAB_TEMPLATE, context={
+        "resource_id": resource.id,
+        "resource_name": resource.name,
     })
 
 
@@ -42,7 +72,8 @@ def prometheus_targets(request, **kwargs):
     group_targets = dict()
     server: Server
     for server in active_servers:
-        if "monitor" in server.labels and server.ip:
+        # An OpenShift Virtualization VM's address is a pod IP no outside Prometheus can scrape.
+        if "monitor" in server.labels and server.ip and not is_kubevirt_server(server):
             if server.os_family.name == "Windows":
                 port = DEFAULT_WINDOWS_EXPORTER_PORT
             else:

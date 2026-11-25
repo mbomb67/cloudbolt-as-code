@@ -1,127 +1,90 @@
-import { html, render } from "https://unpkg.com/lit-html";
 import { GraphElement } from "./graph_element.js";
 
-/** Parse rgb/rgba from getComputedStyle; return rgba(..., alpha). */
-function colorToRgbaAtAlpha(cssColor, alpha) {
-    if (!cssColor || cssColor === "transparent") {
-        return null;
-    }
-    const m = cssColor.match(
-        /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/
-    );
-    if (!m) {
-        return null;
-    }
-    const r = Number(m[1]);
-    const g = Number(m[2]);
-    const b = Number(m[3]);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+const DASH = "—";
+
+function gib(bytes) {
+    const value = parseFloat(bytes);
+    return Number.isFinite(value) && value >= 0 ? `${(value / 2 ** 30).toFixed(1)} GiB` : DASH;
 }
 
-function isNonTransparentColor(cssColor) {
-    return (
-        cssColor &&
-        cssColor !== "transparent" &&
-        cssColor !== "rgba(0, 0, 0, 0)" &&
-        !/^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(cssColor)
-    );
+function percent(fraction) {
+    const value = parseFloat(fraction);
+    return Number.isFinite(value) && value >= 0 ? `${(value * 100).toFixed(2)}%` : DASH;
 }
 
-/** Prefer a Day-2 action button with a visible fill; else first link button text color. */
-function pickCbBtnLinkSample() {
-    const buttons = document.querySelectorAll("button.cb-btn-link");
-    for (const btn of buttons) {
-        const bg = getComputedStyle(btn).backgroundColor;
-        if (isNonTransparentColor(bg)) {
-            return bg;
-        }
+function duration(seconds) {
+    const total = parseFloat(seconds);
+    if (!Number.isFinite(total) || total < 0) {
+        return DASH;
     }
-    if (buttons.length > 0) {
-        const fg = getComputedStyle(buttons[0]).color;
-        if (isNonTransparentColor(fg)) {
-            return fg;
-        }
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (days) {
+        return `${days} d ${hours} h`;
     }
-    return null;
+    return hours ? `${hours} h ${minutes} m` : `${minutes} m`;
 }
 
+/** Space in use out of the disk given to the server; the total alone when usage is unknown. */
+function diskTile(payload) {
+    const used = parseFloat(payload.disk_used);
+    const total = parseFloat(payload.disk_total);
+    if (!Number.isFinite(used) || used < 0 || !Number.isFinite(total) || total <= 0) {
+        return ["Disk", gib(payload.disk_total)];
+    }
+    return ["Disk used", gib(used), `of ${gib(total)}`];
+}
+
+/** The stat tiles at the top of the monitoring tab. */
 export class NodeHealthElement extends GraphElement {
-    connectedCallback() {
-        super.connectedCallback();
-        this.scheduleHealthCardThemeFromCbButton();
+    get metric() {
+        return "health";
     }
 
-    scheduleHealthCardThemeFromCbButton() {
-        const run = () => this.applyHealthCardThemeFromCbButton();
-        run();
-        requestAnimationFrame(run);
-        setTimeout(run, 0);
-        setTimeout(run, 50);
-        setTimeout(run, 250);
-    }
-
-    applyHealthCardThemeFromCbButton() {
-        const card = this.closest(".prom-health-card");
-        if (!card) {
+    async load() {
+        let payload;
+        try {
+            payload = (await this.fetchPayload()) || {};
+        } catch (error) {
+            this.showMessage(`Could not load the server overview (${error.message}).`, true);
             return;
         }
-        const src = pickCbBtnLinkSample();
-        const rgba = src ? colorToRgbaAtAlpha(src, 0.5) : null;
-        if (rgba) {
-            card.style.setProperty("--prom-health-bg", rgba);
+        // OpenShift Virtualization VMs report CPU utilization and have no exporter to measure.
+        const fromCluster = payload.source === "kubevirt";
+        const cores = parseInt(payload.core_count, 10);
+        const tiles = [
+            ["Cores", Number.isFinite(cores) && cores >= 0 ? String(cores) : DASH],
+            ["Memory", gib(payload.mem_total)],
+            diskTile(payload),
+            [fromCluster ? "CPU" : "Load", percent(payload.load)],
+            ["Uptime", duration(payload.uptime)],
+        ];
+        if (!fromCluster) {
+            tiles.push(["Exporter CPU", percent(payload.scraper_cpu_use)]);
         }
-    }
 
-    render_component(payload) {
-        let uptime = (payload["uptime"] / (60 * 60 * 24)).toFixed(2);
-        const coresRaw = parseInt(payload["core_count"], 10);
-        const cores =
-            Number.isFinite(coresRaw) && coresRaw >= 0 ? String(coresRaw) : "—";
-        let diskTotal = (parseInt(payload["disk_total"]) / 2 ** 30).toFixed(1);
-        let memTotal = (parseInt(payload["mem_total"]) / 2 ** 30).toFixed(1);
-        const loadRaw = parseFloat(payload["load"]);
-        const load = Number.isFinite(loadRaw)
-            ? (loadRaw * 100).toFixed(2)
-            : "—";
-        let scraperCpuUse = (
-            parseFloat(payload["scraper_cpu_use"]) * 100
-        ).toFixed(2);
-
-        const markup = html`
-            <div class="prom-health-metrics">
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Cores</span>
-                    <span class="prom-health-value">${cores}</span>
-                </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Disk total</span>
-                    <span class="prom-health-value">${diskTotal} GiB</span>
-                </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Memory</span>
-                    <span class="prom-health-value">${memTotal} GiB</span>
-                </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Load</span>
-                    <span class="prom-health-value">${load}</span>
-                </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Uptime</span>
-                    <span class="prom-health-value">${uptime} d</span>
-                </div>
-                <div class="prom-health-metric">
-                    <span class="prom-health-label">Scraper CPU</span>
-                    <span class="prom-health-value">${scraperCpuUse}</span>
-                </div>
-            </div>
-        `;
-        render(markup, this);
-    }
-
-    async load(server_id) {
-        const response = await fetch(
-            `/xui/io_cloudbolt_prometheus/api/servers/${server_id}/health/`
-        );
-        this.render_component(await response.json());
+        this.textContent = "";
+        const grid = document.createElement("div");
+        grid.className = "prom-stats";
+        tiles.forEach(([label, value, detail]) => {
+            const tile = document.createElement("div");
+            tile.className = "prom-stat";
+            const k = document.createElement("div");
+            k.className = "k";
+            k.textContent = label;
+            const v = document.createElement("div");
+            v.className = "v";
+            v.textContent = value;
+            if (detail) {
+                const of = document.createElement("span");
+                of.className = "prom-of";
+                of.textContent = detail;
+                v.appendChild(of);
+            }
+            tile.append(k, v);
+            grid.appendChild(tile);
+        });
+        this.appendChild(grid);
     }
 }

@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-ww524a3e"
+    },
+    "description": "Lists every connection info labeled domain_service_account as the choices for the domain_service_account parameter.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-g8pqv6uv",
+    "last_updated": null,
+    "name": "Generate Options for Domain Service Account",
+    "run_on_statuses": "",
+    "run_seq": 82
+}

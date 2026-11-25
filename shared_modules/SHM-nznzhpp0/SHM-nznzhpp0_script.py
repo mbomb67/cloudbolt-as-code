@@ -78,6 +78,13 @@ Secrets
   (PWD, ETXT) can be neither asked for nor saved, the same rule as Run Task.
   A step that requires one cannot be added. Inputs that hold CloudBolt
   objects (networks, files, ...) are left out the same way.
+
+Content packages
+  The Content Package Manager UI extension (extensions/XUI-iq65xgvr) moves
+  workflows between appliances with export_workflow and import_workflow.
+  A workflow keeps its SWF- id on every appliance, its steps' actions are
+  found by global ID or else by name, and its group, environment and
+  configuration manager filters stay on the appliance that set them.
 """
 import html
 import inspect
@@ -697,11 +704,26 @@ def _new_id(existing):
             return workflow_id
 
 
-def create_workflow(data, profile=None):
+def create_workflow(data, profile=None, workflow_id=None, archives_must_exist=True):
+    """
+    Store a new workflow. Without workflow_id it gets a new SWF- id. A content
+    package sync passes the id the workflow has on the appliance it came
+    from, so blueprints that pin it by id find it here too; that id must not
+    be stored yet (update the workflow instead).
+    """
     with _locked() as field:
         stored = [wf for _, wf in _rows(field)]
-        workflow = clean_workflow(data, others=stored)
-        workflow["id"] = _new_id({wf["id"] for wf in stored})
+        workflow = clean_workflow(data, others=stored, archives_must_exist=archives_must_exist)
+        existing = {wf["id"] for wf in stored}
+        if workflow_id is None:
+            workflow["id"] = _new_id(existing)
+        else:
+            workflow_id = str(workflow_id).strip()
+            if not WORKFLOW_ID_RE.match(workflow_id):
+                raise WorkflowError(f"'{workflow_id}' is not a workflow id (SWF- and at least 8 letters or digits).")
+            if workflow_id in existing:
+                raise WorkflowError(f"Workflow {workflow_id} already exists; update it instead.")
+            workflow["id"] = workflow_id
         workflow["created_at"] = workflow["updated_at"] = _now()
         workflow["created_by"] = workflow["updated_by"] = _who(profile)
         workflow = _ordered(workflow)
@@ -709,12 +731,12 @@ def create_workflow(data, profile=None):
     return workflow
 
 
-def update_workflow(workflow_id, data, profile=None):
+def update_workflow(workflow_id, data, profile=None, archives_must_exist=True):
     with _locked() as field:
         rows = _rows(field)
         cfv, current = _find(rows, workflow_id)
         others = [wf for _, wf in rows if wf["id"] != workflow_id]
-        workflow = clean_workflow(data, others=others)
+        workflow = clean_workflow(data, others=others, archives_must_exist=archives_must_exist)
         workflow["id"] = current["id"]
         workflow["created_at"] = current.get("created_at", "")
         workflow["created_by"] = current.get("created_by", "")
@@ -855,7 +877,7 @@ def _clean_input(step_label, field, config, earlier):
     return OrderedDict([("mode", "fixed"), ("value", value)])
 
 
-def _clean_step(index, step, resolved, earlier, taken):
+def _clean_step(index, step, resolved, earlier, taken, archives_must_exist=True):
     if not isinstance(step, dict):
         raise WorkflowError(f"Step {index} must be an object.")
     hook = resolve_action(step.get("action"))
@@ -885,7 +907,7 @@ def _clean_step(index, step, resolved, earlier, taken):
         config = _clean_input(label, field, configs.get(input_name), earlier)
         if config is not None:
             inputs[input_name] = config
-    archives = _clean_archives(label, hook, step.get("archives"))
+    archives = _clean_archives(label, hook, step.get("archives"), must_exist=archives_must_exist)
     return OrderedDict(
         [
             ("key", key),
@@ -930,8 +952,13 @@ def archive_choices():
         return []
 
 
-def _clean_archives(label, hook, archives):
-    """A script step's attached files, each a File Archives entry such as installers/agent.msi@latest extract."""
+def _clean_archives(label, hook, archives, must_exist=True):
+    """
+    A script step's attached files, each a File Archives entry such as
+    installers/agent.msi@latest extract. must_exist=False accepts a well-formed
+    entry whose file is not stored yet (a content package sync, whose files
+    are uploaded separately).
+    """
     if archives in (None, "", []):
         return []
     if isinstance(archives, str):
@@ -951,7 +978,7 @@ def _clean_archives(label, hook, archives):
         raise WorkflowError(f"{label}: files need the File Archives content, which is not installed on this appliance.")
     for entry in entries:
         try:
-            module.validate_entry(entry, must_exist=True)
+            module.validate_entry(entry, must_exist=must_exist)
         except module.ArchiveError as err:
             raise WorkflowError(f"{label}: {entry}: {err}")
     return entries
@@ -965,11 +992,12 @@ def _run_task_takes_archives():
         return False
 
 
-def clean_workflow(data, others=()):
+def clean_workflow(data, others=(), archives_must_exist=True):
     """
     Validate a workflow from the admin page or the API and return it in the
     stored form, without id or timestamps. others are the other stored
-    workflows, to keep the name unique.
+    workflows, to keep the name unique. archives_must_exist=False lets steps
+    name files File Archives does not hold yet.
     """
     if not isinstance(data, dict):
         raise WorkflowError("A workflow must be a JSON object.")
@@ -989,7 +1017,7 @@ def clean_workflow(data, others=()):
         raise WorkflowError(f"A workflow can have at most {MAX_STEPS} steps.")
     steps, earlier, taken = [], [], set()
     for index, step in enumerate(steps_in, start=1):
-        cleaned = _clean_step(index, step, resolved, earlier, taken)
+        cleaned = _clean_step(index, step, resolved, earlier, taken, archives_must_exist)
         steps.append(cleaned)
         earlier.append(cleaned["key"])
         taken.add(cleaned["key"])
@@ -1020,6 +1048,258 @@ def describe_workflow(workflow):
             )
         )
     return dict(workflow, steps=steps, filter_summary=describe_filters(workflow.get("filters")))
+
+
+# ---- content packages -----------------------------------------------------
+#
+# The Content Package Manager UI extension (extensions/XUI-iq65xgvr) carries
+# workflows between appliances as runbook_workflows/SWF-<id>/ folders in a
+# repository. export_workflow and import_workflow are its contract with this
+# module; keep their signatures and the carried form stable.
+
+# Filters whose values are objects of one appliance. Like CloudBolt's own
+# action export, a package leaves their values out and records only which
+# of them were set.
+INSTANCE_FILTERS = ("groups", "environments", "configuration_managers")
+# Filters a package carries, by name.
+CARRIED_FILTERS = ("os_families", "resource_technologies", "os_builds")
+
+
+class WorkflowConflict(WorkflowError):
+    """Another workflow here already has the incoming workflow's name. The
+    local one is never overwritten."""
+
+
+def export_workflow(workflow):
+    """
+    A stored workflow in the form a content package carries:
+
+    - each step's action by global ID and by name (action_name), so an
+      appliance where CloudBolt matched the action by name still finds it;
+    - OS family, resource technology and OS build filters by name, plus the
+      OS families and technologies that only OS builds or environments
+      imply, because a Remote Script step needs an OS family filter and an
+      action restricted to a technology needs a technology filter, and the
+      environments do not travel;
+    - instance_filters: which group, environment and configuration manager
+      filters were set, without their values.
+
+    Who created and changed it, and when, stay on this appliance.
+    """
+    resolved = resolve_filters(workflow.get("filters"))
+    technologies, families = _effective(resolved)
+
+    def names(key, objects):
+        return sorted({FILTERS[key].label_of(obj) for obj in objects}, key=str.lower)
+
+    filters = OrderedDict(
+        [
+            ("os_families", names("os_families", families)),
+            ("resource_technologies", names("resource_technologies", technologies)),
+            ("os_builds", names("os_builds", resolved["os_builds"])),
+        ]
+    )
+    steps = []
+    for index, step in enumerate(workflow.get("steps") or [], start=1):
+        hook = OrchestrationHook.objects.filter(global_id=step.get("action")).first()
+        if hook is None:
+            raise WorkflowError(
+                f"Step {index} ({step.get('name') or step.get('key')}): its action {step.get('action')} "
+                "no longer exists on this appliance."
+            )
+        carried = OrderedDict()
+        for key, value in step.items():
+            carried[key] = value
+            if key == "action":
+                carried["action_name"] = hook.name
+        steps.append(carried)
+    return OrderedDict(
+        [
+            ("id", workflow["id"]),
+            ("name", workflow.get("name") or ""),
+            ("description", workflow.get("description") or ""),
+            ("enabled", workflow.get("enabled", True) is not False),
+            ("filters", filters),
+            ("instance_filters", [key for key in INSTANCE_FILTERS if (workflow.get("filters") or {}).get(key)]),
+            ("steps", steps),
+        ]
+    )
+
+
+def step_action_ids(carried):
+    """Global IDs of the actions a carried (or stored) workflow's steps run, in order."""
+    ids = []
+    for step in carried.get("steps") or []:
+        action = str((step or {}).get("action") or "").strip()
+        if action and action not in ids:
+            ids.append(action)
+    return ids
+
+
+def _filter_keys(key, names):
+    """(stored keys, names not found) of a carried filter's values here, matched by name."""
+    ftype = FILTERS[key]
+    keys, missing = [], []
+    for name in names or []:
+        obj = ftype.model.objects.filter(name=str(name)).first()
+        if obj is None:
+            missing.append(str(name))
+        else:
+            keys.append(ftype.key_of(obj))
+    return list(dict.fromkeys(keys)), missing
+
+
+def _local_action(step, label):
+    """
+    The global ID of the action a carried step runs on this appliance: the
+    step's own global ID, else an action of the step's type with its name,
+    because CloudBolt's importer keeps an existing action's global ID when it
+    matches one by name.
+    """
+    global_id = str(step.get("action") or "").strip()
+    name = str(step.get("action_name") or "").strip()
+    hook = OrchestrationHook.objects.filter(global_id=global_id).first() if global_id else None
+    if hook is None and name:
+        model = STEP_TYPES.get(step.get("type"), {}).get("model") or OrchestrationHook
+        hook = model.objects.filter(name=name).first()
+    if hook is None:
+        raise WorkflowError(
+            f"{label}: there is no action '{name or global_id}' ({global_id}) on this appliance. "
+            "Sync it before the workflow."
+        )
+    return hook.global_id
+
+
+def _missing_files(steps):
+    """Files the steps attach that File Archives does not hold here, as the entries name them."""
+    module = _file_archives()
+    if module is None:
+        return []
+    missing = []
+    for step in steps:
+        for entry in step.get("archives") or []:
+            try:
+                module.validate_entry(entry, must_exist=True)
+            except module.ArchiveError:
+                missing.append(entry)
+    return list(dict.fromkeys(missing))
+
+
+def import_workflow(data, profile=None, refresh_if_exists=True, ignore_enabled=False):
+    """
+    Create or update the workflow data describes (export_workflow's form).
+    Returns (workflow, outcome, notes): outcome is "created", "updated" or
+    "unchanged"; notes are warnings worded for the job log.
+
+    - A workflow with data's id is updated, unless refresh_if_exists is off.
+      It keeps this appliance's group, environment and configuration manager
+      filters.
+    - Otherwise one is created with data's id, so blueprints that pin it by
+      id find it, without group, environment or configuration manager
+      filters.
+    - A different workflow with the same name is never overwritten:
+      WorkflowConflict, and nothing changes.
+    - Steps run the actions with the carried global IDs, else the actions of
+      the same type and name. Attached files need not be stored here yet;
+      the notes name the missing ones.
+    - enabled follows data, except that with ignore_enabled an update keeps
+      this appliance's setting and a new workflow starts disabled (what
+      CloudBolt's Ignore Action Enable does for actions), and a new workflow
+      also starts disabled when some of its filters could not be carried, so
+      an admin scopes it before it is offered.
+    """
+    if not isinstance(data, dict):
+        raise WorkflowError("The workflow file is not a JSON object.")
+    workflow_id = str(data.get("id") or "").strip()
+    if not WORKFLOW_ID_RE.match(workflow_id):
+        raise WorkflowError(f"'{workflow_id}' is not a workflow id.")
+    name = _text(data.get("name"), "Name", NAME_MAX, required=True)
+
+    stored = list_workflows()
+    existing = next((wf for wf in stored if wf["id"] == workflow_id), None)
+    clash = next(
+        (wf for wf in stored if wf["id"] != workflow_id and (wf.get("name") or "").lower() == name.lower()), None
+    )
+    if clash is not None:
+        raise WorkflowConflict(
+            f"Workflow '{clash['name']}' ({clash['id']}) already exists on this appliance, so {workflow_id} "
+            f"was not {'updated' if existing else 'created'} and '{clash['name']}' was left unchanged. "
+            "Rename or delete the local workflow, then sync again."
+        )
+    if existing is not None and not refresh_if_exists:
+        return existing, "unchanged", [
+            f"Workflow '{existing['name']}' ({workflow_id}) already exists here; it was left unchanged because "
+            "refreshing existing content was off."
+        ]
+
+    notes, held = [], []
+    carried = data.get("filters") if isinstance(data.get("filters"), dict) else {}
+    filters = OrderedDict()
+    for key in CARRIED_FILTERS:
+        filters[key], missing = _filter_keys(key, carried.get(key))
+        if missing:
+            held.append(f"{FILTERS[key].label} {', '.join(missing)}")
+    instance = [key for key in data.get("instance_filters") or [] if key in INSTANCE_FILTERS]
+    for key in INSTANCE_FILTERS:
+        filters[key] = list((existing or {}).get("filters", {}).get(key) or [])
+
+    steps = []
+    for index, step in enumerate(data.get("steps") or [], start=1):
+        if not isinstance(step, dict):
+            raise WorkflowError(f"Step {index} must be an object.")
+        local = OrderedDict(step)
+        local["action"] = _local_action(step, f"Step {index} ({step.get('name') or step.get('key')})")
+        local.pop("action_name", None)
+        steps.append(local)
+
+    enabled = data.get("enabled", True) is not False
+    if existing is not None:
+        if ignore_enabled:
+            enabled = existing.get("enabled", True) is not False
+    elif ignore_enabled:
+        enabled = False
+    elif enabled and (held or instance):
+        enabled = False
+        reasons = []
+        if instance:
+            reasons.append(
+                "its source restricted it by "
+                + ", ".join(FILTERS[key].label.lower() for key in instance)
+                + ", which do not travel"
+            )
+        if held:
+            reasons.append("this appliance lacks the " + "; the ".join(held))
+        notes.append(
+            f"Workflow '{name}' was created disabled because {' and '.join(reasons)}. "
+            "Set its filters on the Runbooks page, then enable it."
+        )
+    elif held:
+        notes.append(f"This appliance lacks the {'; the '.join(held)}, so those filter values were left out.")
+
+    payload = OrderedDict(
+        [
+            ("name", name),
+            ("description", data.get("description") or ""),
+            ("enabled", enabled),
+            ("filters", filters),
+            ("steps", steps),
+        ]
+    )
+    if existing is not None:
+        workflow = update_workflow(workflow_id, payload, profile=profile, archives_must_exist=False)
+        outcome = "updated"
+        if instance and not any(filters[key] for key in INSTANCE_FILTERS):
+            notes.append(
+                f"Its source restricts it by {', '.join(FILTERS[key].label.lower() for key in instance)}, "
+                "which do not travel; this appliance sets none."
+            )
+    else:
+        workflow = create_workflow(payload, profile=profile, workflow_id=workflow_id, archives_must_exist=False)
+        outcome = "created"
+    files = _missing_files(steps)
+    if files:
+        notes.append(f"Upload {', '.join(files)} to File Archives before running it; its steps attach them.")
+    return workflow, outcome, notes
 
 
 # ---- run time: prompts ----------------------------------------------------

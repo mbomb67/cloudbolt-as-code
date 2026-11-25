@@ -1,0 +1,33 @@
+{% load i18n %}
+{% comment %}
+  Shell of the Vulnerabilities tab. The page header is static here, as in the
+  Compliance tab; vuln_assets.html loads the panel fragment (panel_url) into the
+  body div and keeps it fresh while a job is running. The table is fetched
+  from findings_url as JSON and drawn by the script.
+{% endcomment %}
+<div id="vuln-root" data-vuln-root="1" data-panel-url="{{ panel_url }}" data-start-url="{{ shell.start_url }}" data-findings-url="{{ shell.findings_url }}" data-csrf="{{ csrf_token }}">
+  <div class="vuln-hero-top">
+    <div>
+      <div class="vuln-eyebrow"><i class="bi bi-bug" aria-hidden="true"></i> {% trans "Vulnerabilities" %}</div>
+      <div class="vuln-title">{{ server.hostname }}</div>
+      <div class="vuln-sub">{% if windows %}{% trans "Known vulnerabilities in this Windows server, from its build and installed updates." %}{% else %}{% trans "Known vulnerabilities in the software installed on this server." %}{% endif %}</div>
+    </div>
+    <div class="vuln-tools">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="reload">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Reload" %}
+      </button>
+      {% if shell.fleet_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ shell.fleet_url }}">{% trans "All servers" %}</a>
+      {% endif %}
+      {% if shell.settings_url %}
+      <a class="btn btn-sm btn-outline-secondary" href="{{ shell.settings_url }}">
+        <i class="bi bi-gear" aria-hidden="true"></i> {% trans "Settings" %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  <div data-vuln-body aria-live="polite" aria-busy="true">
+    <div class="vuln-loading-note"><i class="bi bi-arrow-repeat vuln-spin" aria-hidden="true"></i> {% trans "Loading from CloudBolt…" %}</div>
+  </div>
+</div>
+{% include "io_cloudbolt_vulnerabilities/templates/vuln_assets.html" %}

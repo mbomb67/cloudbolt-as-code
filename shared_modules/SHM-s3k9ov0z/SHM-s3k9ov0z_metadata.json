@@ -1,0 +1,12 @@
+{
+    "description": "Reserves and releases IP addresses from CloudBolt IP pools as IP Address Reservation resources, for the blueprint's build plugin and the IP Reservations webhook.",
+    "id": "SHM-s3k9ov0z",
+    "label": "IP Reservations",
+    "max_retries": 0,
+    "module_name": "ip_reservations",
+    "name": "ip_reservations",
+    "resource_technologies": [],
+    "script_filename": "SHM-s3k9ov0z_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

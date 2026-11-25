@@ -1,0 +1,12 @@
+{
+    "description": "Namespace landing zones on GKE clusters: quota, limits, network policies, the pinned CloudBolt environment, Kubernetes RBAC access for Google identities, GitHub Actions pipeline identities, and connection details.",
+    "id": "SHM-kephq8iq",
+    "label": "GKE Namespace",
+    "max_retries": 0,
+    "module_name": "gke_namespace",
+    "name": "gke_namespace",
+    "resource_technologies": [],
+    "script_filename": "SHM-kephq8iq_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

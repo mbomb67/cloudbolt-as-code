@@ -1,7 +1,7 @@
 # MCP Content Testing — Setup Runbook
 
 Stand up what the `cb-test-content` skill needs: an MCP client connected to
-your appliance as an admin, the seven testing tools from `mcp_tool_actions/`
+your appliance as an admin, the eight testing tools from `mcp_tool_actions/`
 imported and set to synchronous, and a per-machine config file. A fresh
 operator should be able to follow this end to end with no other source. The
 procedure the agent runs afterwards is
@@ -41,7 +41,7 @@ Any other Streamable HTTP MCP client with OAuth support connects the same way.
 Check: the `fetch_identity` tool returns your user with `superAdmin` or
 `cmpAdmin` true.
 
-## 3. Import the seven tools
+## 3. Import the eight tools
 
 | Tool | Folder |
 |---|---|
@@ -51,12 +51,13 @@ Check: the `fetch_identity` tool returns your user with `superAdmin` or
 | `run_recurring_job` | `mcp_tool_actions/MTA-thkvyt0v` |
 | `run_cit_tests` | `mcp_tool_actions/MTA-gnx1ckno` |
 | `cancel_jobs` | `mcp_tool_actions/MTA-js655cf3` |
+| `rerun_job` | `mcp_tool_actions/MTA-zth0tjjg` |
 | `manage_blueprint_permissions` | `mcp_tool_actions/MTA-ntmcnvv7` |
 
 Each tool's plugin imports with it. Pick one of:
 
 **A. One API call** (recommended). Get a token (valid for five minutes), then
-post the seven paths to your repository's `syncFromRepo` endpoint. Find the `SCR-` id with
+post the eight paths to your repository's `syncFromRepo` endpoint. Find the `SCR-` id with
 `GET https://<appliance>/api/v3/cmp/sourceCodeRepos/`.
 
 ```bash
@@ -70,7 +71,7 @@ curl -sS -X POST "https://<appliance>/api/v3/cmp/sourceCodeRepos/<SCR-id>/syncFr
         "MTA-543b19sa/MTA-543b19sa_metadata.json", "MTA-8j9c0tb0/MTA-8j9c0tb0_metadata.json",
         "MTA-9oihpumd/MTA-9oihpumd_metadata.json", "MTA-thkvyt0v/MTA-thkvyt0v_metadata.json",
         "MTA-gnx1ckno/MTA-gnx1ckno_metadata.json", "MTA-js655cf3/MTA-js655cf3_metadata.json",
-        "MTA-ntmcnvv7/MTA-ntmcnvv7_metadata.json"]}}'
+        "MTA-ntmcnvv7/MTA-ntmcnvv7_metadata.json", "MTA-zth0tjjg/MTA-zth0tjjg_metadata.json"]}}'
 ```
 
 The response is the sync job. Watch it under Jobs, or
@@ -79,11 +80,11 @@ It takes a few seconds.
 
 **B. The UI.** Actions > MCP Tool Actions > Create from Repository; choose the
 repository, the branch, and one metadata file. The dialog takes one item, so
-repeat it seven times.
+repeat it eight times.
 
 **C. No repository on the appliance.** Build one zip per tool with
 `python tools/package_zip.py mcp_tool_actions/MTA-543b19sa` (and the other
-six) and upload each at Actions > MCP Tool Actions > Import.
+seven) and upload each at Actions > MCP Tool Actions > Import.
 
 ## 4. Turn on Synchronous Action and reconnect
 
@@ -93,14 +94,14 @@ refuses to change it (CMPITK-1391). Until it is on, every call returns
 reading the result inline.
 
 1. Actions > MCP Tool Actions > the tool > Edit > tick **Synchronous Action**
-   > Save. Seven times. Later refreshes from the repository keep it.
+   > Save. Eight times. Later refreshes from the repository keep it.
 2. Optional: on the same form, restrict the write tools (sync, run recurring
-   job, run CIT tests, cancel jobs, manage permissions) to a role. The code already refuses
+   job, run CIT tests, cancel jobs, rerun job, manage permissions) to a role. The code already refuses
    non-admins; roles narrow it further and never sync.
 3. Reconnect the MCP client (`/mcp` > reconnect, or restart it). Tool lists
    are cached per session.
 
-Check: `fetch_mcp_tool_actions` lists the seven names, and
+Check: `fetch_mcp_tool_actions` lists the eight names, and
 `run_mcp_tool_action("fetch_job_log", {"log_job_id": "JOB-00000000"})` answers
 inline with a not-found failure. An answer of the form
 `{"success": true, "ids": [...]}` means the flag is still off on that tool.
@@ -142,7 +143,7 @@ Reconnect the client when a tool's inputs or description changed.
 |---|---|---|
 | The client lists no CloudBolt tools, or `fetch_identity` is unavailable | Not connected or not authenticated | §2 |
 | A tool call fails with a scope or permission error | Token without `write`, or the account is not an admin | §2, §1.3 |
-| `fetch_mcp_tool_actions` is missing some of the six names | Not imported, disabled, or the client's cached list | §3, then §4 step 3 |
+| `fetch_mcp_tool_actions` is missing some of the eight names | Not imported, disabled, or the client's cached list | §3, then §4 step 3 |
 | `{"success": true, "ids": [...]}` instead of a result | Synchronous Action off | §4 |
 | `Parameters not allowed [<name>]` | The input carries a stored default (a value saved on the edit form) | Clear it on the edit form, or re-sync the tool |
 | `sync_repo is required ...` or `Several repositories match ...` | Several repository entries, or two entries for the same URL | Set `source_code_repo` to the label (§5) |

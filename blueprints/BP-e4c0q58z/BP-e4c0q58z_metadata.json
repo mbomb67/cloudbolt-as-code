@@ -93,6 +93,27 @@
             },
             "enabled": true,
             "label": "Manage Pipeline Identity"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-ah76u4qg"
+            },
+            "enabled": true,
+            "label": "Deploy Test Workload"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-d2zufawc"
+            },
+            "enabled": true,
+            "label": "Apply StormForge Recommendation"
+        },
+        {
+            "dependencies": {
+                "resource_action": "resource_actions/RSA-v35tl317"
+            },
+            "enabled": true,
+            "label": "Set StormForge Optimization Settings"
         }
     ],
     "metadata_version": "2026.1.0",

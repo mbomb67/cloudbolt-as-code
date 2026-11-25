@@ -10,7 +10,7 @@ Generate `packages/PKG-<id>/PKG-<id>_metadata.json` and `README.md` for a named 
 
 ## Required reading
 
-Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md) §15 (manifest format, fields, member rules), §16 (standalone parameter folders) and §0 (ID generation, cross-reference shape). A manifest is not CloudBolt content: Source Control Repos ignores `packages/`, and only the extension reads it.
+Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md) §15 (manifest format, fields, member rules), §16 (standalone parameter folders), §17 (Runbooks workflow folders) and §0 (ID generation, cross-reference shape). A manifest is not CloudBolt content: Source Control Repos ignores `packages/`, and only the extension reads it.
 
 ## Inputs
 
@@ -52,7 +52,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
    ```
 
    - A form or form function never syncs on its own; replace it with the blueprint or action that uses it.
-   - Drop anything another member carries: a blueprint brings its plugins, sub-blueprints, management actions, its own parameters, generated-options actions, form, form functions and shared modules; an action brings its plugin, form and shared modules; a parameter brings its generated-options actions.
+   - Drop anything another member carries: a blueprint brings its plugins, sub-blueprints, management actions, its own parameters, generated-options actions, form, form functions and shared modules; an action brings its plugin, form and shared modules; a parameter brings its generated-options actions; a Runbooks workflow brings the plugins its steps run and the File Archives files they attach; a blueprint also brings the workflows its Run Workflow items pin.
    - A plugin or shared module is a member only when nothing in the package references it. When the user names one, add the parent that belongs to the subject, not every parent in `used_by`: a shared dependency such as `orchestration_actions/HPA-qb0w86mi` (used by seven blueprints) is already covered by any member that carries it.
 
 4. **Add what does not travel.** These must be listed or they stay behind:
@@ -60,6 +60,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
    - UI extensions for the subject (an XUI references nothing and nothing references it).
    - Standalone orchestration actions, recurring jobs, flow control actions, server actions and MCP tool actions for the subject: `catalog.json` entries with an empty `used_by` that match it. Ask the user when one is borderline.
    - Parameters the content reads that no blueprint defines, such as an environment or group parameter an orchestration action keys on (`grep -rn "get_value_for_custom_field\|get_cf_value\|CustomField.objects" plugins/OHK-<id> shared_modules/SHM-<id>` over the members' plugins and shared modules, and the prerequisites in their READMEs). List each as `parameters/CF-<id>` when `parameters/CF-<id>/` is in the repo. When it is not, the folder has to come from an appliance: tell the user to add the parameter to the package on the Content Packages page and Export, which writes it; do not write that folder by hand (§16).
+   - Runbooks workflows the content runs that no blueprint member pins: one the user names, or one users run with the Run Workflow server action. A workflow a blueprint member's Run Workflow build item (`plugins/OHK-69gk5ne9`) pins, as a default on its `workflow` input or a `plugin-bdi-<item>.workflow` question in the blueprint's form, travels with the blueprint; do not list it. List each other one as `runbook_workflows/SWF-<id>` when that folder is in the repo. When it is not, tell the user to add the workflow to the package on the Content Packages page and Export, which writes it (§17). The package then also needs the Runbooks content (`packages/PKG-v20qv308`) on the target appliance.
 
 5. **Generate the ID** per [AGENTS.md cardinal rule 6](../../../AGENTS.md#cardinal-rules), never hand-typed:
 
@@ -69,7 +70,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 
    Grep the repo for the suffix and regenerate on a collision.
 
-6. **Write the two files** with this script, so the manifest is byte-for-byte what the exporter writes (`json.dumps(indent=4, sort_keys=True)` plus a newline) and the README is the one it writes on a first export (`services._readme`). It refuses to overwrite an existing folder. Arguments: id, name, description, version, then the members in order (sync runs shared modules, then plugins, then the rest in this order, parameters after the actions, blueprints last).
+6. **Write the two files** with this script, so the manifest is byte-for-byte what the exporter writes (`json.dumps(indent=4, sort_keys=True)` plus a newline) and the README is the one it writes on a first export (`services._readme`). It refuses to overwrite an existing folder. Arguments: id, name, description, version, then the members in order (sync runs shared modules, then plugins, then the rest in this order, parameters and workflows after the actions, blueprints last).
 
    ```bash
    python - PKG-<id> "<name>" "<description>" 1.0.0 blueprints/BP-... extensions/XUI-... <<'EOF'
@@ -80,7 +81,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
             "orchestration_actions": "Orchestration action", "flowcontrol_actions": "Flow control action",
             "recurring_jobs": "Recurring job", "cit_tests": "CIT test", "webhooks": "Inbound webhook",
             "mcp_tool_actions": "MCP tool action", "shared_modules": "Shared module", "plugins": "Plugin",
-            "extensions": "UI extension", "parameters": "Parameter"}
+            "extensions": "UI extension", "parameters": "Parameter", "runbook_workflows": "Runbook workflow"}
    manifest = {
        "id": pkg_id, "name": name.strip(), "description": " ".join(description.split()), "version": version,
        "minimum_version_required": "", "last_updated": datetime.date.today().isoformat(),
@@ -120,14 +121,14 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 
 The extension must be installed first: sync `extensions/XUI-iq65xgvr` like any UI extension and restart the web server (`systemctl restart httpd`), because it adds URL paths. Push the package on a branch whose name has no slash, or merge it to `main`.
 
-- **UI:** Admin > Custom Extensions > Content Packages > **Import from repository**. Pick the repository and branch, then the package. It registers under its PKG id (updating the package if that id is already registered) and opens **Sync**, which starts one sync job per member, chained.
+- **UI:** Admin > Custom Extensions > Content Packages > **Import from repository**. Pick the repository and branch, then the package. It registers under its PKG id (updating the package if that id is already registered) and opens **Sync**, which starts one sync job per member, chained. Import once; afterwards **Sync** on the package reads its manifest from the branch, so members added to it in the repository sync without another import.
 - **JSON API** (CB Admin, session cookie plus the `X-CSRFToken` header; `<repo>` is the Source Code Repository's numeric id or `SCR-` global id):
 
   | Call | Body | Returns |
   |---|---|---|
   | `GET /xui/content_packages/api/repos/<repo>/packages/?branch=<branch>` | | The manifests under `packages/` on that branch |
   | `POST /xui/content_packages/api/repos/<repo>/packages/import/` | `{"branch": "<branch>", "ref": "packages/PKG-<id>"}` | The registered package, `created` true or false |
-  | `POST /xui/content_packages/api/packages/PKG-<id>/sync/` | `{"refresh_if_exists": true, "ignore_action_enabled": false}`; repository and branch default to where it was imported from | `{"jobs": [{"ref", "via", "job_id", "url"}, ...]}`, in run order; `via` names the parameter a generated-options action syncs for |
+  | `POST /xui/content_packages/api/packages/PKG-<id>/sync/` | `{"refresh_if_exists": true, "ignore_action_enabled": false}`; repository and branch default to where it was imported from | `{"jobs": [{"ref", "via", "job_id", "url"}, ...], "manifest": {"path", "added", "removed"}}`, jobs in run order; `via` names the parameter a generated-options action syncs for; `manifest` is null when the branch has no manifest for the package |
 
 Do not create the package with **Add** or `POST /xui/content_packages/api/packages/`: the appliance mints its own PKG id, so the repo manifest and the appliance definition would be two packages.
 
@@ -136,5 +137,5 @@ Do not create the package with **Add** or `POST /xui/content_packages/api/packag
 - IDs from the generator in step 5, never hand-typed.
 - Never `forms/` or `form_functions/` members, never duplicates, never a member another member carries.
 - Every member must exist in the repo (the validator checks it). The appliance does not need it yet; Sync creates it.
-- A `parameters/CF-*` folder comes from an appliance export, never from this skill.
+- A `parameters/CF-*` or `runbook_workflows/SWF-*` folder comes from an appliance export, never from this skill.
 - Write the files with the step 6 script, not by hand, so the format matches the exporter. An appliance export later replaces the manifest with its own definition and rebuilds only the README's member table (from the `| Type | Name | Folder |` header to its last row), so keep that header and keep hand-written text outside the table.

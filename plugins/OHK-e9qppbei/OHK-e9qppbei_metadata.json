@@ -1,5 +1,5 @@
 {
-    "description": "Discovers EKS clusters in every AWS environment and creates or updates a CloudBolt resource and Kubernetes container orchestrator for each.",
+    "description": "Returns every EKS cluster in every AWS environment, and the managed node groups of tracked clusters, for CloudBolt's discovery sync, registers each cluster as a Kubernetes container orchestrator, and retires tracked ones only when AWS confirms they are gone.",
     "id": "OHK-e9qppbei",
     "max_retries": 0,
     "name": "Discover EKS",

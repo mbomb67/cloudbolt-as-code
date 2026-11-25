@@ -1,0 +1,21 @@
+{
+    "action_input_default_values": [
+        {
+            "label": "Profile",
+            "name": "profile_a1",
+            "value": ""
+        }
+    ],
+    "continue_on_failure": true,
+    "dependencies": {
+        "hook": "plugins/OHK-kwx1fvho"
+    },
+    "description": "Installs DISA SCC on each new Windows server at Post-Provision and starts a first scan as a sub-job, without waiting for it and without ever failing or warning the provisioning job.",
+    "enabled": true,
+    "hook_point": "Post-Provision",
+    "id": "HPA-ruxgbj67",
+    "last_updated": null,
+    "name": "Install SCC and Run First Scan (Windows)",
+    "run_on_statuses": "",
+    "run_seq": 900
+}

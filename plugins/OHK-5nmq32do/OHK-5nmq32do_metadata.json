@@ -1,0 +1,61 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A workload StormForge reports in this namespace.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-j2n82cjd",
+            "label": "Workload",
+            "name": "stormforge_workload",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Apply the latest recommendation once, or let StormForge apply every new recommendation by turning automatic deployment on.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-8o8xq917",
+            "label": "What to do",
+            "name": "stormforge_apply_mode",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "stormforge_workload",
+        "stormforge_apply_mode"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-2fd3bhsz",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Applies StormForge's latest recommendation to a workload in an EKS, AKS or GKE namespace, or turns the workload's automatic deployment on or off.",
+    "id": "OHK-5nmq32do",
+    "max_retries": 0,
+    "name": "Apply StormForge Recommendation",
+    "resource_technologies": [],
+    "script_filename": "OHK-5nmq32do_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

@@ -182,3 +182,53 @@
   inset-inline-start: 0 !important;
   width: 100% !important;
 }
+
+/* =========================================================================
+   10. DARK MODE — follow the user's CloudBolt theme.
+   A dark Branded Theme puts data-bs-theme="dark" on <html> and publishes
+   its colors as tokens in /portal.css (--surface, --page-bg,
+   --bs-body-color, --fg-2, --neutral-*, --bs-primary). SurveyJS only reads
+   its own --sjs-* variables, which default to a light palette, so point
+   them at those tokens. .sv-popup covers the dropdown lists SurveyJS
+   mounts outside #surveyContainer. Light themes are left as they were.
+   ------------------------------------------------------------------------- */
+html[data-bs-theme="dark"] #surveyContainer,
+html[data-bs-theme="dark"] .sv-popup {
+  --sjs-general-backcolor: var(--surface);                  /* field cards */
+  --sjs-general-backcolor-dark: var(--neutral-100);         /* hover */
+  --sjs-general-backcolor-dim: var(--page-bg);              /* page, popup */
+  --sjs-general-backcolor-dim-light: color-mix(in srgb, var(--surface) 92%, #fff);  /* inputs, as CloudBolt's .form-control */
+  --sjs-general-backcolor-dim-dark: var(--neutral-250);
+  --sjs-general-forecolor: var(--bs-body-color);
+  --sjs-general-forecolor-light: var(--fg-2);
+  --sjs-general-dim-forecolor: var(--bs-body-color);
+  --sjs-general-dim-forecolor-light: var(--fg-2);
+  --sjs-border-default: var(--neutral-400);
+  --sjs-border-light: var(--neutral-250);
+  --sjs-border-inside: var(--neutral-250);
+  --sjs-special-red: var(--bs-danger);
+  --sjs-special-red-light: color-mix(in srgb, var(--bs-danger) 15%, transparent);
+  --sjs-shadow-small: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sjs-shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --sjs-shadow-large: 0 8px 16px rgba(0, 0, 0, 0.35);
+  --sjs-shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+
+  /* Brand accent (checkboxes, radios, tags, focus ring, selected list
+     items). Dark themes use a bright primary, so text on it is dark. The
+     legacy names are what CloudBolt's own form CSS reads. */
+  --sjs-primary-backcolor: var(--bs-primary);
+  --sjs-primary-backcolor-light: color-mix(in srgb, var(--bs-primary) 15%, transparent);
+  --sjs-primary-backcolor-dark: color-mix(in srgb, var(--bs-primary) 85%, #000);
+  --sjs-primary-forecolor: var(--page-bg);
+  --primary: var(--bs-primary);
+  --primary-light: color-mix(in srgb, var(--bs-primary) 76%, transparent);
+  --primary-foreground: var(--page-bg);
+
+  /* CloudBolt's form CSS paints the header band with --background-dim */
+  --background-dim: var(--neutral-100);
+}
+
+/* CloudBolt's form CSS hard-codes the header description to #333333 */
+html[data-bs-theme="dark"] #surveyContainer .sd-header__text .sd-description {
+  color: var(--fg-2) !important;
+}

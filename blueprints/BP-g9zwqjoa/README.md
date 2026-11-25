@@ -61,4 +61,4 @@ The same providers as BP-9ph7xcok: vCenter records the VMDK UUID and unit (needs
 - Tested 2026-10-16 on a lab appliance in Azure, with API orders and Tech-Specific Script Execution (Azure Run Command): Windows Server 2022 and Oracle Linux 8 each got two disks at LUN 0 and 1, matched by SCSI LUN, formatted (Windows) or mounted (Linux). Each order's map carried both a drive letter and a mount point on some rows, and each server used only its own. The order form's table and its OS-dependent columns were checked in the browser; a form submit was not exercised. vCenter and Nutanix were not run.
 - Re-running the job is safe: attached disks are not added again and configured volumes are reported as already configured.
 - Azure Run Command caps the Windows script's encoded command line, so keep the PowerShell in OHK-pdwb3xso under about 8,500 characters.
-- No teardown items; deleting the resource deletes the VM and its disks.
+- The blueprint has no resource type, so an order creates only the server, with no resource around it. Deleting the server deletes the VM and its disks.

@@ -12,6 +12,8 @@ from utilities.decorators import json_view
 from utilities.logger import ThreadLogger
 from utilities.middleware import login_not_required
 from utilities.models import ConnectionInfo
+from xui.io_cloudbolt_prometheus import kubevirt_metrics
+from xui.io_cloudbolt_prometheus.alert_rows import alert_row, ordered
 from xui.io_cloudbolt_prometheus.prom_api_wrapper import PromConnection
 
 logger = ThreadLogger(__name__)
@@ -61,9 +63,21 @@ def server_metrics_dispatch(request, server_id, metric_type):
     :param metric_type:
     :return:
     """
+    # Only servers the requester may view; the queries run with CloudBolt's own credentials.
+    server = Server.objects_for_profile(request.get_user_profile()).filter(id=server_id).first()
+    if server is None:
+        return {}
+
+    if kubevirt_metrics.is_kubevirt_server(server):
+        # OpenShift Virtualization VMs are read from their cluster's monitoring, not from MONITORING.
+        fetch_function = kubevirt_metrics.FETCHERS.get(metric_type)
+        if fetch_function:
+            return fetch_function(server)
+        logger.error(f"Invalid metric type requested: '{metric_type}'")
+        return {}
+
     fetch_function = globals().get(f'fetch_{metric_type}', None)
     if fetch_function:
-        server = Server.objects.get(id=server_id)
         if MONITORING_LABEL not in server.labels:
             return {}
 
@@ -137,6 +151,8 @@ def _fetch_cpu_load_windows(request, server, ci):
     Frontend multiplies by 100 (same as Linux path) for the chart scale.
     """
     cpu_load_data = {
+        # Naming the series tells the chart these are utilization, not load average.
+        "names": {"load1": "CPU 1 min avg", "load5": "CPU 5 min avg", "load15": "CPU 15 min avg"},
         "load1": [],
         "load5": [],
         "load15": []
@@ -743,6 +759,7 @@ def fetch_health(request, server, ci):
         'up': False,
         'uptime': -1,
         'disk_total': -1,
+        'disk_used': -1,
         'core_count': -1,
         'mem_total': -1,
         'load': 0,
@@ -761,6 +778,8 @@ def fetch_health(request, server, ci):
         disk_total = __query_disk_total(server, conn, is_win)
         if disk_total:
             health_data['disk_total'] = disk_total
+
+        health_data['disk_used'] = __query_disk_used(server, conn, is_win)
 
         mem_total = __query_mem_total(server, conn, is_win)
         if mem_total:
@@ -865,6 +884,27 @@ def __query_disk_total(server, conn, is_windows=False):
         return -1
 
 
+def __query_disk_used(server, conn, is_windows=False):
+    """Bytes in use across the same filesystems __query_disk_total adds up, or -1."""
+    if is_windows:
+        lb = _prom_server_labels(server)
+        vol = f'{lb}, volume=~"[A-Z]:"'
+        q = (
+            f'sum(windows_logical_disk_size_bytes{{{vol}}} - '
+            f'windows_logical_disk_free_bytes{{{vol}}})'
+        )
+    else:
+        fs = f'server="{server.id}", device=~"/dev/.*"'
+        q = (
+            f'sum(node_filesystem_size_bytes{{{fs}}} - '
+            f'node_filesystem_free_bytes{{{fs}}})'
+        )
+    response = conn.get("/query", params={"query": q}, timeout=REQUEST_TIMEOUT)
+    data = validate_prometheus_response(response)
+    results = data.get('result') if data else None
+    return results[0]['value'][1] if results else -1
+
+
 def __query_mem_total(server, conn, is_windows=False):
     if is_windows:
         lb = _prom_server_labels(server)
@@ -940,6 +980,25 @@ def __query_scraper_cpu_use(server, conn, is_windows=False):
         return results[0]['value'][1]
     else:
         return 0
+
+
+def fetch_alerts(request, server, ci):
+    """Firing and pending alerts whose server label is this server, from Prometheus's own rules."""
+    try:
+        with PromConnection(ci) as conn:
+            response = conn.get("/alerts", timeout=REQUEST_TIMEOUT)
+        data = validate_prometheus_response(response)
+    except RequestException as error:
+        logger.error(f"fetch_alerts: {error}")
+        data = None
+    if data is None:
+        return {"available": False, "alerts": []}
+    rows = [
+        alert_row(alert.get("labels", {}), alert.get("annotations"), alert.get("state"), alert.get("activeAt"))
+        for alert in data.get("alerts", [])
+        if alert.get("labels", {}).get("server") == str(server.id)
+    ]
+    return {"available": True, "alerts": ordered(rows)}
 
 
 def validate_prometheus_response(response):

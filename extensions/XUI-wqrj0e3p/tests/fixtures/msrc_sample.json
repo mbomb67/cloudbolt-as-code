@@ -1,0 +1,453 @@
+{
+ "note": "Cut from the real Security Update Guide API v2.0 (affectedProduct) and the CISA KEV feed on 2026-11-24; fields the match does not read are dropped.",
+ "rows": [
+  {
+   "id": "00000000-0000-0000-9430-00002ffdbf80",
+   "releaseDate": "2026-11-10T08:00:00-08:00",
+   "releaseNumber": "2026-Nov",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-118148",
+   "severity": "Critical",
+   "impact": "Elevation of Privilege",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131080",
+     "downloadName": "Security Update",
+     "supercedence": "5126646",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33822"
+    },
+    {
+     "articleName": "5131077",
+     "downloadName": "Security Hotpatch Update",
+     "supercedence": "5126646",
+     "rebootRequired": "No",
+     "fixedBuildNumber": "10.0.26100.33730"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-000036aa5e09",
+   "releaseDate": "2026-11-10T08:00:00-08:00",
+   "releaseNumber": "2026-Nov",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-100223",
+   "severity": "Important",
+   "impact": "Elevation of Privilege",
+   "baseScore": "7.8",
+   "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131080",
+     "downloadName": "Security Update",
+     "supercedence": "5126646",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33822"
+    },
+    {
+     "articleName": "5131077",
+     "downloadName": "Security Hotpatch Update",
+     "supercedence": "5126646",
+     "rebootRequired": "No",
+     "fixedBuildNumber": "10.0.26100.33730"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-0000a1a0fa0e",
+   "releaseDate": "2026-10-25T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-111497",
+   "baseScore": "8.1",
+   "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131080",
+     "downloadName": "Security Update",
+     "supercedence": "5126646",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33822"
+    },
+    {
+     "articleName": "5131077",
+     "downloadName": "Security Hotpatch Update",
+     "supercedence": "5126646",
+     "rebootRequired": "No",
+     "fixedBuildNumber": "10.0.26100.33730"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-000059e0661b",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-105016",
+   "severity": "Critical",
+   "impact": "Remote Code Execution",
+   "baseScore": "9.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5126646",
+     "downloadName": "Security Update",
+     "supercedence": "5122871",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33650"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-0000da8450c7",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-96951",
+   "severity": "Important",
+   "impact": "Security Feature Bypass",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/E:F/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5126646",
+     "downloadName": "Security Update",
+     "supercedence": "5122871",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33650"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-00006485ee6a",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "ADV260001",
+   "severity": "None",
+   "impact": "Not a Vulnerability",
+   "kbArticles": []
+  },
+  {
+   "id": "00000000-0000-0000-9430-00005922010f",
+   "releaseDate": "2026-09-08T07:00:00-07:00",
+   "releaseNumber": "2026-Sep",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-69822",
+   "severity": "Important",
+   "impact": "Elevation of Privilege",
+   "baseScore": "7.8",
+   "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5122871",
+     "downloadName": "Security Update",
+     "supercedence": "5120233",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33438"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-00004239b2c9",
+   "releaseDate": "2026-08-11T07:00:00-07:00",
+   "releaseNumber": "2026-Aug",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2026-68820",
+   "severity": "Important",
+   "impact": "Elevation of Privilege",
+   "baseScore": "7.0",
+   "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5120233",
+     "downloadName": "Security Update",
+     "supercedence": "5099536",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33296"
+    },
+    {
+     "articleName": "5120228",
+     "downloadName": "Security Hotpatch Update",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33222"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-0000d5578984",
+   "releaseDate": "2025-12-09T00:00:00-08:00",
+   "releaseNumber": "2025-Dec",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2025-54100",
+   "severity": "Important",
+   "impact": "Remote Code Execution",
+   "baseScore": "7.8",
+   "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5072033",
+     "downloadName": "Security Update",
+     "supercedence": "5068861",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.7462"
+    },
+    {
+     "articleName": "5074204",
+     "downloadName": "Security Update",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.7392"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-0000e5491b44",
+   "releaseDate": "2025-07-08T07:00:00-07:00",
+   "releaseNumber": "2025-Jul",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2025-49735",
+   "severity": "Critical",
+   "impact": "Remote Code Execution",
+   "baseScore": "8.1",
+   "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5060842",
+     "downloadName": "Security Update",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26200.4349"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9430-0000ba3b4e85",
+   "releaseDate": "2022-01-21T08:00:00Z",
+   "releaseNumber": "2022-Jan",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "CVE-2013-3900",
+   "severity": "Moderate",
+   "impact": "Security Feature Bypass",
+   "baseScore": "5.5",
+   "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N/E:U/RL:O/RC:C",
+   "kbArticles": []
+  },
+  {
+   "id": "00000000-0000-0000-9430-00007bf1950d",
+   "releaseDate": "2020-12-08T00:00:00-08:00",
+   "releaseNumber": "2020-Dec",
+   "product": "Windows Server 2025",
+   "productId": 12436,
+   "cveNumber": "ADV200013",
+   "severity": "Important",
+   "impact": "Spoofing",
+   "kbArticles": []
+  },
+  {
+   "id": "00000000-0000-0000-9530-000036aa5e09",
+   "releaseDate": "2026-11-10T08:00:00-08:00",
+   "releaseNumber": "2026-Nov",
+   "product": "Windows Server 2025 (Server Core installation)",
+   "productId": 12437,
+   "cveNumber": "CVE-2026-100223",
+   "severity": "Important",
+   "impact": "Elevation of Privilege",
+   "baseScore": "7.8",
+   "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131080",
+     "downloadName": "Security Update",
+     "supercedence": "5126646",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33822"
+    },
+    {
+     "articleName": "5131077",
+     "downloadName": "Security Hotpatch Update",
+     "supercedence": "5126646",
+     "rebootRequired": "No",
+     "fixedBuildNumber": "10.0.26100.33730"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9530-000059e0661b",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025 (Server Core installation)",
+   "productId": 12437,
+   "cveNumber": "CVE-2026-105016",
+   "severity": "Critical",
+   "impact": "Remote Code Execution",
+   "baseScore": "9.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5126646",
+     "downloadName": "Security Update",
+     "supercedence": "5122871",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33650"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-9530-0000da8450c7",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2025 (Server Core installation)",
+   "productId": 12437,
+   "cveNumber": "CVE-2026-96951",
+   "severity": "Important",
+   "impact": "Security Feature Bypass",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/E:F/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5126646",
+     "downloadName": "Security Update",
+     "supercedence": "5122871",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.26100.33650"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-932e-00002ffdbf80",
+   "releaseDate": "2026-11-10T08:00:00-08:00",
+   "releaseNumber": "2026-Nov",
+   "product": "Windows Server 2022",
+   "productId": 11923,
+   "cveNumber": "CVE-2026-118148",
+   "severity": "Critical",
+   "impact": "Elevation of Privilege",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131090",
+     "downloadName": "Security Update",
+     "supercedence": "5126655",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.20348.5870"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-932e-0000da8450c7",
+   "releaseDate": "2026-10-13T07:00:00-07:00",
+   "releaseNumber": "2026-Oct",
+   "product": "Windows Server 2022",
+   "productId": 11923,
+   "cveNumber": "CVE-2026-96951",
+   "severity": "Important",
+   "impact": "Security Feature Bypass",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H/E:F/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5126655",
+     "downloadName": "Security Update",
+     "supercedence": "5122882",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.20348.5761"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-932e-00004239b2c9",
+   "releaseDate": "2026-08-11T07:00:00-07:00",
+   "releaseNumber": "2026-Aug",
+   "product": "Windows Server 2022",
+   "productId": 11923,
+   "cveNumber": "CVE-2026-68820",
+   "severity": "Important",
+   "impact": "Elevation of Privilege",
+   "baseScore": "7.0",
+   "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5120242",
+     "downloadName": "Security Update",
+     "supercedence": "5082142",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.20348.5499"
+    },
+    {
+     "articleName": "5120229",
+     "downloadName": "Security Hotpatch Update",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.20348.5440"
+    }
+   ]
+  },
+  {
+   "id": "00000000-0000-0000-942e-00002ffdbf80",
+   "releaseDate": "2026-11-10T08:00:00-08:00",
+   "releaseNumber": "2026-Nov",
+   "product": "Windows Server 2022 (Server Core installation)",
+   "productId": 11924,
+   "cveNumber": "CVE-2026-118148",
+   "severity": "Critical",
+   "impact": "Elevation of Privilege",
+   "baseScore": "8.8",
+   "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C",
+   "kbArticles": [
+    {
+     "articleName": "5131090",
+     "downloadName": "Security Update",
+     "supercedence": "5126655",
+     "rebootRequired": "Yes",
+     "fixedBuildNumber": "10.0.20348.5870"
+    }
+   ]
+  }
+ ],
+ "exploited": [
+  "CVE-2026-96951",
+  "CVE-2026-68820",
+  "CVE-2020-0001"
+ ],
+ "kev": {
+  "catalogVersion": "2026.11.23",
+  "vulnerabilities": [
+   {
+    "cveID": "CVE-2026-133968",
+    "vendorProject": "Project MONAI",
+    "product": "MONAI Label",
+    "dateAdded": "2026-11-23"
+   },
+   {
+    "cveID": "CVE-2026-111497",
+    "vendorProject": "Google",
+    "product": "Brotli",
+    "dateAdded": "2026-10-27"
+   },
+   {
+    "cveID": "CVE-2026-33824",
+    "vendorProject": "Microsoft",
+    "product": "Internet Key Exchange (IKE) Service Extensions",
+    "dateAdded": "2026-08-18"
+   },
+   {
+    "cveID": "CVE-2025-59287",
+    "vendorProject": "Microsoft",
+    "product": "Windows",
+    "dateAdded": "2025-10-24"
+   }
+  ]
+ }
+}

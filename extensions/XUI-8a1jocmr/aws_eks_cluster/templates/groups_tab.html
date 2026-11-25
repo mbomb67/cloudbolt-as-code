@@ -1,0 +1,25 @@
+{% load i18n %}
+{% include "aws_eks_cluster/templates/_assets.html" %}
+
+<div id="eksx-groups" class="eksx">
+  <div class="eks-flat">
+    <div class="eks-hero-top">
+      <div>
+        <div class="eks-eyebrow"><i class="bi bi-people-fill" aria-hidden="true"></i> {% trans "Namespace ordering" %}</div>
+        <div class="eks-title">{{ cluster_name }}</div>
+        <div class="eks-sub">{% trans "CloudBolt groups that may order AWS EKS Namespace landing zones on this cluster" %}</div>
+      </div>
+      <div class="eks-tools">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-eks-refresh>
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {% trans "Refresh" %}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-eks-panel="groups" data-eks-src="{{ groups_url }}" data-eks-loading="CloudBolt"></div>
+</div>
+
+<script>
+  $(function () { window.eksxInit("eksx-groups"); });
+</script>

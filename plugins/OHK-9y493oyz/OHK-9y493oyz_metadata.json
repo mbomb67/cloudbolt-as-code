@@ -1,0 +1,11 @@
+{
+    "description": "Deletes the AWS security group behind the resource.",
+    "id": "OHK-9y493oyz",
+    "max_retries": 0,
+    "name": "AWS Security Group Teardown",
+    "resource_technologies": [],
+    "script_filename": "OHK-9y493oyz_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

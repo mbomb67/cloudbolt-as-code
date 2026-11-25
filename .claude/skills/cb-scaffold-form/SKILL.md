@@ -29,7 +29,7 @@ Ask the user:
 1. **Form purpose / name** (for the description).
 2. **Parent content unit** (required). A blueprint folder (e.g. `blueprints/BP-5pei9cno`) or an action folder (RSA / SVA / HPA / FCA / RJB / IWH). If the user can't name one, abort: "A form must be referenced from a parent to import; tell me which content unit owns this form, or use `cb-find-content-by-name` to locate it."
 3. **Rendering mode** (default `"vue"`; alt `"jquery"`). See §12 Enums.
-4. **Whether to include CSS** (default no). If yes, scaffolds `<FRM-id>_css.css` as an empty file.
+4. **Whether to use the repo's form layout CSS** (default yes). Every form gets a `<FRM-id>_css.css`: yes copies `forms/FRM-1dxfulvq/FRM-1dxfulvq_css.css` (compact layout, 30/70 label columns, brand title, dark mode); no copies only its section 10, the dark-mode block. CloudBolt styles SurveyJS in light colors only, so a form without that block shows white cards on a dark theme.
 5. **How many form_functions** to scaffold alongside (default 0). For each, ask the function's `name` (e.g. `"validateHostname"`).
 
 ## Procedure
@@ -44,7 +44,7 @@ Ask the user:
 
    (Pass one `FJS` arg per form function.) Grep for collisions; regenerate on duplicate.
 
-3. **Emit `forms/FRM-<id>/FRM-<id>_metadata.json`** matching §12 Required Fields, using §12 Worked Example as the structural template. The `json` field gets an empty SurveyJS schema `{"pages": []}` — do NOT pre-populate; SurveyJS schema is at https://surveyjs.io/Documentation/Library and counts as an external vendor surface per [external-apis.md](../../../docs/agents/external-apis.md). If CSS requested, add `"css_file": "FRM-<id>_css.css"` and create the empty CSS file alongside. If form_functions requested, populate `dependencies.form_functions[]` with their paths per §0 cross-reference convention.
+3. **Emit `forms/FRM-<id>/FRM-<id>_metadata.json`** matching §12 Required Fields, using §12 Worked Example as the structural template. The `json` field gets an empty SurveyJS schema `{"pages": []}` — do NOT pre-populate; SurveyJS schema is at https://surveyjs.io/Documentation/Library and counts as an external vendor surface per [external-apis.md](../../../docs/agents/external-apis.md). Add `"css_file": "FRM-<id>_css.css"` and create that CSS file alongside from step 4's source (keep CRLF line endings). If form_functions requested, populate `dependencies.form_functions[]` with their paths per §0 cross-reference convention.
 
 4. **Emit each `form_functions/FJS-<id>/FJS-<id>_metadata.json`** per §13 Required Fields. The `code` field gets a `function <name>(value) { /* TODO */ }` stub — do NOT pre-write business logic.
 
