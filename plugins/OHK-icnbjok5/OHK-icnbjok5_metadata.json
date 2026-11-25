@@ -1,0 +1,55 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "OpenSCAP profile id or its ending, for the Linux servers. Empty lets each scan pick the first of the Compliance settings page's default profiles that the server's own guide offers.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-64zbik1c",
+            "label": "Linux Profile",
+            "name": "linux_profile",
+            "placeholder": "cis_server_l1",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "SCC profile id, for the Windows servers. Empty uses the Windows default profile of the Compliance settings page.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-g8v7zbqg",
+            "label": "Windows Profile",
+            "name": "windows_profile",
+            "placeholder": "MAC-1_Classified",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "linux_profile",
+        "windows_profile"
+    ],
+    "description": "Starts a compliance scan of every server of a deployment with the Compliance UI extension, as sub-jobs the order does not wait for, when added as a blueprint's last build item.",
+    "id": "OHK-icnbjok5",
+    "max_retries": 0,
+    "name": "Scan All Servers for Compliance",
+    "resource_technologies": [],
+    "script_filename": "OHK-icnbjok5_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

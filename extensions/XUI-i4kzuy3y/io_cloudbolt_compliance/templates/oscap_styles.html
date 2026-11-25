@@ -1,0 +1,132 @@
+{% comment %}
+  Styles of the Compliance server tab and resource tab. oscap_assets.html and
+  oscap_resource_assets.html include this; each tab is a page of its own, so it
+  is injected once per page.
+  Colors derive from CloudBolt's theme tokens (--bs-body-color, --surface,
+  --bs-primary/-success/-warning/-danger), so Branded Themes and dark mode
+  (html[data-bs-theme="dark"]) re-theme the tab. Cards are a transparent
+  overlay of the text color, never a hardcoded fill. The header, tables and
+  the history list are unframed. Everything is scoped under the root element.
+{% endcomment %}
+<style>
+  #oscap-root {
+    --oscap-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
+    --oscap-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --oscap-card: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
+    --oscap-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --oscap-rule: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent);
+    --oscap-primary: var(--bs-primary, #0d6efd);
+    --oscap-ok: var(--bs-success, #198754);
+    --oscap-warn: var(--bs-warning, #ffc107);
+    --oscap-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    --oscap-bad: var(--bs-danger, #dc3545);
+  }
+  #oscap-root [hidden] { display: none !important; }
+  #oscap-root .oscap-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #oscap-root .oscap-card { background: var(--oscap-card); border: 1px solid var(--oscap-line); border-radius: 12px; margin-bottom: 16px; padding: 20px 24px; }
+  #oscap-root .oscap-hero-top { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+  #oscap-root .oscap-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--oscap-muted); }
+  #oscap-root .oscap-eyebrow .bi { font-size: 14px; color: var(--oscap-primary); }
+  #oscap-root .oscap-title { font-size: 27px; font-weight: 800; line-height: 1.2; margin: 4px 0 0; overflow-wrap: anywhere; }
+  #oscap-root .oscap-sub { font-size: 13.5px; font-weight: 600; color: var(--oscap-muted); margin-top: 6px; }
+  #oscap-root .oscap-meta { font-size: 13.5px; font-weight: 600; color: var(--oscap-muted); margin-bottom: 26px; }
+  #oscap-root .oscap-sub > span + span::before, #oscap-root .oscap-meta > span + span::before { content: "\00b7"; margin: 0 8px; }
+  #oscap-root .oscap-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #oscap-root .btn:focus-visible, #oscap-root a:focus-visible, #oscap-root summary:focus-visible { outline: 2px solid var(--oscap-primary); outline-offset: 2px; }
+  #oscap-root .oscap-link { color: var(--oscap-primary); font-weight: 700; text-decoration: none; }
+  #oscap-root .oscap-link:hover { text-decoration: underline; }
+  #oscap-root .oscap-h, #oscap-root .oscap-card-t { font-size: 16px; font-weight: 700; margin: 0; }
+  #oscap-root .oscap-section { margin-bottom: 26px; }
+  #oscap-root .oscap-card-h { display: flex; align-items: center; gap: 12px; padding: 0 0 12px; flex-wrap: wrap; }
+  #oscap-root .oscap-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #oscap-root .oscap-card-tools .form-control { width: 220px; max-width: 100%; }
+  #oscap-root .oscap-card-flush { padding: 0; overflow: hidden; }
+  #oscap-root .oscap-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--oscap-bad); overflow-wrap: anywhere; }
+  #oscap-root .oscap-alert .bi { flex: 0 0 auto; margin-top: 2px; }
+  #oscap-root .oscap-note { padding: 12px 0 0; font-size: 12px; color: var(--oscap-muted); font-weight: 600; }
+  #oscap-root .oscap-muted { color: var(--oscap-muted); font-weight: 600; }
+  #oscap-root .oscap-hint { font-size: 12px; color: var(--oscap-muted); font-weight: 600; margin-top: 6px; }
+  #oscap-root .oscap-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+  #oscap-root .oscap-spin { display: inline-block; animation: oscap-spin 1s linear infinite; }
+  #oscap-root.oscap-loading [data-oscap-act="refresh"] .bi { animation: oscap-spin 1s linear infinite; }
+  @keyframes oscap-spin { to { transform: rotate(360deg); } }
+
+  #oscap-root .oscap-loading-note { padding: 20px 0; font-size: 12.5px; font-weight: 600; color: var(--oscap-muted); display: flex; align-items: center; gap: 8px; }
+  #oscap-root .oscap-banner { --oscap-tint: var(--oscap-warn); display: flex; gap: 12px; padding: 16px 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--oscap-tint) 35%, transparent); background: color-mix(in srgb, var(--oscap-tint) 12%, transparent); }
+  #oscap-root .oscap-banner > .bi { font-size: 18px; color: var(--oscap-warn-text); flex: 0 0 auto; margin-top: 2px; }
+  #oscap-root .oscap-banner-info { --oscap-tint: var(--oscap-primary); }
+  #oscap-root .oscap-banner-info > .bi { color: var(--oscap-primary); }
+  #oscap-root .oscap-banner-bad { --oscap-tint: var(--oscap-bad); }
+  #oscap-root .oscap-banner-bad > .bi { color: var(--oscap-bad); }
+  #oscap-root .oscap-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
+  #oscap-root .oscap-banner-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #oscap-root .oscap-banner-t { font-size: 13.5px; font-weight: 700; }
+  #oscap-root .oscap-banner-s { font-size: 12.5px; color: var(--oscap-muted); font-weight: 600; }
+  #oscap-root .oscap-empty { color: var(--oscap-muted); font-weight: 600; font-size: 12.5px; padding: 0 0 14px; max-width: 640px; }
+
+  #oscap-root .oscap-form .oscap-form-row { display: flex; gap: 12px 20px; flex-wrap: wrap; align-items: flex-end; }
+  #oscap-root .oscap-form label.oscap-label { display: block; font-size: 12px; font-weight: 700; color: var(--oscap-soft); margin-bottom: 4px; }
+  #oscap-root .oscap-form .form-select { width: 420px; max-width: 100%; }
+  #oscap-root .oscap-form .oscap-form-actions { display: flex; gap: 8px; }
+  #oscap-root .oscap-form .form-check { margin: 0; }
+
+  #oscap-root .oscap-cards { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+  #oscap-root .oscap-cards .oscap-card { margin-bottom: 0; flex: 0 1 auto; min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 12px 18px; }
+  #oscap-root .oscap-card-k { font-size: 12px; font-weight: 700; color: var(--oscap-soft); margin-bottom: 6px; white-space: nowrap; }
+  #oscap-root .oscap-big { font-size: 24px; font-weight: 800; line-height: 1.15; white-space: nowrap; }
+  #oscap-root .oscap-big.oscap-bad { color: var(--oscap-bad); }
+  #oscap-root .oscap-kv { display: grid; grid-template-columns: auto auto; gap: 5px 14px; align-items: baseline; font-size: 12.5px; font-weight: 700; }
+  #oscap-root .oscap-kv .l { font-size: 11.5px; font-weight: 600; color: var(--oscap-muted); white-space: nowrap; }
+  #oscap-root .oscap-kv .v { overflow-wrap: anywhere; }
+  #oscap-root .oscap-sev-figs { display: flex; gap: 18px; }
+  #oscap-root .oscap-sev-fig .n { font-size: 20px; font-weight: 800; line-height: 1.15; }
+  #oscap-root .oscap-sev-fig .l { font-size: 11.5px; font-weight: 600; color: var(--oscap-muted); }
+  #oscap-root .oscap-donut { width: 64px; height: 64px; flex: 0 0 auto; }
+  #oscap-root .oscap-donut circle { fill: none; stroke-width: 8; }
+  #oscap-root .oscap-donut .oscap-donut-track { stroke: color-mix(in srgb, var(--bs-body-color, #212529) 12%, transparent); }
+  #oscap-root .oscap-donut .oscap-donut-arc { stroke: var(--oscap-ok); stroke-linecap: round; }
+  #oscap-root .oscap-donut text { font-size: 15px; font-weight: 700; fill: var(--bs-body-color, #212529); }
+
+  #oscap-root .oscap-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--oscap-soft); }
+  #oscap-root .oscap-pill-ok { background: color-mix(in srgb, var(--oscap-ok) 14%, transparent); color: var(--oscap-ok); }
+  #oscap-root .oscap-pill-info { background: color-mix(in srgb, var(--oscap-primary) 13%, transparent); color: var(--oscap-primary); }
+  #oscap-root .oscap-pill-warn { background: color-mix(in srgb, var(--oscap-warn) 22%, transparent); color: var(--oscap-warn-text); }
+  #oscap-root .oscap-pill-bad { background: color-mix(in srgb, var(--oscap-bad) 12%, transparent); color: var(--oscap-bad); }
+
+  #oscap-root .oscap-fold { margin-bottom: 26px; }
+  #oscap-root .oscap-fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; width: fit-content; }
+  #oscap-root .oscap-fold > summary::-webkit-details-marker { display: none; }
+  #oscap-root .oscap-fold > summary .bi { color: var(--oscap-muted); font-size: 12px; transition: transform .15s; }
+  #oscap-root .oscap-fold[open] > summary .bi { transform: rotate(90deg); }
+  #oscap-root .oscap-card-tools .form-select { width: auto; }
+
+  #oscap-root .oscap-table-wrap { overflow-x: auto; }
+  #oscap-root .oscap-table { width: 100%; font-size: 13.5px; border-collapse: collapse; margin: 0; }
+  #oscap-root .oscap-table th { font-size: 12.5px; font-weight: 700; color: var(--bs-body-color, #212529); padding: 16px 10px; border-bottom: 1px solid var(--oscap-rule); text-align: left; white-space: nowrap; vertical-align: bottom; }
+  #oscap-root .oscap-table td { padding: 16px 10px; border-bottom: 1px solid var(--oscap-rule); vertical-align: middle; font-weight: 600; }
+  #oscap-root .oscap-table tbody tr:hover td { box-shadow: inset 0 0 0 999px var(--oscap-card); }
+  #oscap-root .oscap-table .oscap-links { white-space: nowrap; }
+  #oscap-root .oscap-table .oscap-links a + a::before { content: "\00b7"; margin: 0 6px; color: var(--oscap-muted); font-weight: 600; display: inline-block; text-decoration: none; }
+  #oscap-root .oscap-table .oscap-nomatch td { text-align: center; color: var(--oscap-muted); font-size: 12.5px; }
+  #oscap-root .oscap-pager { padding-top: 16px; }
+
+  /* Resource tab: the rest of the pieces it adds to the server tab's. */
+  #oscap-root.oscap-res { font-variant-numeric: tabular-nums; }
+  #oscap-root.oscap-res .oscap-sub { max-width: 70ch; }
+  #oscap-root .oscap-form .oscap-checks { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  #oscap-root .oscap-form .oscap-checks label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
+  #oscap-root .oscap-form .oscap-checks label.oscap-off { color: var(--oscap-muted); }
+  #oscap-root .oscap-progress { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 12%, transparent); margin-top: 8px; max-width: 320px; overflow: hidden; }
+  #oscap-root .oscap-progress i { display: block; height: 100%; background: var(--oscap-primary); border-radius: 999px; }
+  #oscap-root .oscap-table .num { text-align: right; }
+  #oscap-root .oscap-host { display: block; font-weight: 700; overflow-wrap: anywhere; }
+  #oscap-root .oscap-os { display: block; font-size: 12px; color: var(--oscap-muted); }
+  #oscap-root .oscap-scorecell { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  #oscap-root .oscap-bar { width: 72px; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 12%, transparent); overflow: hidden; flex: 0 0 auto; }
+  #oscap-root .oscap-bar i { display: block; height: 100%; background: var(--oscap-ok); border-radius: 999px; }
+  #oscap-root .oscap-dotcol { text-align: center; }
+  #oscap-root .oscap-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--oscap-line); }
+  #oscap-root .oscap-dot.on { background: var(--oscap-soft); border-color: transparent; }
+  #oscap-root .oscap-legend { display: inline-flex; gap: 14px; align-items: center; font-size: 12px; font-weight: 600; color: var(--oscap-muted); margin-left: auto; }
+  #oscap-root .oscap-legend span { display: inline-flex; gap: 6px; align-items: center; }
+</style>

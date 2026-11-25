@@ -1,0 +1,12 @@
+{
+    "description": "Issues, fetches and deletes TLS certificates in Azure Key Vault with an Azure resource handler's identity.",
+    "id": "SHM-ny8h0nx0",
+    "label": "Azure Key Vault Certificates",
+    "max_retries": 0,
+    "module_name": "azure_key_vault_certificates",
+    "name": "azure_key_vault_certificates",
+    "resource_technologies": [],
+    "script_filename": "SHM-ny8h0nx0_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -8,7 +8,7 @@
     "dependencies": {
         "hook": "plugins/OHK-4y8f1vff"
     },
-    "dialog_message": "Upgrade this deployment's HCP Terraform workspace to the module version currently pinned in HCP Terraform. The change is planned in the workspace and the job PAUSES for plan review before anything is applied: 'Continue Job' confirms and applies the upgrade; canceling the job discards the run and leaves the deployment unchanged. Safe to run on a deployment that is already current: it reports that and creates no run. Selecting several deployments in the resource list upgrades each one in turn, pausing once per deployment that needs it.",
+    "dialog_message": "Upgrade this deployment's HCP Terraform workspace to the module version currently pinned in HCP Terraform. The change is planned in the workspace and applied without a pause when the workspace auto-applies, as no-code workspaces do; on a workspace without Auto Apply the job PAUSES for plan review: 'Continue Job' confirms and applies the upgrade; canceling the job discards the run and leaves the deployment unchanged. Safe to run on a deployment that is already current: it reports that and creates no run. Selecting several deployments in the resource list upgrades each one in turn.",
     "dialog_title_template": "Run {{action.label}} on {{resource.name}}",
     "enabled": true,
     "extra_classes": "fas fa-arrow-circle-up",

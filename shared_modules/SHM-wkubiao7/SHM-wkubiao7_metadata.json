@@ -1,0 +1,12 @@
+{
+    "description": "Opens SSH and raw TCP connections to an OpenShift Virtualization VM through the cluster API's KubeVirt port-forward, so CloudBolt needs no route to the guest.",
+    "id": "SHM-wkubiao7",
+    "label": "KubeVirt API Tunnel",
+    "max_retries": 0,
+    "module_name": "kubevirt_api_tunnel",
+    "name": "kubevirt_api_tunnel",
+    "resource_technologies": [],
+    "script_filename": "SHM-wkubiao7_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -1,0 +1,36 @@
+{% load i18n %}
+{% if rows %}
+<div class="table-responsive">
+  <table class="cmx-table">
+    <thead>
+      <tr>
+        <th>{% trans "Started" %}</th>
+        <th>{% trans "By" %}</th>
+        <th>{% trans "Scope and changes" %}</th>
+        <th>{% trans "Result" %}</th>
+        <th>{% trans "Job" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="text-nowrap">{{ row.started|date:"Y-m-d H:i" }}</td>
+        <td>{{ row.owner|default:"&mdash;" }}</td>
+        <td>{{ row.scope }}</td>
+        <td>
+          <span class="cmx-pill{% if row.pill.0 %} cmx-pill-{{ row.pill.0 }}{% endif %}">{{ row.pill.1 }}</span>
+          {% if not row.active and row.servers_updated is not None %}
+          <div class="cmx-hint">
+            {% blocktrans with servers=row.servers_updated images=row.images_updated %}{{ servers }} server(s), {{ images }} image(s) updated{% endblocktrans %}{% if row.failed %} &middot; <span class="cmx-bad-text">{% blocktrans with failed=row.failed %}{{ failed }} failed{% endblocktrans %}</span>{% endif %}{% if row.missing %} &middot; {% blocktrans with missing=row.missing %}{{ missing }} no longer existed{% endblocktrans %}{% endif %}
+          </div>
+          {% endif %}
+        </td>
+        <td><a href="{{ row.job.get_absolute_url }}">{{ row.job.id }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="cmx-empty">{% trans "No updates yet." %}</div>
+{% endif %}

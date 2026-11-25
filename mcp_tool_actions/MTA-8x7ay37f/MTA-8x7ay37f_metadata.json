@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "true lists the web workers that would be restarted without restarting them; false (default) restarts them.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-5wapmc7a",
+            "label": "Dry run (true lists workers without restarting)",
+            "name": "dev_web_restart_dry_run",
+            "placeholder": "false",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-26ozyhui"
+    },
+    "enabled": true,
+    "id": "MTA-8x7ay37f",
+    "is_synchronous": false,
+    "label": "Restart Web Workers (Dev Appliances Only)",
+    "last_updated": null,
+    "mcp_destructive_hint": true,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Recycle CloudBolt's web worker processes so a UI extension (XUI) you just synced loads its new routes and views, instead of asking a human to run systemctl restart httpd. For DEVELOPMENT appliances only: it works on any appliance it is synced to, and requires a CloudBolt admin caller. Set dev_web_restart_dry_run to true to list the workers without restarting them. It recycles the 10 workers one at a time and waits for each to finish importing before the next, so the portal keeps answering. It takes 2.5 to 3 minutes on a typical appliance (about 15 s per worker). While it runs, some requests may still reach workers with old code (a new extension route can 404 until the roll finishes), and a request in flight on the worker being recycled is cut off with a 502; retry it. Returns a job id: poll it with short calls (fetch_job_log, or fetch_job without a long wait_seconds), because a long-held request is likely to land on a worker being recycled; the output has perWorker, totalSeconds, oldWorkerPids, newWorkerPids, signalledCount and the HTTP probe result. Admin only. Never use on a production appliance.",
+    "mcp_tool_name": "dev_restart_web_workers",
+    "mcp_tool_title": "Restart Web Workers (Dev Appliances Only)"
+}

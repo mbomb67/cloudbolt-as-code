@@ -1,0 +1,84 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the server build item that built the web VM.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-l9qh0x86",
+            "label": "Web Tier",
+            "name": "web_tier",
+            "placeholder": "Web",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the server build item that built the database VM.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-mbnlv03o",
+            "label": "Database Tier",
+            "name": "db_tier",
+            "placeholder": "DB",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Port the web tier must not reach. Default: 3306.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-c6ur3ycl",
+            "label": "Database Port",
+            "name": "db_port",
+            "placeholder": "3306",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "web_tier",
+        "db_tier",
+        "db_port"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-eanos2e0",
+            "shared_modules/SHM-wkubiao7",
+            "shared_modules/SHM-5t7bom9y"
+        ]
+    },
+    "description": "Adds and reads back an entry through a deployed 3-tier web app, confirms the web tier cannot reach the database port, and opens the app's public URL.",
+    "id": "OHK-jru4jomd",
+    "max_retries": 0,
+    "name": "Verify 3-Tier Web App",
+    "resource_technologies": [
+        "OpenShift Virtualization"
+    ],
+    "script_filename": "OHK-jru4jomd_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

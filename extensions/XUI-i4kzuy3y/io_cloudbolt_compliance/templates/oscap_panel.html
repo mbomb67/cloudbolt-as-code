@@ -1,0 +1,269 @@
+{% load i18n %}
+{% comment %}
+  Panel fragment for the Compliance tab, loaded and re-loaded by oscap_assets.html.
+  The top element's data-active is "1" while a job runs, which keeps the
+  script polling and the header's Run scan and Check server buttons off.
+  Everything is autoescaped; nothing is marked safe.
+{% endcomment %}
+<div class="oscap-panel" data-active="{% if oscap.active %}1{% else %}0{% endif %}" data-denied="{% if oscap.denied %}1{% else %}0{% endif %}">
+{% if oscap.denied %}
+  <div class="oscap-banner oscap-banner-bad" role="alert">
+    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{% trans "You do not have access" %}</div>
+      <div class="oscap-banner-s">{% trans "You do not have permission to see compliance results for this server. Ask a CloudBolt administrator for access." %}</div>
+    </div>
+  </div>
+{% else %}
+
+  <div class="oscap-meta">
+    {% if oscap.state.oscap_version %}<span>{% if oscap.state.engine == "scc" %}SCC{% else %}OpenSCAP{% endif %} {{ oscap.state.oscap_version }}</span>{% endif %}
+    {% if oscap.state.os_name %}<span>{{ oscap.state.os_name }}</span>{% endif %}
+    <span>{% if oscap.state.checked %}{% blocktrans with when=oscap.state.checked %}Last checked {{ when }}{% endblocktrans %}{% else %}{% trans "Not checked yet" %}{% endif %}</span>
+  </div>
+
+  {% if error %}
+  <div class="oscap-card oscap-card-flush">
+    <div class="oscap-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div>{{ error }}</div></div>
+  </div>
+  {% else %}
+
+  <div class="oscap-card oscap-card-flush" data-oscap-alert hidden></div>
+
+  {% if oscap.can_scan %}
+  <form class="oscap-card oscap-form" id="oscap-form" data-oscap-form hidden>
+    <div class="oscap-form-row">
+      <div>
+        <label class="oscap-label" for="oscap-profile">{% trans "Profile" %}</label>
+        <select class="form-select form-select-sm" id="oscap-profile" data-oscap-profile>
+          <option value="" data-ds="" data-profile="">{% trans "Default profile" %}</option>
+          {% for ds in oscap.state.datastreams %}{% if ds.recommended %}
+          <optgroup label="{{ ds.file }} ({% trans 'recommended' %})">
+            {% for p in ds.profiles %}<option value="{{ ds.file }}|{{ p.id }}" data-ds="{{ ds.file }}" data-profile="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}{% endfor %}
+          {% for ds in oscap.state.datastreams %}{% if not ds.recommended %}
+          <optgroup label="{{ ds.file }}">
+            {% for p in ds.profiles %}<option value="{{ ds.file }}|{{ p.id }}" data-ds="{{ ds.file }}" data-profile="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}{% endfor %}
+        </select>
+      </div>
+      {% if oscap.allow_install %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="oscap-install" data-oscap-install>
+        <label class="form-check-label" for="oscap-install">{% if oscap.windows %}{% trans "Install SCC if it is missing (downloads about 108 MB from DISA)" %}{% else %}{% trans "Install OpenSCAP if it is missing" %}{% endif %}</label>
+      </div>
+      {% endif %}
+      <div class="oscap-form-actions">
+        <button type="button" class="btn btn-sm btn-primary" data-oscap-act="run"><i class="bi bi-play-fill" aria-hidden="true"></i> {% trans "Run" %}</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="cancel">{% trans "Cancel" %}</button>
+      </div>
+    </div>
+    {% if not oscap.state.datastreams %}
+    <div class="oscap-hint">{% if oscap.windows %}{% trans "Use Check server to list the profiles of the benchmark for this server." %}{% else %}{% trans "Use Check server to list the profiles available on this server." %}{% endif %}</div>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {% if oscap.active %}
+  <div class="oscap-banner oscap-banner-info" role="status" aria-live="polite">
+    <i class="bi bi-arrow-repeat oscap-spin" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{% if oscap.active.kind == "check" %}{% trans "Checking server" %}{% else %}{% trans "Scan running" %}{% endif %}</div>
+      <div class="oscap-banner-s">{% if oscap.active.started %}{% blocktrans with when=oscap.active.started %}Started {{ when }}{% endblocktrans %}{% endif %}{% if oscap.active.progress %}{% if oscap.active.started %} &middot; {% endif %}{{ oscap.active.progress }}{% endif %}</div>
+    </div>
+    {% if oscap.active.job_url %}<a class="btn btn-sm btn-outline-secondary oscap-banner-btn" href="{{ oscap.active.job_url }}">{% trans "View job" %}</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if oscap.state.problem %}
+  <div class="oscap-banner" role="status">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{{ oscap.state.problem }}</div>
+      {% if not oscap.allow_install %}<div class="oscap-banner-s">{% trans "An administrator can allow installs in the Compliance settings, or you can install the packages named above on the server." %}</div>{% endif %}
+    </div>
+    {% if oscap.can_scan and oscap.allow_install %}<button type="button" class="btn btn-sm btn-primary oscap-banner-btn" data-oscap-act="install-check"{% if oscap.active %} disabled{% endif %}><i class="bi bi-download" aria-hidden="true"></i> {% trans "Install and check" %}</button>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if oscap.last_failed %}
+  <div class="oscap-banner oscap-banner-bad" role="alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div class="oscap-banner-body">
+      <div class="oscap-banner-t">{% trans "The latest scan failed" %}</div>
+      <div class="oscap-banner-s">{% if oscap.last_failed.error %}{{ oscap.last_failed.error }}{% endif %}{% if oscap.last_failed.started %}{% if oscap.last_failed.error %} &middot; {% endif %}{% blocktrans with when=oscap.last_failed.started %}Started {{ when }}{% endblocktrans %}{% endif %}</div>
+    </div>
+    {% if oscap.last_failed.job_url %}<a class="btn btn-sm btn-outline-secondary oscap-banner-btn" href="{{ oscap.last_failed.job_url }}">{% trans "View job" %}</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if not oscap.latest and not oscap.last_failed and not oscap.history and not oscap.state.checked and not oscap.state.problem and not oscap.active %}
+  <div class="oscap-section">
+    <div class="oscap-card-h"><span class="oscap-card-t">{% trans "No scans yet" %}</span></div>
+    <div class="oscap-empty">{% blocktrans with label=oscap.repo.label scanner=oscap.scanner %}A scan checks this server against a security profile with {{ scanner }} and reports which rules pass and fail. The full report is kept in {{ label }}.{% endblocktrans %}</div>
+  </div>
+  {% elif not oscap.latest and not oscap.last_failed and not oscap.history and not oscap.active and not oscap.state.problem %}
+  <div class="oscap-empty">{% trans "No scans yet. Run a scan to see results here." %}</div>
+  {% endif %}
+
+  {% if oscap.latest %}
+  {% with latest=oscap.latest %}
+  <section class="oscap-section" aria-labelledby="oscap-latest-h">
+    <div class="oscap-card-h">
+      <span class="oscap-card-t" id="oscap-latest-h">{% if oscap.last_failed %}{% trans "Last completed result" %}{% else %}{% trans "Latest result" %}{% endif %}</span>
+      <div class="oscap-card-tools">
+        {% if latest.pruned %}
+          <span class="oscap-pill"><i class="bi bi-archive" aria-hidden="true"></i> {% trans "Report removed" %}</span>
+        {% elif latest.stored %}
+          {% if latest.report_url %}<a class="btn btn-sm btn-primary" href="{{ latest.report_url }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {% trans "Open report" %}</a>{% endif %}
+          {% if latest.results_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ latest.results_url }}"><i class="bi bi-download" aria-hidden="true"></i> {% trans "Results XML" %}</a>{% endif %}
+          {% if latest.arf_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ latest.arf_url }}"><i class="bi bi-download" aria-hidden="true"></i> ARF</a>{% endif %}
+        {% else %}
+          <span class="oscap-pill oscap-pill-warn"{% if latest.store_problem %} title="{{ latest.store_problem }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Report not stored" %}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not latest.pruned and not latest.stored and latest.store_problem %}
+    <div class="oscap-banner" role="status">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div class="oscap-banner-body"><div class="oscap-banner-t">{% trans "Report not stored" %}</div><div class="oscap-banner-s">{{ latest.store_problem }}</div></div>
+    </div>
+    {% endif %}
+
+    <div class="oscap-cards">
+      <div class="oscap-card">
+        <svg class="oscap-donut" viewBox="0 0 64 64" role="img" aria-label="{% trans 'Score' %} {% if latest.score is not None %}{{ latest.score|floatformat:0 }}{% else %}-{% endif %}">
+          <circle class="oscap-donut-track" cx="32" cy="32" r="26"></circle>
+          {% if latest.score is not None %}<circle class="oscap-donut-arc" cx="32" cy="32" r="26" stroke-dasharray="{% widthratio latest.score 100 163 %} 164" transform="rotate(-90 32 32)"></circle>{% endif %}
+          <text x="32" y="37" text-anchor="middle">{% if latest.score is not None %}{{ latest.score|floatformat:0 }}%{% else %}&ndash;{% endif %}</text>
+        </svg>
+        <div><div class="oscap-card-k">{% trans "Score" %}</div><div class="oscap-muted" style="font-size: 12px;">{% trans "Benchmark score (0-100)" %}</div></div>
+      </div>
+      <div class="oscap-card"><div><div class="oscap-card-k">{% trans "Passed" %}</div><div class="oscap-big">{{ latest.counts.pass|default:0 }}</div></div></div>
+      <div class="oscap-card"><div><div class="oscap-card-k">{% trans "Failed" %}</div><div class="oscap-big{% if latest.counts.fail %} oscap-bad{% endif %}">{{ latest.counts.fail|default:0 }}</div></div></div>
+      <div class="oscap-card">
+        <div>
+          <div class="oscap-card-k">{% trans "Failed by severity" %}</div>
+          <div class="oscap-sev-figs">
+            <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.high|default:0 }}</div><div class="l">{% trans "High" %}</div></div>
+            <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.medium|default:0 }}</div><div class="l">{% trans "Medium" %}</div></div>
+            <div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.low|default:0 }}</div><div class="l">{% trans "Low" %}</div></div>
+            {% if latest.fail_by_severity.unknown %}<div class="oscap-sev-fig"><div class="n">{{ latest.fail_by_severity.unknown }}</div><div class="l">{% trans "Unknown" %}</div></div>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="oscap-card">
+        <div>
+          <div class="oscap-card-k">{% trans "Other" %}</div>
+          <div class="oscap-big">{{ latest.counts.error|add:latest.counts.unknown|add:latest.counts.notchecked }}</div>
+          <div class="oscap-hint">{% blocktrans with e=latest.counts.error u=latest.counts.unknown n=latest.counts.notchecked %}{{ e }} error &middot; {{ u }} unknown &middot; {{ n }} not checked{% endblocktrans %}</div>
+        </div>
+      </div>
+      <div class="oscap-card">
+        <div class="oscap-kv">
+          <span class="l">{% trans "Profile" %}</span><span class="v">{% if latest.profile_title %}{{ latest.profile_title }}{% elif latest.profile_id %}{{ latest.profile_id }}{% else %}{% trans "Default profile" %}{% endif %}</span>
+          <span class="l">{% if latest.engine == "scc" %}{% trans "Benchmark" %}{% else %}{% trans "Datastream" %}{% endif %}</span><span class="v">{% if latest.datastream %}{{ latest.datastream }}{% else %}&ndash;{% endif %}</span>
+          <span class="l">{% trans "Started" %}</span><span class="v">{{ latest.started }}</span>
+          <span class="l">{% trans "Duration" %}</span><span class="v">{{ latest.duration_s|default:0 }} s</span>
+          <span class="l">{% trans "Requested by" %}</span><span class="v">{% if latest.requested_by %}{{ latest.requested_by }}{% else %}&ndash;{% endif %}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if latest.failed_rules %}
+    <details class="oscap-fold" data-oscap-rules>
+      <summary><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="oscap-card-t">{% firstof latest.counts.fail latest.failed_rules|length as nfail %}{% blocktrans with n=nfail %}Failed rules ({{ n }}){% endblocktrans %}</span></summary>
+      <div class="oscap-card-h">
+        <div class="oscap-card-tools" style="margin-left: 0;">
+          <label class="oscap-sr" for="oscap-rule-q">{% trans "Filter failed rules by id" %}</label>
+          <input type="search" class="form-control form-control-sm" id="oscap-rule-q" placeholder="{% trans 'Filter' %}" data-oscap-filter-q autocomplete="off">
+          <label class="oscap-sr" for="oscap-rule-sev">{% trans "Filter failed rules by severity" %}</label>
+          <select class="form-select form-select-sm" id="oscap-rule-sev" data-oscap-filter-sev>
+            <option value="">{% trans "All severities" %}</option>
+            <option value="high">{% trans "High" %}</option>
+            <option value="medium">{% trans "Medium" %}</option>
+            <option value="low">{% trans "Low" %}</option>
+            <option value="unknown">{% trans "Unknown" %}</option>
+          </select>
+          <span class="oscap-muted" style="font-size: 12.5px;" data-oscap-filter-count aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="oscap-table" data-oscap-rules-table data-shown="25">
+          <thead><tr><th scope="col">{% trans "Severity" %}</th><th scope="col">{% trans "Rule" %}</th></tr></thead>
+          <tbody>
+            {% for r in latest.failed_rules %}
+            <tr data-oscap-rule data-sev="{{ r.severity|lower }}" data-id="{{ r.id|lower }}">
+              <td><span class="oscap-pill {% if r.severity == 'high' %}oscap-pill-bad{% elif r.severity == 'medium' %}oscap-pill-warn{% elif r.severity == 'low' %}oscap-pill-info{% endif %}">{{ r.severity|default:"unknown"|capfirst }}</span></td>
+              <td class="oscap-mono">{{ r.id }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="oscap-nomatch" data-oscap-nomatch hidden><td colspan="2">{% trans "No rules match the filter." %}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="oscap-pager" data-oscap-rmore hidden><button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="more-rules">{% trans "Show more" %}</button></div>
+      {% if latest.failed_rules_truncated %}
+      <div class="oscap-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {% blocktrans with n=latest.failed_rules|length %}Showing the first {{ n }}; the report has the full list.{% endblocktrans %}</div>
+      {% endif %}
+    </details>
+    {% endif %}
+  </section>
+  {% endwith %}
+  {% endif %}
+
+  {% if oscap.history %}
+  <section class="oscap-section" aria-labelledby="oscap-history-h">
+    <div class="oscap-card-h"><span class="oscap-card-t" id="oscap-history-h">{% trans "History" %} &middot; {{ oscap.history|length }}</span></div>
+    <div class="table-responsive">
+      <table class="oscap-table" data-oscap-history data-shown="25">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Started" %}</th>
+            <th scope="col">{% trans "Profile" %}</th>
+            <th scope="col">{% trans "Score" %}</th>
+            <th scope="col">{% trans "Passed" %}</th>
+            <th scope="col">{% trans "Failed" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Requested by" %}</th>
+            <th scope="col">{% trans "Links" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in oscap.history %}
+          <tr data-oscap-hrow>
+            <td style="white-space: nowrap;">{{ s.started }}</td>
+            <td>{% if s.profile_title %}{{ s.profile_title }}{% elif s.profile_id %}{{ s.profile_id }}{% else %}{% trans "Default profile" %}{% endif %}</td>
+            <td>{% if s.score is not None %}{{ s.score|floatformat:0 }}%{% else %}&ndash;{% endif %}</td>
+            <td>{% if s.status == "failed" %}&ndash;{% else %}{{ s.counts.pass|default:0 }}{% endif %}</td>
+            <td>{% if s.status == "failed" %}&ndash;{% else %}{{ s.counts.fail|default:0 }}{% endif %}</td>
+            <td>
+              {% if s.status == "failed" %}<span class="oscap-pill oscap-pill-bad"{% if s.error %} title="{{ s.error }}"{% endif %}><i class="bi bi-x-circle-fill" aria-hidden="true"></i> {% trans "Failed" %}</span>
+              {% elif s.pruned %}<span class="oscap-pill"><i class="bi bi-archive" aria-hidden="true"></i> {% trans "Report removed" %}</span>
+              {% elif not s.stored %}<span class="oscap-pill oscap-pill-warn"{% if s.store_problem %} title="{{ s.store_problem }}"{% endif %}><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% trans "Report not stored" %}</span>
+              {% else %}<span class="oscap-pill oscap-pill-ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> {% trans "Completed" %}</span>{% endif %}
+            </td>
+            <td>{% if s.requested_by %}{{ s.requested_by }}{% else %}&ndash;{% endif %}</td>
+            <td class="oscap-links">
+              {% if not s.pruned %}
+              {% if s.report_url %}<a class="oscap-link" href="{{ s.report_url }}" target="_blank" rel="noopener">{% trans "Report" %}</a>{% endif %}
+              {% if s.results_url %}<a class="oscap-link" href="{{ s.results_url }}">XML</a>{% endif %}
+              {% if s.arf_url %}<a class="oscap-link" href="{{ s.arf_url }}">ARF</a>{% endif %}
+              {% endif %}
+              {% if s.job_url %}<a class="oscap-link" href="{{ s.job_url }}">{% trans "Job" %}</a>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="oscap-pager" data-oscap-more hidden><button type="button" class="btn btn-sm btn-outline-secondary" data-oscap-act="more">{% trans "Show more" %}</button></div>
+  </section>
+  {% endif %}
+
+  {% endif %}
+{% endif %}
+</div>

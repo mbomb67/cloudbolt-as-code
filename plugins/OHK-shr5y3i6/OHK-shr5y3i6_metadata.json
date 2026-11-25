@@ -1,0 +1,497 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Name of the GKE cluster: up to 40 lowercase letters, digits, and hyphens, starting with a letter and ending with a letter or digit.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-v0rrcxue",
+            "label": "Cluster Name",
+            "maximum": "40.00",
+            "minimum": "1.00",
+            "name": "gke_cluster_name",
+            "placeholder": null,
+            "regex_constraint": "^[a-z]([-a-z0-9]{0,38}[a-z0-9])?$",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "GCP environment (project) to create the cluster in.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_subnetwork_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_machine_type_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-siu3oly4",
+            "label": "Environment",
+            "name": "gke_env_id",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Region of the cluster, from the zones the environment offers.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_subnetwork_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-yxu1lbma",
+            "label": "Region",
+            "name": "gke_region",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Regional clusters run the control plane and nodes in several zones of the region; zonal clusters run in the first of the region's zones the environment offers.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-rmf37ss0",
+            "label": "Availability",
+            "name": "gke_availability",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "VPC subnetwork in the region; GKE adds the Pod and Service ranges to it. Shared VPC subnetworks the environment's handler may use are listed too.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_subnetwork_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_subnetwork_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-5kibp6hv",
+            "label": "Subnetwork",
+            "name": "gke_subnetwork",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Channel GKE uses to upgrade the control plane and nodes automatically.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_channel_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-k0zsscwn",
+            "label": "Release Channel",
+            "name": "gke_channel",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Initial version: the channel's default, or another version the channel offers in the region.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_region_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                },
+                {
+                    "controlling-field": {
+                        "name": "gke_channel_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_kubernetes_version_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-3vvy151m",
+            "label": "Kubernetes Version",
+            "name": "gke_kubernetes_version",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Compute Engine machine type of the default node pool's nodes, from the types the environment offers.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "gke_env_id_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "gke_machine_type_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-s2loqns1",
+            "label": "Machine Type",
+            "name": "gke_machine_type",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Nodes in each zone of the default node pool; a regional cluster runs this many in every one of its zones.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-tx9tpbpv",
+            "label": "Nodes per Zone",
+            "maximum": "1000.00",
+            "minimum": "1.00",
+            "name": "gke_node_count",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "When greater than Nodes per Zone, the cluster autoscaler may grow the default node pool up to this many nodes in each zone.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xoqz587q",
+            "label": "Autoscale Maximum (per zone)",
+            "maximum": "1000.00",
+            "minimum": "0.00",
+            "name": "gke_max_node_count",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Give the nodes internal IP addresses only; they then need Cloud NAT to reach the internet. CloudBolt still needs to reach the control plane endpoint.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-id65m06u",
+            "label": "Private Nodes",
+            "name": "gke_enable_private_nodes",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "BOOL",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Google users, groups, or service accounts bound to cluster-admin, comma-separated: user:EMAIL, group:EMAIL, or serviceAccount:EMAIL. Groups need the RBAC Security Group.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-g4xvpfcl",
+            "label": "Cluster Admin Principals",
+            "name": "gke_admin_principals",
+            "placeholder": "user:alice@example.com",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Turns on Google Groups for RBAC: the gke-security-groups@YOUR-DOMAIN group whose member groups may be named in Kubernetes role bindings.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-aca1cber",
+            "label": "RBAC Security Group",
+            "name": "gke_security_group",
+            "placeholder": "gke-security-groups@example.com",
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": true,
+            "available_all_servers": false,
+            "description": "CloudBolt groups that may order namespaces on the cluster. They replace the Unassigned placeholder on the cluster's environment; leave empty to entitle groups later on the cluster's Groups tab.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-hhvg345y",
+            "label": "Entitled CloudBolt Groups",
+            "name": "gke_entitled_groups",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_cluster_name",
+        "gke_env_id",
+        "gke_region",
+        "gke_availability",
+        "gke_subnetwork",
+        "gke_channel",
+        "gke_kubernetes_version",
+        "gke_machine_type",
+        "gke_node_count",
+        "gke_max_node_count",
+        "gke_enable_private_nodes",
+        "gke_admin_principals",
+        "gke_security_group",
+        "gke_entitled_groups"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Creates a GKE Standard cluster with Dataplane V2, Workload Identity Federation, and a release channel, registers it as a CloudBolt Kubernetes container orchestrator, and records its node pools.",
+    "id": "OHK-shr5y3i6",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "GKE Cluster Build",
+    "resource_technologies": [],
+    "script_filename": "OHK-shr5y3i6_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

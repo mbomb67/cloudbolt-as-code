@@ -1,0 +1,9 @@
+{% if error %}{% include "stormforge_optimize/templates/sfx_alert.html" %}{% else %}
+<div class="sfx-section" style="padding-bottom:6px">
+  <span class="sfx-muted" style="font-size:12.5px">Last {{ lines }} lines of {% if previous %}the previous {% endif %}<span class="sfx-mono">{{ pod }}/{{ container }}</span>, oldest first</span>
+  <button type="button" class="btn btn-sm btn-outline-secondary" style="float:right" data-sfx-copy="sfx-logtext-{{ resource.id }}" aria-label="Copy log"><i class="bi bi-clipboard"></i></button>
+</div>
+<div class="sfx-section" style="padding-top:0">
+  <pre class="sfx-pre sfx-mono" id="sfx-logtext-{{ resource.id }}" style="max-height:480px;white-space:pre-wrap;overflow-wrap:anywhere">{% if log %}{{ log }}{% else %}The container has written nothing.{% endif %}</pre>
+</div>
+{% endif %}

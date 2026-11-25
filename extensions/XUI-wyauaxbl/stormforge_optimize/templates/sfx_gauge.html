@@ -1,0 +1,9 @@
+<div class="sfx-gauge">
+  <div class="sfx-chart-h"><span>{{ title }}</span><span class="sfx-muted">Capacity {{ g.capacity }}</span></div>
+  <div class="sfx-track" style="outline:2px solid var(--sfx-cur-req);outline-offset:-2px">
+    {% if g.requested_pct %}<span class="sfx-fill req" style="width:{{ g.requested_pct }}%"></span>{% endif %}
+    {% if g.used_pct %}<span class="sfx-fill" style="width:{{ g.used_pct }}%"></span>{% endif %}
+    {% if g.requested_pct %}<span class="sfx-mark rec-req" style="left:{{ g.requested_pct }}%" title="Allocated {{ g.requested }}"></span>{% endif %}
+  </div>
+  <div class="sfx-hint">{% if g.has_used %}Used {{ g.used }}{% if g.used_share %} ({{ g.used_share }}){% endif %} &middot; {% endif %}{{ g.requested_label }} {{ g.requested }}{% if g.requested_share %} ({{ g.requested_share }}){% endif %}</div>
+</div>

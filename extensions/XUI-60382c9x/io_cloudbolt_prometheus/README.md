@@ -57,19 +57,3 @@ Once copied run: `/opt/cloudbolt/manage.py collectstatic --noinput`, or click "C
 
 ### Deploy Orchestration Action
 The orchestration action at `scripts/install_node_exporter.sh` should be deployed at Post-Provision or as a Blueprint action item. It will install and configure Node Exporter on target Yum/dnf-based VMs:
-
-
-### Airgapped Environments
-When using this XUI in an environment where end-user browsers do not have access
-to the Interenet, the lit-html package must be installed via NPM in the static folder:
-
-`npm install`
-
-…and the CDN reference to the lit-html module in static/*.js files must be set to:
-
-`import {html, render} from './node_modules/lit-html/lit-html.js';`
-
-NOTE: If the only the CloudBolt server is airgapped -- this is NOT required as the 
-connection to the remote library is from the user's browser -- not the CB server. 
-
-

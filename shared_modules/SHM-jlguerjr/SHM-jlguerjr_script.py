@@ -2480,11 +2480,12 @@ class TFCClient(object):
 
         ``workspace_name`` is the orderer's chosen name (the caller validates
         it against TFC's charset); None falls back to the legacy deterministic
-        ``cb-nc-<global_id>`` name. ``auto-apply`` is pinned False so the run
-        HCP auto-queues pauses at the confirmable gate for the plan-approval
-        engine to adopt (U1-confirmed). tag-bindings are NOT sent -- the
-        endpoint ignores them (U1) -- so the caller applies the tag
-        best-effort afterward. A 422 name collision adopts the existing
+        ``cb-nc-<global_id>`` name. ``auto-apply`` is pinned True: HCP applies
+        the run it auto-queues, and every later run on the workspace, as soon
+        as its plan succeeds, and the engine polls such a run to its end
+        without a plan-approval pause (see _drive_run). tag-bindings are NOT
+        sent -- the endpoint ignores them (U1) -- so the caller applies the
+        tag best-effort afterward. A 422 name collision adopts the existing
         workspace only when it carries THIS resource's ``cmp:resource-id`` tag
         (a retry after a crash between the create and the resource save); any
         other same-named workspace is a collision the orderer resolves by
@@ -2492,7 +2493,10 @@ class TFCClient(object):
         Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
               (POST /no-code-modules/:id/workspaces with data.attributes.{name,
               description, auto-apply, source-name, source-url} and
-              data.relationships.{project.data, vars.data[]})
+              data.relationships.{project.data, vars.data[]}). The table spells
+              the flag auto_apply; the sample response and HashiCorp's go-tfe
+              client (RegistryNoCodeModuleCreateWorkspaceOptions.AutoApply,
+              jsonapi "attr,auto-apply") use auto-apply, which is sent here.
         """
         if not workspace_name:
             workspace_name = no_code_workspace_name_for_resource(resource_global_id)
@@ -2503,9 +2507,9 @@ class TFCClient(object):
                 "attributes": {
                     "name": workspace_name,
                     "description": description or "",
-                    # Auto-queued run must pause, not auto-apply, so CloudBolt's
-                    # engine can adopt it for human plan approval (U1).
-                    "auto-apply": False,
+                    # HCP applies a successful plan itself; no-code runs never
+                    # wait for approval in CloudBolt.
+                    "auto-apply": True,
                     "source-name": WORKSPACE_SOURCE_NAME,
                 },
                 "relationships": {
@@ -3691,6 +3695,8 @@ def run_with_plan_approval(job, client, workspace_id, message,
     -> on resume, RE-READ the run state and re-branch (still confirmable ->
     apply, 409 -> re-read again; applied out-of-band in TFC -> log and
     continue; discarded in TFC -> failure with run URL) -> poll to terminal.
+    A run HCP auto-applies (the workspace's Auto Apply setting, on for every
+    no-code workspace) is polled to its end with no pause (see _drive_run).
 
     Returns ``{"status": "applied" | "planned_and_finished",
     "run_id": ..., "run_url": ...}`` (plus plan counts when fetched);
@@ -3734,7 +3740,7 @@ def run_with_plan_approval(job, client, workspace_id, message,
 
 
 def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=None,
-                                 confirm=None):
+                                 confirm=None, auto_confirm=False):
     """Adopt an EXISTING run and drive it through the same plan-approval gate as
     run_with_plan_approval -- for the no-code build path, where
     POST /no-code-modules/:id/workspaces AUTO-QUEUES the run rather than letting
@@ -3751,11 +3757,15 @@ def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=No
     ``confirm`` is treated exactly like a 409 from apply_run: re-read the run
     and re-branch.
 
+    ``auto_confirm`` confirms a confirmable run without pausing, as in
+    run_with_plan_approval; the no-code build passes True so a provision never
+    waits for approval, even on a workspace created before no-code workspaces
+    were auto-apply. A run HCP auto-applies never pauses either way.
+
     Same ownership guarantees as run_with_plan_approval: this function -- never
     the calling plugin -- catches CancelJobException, discards + reverts while
-    pre-apply, and re-raises. No ``auto_confirm``/``is_destroy``: an adopted
-    no-code run is the provision run and always pauses for approval (teardown
-    still uses run_with_plan_approval with auto_confirm=True, is_destroy=True).
+    pre-apply, and re-raises. No ``is_destroy``: an adopted run is never a
+    destroy (teardown uses run_with_plan_approval with is_destroy=True).
 
     Attribution: the auto-queued run's message is TFC-authored ("Triggered via
     no-code provision"), so it is NOT parseable by parse_job_id_from_run_message;
@@ -3769,7 +3779,7 @@ def drive_run_with_plan_approval(job, client, workspace_id, run_id, on_reject=No
         tasks_done=1, total_tasks=TOTAL_ENGINE_TASKS,
     )
     return _drive_run_with_ownership(
-        job, client, run_id, run_url, auto_confirm=False, on_reject=on_reject,
+        job, client, run_id, run_url, auto_confirm=auto_confirm, on_reject=on_reject,
         confirm=confirm,
     )
 
@@ -3835,7 +3845,8 @@ def _best_effort_discard(job, client, run_id):
 
     Used on both the reject path and the unexpected-error path so a run this
     engine created never orphans the workspace. Never raises -- it must not
-    mask the exception that triggered it.
+    mask the exception that triggered it. Returns True when TFC accepted the
+    discard.
     """
     try:
         client.discard_run(
@@ -3843,6 +3854,8 @@ def _best_effort_discard(job, client, run_id):
         )
     except TFCError as exc:
         logger.warning("Could not discard TFC run %s: %s", run_id, exc)
+        return False
+    return True
 
 
 def _handle_reject(job, client, run_id, run_url, on_reject):
@@ -3851,7 +3864,10 @@ def _handle_reject(job, client, run_id, run_url, on_reject):
     apply will complete in TFC regardless of the cancel, so discarding (409)
     and reverting workspace variables would manufacture infra/variable/mirror
     divergence -- instead we report honestly and leave the run and variables
-    alone. Never raises; the caller re-raises CancelJobException.
+    alone. The same holds for a run HCP auto-applies that is still planning:
+    TFC refuses to discard it, and it will apply once the plan succeeds, so a
+    failed discard of such a run skips the revert too. Never raises; the
+    caller re-raises CancelJobException.
     """
     if _run_apply_started(client, run_id):
         job.set_progress(
@@ -3867,7 +3883,22 @@ def _handle_reject(job, client, run_id, run_url, on_reject):
         ),
         tasks_done=TOTAL_ENGINE_TASKS, total_tasks=TOTAL_ENGINE_TASKS,
     )
-    _best_effort_discard(job, client, run_id)
+    discarded = _best_effort_discard(job, client, run_id)
+    if not discarded:
+        try:
+            run = client.get_run(run_id)
+        except TFCError as exc:
+            logger.warning("Could not re-read TFC run %s on reject: %s", run_id, exc)
+            run = {}
+        auto_applies = bool((run.get("attributes", {}) or {}).get("auto-apply"))
+        if auto_applies and classify_run(run) != RUN_CLASS_ABANDONED:
+            job.set_progress(
+                "TFC run {} could not be discarded while it plans, and HCP "
+                "Terraform auto-applies it once the plan succeeds; nothing is "
+                "reverted. Review the result at {}".format(run_id, run_url),
+                tasks_done=TOTAL_ENGINE_TASKS, total_tasks=TOTAL_ENGINE_TASKS,
+            )
+            return
     if on_reject is not None:
         try:
             on_reject()
@@ -3934,21 +3965,69 @@ def _terminal_result(job, classification, run_id, run_url, summary=None):
     return result
 
 
+def _run_auto_applies(client, run_id):
+    """True when HCP applies the run itself once its plan succeeds: the run's
+    ``auto-apply`` attribute, which defaults to the workspace's Auto Apply
+    setting (no-code workspaces are created with it on).
+    Docs: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/run
+          (attributes.auto-apply: "Determines if Terraform automatically
+          applies the configuration on a successful terraform plan")
+    """
+    run = client.get_run(run_id)
+    return bool((run.get("attributes", {}) or {}).get("auto-apply"))
+
+
+def _auto_applied_summary(job, client, run_id):
+    """Plan counts for a run HCP auto-applied, logged for the record. Best
+    effort: the run already succeeded, so a failed read only drops the counts."""
+    try:
+        summary = client.get_plan_summary(run_id, include_log=False)
+    except TFCError as exc:
+        logger.warning("Plan counts unavailable for TFC run %s: %s", run_id, exc)
+        return None
+    job.set_progress(
+        "Terraform plan summary: {} to add, {} to change, {} to destroy.".format(
+            summary["additions"], summary["changes"], summary["destructions"]
+        ),
+        tasks_done=TOTAL_ENGINE_TASKS, total_tasks=TOTAL_ENGINE_TASKS,
+    )
+    return summary
+
+
 def _drive_run(job, client, run_id, run_url, auto_confirm, confirm=None):
     """Plan-poll, decide (pause or auto-confirm), apply, poll to terminal.
-    ``confirm`` is the optional apply replacement (see drive_run_with_plan_approval)."""
+    ``confirm`` is the optional apply replacement (see drive_run_with_plan_approval).
+
+    A run HCP auto-applies (_run_auto_applies) never pauses: it normally goes
+    from planning straight to applied, so the first poll is bounded by the
+    plan AND apply timeouts; if it is caught awaiting confirmation anyway, it
+    is confirmed like an ``auto_confirm`` run."""
+    tfc_auto_apply = _run_auto_applies(client, run_id)
+    if tfc_auto_apply:
+        job.set_progress(
+            "HCP Terraform auto-applies run {} once its plan succeeds; no "
+            "approval pause.".format(run_id),
+            tasks_done=1, total_tasks=TOTAL_ENGINE_TASKS,
+        )
     classification, _run = client.poll_run(
         run_id,
-        timeout_seconds=PLAN_PHASE_TIMEOUT_SECONDS,
-        progress_callback=_poll_progress_callback(job, run_id, 2, "planning"),
+        timeout_seconds=PLAN_PHASE_TIMEOUT_SECONDS
+        + (APPLY_PHASE_TIMEOUT_SECONDS if tfc_auto_apply else 0),
+        progress_callback=_poll_progress_callback(
+            job, run_id, 2, "planning and applying" if tfc_auto_apply else "planning"
+        ),
     )
 
     if classification != RUN_CLASS_CONFIRMABLE:
         # Terminal straight out of the plan phase (no-op plan, plan error,
-        # canceled in TFC, policy override...).
-        return _terminal_result(job, classification, run_id, run_url)
+        # canceled in TFC, policy override...), or an auto-applied run done.
+        summary = None
+        if tfc_auto_apply and classification == RUN_CLASS_APPLIED:
+            summary = _auto_applied_summary(job, client, run_id)
+        return _terminal_result(job, classification, run_id, run_url, summary=summary)
 
     # --- decision point: the run awaits confirmation -------------------------
+    auto_confirm = auto_confirm or tfc_auto_apply
     summary = client.get_plan_summary(run_id, include_log=not auto_confirm)
     counts_line = (
         "Terraform plan summary: {} to add, {} to change, {} to destroy.".format(
@@ -4022,7 +4101,7 @@ def _drive_run(job, client, run_id, run_url, auto_confirm, confirm=None):
             tasks_done=3, total_tasks=TOTAL_ENGINE_TASKS,
         )
 
-    _confirm_run(job, client, run_id, run_url, confirm=confirm)
+    _confirm_run(job, client, run_id, run_url, confirm=confirm, tfc_auto_apply=tfc_auto_apply)
 
     # --- apply phase ----------------------------------------------------------
     classification, _run = client.poll_run(
@@ -4040,7 +4119,7 @@ def _drive_run(job, client, run_id, run_url, auto_confirm, confirm=None):
     return _terminal_result(job, classification, run_id, run_url, summary=summary)
 
 
-def _confirm_run(job, client, run_id, run_url, confirm=None):
+def _confirm_run(job, client, run_id, run_url, confirm=None, tfc_auto_apply=False):
     """
     POST the apply, re-read-and-re-branch style: the run state is re-read
     first (it may have changed while the job was paused), a 409 on apply
@@ -4048,6 +4127,8 @@ def _confirm_run(job, client, run_id, run_url, confirm=None):
     and accepted, and an out-of-band discard fails with the run URL.
     ``confirm`` (optional) is called with the approval comment in place of
     ``client.apply_run`` -- the no-code upgrade confirmation endpoint.
+    ``tfc_auto_apply`` only words the log line when HCP's own auto-apply
+    got past the gate first.
     """
     while True:
         run = client.get_run(run_id)
@@ -4071,12 +4152,17 @@ def _confirm_run(job, client, run_id, run_url, confirm=None):
             )
             return
         if classification in (RUN_CLASS_IN_FLIGHT, RUN_CLASS_APPLIED):
-            # Past the confirmation gate without our apply: someone with TFC
-            # access confirmed it directly. Accept and record.
+            # Past the confirmation gate without our apply: HCP auto-applied
+            # it, or someone with TFC access confirmed it directly. Accept.
+            if tfc_auto_apply:
+                note = "HCP Terraform is auto-applying TFC run {}; continuing."
+            else:
+                note = (
+                    "TFC run {} was approved out-of-band (applied directly in "
+                    "TFC); continuing."
+                )
             job.set_progress(
-                "TFC run {} was approved out-of-band (applied directly in "
-                "TFC); continuing.".format(run_id),
-                tasks_done=4, total_tasks=TOTAL_ENGINE_TASKS,
+                note.format(run_id), tasks_done=4, total_tasks=TOTAL_ENGINE_TASKS,
             )
             return
         if classification == RUN_CLASS_NO_CHANGES:

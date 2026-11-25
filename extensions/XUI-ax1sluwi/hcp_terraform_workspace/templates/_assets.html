@@ -1,48 +1,71 @@
 {% comment %}
-  Shared styles and panel loader for the HCP Terraform Workspace tabs.
+  Shared styles and panel loader for the HCP Terraform Workspace tabs, the
+  same look as the EKS, AKS, GKE, OpenShift and StormForge extensions' tabs.
   Styles are inline and theme-safe: tokens derive from --bs-primary /
-  --bs-body-color / --surface / --neutral-* like CloudBolt's own order and
-  resource pages, so Branded Themes re-theme the tabs without an asset build.
+  --bs-body-color / --surface like CloudBolt's own order and resource pages,
+  so Branded Themes and dark mode re-theme the tabs without an asset build.
+  Cards are set off from the tab by a transparent overlay of the theme's text
+  color (a background and a border, never opacity, so text keeps its color).
+  Blocks marked tf-flat, the page headers and the tables, have no fill or
+  frame and sit on the tab's own surface.
+  Class names carry a tf- prefix so they never meet the other extensions'.
 {% endcomment %}
 <style>
   .tfws {
-    --tf-muted: color-mix(in srgb, var(--bs-body-color, #212529) 58%, transparent);
+    --tf-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
     --tf-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
-    --tf-line: var(--neutral-250, #E2E8ED);
-    --tf-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 4%, var(--surface, #fff));
+    --tf-card: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
+    --tf-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --tf-rule: color-mix(in srgb, var(--bs-body-color, #212529) 13%, transparent);
+    --tf-surface-2: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
     --tf-primary: var(--bs-primary, #0d6efd);
     --tf-ok: var(--bs-success, #198754);
     --tf-warn: var(--bs-warning, #ffc107);
     --tf-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
     --tf-bad: var(--bs-danger, #dc3545);
   }
-  .tfws .tf-card { background: var(--surface, #fff); border: 1px solid var(--tf-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-  .tfws .tf-hero-top { display: flex; gap: 18px; align-items: flex-start; padding: 18px 22px; flex-wrap: wrap; }
-  .tfws .tf-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tf-muted); }
-  .tfws .tf-title { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
-  .tfws .tf-title .bi { color: var(--tf-primary); }
-  .tfws .tf-sub { font-size: 12.5px; font-weight: 600; color: var(--tf-muted); margin-top: 2px; }
+  .tfws .tf-card { background: var(--tf-card); border: 1px solid var(--tf-line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tfws .tf-flat { margin-bottom: 26px; }
+  .tfws .tf-flat > .tf-hero-top { padding: 0; }
+  .tfws .tf-flat > .tf-card-h { padding: 0 0 12px; border-bottom: 0; }
+  .tfws .tf-flat > .tf-note { padding: 12px 0 0; }
+  .tfws .tf-flat > .tf-pager { padding: 16px 0 0; border-top: 0; }
+  .tfws .tf-hero-top { display: flex; gap: 16px; align-items: flex-start; padding: 20px 24px; flex-wrap: wrap; }
+  .tfws .tf-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--tf-muted); }
+  .tfws .tf-eyebrow .bi { font-size: 14px; color: var(--tf-primary); }
+  .tfws .tf-title { font-size: 27px; font-weight: 800; line-height: 1.2; margin-top: 4px; overflow-wrap: anywhere; }
+  .tfws .tf-sub { font-size: 13.5px; font-weight: 600; color: var(--tf-muted); margin-top: 6px; }
   .tfws .tf-tools { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .tfws .tf-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--tf-line); border-top: 1px solid var(--tf-line); }
-  .tfws .tf-meta .cell { background: var(--surface, #fff); padding: 12px 22px; min-width: 0; }
+  .tfws .tf-facts { display: flex; flex-wrap: wrap; gap: 10px 36px; margin-top: 16px; }
+  .tfws .tf-facts > div { min-width: 0; }
+  {# The CloudBolt facts stay on one row; a long label list scrolls the row sideways on a narrow page. #}
+  .tfws .tf-facts-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 14px; border-bottom: 1px solid var(--tf-rule); }
+  .tfws .tf-facts-row > div { flex: 0 0 auto; }
+  .tfws .tf-facts-row .v { white-space: nowrap; }
+  .tfws .tf-labels { display: flex; align-items: center; gap: 6px; }
+  .tfws .tf-labels .cb-tag { margin: 0; }
   .tfws .k { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--tf-muted); margin-bottom: 3px; }
   .tfws .v { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
-  .tfws .tf-card-h { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--tf-line); flex-wrap: wrap; }
-  .tfws .tf-card-t { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--tf-muted); }
-  .tfws .tf-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-  .tfws .tf-card-tools .form-control { width: 240px; max-width: 100%; }
+  .tfws .tf-card-h { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--tf-line); flex-wrap: wrap; }
+  .tfws .tf-card-t { font-size: 16px; font-weight: 700; }
+  .tfws .tf-card-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tfws .tf-card-tools .form-control { width: 220px; max-width: 100%; }
   .tfws .tf-inline-form { display: flex; gap: 6px; align-items: center; margin: 0; }
-  .tfws .tf-table { width: 100%; font-size: 13px; border-collapse: collapse; margin: 0; }
-  .tfws .tf-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--tf-muted); padding: 10px 18px; border-bottom: 1px solid var(--tf-line); text-align: left; white-space: nowrap; }
-  .tfws .tf-table td { padding: 10px 18px; border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent); vertical-align: top; font-weight: 600; }
-  .tfws .tf-table tbody tr:last-child td { border-bottom: 0; }
-  .tfws .tf-table tbody tr:hover td { background: var(--tf-surface-2); }
-  .tfws .tf-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); }
+  .tfws .tf-inline-form .form-control { width: 260px; }
+  .tfws .tf-table { width: 100%; font-size: 13.5px; border-collapse: collapse; margin: 0; }
+  .tfws .tf-table th { font-size: 12.5px; font-weight: 700; color: var(--bs-body-color, #212529); padding: 16px 10px; border-bottom: 1px solid var(--tf-rule); text-align: left; white-space: nowrap; vertical-align: bottom; }
+  .tfws .tf-table td { padding: 16px 10px; border-bottom: 1px solid var(--tf-rule); vertical-align: middle; font-weight: 600; }
+  .tfws .tf-table.tf-table-top td { vertical-align: top; }
+  .tfws .tf-table tbody tr:hover td { box-shadow: inset 0 0 0 999px var(--tf-surface-2); }
+  .tfws .tf-card .tf-table tr > :first-child { padding-left: 24px; }
+  .tfws .tf-card .tf-table tr > :last-child { padding-right: 24px; }
+  .tfws .tf-card .tf-table tbody tr:last-child td { border-bottom: 0; }
+  .tfws .tf-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; line-height: 1.5; padding: 4px 10px; border-radius: 999px; white-space: nowrap; vertical-align: middle; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); }
   .tfws .tf-pill-ok { background: color-mix(in srgb, var(--tf-ok) 14%, transparent); color: var(--tf-ok); }
   .tfws .tf-pill-warn { background: color-mix(in srgb, var(--tf-warn) 22%, transparent); color: var(--tf-warn-text); }
   .tfws .tf-pill-bad { background: color-mix(in srgb, var(--tf-bad) 12%, transparent); color: var(--tf-bad); }
   .tfws .tf-pill-live { background: color-mix(in srgb, var(--tf-primary) 13%, transparent); color: var(--tf-primary); }
-  .tfws .tf-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); vertical-align: middle; }
+  .tfws .tf-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--bs-body-color, #212529) 7%, transparent); color: var(--tf-soft); vertical-align: middle; white-space: nowrap; }
   .tfws .tf-tag-bad { background: color-mix(in srgb, var(--tf-bad) 12%, transparent); color: var(--tf-bad); }
   .tfws .tf-muted { color: var(--tf-muted); font-weight: 600; }
   .tfws .tf-hint { font-size: 11.5px; color: var(--tf-muted); font-weight: 600; margin-top: 3px; }
@@ -53,12 +76,12 @@
   .tfws .tf-chg { color: var(--tf-warn-text); }
   .tfws .tf-del { color: var(--tf-bad); }
   .tfws .tf-nowrap { white-space: nowrap; }
-  .tfws .tf-empty { color: var(--tf-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px; }
-  .tfws .tf-pager { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-top: 1px solid var(--tf-line); font-size: 12.5px; font-weight: 700; }
-  .tfws .tf-pager a { color: var(--tf-primary); text-decoration: none; }
-  .tfws .tf-banner { display: flex; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--tf-line); background: color-mix(in srgb, var(--tf-warn) 12%, var(--surface, #fff)); }
+  .tfws .tf-empty { color: var(--tf-muted); font-weight: 600; font-size: 12.5px; text-align: center; padding: 18px 24px; }
+  .tfws .tf-pager { display: flex; gap: 14px; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--tf-line); font-size: 12.5px; font-weight: 600; color: var(--tf-soft); flex-wrap: wrap; }
+  .tfws .tf-pager-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .tfws .tf-banner { --tf-tint: var(--tf-warn); display: flex; gap: 12px; padding: 16px 24px; margin-bottom: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--tf-tint) 35%, transparent); background: color-mix(in srgb, var(--tf-tint) 12%, transparent); }
   .tfws .tf-banner > .bi { font-size: 18px; color: var(--tf-warn-text); flex: 0 0 auto; margin-top: 2px; }
-  .tfws .tf-banner-info { background: color-mix(in srgb, var(--tf-primary) 9%, var(--surface, #fff)); }
+  .tfws .tf-banner-info { --tf-tint: var(--tf-primary); }
   .tfws .tf-banner-info > .bi { color: var(--tf-primary); }
   .tfws .tf-banner-btn { align-self: center; margin-left: auto; white-space: nowrap; }
   .tfws .tf-banner-body { flex: 1; min-width: 0; }
@@ -67,12 +90,25 @@
   .tfws .tf-pending { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .tfws .tf-pending li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
   .tfws .tf-pending .btn { margin-left: auto; }
-  .tfws .tf-alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 22px; font-size: 13px; font-weight: 600; color: var(--tf-bad); overflow-wrap: anywhere; }
+  .tfws .tf-alert { display: flex; gap: 10px; align-items: flex-start; padding: 16px 24px; font-size: 13px; font-weight: 600; color: var(--tf-bad); overflow-wrap: anywhere; }
   .tfws .tf-alert .bi { flex: 0 0 auto; margin-top: 2px; }
-  .tfws .tf-note { padding: 8px 22px 12px; font-size: 12px; color: var(--tf-muted); font-weight: 600; }
-  .tfws .tf-loading { padding: 16px 22px; font-size: 12.5px; font-weight: 600; color: var(--tf-muted); display: flex; align-items: center; gap: 8px; }
+  {# An error in a panel that has no frame of its own gets the card's. #}
+  .tfws [data-tf-panel] > .tf-alert { background: var(--tf-card); border: 1px solid var(--tf-line); border-radius: 12px; margin-bottom: 16px; }
+  .tfws .v > .tf-alert { background: none; border: 0; border-radius: 0; margin: 0; padding: 0; }
+  .tfws .tf-note { padding: 12px 24px; font-size: 12px; color: var(--tf-muted); font-weight: 600; }
+  .tfws .tf-loading { padding: 20px 0; font-size: 12.5px; font-weight: 600; color: var(--tf-muted); display: flex; align-items: center; gap: 8px; }
   .tfws .v > .tf-loading { padding: 0; }
   .tfws .tf-spin { display: inline-block; animation: tf-spin 1s linear infinite; }
+  {# Summary tiles take the width their figures need and sit together at the left. #}
+  .tfws .tf-stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 26px; }
+  .tfws .tf-stat { background: var(--tf-card); border: 1px solid var(--tf-line); border-radius: 12px; padding: 20px 24px; min-width: 170px; max-width: 340px; }
+  .tfws .tf-stat .k { margin-bottom: 6px; }
+  .tfws .tf-stat .v { font-size: 24px; font-weight: 700; line-height: 1.5; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .tfws .tf-stat .v .bi { font-size: 20px; }
+  .tfws .tf-stat .v .tf-pill .bi { font-size: inherit; }
+  .tfws .tf-stat .v .tf-muted, .tfws .tf-stat .v .tf-counts { font-size: 13.5px; }
+  .tfws .tf-counts { display: inline-flex; gap: 8px; white-space: nowrap; }
+  .tfws .tf-stats + .tf-note { margin-top: -14px; padding: 0 0 26px; }
   @keyframes tf-spin { to { transform: rotate(360deg); } }
 </style>
 <script>

@@ -1,0 +1,69 @@
+{% comment %}
+  Bottom content of the Add and Edit rule dialogs: suggestions for the
+  Source / Destination field (security groups in the VPC, prefix lists) and
+  the script that makes the form follow the chosen Type like the AWS console:
+  a preset fills and locks the port range, Custom TCP/UDP opens it, Custom
+  ICMP shows type and code, Custom protocol asks for a protocol number, and
+  Anywhere-IPv4/IPv6 fills and locks the peer. The server applies the same
+  presets in SecurityGroupRuleForm.clean().
+{% endcomment %}
+<div id="{{ root_id }}">
+  {% if peer_options %}
+  <datalist id="{{ list_id }}">
+    {% for value, label in peer_options %}<option value="{{ value }}" label="{{ label }}">{{ label }}</option>{% endfor %}
+  </datalist>
+  {% endif %}
+</div>
+<style>
+  input.sgx-locked { background-color: var(--bs-secondary-bg, #e9ecef); }
+</style>
+<script>
+(function () {
+  "use strict";
+  var presets = {{ presets_json|safe }};
+  var anywhere = {{ anywhere_json|safe }};
+  var $form = $("#{{ root_id }}").closest(".modal-content").find("form").first();
+  if (!$form.length) { $form = $("form#action_form").last(); }
+
+  function field(name) { return $form.find('[name="' + name + '"]'); }
+  function row(name) {
+    var $field = field(name), $wrap = $field.closest('[id^="div_id_"]');
+    return $wrap.length ? $wrap : $field.closest(".mb-3, .form-group");
+  }
+  function lock($input, locked) { $input.prop("readonly", locked).toggleClass("sgx-locked", locked); }
+
+  function applyType(initial) {
+    var key = field("rule_type").val();
+    var icmp = key === "custom-icmp" || key === "custom-icmpv6";
+    var openPorts = key === "custom-tcp" || key === "custom-udp";
+    var $port = field("port_range");
+    row("protocol_number").toggle(key === "custom-protocol");
+    row("icmp_type").toggle(icmp);
+    row("icmp_code").toggle(icmp);
+    row("port_range").toggle(!icmp);
+    if (openPorts) {
+      if (!initial && $port.data("sgx-preset")) { $port.val(""); }
+      $port.data("sgx-preset", false);
+      lock($port, false);
+    } else if (!icmp) {
+      $port.val(presets[key] || "All").data("sgx-preset", true);
+      lock($port, true);
+    }
+  }
+  function applyPeer() {
+    var kind = field("peer_type").val(), $peer = field("peer");
+    if (anywhere[kind]) {
+      $peer.val(anywhere[kind]);
+      lock($peer, true);
+    } else {
+      if ($peer.hasClass("sgx-locked")) { $peer.val(""); }
+      lock($peer, false);
+    }
+  }
+
+  field("rule_type").on("change", function () { applyType(false); });
+  field("peer_type").on("change", applyPeer);
+  applyType(true);
+  applyPeer();
+})();
+</script>

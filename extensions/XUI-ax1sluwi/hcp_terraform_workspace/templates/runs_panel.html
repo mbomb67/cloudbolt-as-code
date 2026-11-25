@@ -38,9 +38,11 @@
         </td>
         <td class="tf-nowrap">
           {% if r.plan %}
-            <span class="tf-add">+{{ r.plan.add|default_if_none:"?" }}</span>
-            <span class="tf-chg">~{{ r.plan.change|default_if_none:"?" }}</span>
-            <span class="tf-del">&minus;{{ r.plan.destroy|default_if_none:"?" }}</span>
+            <span class="tf-counts">
+              <span class="tf-add">+{{ r.plan.add|default_if_none:"?" }}</span>
+              <span class="tf-chg">~{{ r.plan.change|default_if_none:"?" }}</span>
+              <span class="tf-del">&minus;{{ r.plan.destroy|default_if_none:"?" }}</span>
+            </span>
           {% else %}
             <span class="tf-muted">&mdash;</span>
           {% endif %}
@@ -60,8 +62,11 @@
   </table>
 </div>
 <div class="tf-pager">
-  {% if has_prev %}<a href="#" data-tf-load="{{ prev_url }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> {% trans "Newer" %}</a>{% endif %}
-  <span class="tf-muted">{% trans "Page" %} {{ page }}</span>
-  {% if has_next %}<a href="#" data-tf-load="{{ next_url }}">{% trans "Older" %} <i class="bi bi-chevron-right" aria-hidden="true"></i></a>{% endif %}
+  <span>{% if total is not None %}{% trans "Total runs" %}: {{ total }}{% endif %}</span>
+  <div class="tf-pager-tools">
+    <span>{% trans "Page" %} {{ page }}</span>
+    <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="{% trans 'Newer runs' %}" title="{% trans 'Newer runs' %}" {% if has_prev %}data-tf-load="{{ prev_url }}"{% else %}disabled{% endif %}><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="{% trans 'Older runs' %}" title="{% trans 'Older runs' %}" {% if has_next %}data-tf-load="{{ next_url }}"{% else %}disabled{% endif %}><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+  </div>
 </div>
 {% endif %}

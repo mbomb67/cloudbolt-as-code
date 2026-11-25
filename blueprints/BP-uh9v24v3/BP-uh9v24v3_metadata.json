@@ -12,7 +12,7 @@
                 "hook": "plugins/OHK-axtt0yqq"
             },
             "deploy_seq": 1,
-            "description": "Provisions infrastructure through HCP Terraform's no-code provisioning workflow: creates a dedicated workspace from the pinned no-code module, sets the workspace variables from the form's Module Variables panel, adopts the auto-queued run, and pauses the job for human plan review before any apply. 'Continue Job' approves and applies the plan; canceling the job rejects it and discards the TFC run.",
+            "description": "Provisions infrastructure through HCP Terraform's no-code provisioning workflow: creates a dedicated workspace with Auto Apply on from the pinned no-code module, sets the workspace variables from the form's Module Variables panel, and follows the auto-queued run until HCP Terraform has applied it, with no plan-approval pause.",
             "enabled": true,
             "execute_in_parallel": false,
             "id": "BDI-do4ec0ft",
@@ -41,7 +41,7 @@
         }
     ],
     "deployment_permissions": [],
-    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment, with a plan-approval pause before apply, then runs the pinned Ansible job templates on the deployment's servers.",
+    "description": "Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies, then runs the pinned Ansible job templates on the deployment's servers.",
     "discovery_plugin": {
         "dependencies": {
             "hook": "plugins/OHK-b1n02ula"
