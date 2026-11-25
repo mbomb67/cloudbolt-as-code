@@ -32,6 +32,12 @@ TOOLS = {
     "onb_set_item_status": True,
     "onb_verify_resource_handler": False,
     "onb_install": False,
+    "onb_handler_locations": False,
+    "onb_import_environments": False,
+    "onb_import_os_build": False,
+    "onb_trim_environment": True,
+    "onb_configure_custom_server": True,
+    "onb_remove_environment": True,
     # Reused testing tools that ship in the same package.
     "sync_from_source_control_repo": True,
     "fetch_job_log": True,
