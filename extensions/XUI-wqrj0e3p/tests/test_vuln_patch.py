@@ -234,7 +234,7 @@ class Base(unittest.TestCase):
         del EVENTS[:]
         self.state = {"active": None, "last": None, "history": []}
         self.settings = {"visibility": "linux", "scan_timeout_min": 20, "patch_timeout_min": 90,
-                         "restart_wait_min": 30, "patching": True}
+                         "restart_wait_min": 30, "patching": True, "patch_parallel": 1}
         self.guest = happy_guest()
         self.clock = Clock()
         self.markers = []

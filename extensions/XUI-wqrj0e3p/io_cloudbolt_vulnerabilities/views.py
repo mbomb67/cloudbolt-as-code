@@ -960,6 +960,13 @@ def _job_link(job_id):
         return ""
 
 
+def _whole_or(value, default):
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
 def _bulk_object(state, maximum):
     """The "bulk" object of the Servers answer from vuln_hooks.patch_bulk_action()'s state."""
     return {
@@ -969,6 +976,7 @@ def _bulk_object(state, maximum):
         "action_label": state.get("action_label") or vuln_hooks.PATCH_ACTION_LABEL,
         "restart_default": bool(state.get("restart_default", True)),
         "requires_approval": bool(state.get("requires_approval", False)),
+        "parallel": _whole_or(state.get("parallel"), store.DEFAULT_SETTINGS["patch_parallel"]),
         "run_url": _url("vuln_fleet_servers_patch"),
         "select_url": _url("vuln_fleet_servers_select"),
     }

@@ -124,7 +124,7 @@ class ResourceTabTests(unittest.TestCase):
 
     def test_the_resource_tab_has_none_of_the_admin_controls(self):
         html = self.tab()
-        markup = re.sub(r"<script\b[^>]*>.*?</script\s*>", "", html, flags=re.S | re.I)   # the shared script names the attributes
+        markup = re.sub(r"<script\b[^>]*>.*?</script[^>]*>", "", html, flags=re.S | re.I)   # the shared script names the attributes
         root = re.search(r'<div id="vuln-root"[^>]*>', markup).group(0)
         for attr in NEW_ATTRS:
             self.assertNotIn(attr, root)
@@ -246,7 +246,9 @@ out.approved = t.approvalMessage({ state: "approval", order_id: 7, order_url: "/
 out.notSubmitted = t.approvalMessage({ state: "approval", order_id: 7, order_url: "/orders/7/", submitted: false });
 out.badUrl = t.approvalMessage({ state: "approval", order_id: 7, order_url: "//evil/" }).url;
 out.cap = t.capMessage(30);
-out.sentences = [t.confirmSentence(3, false), t.confirmSentence(1, false), t.confirmSentence(3, true), t.confirmSentence(1, true)];
+out.sentences = [t.confirmSentence(3, false, 5), t.confirmSentence(1, false, 5), t.confirmSentence(3, true, 5), t.confirmSentence(1, true, 5)];
+out.parallelSentences = [t.confirmSentence(3, false, 1), t.confirmSentence(7, false, 3), t.confirmSentence(2, false, 5), t.confirmSentence(4, false, 4), t.confirmSentence(3, false, undefined), t.confirmSentence(1, false, 1)];
+out.sigParallel = t.confirmSignature(["a"], false, false, 3) !== t.confirmSignature(["a"], false, false, 4);
 out.sigApproval = t.confirmSignature(["a"], false, false) !== t.confirmSignature(["a"], false, true);
 out.sigSame = t.confirmSignature(["a", "b"], false) === t.confirmSignature(["a", "b"], false);
 out.sigNames = t.confirmSignature(["a", "b"], false) !== t.confirmSignature(["a", "c"], false);
@@ -302,13 +304,25 @@ class ScriptBehaviorTests(unittest.TestCase):
 
     def test_the_confirmation_sentences(self):
         plain, single, approval, approval_one = self.out["sentences"]
-        self.assertEqual(plain, "Install all available updates on 3 servers, one after another, in one job.")
+        self.assertEqual(plain, "Install all available updates on 3 servers, up to 3 at a time, in one job.")
         self.assertEqual(single, "Install all available updates on 1 server.")
         tail = (". This action needs approval: the request becomes an order and each server is updated by its own job "
                 "once it is approved.")
         self.assertEqual(approval, "Install all available updates on 3 servers" + tail)
         self.assertEqual(approval_one, "Install all available updates on 1 server" + tail)
         self.assertTrue(self.out["sigApproval"])
+
+    def test_the_sentence_names_how_many_servers_are_updated_at_a_time(self):
+        serial, seven, few, equal, unknown, one = self.out["parallelSentences"]
+        self.assertEqual(serial, "Install all available updates on 3 servers, one after another, in one job.")
+        self.assertEqual(seven, "Install all available updates on 7 servers, up to 3 at a time, in one job.")
+        self.assertEqual(few, "Install all available updates on 2 servers, up to 2 at a time, in one job.")
+        self.assertEqual(equal, "Install all available updates on 4 servers, up to 4 at a time, in one job.")
+        self.assertEqual(unknown, "Install all available updates on 3 servers, one after another, in one job.")
+        self.assertEqual(one, "Install all available updates on 1 server.")
+
+    def test_the_panel_is_redrawn_when_the_parallel_setting_changes(self):
+        self.assertTrue(self.out["sigParallel"])
 
     def test_the_cap_message(self):
         self.assertEqual(self.out["cap"], "At most 30 servers can be selected.")
@@ -322,6 +336,16 @@ class ScriptBehaviorTests(unittest.TestCase):
         self.assertTrue(self.out["sigNames"])
         self.assertTrue(self.out["sigBusy"])
         self.assertTrue(self.out["sigOrder"])
+
+
+class ParallelTextTests(unittest.TestCase):
+    def test_the_signature_and_the_sentence_get_the_parallel_value_and_the_bar_names_the_cap(self):
+        script = read_script()
+        self.assertIn("confirmSignature(names, runBusy, !!(serverBulk && serverBulk.requires_approval), bulkParallel())", script)
+        self.assertIn("confirmSentence(n, !!(serverBulk && serverBulk.requires_approval), bulkParallel())", script)
+        self.assertIn('"Select up to " + bulkMax() + " servers."', script)
+        self.assertNotIn("servers at a time.", script)
+        self.assertNotIn("{" + "{", script)
 
 
 class WiringTextTests(unittest.TestCase):

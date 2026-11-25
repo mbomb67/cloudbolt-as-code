@@ -86,8 +86,10 @@ DEFAULT_SETTINGS = {
     "patching": False,
     "restart_wait_min": 60,
     "patch_timeout_min": 90,
-    # Most servers the Vulnerabilities page starts one Install updates job for at once (they run one after another).
+    # Most servers the Vulnerabilities page starts one Install updates job for at once, and how many of them one
+    # job works on at the same time.
     "bulk_patch_max": 30,
+    "patch_parallel": 5,
     # After a Linux server restarts onto a new kernel, remove the older kernel packages.
     "remove_old_kernels": True,
 }
@@ -96,6 +98,7 @@ INVENTORY_PARALLEL_RANGE = (1, 10)
 RESTART_WAIT_RANGE = (5, 120)
 PATCH_TIMEOUT_RANGE = (10, 240)
 BULK_PATCH_RANGE = (1, 100)
+PATCH_PARALLEL_RANGE = (1, 20)
 
 
 def owner_label(first, last, username):
@@ -425,6 +428,8 @@ def get_settings():
         result["patch_timeout_min"], *PATCH_TIMEOUT_RANGE, DEFAULT_SETTINGS["patch_timeout_min"])
     result["bulk_patch_max"] = _clamp(
         result["bulk_patch_max"], *BULK_PATCH_RANGE, DEFAULT_SETTINGS["bulk_patch_max"])
+    result["patch_parallel"] = _clamp(
+        result["patch_parallel"], *PATCH_PARALLEL_RANGE, DEFAULT_SETTINGS["patch_parallel"])
     result["rematch_workers"] = _clamp(
         result["rematch_workers"], *REMATCH_WORKERS_RANGE, DEFAULT_SETTINGS["rematch_workers"])
     result["inventory_parallel"] = _clamp(
@@ -464,6 +469,7 @@ def validate_settings(data):
         ("restart_wait_min", RESTART_WAIT_RANGE, "Minutes to wait for a server to come back after a restart"),
         ("patch_timeout_min", PATCH_TIMEOUT_RANGE, "Minutes allowed for installing updates"),
         ("bulk_patch_max", BULK_PATCH_RANGE, "Servers per bulk update"),
+        ("patch_parallel", PATCH_PARALLEL_RANGE, "Servers updated at the same time"),
     ):
         raw = str(data.get(key, DEFAULT_SETTINGS[key])).strip()
         if _whole(raw, low, high) is None:

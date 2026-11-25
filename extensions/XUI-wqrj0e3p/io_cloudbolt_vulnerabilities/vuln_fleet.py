@@ -108,14 +108,16 @@ def default_base_url():
 
 
 def _progress(job, message, done=None, total=None):
-    """job.set_progress (jobs/models.py line 1192), from the job's own thread only. Never raises."""
+    """job.set_progress (jobs/models.py line 1192), from one thread at a time when the run has threads
+    (vuln_jobs.progress_guard). Never raises."""
     if job is None:
         return
     try:
-        if done is None:
-            job.set_progress(message)
-        else:
-            job.set_progress(message, tasks_done=int(done), total_tasks=int(total))
+        with vuln_jobs.progress_guard():
+            if done is None:
+                job.set_progress(message)
+            else:
+                job.set_progress(message, tasks_done=int(done), total_tasks=int(total))
     except Exception:
         logger.exception("Vulnerabilities: could not set the job's progress")
 

@@ -644,8 +644,14 @@ class BulkStateTests(unittest.TestCase):
     def test_enabled_gives_the_action_label_and_the_default(self):
         state, action = self.bulk()
         self.assertEqual(state, {"enabled": True, "why": "", "action_label": "Install Updates",
-                                 "restart_default": True, "requires_approval": False})
+                                 "restart_default": True, "requires_approval": False, "parallel": 5})
         self.assertIs(action, self.action)
+
+    def test_the_state_carries_the_servers_updated_at_the_same_time(self):
+        self.settings = {"patching": True, "patch_parallel": 8}
+        self.assertEqual(self.bulk()[0]["parallel"], 8)
+        self.settings = {"patching": False, "patch_parallel": 3}
+        self.assertEqual(self.bulk()[0]["parallel"], 3)
 
     def test_the_state_half_is_the_same_dict(self):
         patch_module = fake_patch_module()
@@ -841,7 +847,11 @@ class BulkSettingTests(unittest.TestCase):
             html = handle.read()
         self.assertIn('name="bulk_patch_max" min="1" max="100"', html)
         self.assertIn("Servers per bulk update", html)
-        self.assertIn("one after another in one job", html)
+        self.assertIn("several at a time", html)
+        self.assertIn('name="patch_parallel" min="1" max="20"', html)
+        self.assertIn("Servers updated at the same time", html)
+        self.assertIn("How many servers one Install updates job works on at once. The rest wait their turn in the "
+                      "same job.", html)
 
 
 class NoTokenTests(unittest.TestCase):

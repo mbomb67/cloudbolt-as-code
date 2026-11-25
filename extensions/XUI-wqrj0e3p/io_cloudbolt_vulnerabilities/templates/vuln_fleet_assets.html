@@ -100,16 +100,18 @@
   }
   function capMessage(max) { return "At most " + max + " servers can be selected."; }
   // What the open confirmation panel shows: it is rebuilt only when this changes.
-  function confirmSignature(names, busy, approval) {
-    return names.length + "|" + names.join("\u0001") + "|" + (busy ? "1" : "0") + "|" + (approval ? "1" : "0");
+  function confirmSignature(names, busy, approval, parallel) {
+    return names.length + "|" + names.join("\u0001") + "|" + (busy ? "1" : "0") + "|" + (approval ? "1" : "0") + "|" + (parallel || 0);
   }
-  // The first line of the confirmation panel.
-  function confirmSentence(n, approval) {
+  // The first line of the confirmation panel. parallel is how many servers one job updates at the same time.
+  function confirmSentence(n, approval, parallel) {
     var what = "Install all available updates on " + n + (n === 1 ? " server" : " servers");
     if (approval) {
       return what + ". This action needs approval: the request becomes an order and each server is updated by its own job once it is approved.";
     }
-    return what + (n > 1 ? ", one after another, in one job." : ".");
+    if (n === 1) { return what + "."; }
+    if (!(parallel > 1)) { return what + ", one after another, in one job."; }
+    return what + ", up to " + Math.min(parallel, n) + " at a time, in one job.";
   }
   // An answer to "Select all N matching" counts only for the query it was asked with.
   function staleAnswer(sentKey, currentKey) { return sentKey !== currentKey; }
@@ -1049,6 +1051,7 @@
     }
     function bulkOn() { return !!(serverBulk && serverBulk.enabled); }
     function bulkMax() { return serverBulk ? (goodId(serverBulk.max) || 0) : 0; }
+    function bulkParallel() { return serverBulk ? (goodId(serverBulk.parallel) || 1) : 1; }
     function clearNode(node) { while (node.firstChild) { node.removeChild(node.firstChild); } }
 
     function savePrefs(st) {
@@ -1269,7 +1272,7 @@
         clr.disabled = runBusy;
         row.appendChild(clr);
       }
-      if (bulkMax()) { row.appendChild(el("span", "vuln-dim", "Up to " + bulkMax() + " servers at a time.")); }
+      if (bulkMax()) { row.appendChild(el("span", "vuln-dim", "Select up to " + bulkMax() + " servers.")); }
       barBox.appendChild(row);
     }
 
@@ -1285,7 +1288,7 @@
       }
       var names = [];
       selection.forEach(function (host) { names.push(host); });
-      var sig = confirmSignature(names, runBusy, !!(serverBulk && serverBulk.requires_approval));
+      var sig = confirmSignature(names, runBusy, !!(serverBulk && serverBulk.requires_approval), bulkParallel());
       if (confirmRefs && confirmRefs.sig === sig && confirmBox.firstChild) { return; }   // nothing it shows changed
       clearNode(confirmBox);
       confirmBox.hidden = false;
@@ -1293,7 +1296,7 @@
       panel.setAttribute("role", "group");
       panel.setAttribute("aria-label", "Confirm installing updates");
       panel.setAttribute("tabindex", "-1");
-      panel.appendChild(el("div", "", confirmSentence(n, !!(serverBulk && serverBulk.requires_approval))));
+      panel.appendChild(el("div", "", confirmSentence(n, !!(serverBulk && serverBulk.requires_approval), bulkParallel())));
       var text = names.slice(0, 10).join(", ");
       if (names.length > 10) { text += " and " + (names.length - 10) + " more"; }
       panel.appendChild(el("div", "vuln-confirm-hosts", text));

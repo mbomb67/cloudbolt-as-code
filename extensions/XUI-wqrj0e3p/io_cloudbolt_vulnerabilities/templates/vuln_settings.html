@@ -269,8 +269,14 @@
       <div class="vuln-field">
         <label class="vuln-label" for="vuln-bulk-max">Servers per bulk update</label>
         <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-bulk-max" name="bulk_patch_max" min="1" max="100" value="{{ settings.bulk_patch_max }}">
-        <div class="vuln-help">Install updates runs the selected servers one after another in one job. The most servers one selection on the Vulnerability Search page may hold, from 1 to 100 (default 30). A run stops starting servers when the job's time limit is near; those are reported as not started.</div>
+        <div class="vuln-help">The most servers one selection on the Vulnerability Search page may hold, from 1 to 100 (default 30). Install updates works on them several at a time (Servers updated at the same time) in one job. A run stops starting servers when the job's time limit is near; those are reported as not started.</div>
         {% if field_errors.bulk_patch_max %}<div class="vuln-help vuln-bad">{{ field_errors.bulk_patch_max }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-patch-parallel">Servers updated at the same time</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-patch-parallel" name="patch_parallel" min="1" max="20" value="{{ settings.patch_parallel }}">
+        <div class="vuln-help">How many servers one Install updates job works on at once. The rest wait their turn in the same job. From 1 to 20 (default 5). Updates and restarts run several servers at a time; the scan after each update runs one at a time unless Vulnerability matches at once is raised.</div>
+        {% if field_errors.patch_parallel %}<div class="vuln-help vuln-bad">{{ field_errors.patch_parallel }}</div>{% endif %}
       </div>
     </div>
 

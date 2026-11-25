@@ -288,7 +288,8 @@ class ServersListTests(unittest.TestCase):
                          ["/servers/1/" + views.SERVER_TAB_HASH, "/servers/2/" + views.SERVER_TAB_HASH])
         self.assertEqual(data["bulk"], {
             "enabled": True, "why": "", "max": 3, "action_label": "Install Updates", "restart_default": True,
-            "requires_approval": False, "run_url": "/vuln_fleet_servers_patch/", "select_url": "/vuln_fleet_servers_select/"})
+            "requires_approval": False, "parallel": 5, "run_url": "/vuln_fleet_servers_patch/",
+            "select_url": "/vuln_fleet_servers_select/"})
         self.assertNotIn("dialog_url", data["bulk"])
         self.assertNotIn("action_id", data["bulk"])
 
@@ -739,8 +740,16 @@ class FullChecksTests(unittest.TestCase):
             data = env.call(views.vuln_fleet_servers).data
         self.assertIs(data["bulk"]["requires_approval"], True)
         self.assertEqual(sorted(data["bulk"]), sorted([
-            "enabled", "why", "max", "action_label", "restart_default", "requires_approval", "run_url",
+            "enabled", "why", "max", "action_label", "restart_default", "requires_approval", "parallel", "run_url",
             "select_url"]))
+
+    def test_the_bulk_object_carries_how_many_servers_are_updated_at_once(self):
+        with Env([server(1)], bulk=dict(OK, parallel=8)) as env:
+            data = env.call(views.vuln_fleet_servers).data
+        self.assertEqual(data["bulk"]["parallel"], 8)
+        with Env([server(1)], bulk=dict(OK, parallel="x")) as env:
+            data = env.call(views.vuln_fleet_servers).data
+        self.assertEqual(data["bulk"]["parallel"], 5)
 
 
 class Strict:

@@ -680,20 +680,23 @@ def _restart_default(hook, action):
 
 def patch_bulk_action():
     """(state, action) for running Install Updates on several servers from the Servers view. state is
-    {"enabled", "why", "action_label", "restart_default", "requires_approval"}; action is the ServerAction to run (the enabled one when
+    {"enabled", "why", "action_label", "restart_default", "requires_approval", "parallel"}; action is the ServerAction to run (the enabled one when
     several exist) when enabled, else None. why says in one sentence why it is not enabled (the sentences above and
     vuln_patch.PATCHING_OFF). The checks are the ones core's own bulk dialog applies before it lists an action
     (infrastructure/views.py servers_batch_server_actions: list_view_visible, no new_tab_url, a custom form leaves
     the dialog; a synchronous action runs inline there, not as a job) plus the setting and the action being enabled.
     requires_approval says the run will become an order that creates one job per server after approval, not one
-    job for all (cbhooks/models.py _save_action_items). Reads the setting, the plugin and its action once;
+    job for all (cbhooks/models.py _save_action_items). parallel is the setting "Servers updated at the same time".
+    Reads the setting, the plugin and its action once;
     never raises."""
     state = {"enabled": False, "why": "", "action_label": PATCH_ACTION_LABEL, "restart_default": True,
-             "requires_approval": False}
+             "requires_approval": False, "parallel": 5}
     try:
         from . import vuln_patch, vuln_store
 
-        if not vuln_store.get_settings().get("patching"):
+        settings = vuln_store.get_settings()
+        state["parallel"] = int(settings.get("patch_parallel") or vuln_store.DEFAULT_SETTINGS["patch_parallel"])
+        if not settings.get("patching"):
             return dict(state, why=vuln_patch.PATCHING_OFF), None
         hook = CloudBoltHook.objects.filter(name=PATCH_NAME).first()
         actions = patch_actions(hook) if hook is not None else []

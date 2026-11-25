@@ -39,6 +39,7 @@ upload URL: the script leaves the file in a root-only directory (HOLD_DIR) and
 the job reads it over the same API tunnel (_collect).
 """
 import base64
+import contextlib
 import gzip
 import json
 import os
@@ -46,6 +47,7 @@ import re
 import secrets
 import shlex
 import tempfile
+import threading
 import time
 import zlib
 from datetime import datetime, timezone
@@ -957,9 +959,18 @@ def _clear_secrets(job):
         logger.exception("Could not clear the upload links from the parameters of job %s", getattr(job, "id", ""))
 
 
+def progress_guard():
+    """The lock one update run's threads write the job's progress under, or a no-op context. The lock is kept on
+    the thread object by the run (vuln_patch._run_parallel), never in a module global: every job file reloads
+    this package's modules, which would replace a global lock while the run is still using it."""
+    lock = getattr(threading.current_thread(), "vuln_progress_lock", None)
+    return lock if lock is not None else contextlib.nullcontext()
+
+
 def _progress(job, message):
     if job is not None:
-        job.set_progress(message)
+        with progress_guard():
+            job.set_progress(message)
 
 
 def run_scan(job, vuln_server_id=None, vuln_scan_id="", vuln_cfg=None, vuln_upload_url="", vuln_tools=None,

@@ -6,7 +6,12 @@ vuln_hooks.py (vuln_patch_job.py) with OrchestrationHook.run_as_job. CloudBolt i
 person chooses the Install Updates server action; the dialog's "Restart if needed" input reaches run_patch as the
 keyword restart_if_needed.
 
-run_patch() runs inside that job. Servers go one at a time. For each one, _patch_one:
+run_patch() runs inside that job. It works on up to the setting "Servers updated at the same time" (patch_parallel)
+servers at once, each in a thread of its own (the work is almost all waiting for the guest); with 1 the servers go
+one at a time in the job's own thread, exactly as before. A server holds one of the update slots until it reaches
+its rescan; the rescans of the run go through a limiter of the size of "Vulnerability matches at once", so a rescan
+never times out only because it queued behind another. Cancel and the time limit are looked at when a server is
+about to start. For each server, _patch_one:
   1. takes the server's start lock and refuses when a scan or another update holds the server (the active
      marker, kind "patch"), then writes its own marker, so the tab shows the update's progress;
   2. remembers the vulnerability counts of the last scan (None when the server was never scanned) and the
@@ -30,9 +35,11 @@ Nothing user-controlled reaches a shell: the Linux script gets a header of shlex
 against a pattern, a UUID boot id, whole numbers), never string-formatted input; the Windows scripts get only a
 validated run id and whole numbers.
 """
+import contextlib
 import os
 import re
 import shlex
+import threading
 import time
 from datetime import datetime
 
@@ -82,6 +89,15 @@ MESSAGE_LEN = 300
 JOB_LIMIT_S = int(7.5 * 3600)
 RESCAN_MARGIN_MIN = 30
 
+# How often a run that waits for a slot or for a server looks at a cancel, and how long it waits for its threads
+# after one.
+CANCEL_CHECK_S = 5
+# One guest call (SSH, WinRM, a cloud Run Command) can take about 2 minutes before it returns, and an aborted worker
+# is only noticed between calls: wait that long plus a margin for its cleanup before the job ends and leaves it.
+ABORT_WAIT_S = 150
+# How often a worker looks at the rescan child job.
+RESCAN_POLL_S = 5
+JOB_DONE = ("WARNING", "SUCCESS", "FAILURE", "CANCELED")
 MODES = ("start", "poll", "probe", "reboot", "oldkernels", "cleanup")
 KNOWN_KEYS = ("os", "distro", "state", "phase", "updated", "failed", "exit", "removed", "failure", "detail", "reason",
               "note",
@@ -153,8 +169,129 @@ def parse_restart_flag(value, default=True):
     return default
 
 
+class _Aborted(BaseException):
+    """Raised in a worker thread, at its next wait or checkpoint, when the job was canceled. A BaseException, like
+    CloudBolt's own CancelJobException: the handlers of _patch_one catch Exception, and its finally blocks still run.
+    It is recognized by its vuln_abort attribute (_is_abort), not by class: every job file reloads this module, and
+    an _Aborted raised from the class of an earlier load must still count."""
+    vuln_abort = True
+
+
+def _is_abort(exc):
+    return bool(getattr(exc, "vuln_abort", False))
+
+
+class _Share:
+    """What the worker threads of one run share. The run makes it in the job's thread and hands it to each worker by
+    setting it on the worker's own thread object (vuln_share), never in a module global: the job files reload this
+    module (and vuln_jobs, vuln_fleet, vuln_store) in the same process, which would replace a global while the run
+    is using it. Everything a worker needs from it is a method or attribute of the object itself.
+      slots   update slots: at most `parallel` servers update at once; a server gives its slot back at its rescan
+      rescans the rescan limiter, sized to "Vulnerability matches at once"
+      flight  servers in flight (updating, or waiting for or running their rescan): parallel + rescans, so the
+              threads and database connections of a run are bounded
+      abort   set when the job was canceled
+      progress_lock  the lock the run's threads write the job's progress under (vuln_jobs.progress_guard)"""
+
+    def __init__(self, slots, rescans):
+        self.slots = threading.Semaphore(slots)
+        self.rescans = threading.Semaphore(rescans)
+        self.flight = threading.Semaphore(slots + rescans)
+        self.abort = threading.Event()
+        self.progress_lock = threading.Lock()
+        self._lock = threading.Lock()
+        self._count = 0
+
+    def begin(self):
+        with self._lock:
+            self._count += 1
+
+    def end(self):
+        with self._lock:
+            self._count -= 1
+        self.flight.release()
+
+    def in_flight(self):
+        with self._lock:
+            return self._count
+
+
+def _share():
+    """The run this thread works for, or None (the job's own thread in a serial run, a rescan child job)."""
+    return getattr(threading.current_thread(), "vuln_share", None)
+
+
+def _checkpoint():
+    """Raise _Aborted when this thread's run was canceled. Called before every step that changes the guest or
+    starts something; the cleanup that must follow an abort (the marker, the run folder) does not call it."""
+    share = _share()
+    if share is not None and share.abort.is_set():
+        raise _Aborted()
+
+
 def _sleep(seconds):
-    time.sleep(seconds)
+    share = _share()
+    if share is None:
+        time.sleep(seconds)
+    elif share.abort.wait(seconds):
+        raise _Aborted()
+
+
+def _close_connection():
+    """Close the database connection of the current thread (a worker thread's own; nothing else closes it). Django
+    opens a new one at the thread's next query."""
+    try:
+        from django.db import connection
+        connection.close()
+    except Exception:
+        logger.exception("Vulnerabilities: could not close a worker thread's database connection")
+
+
+def _own_server(server):
+    """The thread's own copy of the server: a model instance caches what it loads and is not safe to share
+    between threads. Falls back to the object the job holds when the server cannot be read again."""
+    try:
+        found = vuln_jobs.Server.objects.filter(id=server.id).first()
+        if found is not None:
+            return found
+    except Exception:
+        logger.exception("Vulnerabilities: could not read server %s again; using the job's copy", server.id)
+    return server
+
+
+def _own_job(job):
+    """The thread's own copy of the job, read again by id: a model instance loads its relations (owner, parent job,
+    order item) lazily and caches them, which is not safe from several threads. Falls back to the job's object."""
+    try:
+        found = vuln_jobs.Job.objects.filter(id=job.id).first()
+        if found is not None:
+            return found
+    except Exception:
+        logger.exception("Vulnerabilities: could not read job %s again; using the job's copy", getattr(job, "id", ""))
+    return job
+
+
+@contextlib.contextmanager
+def _rescan_turn(job, server):
+    """Around a server's rescan. In a worker thread: gives the update slot back (the next server starts updating)
+    and waits for the rescan limiter, so the rescan's own time limit covers only its run, not the queue. While it
+    waits its database connection is closed (it can be a long wait). In the job's own thread (serial run): nothing."""
+    share = _share()
+    if share is None:
+        yield
+        return
+    getattr(threading.current_thread(), "vuln_release")()
+    _checkpoint()
+    if not share.rescans.acquire(blocking=False):
+        _progress(job, "{}: waiting for its turn to scan again".format(server.hostname))
+        _close_connection()
+        while not share.rescans.acquire(timeout=CANCEL_CHECK_S):
+            if share.abort.is_set():
+                raise _Aborted()
+    try:
+        yield
+    finally:
+        share.rescans.release()
 
 
 def _clock():
@@ -445,6 +582,7 @@ def _linux_restart(job, server, run_id, old_boot_id, wait_s):
     """Restart the server and wait until it is back on a new boot id. Returns the probe that showed the new boot
     id (it carries the running and the newest kernel). Raises PatchFailed when the restart cannot be scheduled or
     the server is not back within wait_s seconds. Any error while probing means not back yet."""
+    _checkpoint()
     _progress(job, "{}: restarting".format(server.hostname))
     try:
         answer = _linux_call(server, "reboot", run_id, boot_id=old_boot_id, job=job)
@@ -476,10 +614,12 @@ def _linux_patch(job, server, run_id, restart, cfg):
     {"updated", "failed", "restart_needed", "restarted", "kernels_removed", "notes" (warnings), "info" (plain
     sentences for the message), "no_updates"}; raises PatchFailed."""
     notes = []
+    _checkpoint()
     probed = _linux_call(server, "probe", run_id, job=job)
     old_boot_id = probed["boot_id"]
     if not old_boot_id:
         raise PatchFailed("The server's boot id could not be read, so nothing was changed.")
+    _checkpoint()
     _progress(job, "{}: starting the update".format(server.hostname))
     started = _linux_call(server, "start", run_id, job=job)
     if started["reason"]:
@@ -542,6 +682,7 @@ def _linux_old_kernels(job, server, run_id, facts):
     """The old-kernel step. kernels_removed is the guest's own count; a note the guest returns when it skipped the
     cleanup goes into the message (a warning only when the server is not running its newest kernel)."""
     notes, info = facts["notes"], facts["info"]
+    _checkpoint()
     _progress(job, "{}: removing old kernels".format(server.hostname))
     try:
         cleaned = _linux_call(server, "oldkernels", run_id, timeout=OLD_KERNELS_TIMEOUT, job=job)
@@ -796,6 +937,7 @@ def _windows_restart(job, server, old_boot, wait_s, since=None):
     RESTART_UNCHANGED_PROBES successful probes in a row with the old boot id the reboot is sent once more, and after
     as many again the restart is given up as not started. Any error while probing means not back yet."""
     since = _clock() if since is None else since
+    _checkpoint()
     _progress(job, "{}: restarting".format(server.hostname))
     try:
         now = _windows_probe(server, job)
@@ -844,6 +986,7 @@ def _windows_patch(job, server, run_id, restart, cfg):
     """Steps 2 to 4 on a Windows server: the probe (Configuration Manager, build, boot id), the update as a SYSTEM
     task, the restart. Returns the same facts as _linux_patch (kernels_removed is None); raises PatchFailed."""
     notes = []
+    _checkpoint()
     probed = _windows_probe(server, job)
     if probed["ccm"] == "1":
         raise PatchFailed(CCM_REFUSED)
@@ -862,6 +1005,7 @@ def _windows_patch(job, server, run_id, restart, cfg):
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), WIN_SCRIPT_FILE)
     worker = _windows_call(vuln_wintask.build_worker, path, {})
     limit = _minutes(cfg, "patch_timeout_min", DEFAULT_PATCH_TIMEOUT_MIN) * 60
+    _checkpoint()
     _progress(job, "{}: starting the update".format(server.hostname))
     try:
         _windows_call(vuln_wintask.start, server, run_id, worker, limit)
@@ -907,6 +1051,34 @@ def _windows_patch(job, server, run_id, restart, cfg):
     return facts
 
 
+def _wait_for_child(started, wait):
+    """The ended child job. In a serial run, core's wait_for_completion. In a worker, the same wait done by looking
+    at the job every RESCAN_POLL_S through _sleep, so a cancel ends it at once (the child is left running, as the
+    update on a guest is); at the limit the child is canceled and TimeoutException raised, as core does. A job that
+    cannot be read again falls back to core's wait for the time that is left."""
+    if _share() is None:
+        return started.wait_for_completion(timeout=wait)
+    from utilities.exceptions import TimeoutException
+    began = _clock()
+    while True:
+        _sleep(RESCAN_POLL_S)
+        try:
+            current = vuln_jobs.Job.objects.filter(id=started.id).first()
+        except Exception:
+            current = None
+        if current is None:
+            return started.wait_for_completion(timeout=max(1, int(wait - (_clock() - began))))
+        if getattr(current, "status", "") in JOB_DONE:
+            return current
+        if _clock() - began > wait:
+            try:
+                current.status = "TO_CANCEL"
+                current.save(update_fields=["status"])
+            except Exception:
+                logger.exception("Vulnerabilities: could not cancel the rescan job %s", started.id)
+            raise TimeoutException("Job {} timed out after {}s. Cancelling job...".format(started.id, wait))
+
+
 def _rescan(job, server):
     """Scan the server again as a child of the update job, which holds the active marker. Returns (summary, note):
     the vulnerability counts after the scan, or None and a sentence on why there are none."""
@@ -924,7 +1096,7 @@ def _rescan(job, server):
     from utilities.exceptions import TimeoutException
     try:
         # Polls the job every five seconds; cancels it and raises when the time is up (jobs/models.py).
-        ended = started.wait_for_completion(timeout=wait)
+        ended = _wait_for_child(started, wait)
     except TimeoutException:
         return None, "The rescan did not finish within {}.".format(_minutes_text(wait // 60))
     if getattr(ended, "status", "") not in ("SUCCESS", "WARNING"):
@@ -933,6 +1105,19 @@ def _rescan(job, server):
     if summary is None:
         return None, "The rescan finished but its result could not be read."
     return summary, ""
+
+
+def _parallel(cfg):
+    """Servers one run works on at once: the setting, clamped. 1 (one after another) when the settings could not
+    be read (cfg is empty) or the value is not a number; the default only when the settings were read and the key
+    is simply absent."""
+    if not cfg:
+        return 1
+    low, high = store.PATCH_PARALLEL_RANGE
+    try:
+        return min(high, max(low, int(cfg.get("patch_parallel") or store.DEFAULT_SETTINGS["patch_parallel"])))
+    except (TypeError, ValueError):
+        return 1
 
 
 def _int_setting(key, default):
@@ -1039,7 +1224,8 @@ def _patch_one(job, server, restart, cfg):
             return dict(record, hostname=server.hostname, warning=True, detail=_detail_text(facts.get("detail")))
         notes = list(facts.get("notes") or [])
         info = list(facts.get("info") or [])
-        after, problem = _rescan(job, server)
+        with _rescan_turn(job, server):
+            after, problem = _rescan(job, server)
         if after is None:
             warning = True
             notes.append("The updates were installed and the rescan failed: {}".format(problem))
@@ -1063,7 +1249,9 @@ def _patch_one(job, server, restart, cfg):
 
 
 def _finish(job, server, record):
-    """Write the record and the server's history event. Neither may end the run."""
+    """Write the record and the server's history event. Neither may end the run. A server whose run was canceled
+    gets neither (the same as a server the cancel interrupted in a serial run)."""
+    _checkpoint()
     try:
         record_patch(server.id, record)
     except Exception:
@@ -1080,6 +1268,191 @@ def _finish(job, server, record):
         logger.exception("Vulnerabilities: could not add the server event")
 
 
+def _failed_result(host, message):
+    """The result of a server that was started and ended in failure without a record of its own."""
+    return {"status": "failed", "message": message, "hostname": host, "warning": True, "updated": None,
+            "failed": None, "restarted": False, "restart_needed": False, "kernels_removed": None, "before": None,
+            "after": None}
+
+
+def _work_on(job, target, position, total, restart, cfg, server=None):
+    """Write the "Server k of n" line and update one server (server, when given, is the copy of target this thread
+    owns). Always returns a result: a PatchFailed or any other exception becomes the server's "failed" one."""
+    _progress(job, "Server {} of {}: {}".format(position + 1, total, target.hostname))
+    try:
+        return _patch_one(job, server or target, restart, cfg)
+    except PatchFailed as exc:
+        return _failed_result(target.hostname, vuln_jobs.clean(str(exc), MESSAGE_LEN))
+    except Exception as exc:
+        logger.exception("Vulnerabilities: the update of server %s failed", getattr(target, "id", ""))
+        return _failed_result(target.hostname, "The update failed: {}".format(vuln_jobs.clean(str(exc), 200)))
+
+
+def _stop_reason(job, began, worst_s, queue_s=0):
+    """(stopped, out_of_time) at the moment a server is about to start: the job was asked to stop, or one more
+    server's worst case (plus queue_s, the time it may wait for its rescan) would not end before JOB_LIMIT_S."""
+    if vuln_fleet._cancelled(job):
+        return True, False
+    return False, _clock() - began + worst_s + queue_s > JOB_LIMIT_S
+
+
+def _queue_s(ahead, rescans):
+    """Seconds a server that starts now may wait for its rescan: every server in flight is ahead of it in the worst
+    case, and the rescans go `rescans` at a time, each taking up to the scan time limit plus WAIT_MARGIN_S (the
+    server's own rescan is in the worst case already)."""
+    rounds = -(-max(0, ahead) // max(1, rescans))
+    return rounds * (_int_setting("scan_timeout_min", 20) * 60 + WAIT_MARGIN_S)
+
+
+def _run_serial(job, targets, restart, cfg, began, worst_s):
+    """The servers one after another in the job's own thread. Returns (results by position, None for a server
+    not started; stopped; out_of_time)."""
+    finished = [None] * len(targets)
+    stopped = out_of_time = False
+    for position, target in enumerate(targets):
+        stopped, out_of_time = _stop_reason(job, began, worst_s)
+        if stopped or out_of_time:
+            break
+        finished[position] = _work_on(job, target, position, len(targets), restart, cfg)
+    return finished, stopped, out_of_time
+
+
+def _worker(share, job_logger, job, target, position, total, restart, cfg, finished):
+    """The thread of one server. It owns an update slot until its rescan begins (_rescan_turn) or it ends, and a
+    flight permit until it ends. Whatever happens, finished[position] gets a result unless the job was canceled,
+    and the thread's database connection is closed (a thread has a connection of its own that nothing else
+    closes). Everything the code below it needs from the run is on this thread object, set here."""
+    released = []
+
+    def release():
+        if not released:
+            released.append(True)
+            share.slots.release()
+
+    me = threading.current_thread()
+    me.vuln_share, me.vuln_release, me.vuln_progress_lock = share, release, share.progress_lock
+    if job_logger is not None:
+        # ThreadLogger writes to the job's log file only from a thread that has the job's logger.
+        me.logger = job_logger
+    try:
+        own = _own_job(job)
+        # Core's per-thread job lookup (guest script calls, hook runs) reads the thread's job attribute.
+        me.job = own
+        finished[position] = _work_on(own, target, position, total, restart, cfg, _own_server(target))
+    except BaseException as exc:
+        if _is_abort(exc):
+            logger.info("Vulnerabilities: the update of server %s was left when the job was canceled", target.id)
+        else:
+            logger.exception("Vulnerabilities: the update of server %s failed", target.id)
+            finished[position] = _failed_result(target.hostname, "The update failed: {}".format(
+                vuln_jobs.clean(str(exc) or type(exc).__name__, 200)))
+    finally:
+        release()
+        share.end()
+        _close_connection()
+
+
+def _grace(share, threads, targets):
+    """After a cancel: set the abort flag and wait for the workers until ABORT_WAIT_S has passed or all ended. Core
+    raises its cancel exception into the job's thread again about once a second while the thread lives, so each
+    join swallows it and the wait goes on. Logs the servers still busy at the end. Never raises."""
+    share.abort.set()
+    deadline = time.monotonic() + ABORT_WAIT_S
+    for _position, thread in threads:
+        while thread.is_alive():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                thread.join(min(remaining, 1.0))
+            except BaseException:
+                pass
+    try:
+        busy = [targets[position].hostname for position, thread in threads if thread.is_alive()]
+        if busy:
+            logger.warning("Vulnerabilities: the job was canceled and these servers were still busy after %s s: %s",
+                           ABORT_WAIT_S, ", ".join(busy))
+    except BaseException:
+        pass
+
+
+def _take(semaphore, job):
+    """Wait for a permit; False when the job was canceled while waiting (looked at every CANCEL_CHECK_S)."""
+    while not semaphore.acquire(timeout=CANCEL_CHECK_S):
+        if vuln_fleet._cancelled(job):
+            return False
+    return True
+
+
+def _run_parallel(job, targets, restart, cfg, parallel, began, worst_s):
+    """Up to `parallel` servers update at once, each in a thread of its own, started in the order given. A server
+    takes an update slot and a flight permit when it starts; the slot goes back at its rescan, the flight permit
+    when it ends, so at most parallel + rescans threads exist. Rescans go through a limiter of the size of
+    "Vulnerability matches at once". Cancel and the time limit are looked at when a server is about to start.
+    Returns (results by position, None for a server not started; stopped; out_of_time)."""
+    total = len(targets)
+    try:
+        rescans = max(1, int(cfg.get("rematch_workers") or store.DEFAULT_SETTINGS["rematch_workers"]))
+    except (TypeError, ValueError):
+        rescans = store.DEFAULT_SETTINGS["rematch_workers"]
+    share = _Share(min(parallel, total), rescans)
+    finished = [None] * total
+    threads = []
+    stopped = out_of_time = False
+    me = threading.current_thread()
+    job_logger = getattr(me, "logger", None)
+    me.vuln_progress_lock = share.progress_lock
+    try:
+        try:
+            for position, target in enumerate(targets):
+                if not _take(share.slots, job):
+                    stopped = True
+                    break
+                if not _take(share.flight, job):
+                    share.slots.release()
+                    stopped = True
+                    break
+                stopped, out_of_time = _stop_reason(job, began, worst_s, _queue_s(share.in_flight(), rescans))
+                if stopped or out_of_time:
+                    share.slots.release()
+                    share.flight.release()
+                    break
+                share.begin()
+                thread = threading.Thread(
+                    target=_worker, name="vuln-patch-{}".format(position + 1), daemon=True,
+                    args=(share, job_logger, job, target, position, total, restart, cfg, finished))
+                try:
+                    thread.start()
+                except Exception:
+                    logger.exception("Vulnerabilities: could not start a thread for server %s", target.id)
+                    share.slots.release()
+                    share.end()
+                    finished[position] = _failed_result(target.hostname,
+                                                        "The update could not be started on this server.")
+                    continue
+                threads.append((position, thread))
+            for _position, thread in threads:
+                # A join with a timeout, so that a cancel raised into this thread is delivered within CANCEL_CHECK_S.
+                while thread.is_alive():
+                    thread.join(CANCEL_CHECK_S)
+        except BaseException:
+            # The job was canceled: the threads stop at their next wait, as the job's own thread does.
+            try:
+                _grace(share, threads, targets)
+            except BaseException:
+                pass
+            raise
+    finally:
+        try:
+            del me.vuln_progress_lock
+        except AttributeError:
+            pass
+    for position, thread in threads:
+        if finished[position] is None:
+            finished[position] = _failed_result(targets[position].hostname, "The update did not report a result.")
+    return finished, stopped, out_of_time
+
+
 # ---------------------------------------------------------------- the job
 def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=None, **kwargs):
     """Plugin entry point (via vuln_patch_job.py). Returns the 4-tuple CloudBolt plugins use: status, output,
@@ -1090,6 +1463,9 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
     targets = list(servers) if servers else ([server] if server is not None else [])
     if not targets:
         return "FAILURE", "", "No server was given.", {}
+    # A server listed twice is updated once (the first place it has).
+    seen = set()
+    targets = [t for t in targets if not (t.id in seen or seen.add(t.id))]
     restart = parse_restart_flag(restart_if_needed)
     try:
         cfg = store.get_settings()
@@ -1101,41 +1477,32 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
     lines = []
     warned = False
     began = _clock()
-    stopped = out_of_time = False
     worst_s = (_minutes(cfg, "patch_timeout_min", DEFAULT_PATCH_TIMEOUT_MIN)
                + _minutes(cfg, "restart_wait_min", DEFAULT_RESTART_WAIT_MIN) + RESCAN_MARGIN_MIN) * 60
+    parallel = _parallel(cfg)
     try:
-        for position, target in enumerate(targets):
-            if vuln_fleet._cancelled(job):
-                stopped = True
-            elif _clock() - began + worst_s > JOB_LIMIT_S:
-                out_of_time = True
-            if stopped or out_of_time:
-                counts["skipped"] += len(targets) - position
-                break
-            _progress(job, "Server {} of {}: {}".format(position + 1, len(targets), target.hostname))
-            try:
-                done = _patch_one(job, target, restart, cfg)
-            except PatchFailed as exc:
-                done = {"status": "failed", "message": vuln_jobs.clean(str(exc), MESSAGE_LEN), "hostname": target.hostname,
-                        "warning": True, "updated": None, "failed": None, "restarted": False, "restart_needed": False,
-                        "kernels_removed": None, "before": None, "after": None}
-            except Exception as exc:
-                logger.exception("Vulnerabilities: the update of server %s failed", getattr(target, "id", ""))
-                done = {"status": "failed", "message": "The update failed: {}".format(vuln_jobs.clean(str(exc), 200)),
-                        "hostname": target.hostname, "warning": True, "updated": None, "failed": None,
-                        "restarted": False, "restart_needed": False, "kernels_removed": None, "before": None,
-                        "after": None}
-            warned = warned or bool(done.pop("warning", False))
-            detail = done.pop("detail", "")
-            counts[done["status"]] += 1
-            lines.append(_sentence(target.hostname, done) + ("\n" + detail if detail else ""))
-            results[str(target.id)] = done
-            details[str(target.id)] = detail
+        # Each worker reads the job again by id (_own_job); the owner is still read here, in the job's thread, for a
+        # worker that has to use this object (the job could not be read again).
+        getattr(job, "owner", None)
+        if parallel > 1 and len(targets) > 1:
+            finished, stopped, out_of_time = _run_parallel(job, targets, restart, cfg, parallel, began, worst_s)
+        else:
+            finished, stopped, out_of_time = _run_serial(job, targets, restart, cfg, began, worst_s)
     except BaseException:
-        # A cancel (CancelJobException) ends the loop here; the marker was cleared by _patch_one's own finally.
+        # A cancel (CancelJobException) ends the run here; the marker was cleared by _patch_one's own finally.
         _progress(job, GUEST_KEEPS_RUNNING)
         raise
+    # One sentence per server, in the order the servers were given, whichever finished first.
+    for target, done in zip(targets, finished):
+        if done is None:
+            counts["skipped"] += 1
+            continue
+        warned = warned or bool(done.pop("warning", False))
+        detail = done.pop("detail", "")
+        counts[done["status"]] += 1
+        lines.append(_sentence(target.hostname, done) + ("\n" + detail if detail else ""))
+        results[str(target.id)] = done
+        details[str(target.id)] = detail
     if stopped:
         lines.append("Stopped early because the job was canceled. {} not started. {}".format(
             counts["skipped"], GUEST_KEEPS_RUNNING))
