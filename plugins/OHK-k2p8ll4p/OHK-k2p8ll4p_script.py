@@ -303,6 +303,9 @@ def run(job, *args, **kwargs):
     if slug in LOCATION_FIELD and not location:
         return _failure("Pass onb_region: the region or location of the image (none could be read from the environments).")
     existing_osb = _existing_os_build(inputs["os_build_name"])
+    from externalcontent.models import OSBuild
+
+    osb_ids_before = set(OSBuild.objects.values_list("id", flat=True))
 
     try:
         if slug.startswith("aws"):
@@ -331,8 +334,9 @@ def run(job, *args, **kwargs):
         "osBuild": {
             "id": osb.global_id,
             "name": osb.name,
+            "requestedName": inputs["os_build_name"],
             "osFamily": osb.os_family.name if osb.os_family else None,
-            "reused": existing_osb is not None and existing_osb.id == osb.id,
+            "reused": osb.id in osb_ids_before,
             "url": base + "/externalcontent/osbuilds/{}/".format(osb.id),
         },
         "attachedToEnvironments": attached,
@@ -341,6 +345,15 @@ def run(job, *args, **kwargs):
             "blueprint deploys to both. Then onb_trim_environment on each environment."
         ),
     }
+    notes = []
     if osb.os_family is None:
-        outputs["note"] = "The OS family could not be determined; set it on the OS build page so Windows and Linux scripts target the right servers."
+        notes.append("The OS family could not be determined; set it on the OS build page so Windows and Linux scripts target the right servers.")
+    if osb.name.lower() != inputs["os_build_name"].lower():
+        notes.append(
+            "CloudBolt attached the image to its existing OS build '{}' (this image was already known under that build) "
+            "instead of '{}'. For one blueprint across two clouds, import the other handler's image with "
+            "onb_os_build_name='{}'.".format(osb.name, inputs["os_build_name"], osb.name)
+        )
+    if notes:
+        outputs["notes"] = notes
     return _success("OS build '{}' holds {} and is attached to {} environment(s).".format(osb.name, inputs["image"], len(attached)), outputs)

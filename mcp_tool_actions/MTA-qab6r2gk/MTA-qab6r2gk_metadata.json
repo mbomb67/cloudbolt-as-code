@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "Address to send the test to; defaults to the CloudBolt admin email.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-oyp9qitm",
+            "label": "Recipient (optional)",
+            "name": "onb_smtp_to",
+            "placeholder": "admin@example.com",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-jdyan3in"
+    },
+    "enabled": true,
+    "id": "MTA-qab6r2gk",
+    "is_synchronous": false,
+    "label": "POC Onboarding: SMTP Test",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Send a test email through the saved SMTP settings (to onb_smtp_to, else the CloudBolt admin email, else the caller's address) and return the relay's real error with a hint when it fails. Call it after onb_smtp and after the user entered the password in the UI. Runs as a job: poll the returned id with fetch_job. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_smtp_test",
+    "mcp_tool_title": ""
+}

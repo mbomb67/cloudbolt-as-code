@@ -1,0 +1,58 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "SVA- or RSA- global id, or the action's label.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-5jkupf06",
+            "label": "Server or resource action (id or label)",
+            "name": "onb_action",
+            "placeholder": "Resize VM",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        },
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "true pauses the action for approval; false runs it directly.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-u0c8by9a",
+            "label": "Requires approval (true/false, default true)",
+            "name": "onb_requires_approval",
+            "placeholder": "true",
+            "relevant-osfamilies": [],
+            "required": false,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-ndsuxv0k"
+    },
+    "enabled": true,
+    "id": "MTA-bp0rkcq9",
+    "is_synchronous": true,
+    "label": "POC Onboarding: Action Approval",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": false,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Turn 'Requires approval' on or off for a server action or resource action by global id (SVA-, RSA-) or label, for example Resize VM, so a requestor's day-2 action pauses as an order for an approver (test plan 2.4.2). The v3 API cannot change this flag. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_action_approval",
+    "mcp_tool_title": ""
+}
