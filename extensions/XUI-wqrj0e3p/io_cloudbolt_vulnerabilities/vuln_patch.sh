@@ -412,7 +412,9 @@ check_restart() {
         fi
         case "$rc" in
             0) RESTART=0 ;;
-            1) RESTART=1; RESTART_REASON=$(printf '%s\n' "$out" | grep -v '^[[:space:]]*$' | head -n 2 | tr '\n' ' ') ;;
+            # The subscription-manager plug-in prints its own lines first on a server that is not registered.
+            1) RESTART=1; RESTART_REASON=$(printf '%s\n' "$out" | grep -v -e '^[[:space:]]*$' -e '^Updating Subscription' \
+                -e '^Unable to read consumer' -e '^This system is not registered' | head -n 2 | tr '\n' ' ') ;;
             *)
                 # The command is missing or failed: compare the newest installed kernel with the running one.
                 newest=$KERNEL_NEWEST

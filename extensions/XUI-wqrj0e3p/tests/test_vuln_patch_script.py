@@ -371,7 +371,8 @@ rpm() {
 }
 dnf() {
     case "$*" in
-        *needs-restarting*) return 1 ;;
+        *needs-restarting\ -h*) [ -n "${NR_OUTPUT:-}" ]; return ;;
+        *needs-restarting*) printf '%b\n' "${NR_OUTPUT:-}"; return 1 ;;
         *upgrade*)
             printf '%b\n' "$DNF_OUTPUT"
             [ "${DNF_RC:-0}" = 0 ] || return "$DNF_RC"
@@ -411,6 +412,17 @@ dnf() {
         stubs = self.DNF.replace("*upgrade*)", "*never-matches*)")
         snippet = (self.COMMON + stubs + "( mode_worker )\nmode_poll\n").replace("{r}", self.root)
         self.assertIn("CBVULN|updated|0", shell(snippet))
+
+    def test_the_restart_reason_skips_the_subscription_plug_in_lines(self):
+        # An unregistered RHEL server (a cloud image on RHUI) prints these before every dnf answer.
+        noise = (r"Updating Subscription Management repositories.\nUnable to read consumer identity\n\n"
+                 r"This system is not registered with an entitlement server. You can use \"rhc\" to register.\n\n"
+                 r"Core libraries or services have been updated since boot-up:\n  * kernel\n  * glibc\n")
+        result = self.run_worker("rhel", env="DNF_OUTPUT=x\nNR_OUTPUT='{}'\n".format(noise))
+        self.assertEqual(result["restart"], "1")
+        self.assertEqual(result["restart_reason"].split(":")[0], "Core libraries or services have been updated since boot-up")
+        self.assertNotIn("Subscription", result["restart_reason"])
+        self.assertNotIn("registered", result["restart_reason"])
 
     def test_a_second_run_of_the_worker_still_counts_against_the_first_before_list(self):
         # A restart of the worker's service after the upgrade ran must not turn the count into 0.
