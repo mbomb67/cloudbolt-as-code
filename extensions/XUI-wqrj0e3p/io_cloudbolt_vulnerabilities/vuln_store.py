@@ -81,9 +81,34 @@ DEFAULT_SETTINGS = {
     # and scans the weekly inventory keeps running at once.
     "rematch_workers": 1,
     "inventory_parallel": 4,
+    # Offer the Install Updates server action (vuln_hooks.apply_patching_setting), and how long one server
+    # may take: minutes to wait for it to come back after a restart, minutes allowed for the install itself.
+    "patching": False,
+    "restart_wait_min": 60,
+    "patch_timeout_min": 90,
+    # Most servers the Vulnerabilities page starts one Install updates job for at once, and how many of them one
+    # job works on at the same time.
+    "bulk_patch_max": 30,
+    "patch_parallel": 5,
+    # After a Linux server restarts onto a new kernel, remove the older kernel packages.
+    "remove_old_kernels": True,
 }
 REMATCH_WORKERS_RANGE = (1, 4)
 INVENTORY_PARALLEL_RANGE = (1, 10)
+RESTART_WAIT_RANGE = (5, 120)
+PATCH_TIMEOUT_RANGE = (10, 240)
+BULK_PATCH_RANGE = (1, 100)
+PATCH_PARALLEL_RANGE = (1, 20)
+
+
+def owner_label(first, last, username):
+    """A server owner as the pages show them: the full name when there is one, else the username, else "". Every
+    part is stripped; this is the one place that decides it (the scan snapshot, the re-match and the reconcile
+    all use it)."""
+    name = " ".join(part.strip() for part in (first, last) if isinstance(part, str) and part.strip())
+    if name:
+        return name
+    return username.strip() if isinstance(username, str) else ""
 
 
 class StoreError(Exception):
@@ -394,8 +419,17 @@ def get_settings():
     result["scan_timeout_min"] = _clamp(result["scan_timeout_min"], 5, 120, DEFAULT_SETTINGS["scan_timeout_min"])
     if result["visibility"] not in VISIBILITIES:
         result["visibility"] = "linux"
-    for key in ("insecure_upload", "guest_internet_download", "scan_on_provision"):
+    for key in ("insecure_upload", "guest_internet_download", "scan_on_provision", "patching",
+                "remove_old_kernels"):
         result[key] = bool(result[key])
+    result["restart_wait_min"] = _clamp(
+        result["restart_wait_min"], *RESTART_WAIT_RANGE, DEFAULT_SETTINGS["restart_wait_min"])
+    result["patch_timeout_min"] = _clamp(
+        result["patch_timeout_min"], *PATCH_TIMEOUT_RANGE, DEFAULT_SETTINGS["patch_timeout_min"])
+    result["bulk_patch_max"] = _clamp(
+        result["bulk_patch_max"], *BULK_PATCH_RANGE, DEFAULT_SETTINGS["bulk_patch_max"])
+    result["patch_parallel"] = _clamp(
+        result["patch_parallel"], *PATCH_PARALLEL_RANGE, DEFAULT_SETTINGS["patch_parallel"])
     result["rematch_workers"] = _clamp(
         result["rematch_workers"], *REMATCH_WORKERS_RANGE, DEFAULT_SETTINGS["rematch_workers"])
     result["inventory_parallel"] = _clamp(
@@ -426,10 +460,16 @@ def validate_settings(data):
     clean["visibility"] = visibility
 
     clean["scan_on_provision"] = _flag(data.get("scan_on_provision", ""))
+    clean["patching"] = _flag(data.get("patching", ""))
+    clean["remove_old_kernels"] = _flag(data.get("remove_old_kernels", ""))
 
     for key, (low, high), label in (
         ("rematch_workers", REMATCH_WORKERS_RANGE, "Vulnerability matches at once"),
         ("inventory_parallel", INVENTORY_PARALLEL_RANGE, "Servers scanned at once by the weekly inventory"),
+        ("restart_wait_min", RESTART_WAIT_RANGE, "Minutes to wait for a server to come back after a restart"),
+        ("patch_timeout_min", PATCH_TIMEOUT_RANGE, "Minutes allowed for installing updates"),
+        ("bulk_patch_max", BULK_PATCH_RANGE, "Servers per bulk update"),
+        ("patch_parallel", PATCH_PARALLEL_RANGE, "Servers updated at the same time"),
     ):
         raw = str(data.get(key, DEFAULT_SETTINGS[key])).strip()
         if _whole(raw, low, high) is None:
@@ -572,9 +612,13 @@ def _resource_path(resource_id):
     return contained(RESOURCES_DIR, "{}.json".format(int(resource_id)))
 
 
+def _resource_patch_path(resource_id):
+    return contained(RESOURCES_DIR, "{}.patch.json".format(int(resource_id)))
+
+
 def read_resource_run(resource_id):
-    """The marker {"job_id","started","requested_by","server_ids"} or None when there is none or it is
-    damaged. A file that exists but cannot be read raises StoreError."""
+    """The marker {"job_id","started","requested_by","server_ids"} (plus "kind": "patch" for an install-updates
+    run; a marker without a kind is a scan) or None when there is none or it is damaged. A file that exists but cannot be read raises StoreError."""
     found = _read_json(_resource_path(resource_id), None)
     return found if isinstance(found, dict) else None
 
@@ -583,6 +627,34 @@ def set_resource_run(resource_id, marker):
     """Record the scan run in progress (atomic write)."""
     with _resource_data_lock(resource_id):
         _write_json(_resource_path(resource_id), marker)
+
+
+def read_resource_patch(resource_id):
+    """The record of the last install-updates run on the resource, or None when there is none or it is
+    damaged. A file that exists but cannot be read raises StoreError. It is not the run marker: it stays
+    after the run and the marker never holds it."""
+    found = _read_json(_resource_patch_path(resource_id), None)
+    return found if isinstance(found, dict) else None
+
+
+def set_resource_patch(resource_id, record):
+    """Replace the last-run record (atomic write, the lock of the marker's data)."""
+    with _resource_data_lock(resource_id):
+        _write_json(_resource_patch_path(resource_id), record)
+
+
+def clear_resource_patch(resource_id):
+    """Remove the last-run record. Returns True when one was removed."""
+    path = _resource_patch_path(resource_id)
+    with _resource_data_lock(resource_id):
+        try:
+            os.unlink(path)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise StoreError("The install-updates record of resource {} cannot be cleared: {}".format(
+                int(resource_id), exc.strerror or exc))
 
 
 def clear_resource_run(resource_id, job_id=None):

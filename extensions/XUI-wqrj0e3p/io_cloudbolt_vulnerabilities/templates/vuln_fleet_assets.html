@@ -22,6 +22,32 @@
     summary.servers_total > 0  with summary.servers = 0 (a resource whose servers are all unscanned)
                            keeps the explanation and shows the Servers list instead of the cards,
                            the view switch ([data-vuln-switch]) and the Vulnerabilities view.
+    [data-vuln-patch-all]  the "Install updates on all servers" link (resource mode only: the admin page
+                           has neither the link nor [data-vuln-patch-last]). It is a plain anchor that
+                           opens CloudBolt's own dialog (class open-dialog), so it has no data-vuln-act and
+                           this script never handles its click; it is un-hidden when the summary's patch
+                           says offer and no run is live, and its href is used only when it starts with "/".
+                           A run whose kind is "patch" is drawn as "Installing updates", with the server it
+                           is on and the run's message; a change of message alone redraws the banner without
+                           reloading the panes. [data-vuln-patch-last] shows the summary's patch_last, the
+                           result of the last update run, and is hidden while a run is live.
+  The admin page alone opts in to the full Servers view with data-server-filters-url on the root (the
+  resource tab has none, so it gets none of this):
+    data-server-filters-url  the filter choices (Group, OS build, Owner, Environment), fetched when the
+                           Servers view opens and again after a summary reload; with it the Servers
+                           table gets sortable headers (a button in each header, aria-sort on the th),
+                           the "Exploited only" and "With a fix only" boxes, an Owner and a "With a fix"
+                           column and, when the answer's bulk object says enabled, a checkbox column and
+                           the Install updates bar.
+    data-servers-select-url  "Select all N matching" (the answer's bulk.select_url is preferred).
+    data-servers-patch-url   the POST that starts one update run for the selected servers (the answer's
+                           bulk.run_url is preferred). data-csrf is sent as X-CSRFToken.
+  Selection is a Map of server id to hostname in memory: it survives paging and sorting, and is cleared
+  when the search or a filter changes, after a run starts, and by "Clear selection". It is never stored.
+  The search, filters, sort and page are kept in sessionStorage (key vuln-fleet-servers, always inside
+  try/catch) so the way back from a server tab restores them; nothing is stored with data-vuln-nohash.
+  Installing is confirmed in an inline panel above the table, never in a browser dialog. While a row on
+  the page says it is running, the pane refetches itself quietly every 15 seconds.
   A root is initialised once (data-vuln-init), at once when the document has already loaded (the
   tab HTML is injected after the page), and its timers stop when it leaves the document.
 {% endcomment %}
@@ -37,7 +63,103 @@
   var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+  var POLL_MS = 15000;
+  var FILTERS_ERR = "The filter choices could not be loaded.";
+  var PREFS_KEY = "vuln-fleet-servers";
+  var FILTER_KEYS = ["group", "environment", "os_build", "owner"];
+  var SORT_KEYS = ["hostname", "group", "environment", "os", "owner", "critical", "high", "fixable", "exploited", "inventory"];
+  var SERVER_COLS = [
+    { k: "hostname", t: "Hostname" }, { k: "group", t: "Group" }, { k: "environment", t: "Environment" },
+    { k: "os", t: "OS" }, { k: "owner", t: "Owner" },
+    { k: "critical", t: "Critical", n: true }, { k: "high", t: "High", n: true },
+    { k: "fixable", t: "With a fix", n: true }, { k: "exploited", t: "Exploited", n: true },
+    { k: "inventory", t: "Software list" }
+  ];
+
   function pad(n) { return n < 10 ? "0" + n : String(n); }
+
+  // A positive whole number, else 0: ids from the server are used only as such.
+  function goodId(value) { var n = Number(value); return n > 0 && n % 1 === 0 ? n : 0; }
+  // A link from the server is used only when it is a path on this site.
+  function goodPath(url) {
+    return typeof url === "string" && url.charAt(0) === "/" && url.charAt(1) !== "/" && url.charAt(1) !== "\\" ? url : "";
+  }
+
+  // Pure helpers (kept free of the page so they can be tested on their own).
+  // The result line of an Install updates request that did not start a job at once.
+  function approvalMessage(data) {
+    var id = goodId(data && data.order_id);
+    if (data && data.submitted === false) {
+      return { text: "Install updates was added to your current order. Submit the order to start it.",
+        url: goodPath(data.order_url), linkText: "Open current order" };
+    }
+    if (data && data.approved === true) {
+      return { text: "Order " + id + " was approved and the updates are starting.", url: goodPath(data.order_url), linkText: "View order" };
+    }
+    return { text: "Order " + id + " is waiting for approval before the updates start.", url: goodPath(data && data.order_url), linkText: "View order" };
+  }
+  function capMessage(max) { return "At most " + max + " servers can be selected."; }
+  // What the open confirmation panel shows: it is rebuilt only when this changes.
+  function confirmSignature(names, busy, approval, parallel) {
+    return names.length + "|" + names.join("\u0001") + "|" + (busy ? "1" : "0") + "|" + (approval ? "1" : "0") + "|" + (parallel || 0);
+  }
+  // The first line of the confirmation panel. parallel is how many servers one job updates at the same time.
+  function confirmSentence(n, approval, parallel) {
+    var what = "Install all available updates on " + n + (n === 1 ? " server" : " servers");
+    if (approval) {
+      return what + ". This action needs approval: the request becomes an order and each server is updated by its own job once it is approved.";
+    }
+    if (n === 1) { return what + "."; }
+    if (!(parallel > 1)) { return what + ", one after another, in one job."; }
+    return what + ", up to " + Math.min(parallel, n) + " at a time, in one job.";
+  }
+  // An answer to "Select all N matching" counts only for the query it was asked with.
+  function staleAnswer(sentKey, currentKey) { return sentKey !== currentKey; }
+
+  // The query of the admin Servers view (and of "Select all N matching", which has no page).
+  function serverQuery(st, paged) {
+    var q = { q: st.q };
+    if (paged) { q.page = st.page; q.page_size = PAGE_SIZE; }
+    if (st.kev) { q.kev = 1; }
+    if (st.fix) { q.fix = 1; }
+    FILTER_KEYS.forEach(function (k) { if (st[k]) { q[k] = st[k]; } });
+    if (st.sort) { q.sort = st.sort; q.dir = st.dir === "desc" ? "desc" : "asc"; }
+    return q;
+  }
+
+  // A select keeps its first option ("Group: all"); the rest come from the server as plain strings
+  // or {value, label}. A value that is set but no longer offered stays selectable so it can be cleared.
+  function fillSelect(sel, items, current) {
+    while (sel.options.length > 1) { sel.remove(1); }
+    var seen = false;
+    (items || []).forEach(function (it) {
+      var value = typeof it === "string" ? it : (it && it.value);
+      var label = typeof it === "string" ? it : (it && it.label);
+      if (typeof value !== "string" || !value) { return; }
+      var opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label || value;
+      sel.appendChild(opt);
+      if (value === current) { seen = true; }
+    });
+    if (current && !seen) {
+      var extra = document.createElement("option");
+      extra.value = current;
+      extra.textContent = current;
+      sel.appendChild(extra);
+    }
+    sel.value = current || "";
+  }
+
+  function badgeFor(running) {
+    var kind = running.kind === "patch" ? "Updating" : (running.kind === "scan" ? "Scanning" : "Running");
+    var text = running.queued ? "Queued" : kind;
+    var url = goodPath(running.job_url);
+    var node = url ? el("a", "vuln-badge", text) : el("span", "vuln-badge", text);
+    if (url) { node.setAttribute("href", url); }
+    node.setAttribute("title", running.queued ? "Waiting in an update job" : "A job is running on this server");
+    return node;
+  }
 
   // A time in the browser's local time: "today 09:14", "yesterday 09:14", "23 Nov 09:14",
   // or with kind "day" only the date. An unreadable value is shown as it came.
@@ -285,6 +407,35 @@
     var listOnly = false;       // resource mode, servers visible but none scanned: the explanation and the Servers list
     var refreshOnPoll = false;  // a run just became live: the next light poll reloads the visible pane once
     var canScan = null;         // true shows the scan button, false hides it; null (a run is live) leaves it as it is
+    var patch = null;           // the summary's patch: the Install updates on all servers link (resource mode only)
+    var patchLast = null;       // the summary's patch_last: the result of the last update run of the resource
+    // The admin Servers view (see the comment at the top of this file).
+    var admin = !!rootEl.getAttribute("data-server-filters-url");
+    var prefsOn = admin && !nohash;
+    var selectUrl = rootEl.getAttribute("data-servers-select-url") || "";
+    var patchUrl = rootEl.getAttribute("data-servers-patch-url") || "";
+    urls.serverFilters = rootEl.getAttribute("data-server-filters-url") || "";
+    var serverBulk = null;      // the last answer's bulk object
+    var selection = new Map();  // server id -> hostname
+    var lastTotal = 0;          // total and row count of the page on screen
+    var lastRows = 0;
+    var selMsg = "";            // the sentence "Select all N matching" left behind
+    var selectBusy = false;
+    var confirmOpen = false;
+    var confirmRestart = true;
+    var confirmRefs = null;
+    var runBusy = false;
+    var msg = null;             // the result of the last run: { kind, text, url, linkText, lines }
+    var filtersStale = true;
+    var filtersXhr = null;
+    var selectXhr = null;
+    var barBox = null;
+    var confirmBox = null;
+    var msgBox = null;
+    var selectLine = null;
+    var filtersErr = false;
+    var pruned = 0;             // rows dropped from the selection by the last draw
+    var pollKeep = 0;           // quiet refetches still owed after a start, even if no row says running yet
 
     function alive() { return document.body.contains(rootEl); }
     function one(sel) { return rootEl.querySelector(sel); }
@@ -364,12 +515,22 @@
       }
     });
     makePane("servers", {
-      fresh: function () { return { q: "", kev: false, page: 1 }; },
+      fresh: function () {
+        if (admin) { return { q: "", kev: false, fix: false, group: "", environment: "", os_build: "", owner: "", sort: "", dir: "asc", page: 1 }; }
+        return { q: "", kev: false, page: 1 };
+      },
       url: function () { return urls.servers; },
-      params: function (st) { var q = { q: st.q, page: st.page, page_size: PAGE_SIZE }; if (st.kev) { q.kev = 1; } return q; },
-      build: buildServers,
+      params: function (st) {
+        if (admin) { savePrefs(st); return serverQuery(st, true); }
+        var q = { q: st.q, page: st.page, page_size: PAGE_SIZE }; if (st.kev) { q.kev = 1; } return q;
+      },
+      build: function (rows, data) { return admin ? buildServersAdmin(rows, data) : buildServers(rows); },
       noun: "servers",
-      empty: function (st) { return (st.q || st.kev) ? "No servers match this search." : "No server has been scanned yet."; }
+      empty: function (st) {
+        if (admin) { return filtersSet(st) ? "No servers match these filters." : "No server has been scanned yet."; }
+        return (st.q || st.kev) ? "No servers match this search." : "No server has been scanned yet.";
+      },
+      after: function (data) { if (admin) { afterServers(data); } }
     });
 
     function setStatus(p, message) { if (p.status) { p.status.textContent = message || ""; } }
@@ -379,6 +540,7 @@
     }
 
     function draw(p, data, quiet) {
+      var restore = p.captureFocus ? p.captureFocus() : null;
       $(p.wrap).empty();
       $(p.pager).empty();
       setStatus(p, "");
@@ -390,11 +552,12 @@
       if (!rows.length) {
         p.wrap.appendChild(el("div", "vuln-nomatch", p.empty(p.st)));
       } else {
-        p.wrap.appendChild(p.build(rows));
+        p.wrap.appendChild(p.build(rows, data));
       }
       var from = total ? (page - 1) * size + 1 : 0;
       var to = Math.min(page * size, total);
-      var line = total ? (from + "–" + to + " of " + total + " " + p.noun) : ("0 " + p.noun);
+      var one = p.noun.replace(/ies$/, "y").replace(/s$/, "");   // "1 of 1 server", not "servers"
+      var line = total ? (from + "–" + to + " of " + total + " " + (total === 1 ? one : p.noun)) : ("0 " + p.noun);
       p.pager.appendChild(el("span", "", line));
       if (pages > 1) {
         var nav = el("span", "vuln-pages");
@@ -422,11 +585,13 @@
           if (links[i].vulnCve === lastCve) { links[i].focus(); break; }
         }
       }
+      if (restore && (!document.activeElement || document.activeElement === document.body)) { restore(); }
     }
 
     // The store answers "unavailable" while it is being updated: say so, keep the filters and
     // the page, and ask again after a few seconds.
     function showUnavailable(p) {
+      p.sortFocus = "";
       $(p.wrap).empty();
       $(p.pager).empty();
       setStatus(p, "");
@@ -442,6 +607,7 @@
       if (p.retry) { clearTimeout(p.retry); p.retry = null; }
       if (!document.body.contains(rootEl) || !p.url()) { return; }
       if (p.xhr) { p.xhr.abort(); p.xhr = null; }
+      if (admin && p.name === "servers" && filtersStale) { loadFilters(); }
       var mine = ++p.req;
       setBusy(p, true);
       var req = $.ajax({ url: p.url(), data: p.params(p.st), dataType: "json", cache: false });
@@ -454,6 +620,7 @@
         draw(p, data, quiet);
       }).fail(function (x, status) {
         if (mine !== p.req || status === "abort") { return; }
+        p.sortFocus = "";
         var err = x && x.responseJSON && x.responseJSON.error;
         setStatus(p, err || ("Could not load the results (HTTP " + (x && x.status) + ")."));
       }).always(function () {
@@ -471,6 +638,7 @@
     // ---- views and the URL hash ----
     function show(name) {
       ["cves", "detail", "servers"].forEach(function (n) { panes[n].node.hidden = (n !== name); });
+      if (name !== "servers") { stopPoll(panes.servers); }
       var segs = rootEl.querySelectorAll("[data-vuln-view]");
       for (var i = 0; i < segs.length; i++) {
         var v = segs[i].getAttribute("data-vuln-view");
@@ -526,6 +694,7 @@
       show(name);
       var p = panes[name];
       if (!p.loaded) { fetchPane(p); }
+      else if (admin && name === "servers") { fetchPane(p, true); }   // its poll stopped while it was out of view
       if (wasDetail && name === "cves" && lastCve) {
         p.focusRow = true;
         var links = p.wrap.querySelectorAll(nohash ? "button.vuln-link" : "a.vuln-link");
@@ -624,7 +793,9 @@
     function drawRun() {
       var box = one("[data-vuln-run]");
       if (!box) { return; }
-      var key = run ? [run.job_id, run.done, run.total, run.started].join("|") : "";
+      var isPatch = !!run && run.kind === "patch";
+      var key = run ? [run.job_id, run.done, run.total, run.started, isPatch ? "patch" : "scan",
+        isPatch ? (run.message || "") : ""].join("|") : "";
       if (key === runKey && (run ? !box.hidden : true)) { return; }   // unchanged: do not redraw a live region
       runKey = key;
       while (box.firstChild) { box.removeChild(box.firstChild); }
@@ -632,11 +803,16 @@
       var banner = el("div", "vuln-banner vuln-banner-info");
       banner.setAttribute("role", "status");
       var body = el("div", "vuln-banner-body");
-      body.appendChild(el("div", "vuln-banner-t", "Scan in progress"));
+      body.appendChild(el("div", "vuln-banner-t", isPatch ? "Installing updates" : "Scan in progress"));
       var total = Number(run.total) || 0;
       var done = Math.min(Number(run.done) || 0, total);
       var parts = [];
-      if (total > 0) { parts.push(done + " of " + total + " servers done"); }
+      if (isPatch) {
+        // "Server n of m" and what the job is doing now; the message may already begin with the server count.
+        var said = run.message ? String(run.message) : "";
+        if (total > 0 && !/^Server \d+ of \d+/.test(said)) { parts.push("Server " + Math.min(done + 1, total) + " of " + total); }
+        if (said) { parts.push(said); }
+      } else if (total > 0) { parts.push(done + " of " + total + " servers done"); }
       if (run.started) { parts.push("started " + fmtTime(run.started, "when")); }
       body.appendChild(el("div", "vuln-banner-s", parts.join(" · ")));
       banner.appendChild(body);
@@ -659,14 +835,67 @@
       }
     }
 
+    // The "Install updates on all servers" link: shown only when the summary offers it and no run (scan or
+    // update) is live. Its href comes from the server and is used only when it is a path on this site.
+    function syncPatch() {
+      var link = one("[data-vuln-patch-all]");
+      if (!link) { return; }
+      var url = patch && patch.offer && typeof patch.url === "string" && patch.url.charAt(0) === "/" ? patch.url : "";
+      if (url) { link.setAttribute("href", url); }
+      link.hidden = !url || !!run;
+    }
+
+    function plural(n, one_, many) { return n + " " + (n === 1 ? one_ : many); }
+
+    // The result line of the last update run of the resource, from the stored record, with textContent only.
+    function drawPatchLast() {
+      var box = one("[data-vuln-patch-last]");
+      if (!box) { return; }
+      while (box.firstChild) { box.removeChild(box.firstChild); }
+      if (!patchLast || run) { box.hidden = true; return; }
+      var updated = Number(patchLast.updated) || 0;
+      var pending = Number(patchLast.restart_pending) || 0;
+      var failed = Number(patchLast.failed) || 0;
+      var skipped = Number(patchLast.skipped) || 0;
+      var unchanged = Number(patchLast.no_updates) || 0;
+      var text;
+      if (!updated && !pending && !failed && unchanged) {
+        text = "No updates were available on " + plural(unchanged, "server", "servers") + ".";
+      } else {
+        text = (patchLast.at ? "Updated " + fmtTime(patchLast.at, "when") : "Updated") +
+          (patchLast.by ? " by " + patchLast.by : "") + ": " + plural(updated, "server", "servers") + " updated";
+        if (pending) { text += ", " + pending + " pending a restart"; }
+        if (failed) { text += ", " + failed + " failed"; }
+        if (skipped) { text += ", " + skipped + " skipped"; }
+        text += ".";
+      }
+      var banner = el("div", "vuln-banner " + (failed > 0 ? "vuln-banner-bad" : "vuln-banner-info"));
+      banner.setAttribute("role", "status");
+      var body = el("div", "vuln-banner-body");
+      body.appendChild(el("div", "vuln-banner-s", text));
+      banner.appendChild(body);
+      if (patchLast.job_url && String(patchLast.job_url).charAt(0) === "/") {
+        var link = el("a", "btn btn-sm btn-outline-secondary vuln-banner-btn", "View job");
+        link.setAttribute("href", patchLast.job_url);
+        banner.appendChild(link);
+      }
+      box.appendChild(banner);
+      box.hidden = false;
+    }
+
     function applyRun(data) {
       var was = run;
       run = (data && data.run) || null;
       // Resource mode only (scanUrl): the admin page never has a run, and its behaviour is unchanged.
       refreshOnPoll = !!scanUrl && !!run && (!was || refreshOnPoll);
       canScan = data && data.can_scan === true ? true : (data && data.can_scan === false ? false : null);
+      // Resource mode only: the admin page's summary has no patch or patch_last.
+      patch = scanUrl && data && data.patch ? data.patch : null;
+      patchLast = scanUrl && data && data.patch_last ? data.patch_last : null;
       drawRun();
       syncScan();
+      syncPatch();
+      drawPatchLast();
     }
 
     // While a run is in progress a light request (summary?run=1, only the run) is made every 5
@@ -695,6 +924,10 @@
         if (!next || !run || next.job_id !== run.job_id || next.done !== run.done || refreshOnPoll) {
           refreshOnPoll = false;
           loadSummary({ quiet: true });
+        } else if (next.message !== run.message || next.kind !== run.kind) {
+          // Only what the job says it is doing changed: redraw the banner, the panes need no reload.
+          run = next;
+          drawRun();
         }
       }).always(function () { if (runXhr === req) { runXhr = null; scheduleRun(); } });
     }
@@ -790,6 +1023,7 @@
         var first = !ready;
         if (listOnly) { listOnly = false; memRoute = { view: "cves" }; Object.keys(panes).forEach(function (n) { panes[n].loaded = false; }); }
         ready = true;
+        filtersStale = true;   // the choices are fetched again with the next Servers fetch
         drawCards(s);
         showState("ready");
         if (first) {
@@ -809,6 +1043,576 @@
         showAlert(err || ("Could not load the summary (HTTP " + (x && x.status) + ")."));
         if (!ready && alive()) { sumRetry = setTimeout(function () { sumRetry = null; if (alive()) { loadSummary(); } }, RETRY_MS); }
       }).always(function () { if (sumXhr === req) { sumXhr = null; scheduleRun(); } });
+    }
+
+    // ---- Servers view, admin mode (only with data-server-filters-url) ----
+    function filtersSet(st) {
+      return !!(st.q || st.kev || st.fix || st.group || st.environment || st.os_build || st.owner);
+    }
+    function bulkOn() { return !!(serverBulk && serverBulk.enabled); }
+    function bulkMax() { return serverBulk ? (goodId(serverBulk.max) || 0) : 0; }
+    function bulkParallel() { return serverBulk ? (goodId(serverBulk.parallel) || 1) : 1; }
+    function clearNode(node) { while (node.firstChild) { node.removeChild(node.firstChild); } }
+
+    function savePrefs(st) {
+      if (!prefsOn) { return; }
+      try {
+        window.sessionStorage.setItem(PREFS_KEY, JSON.stringify({
+          q: st.q, group: st.group, environment: st.environment, os_build: st.os_build, owner: st.owner,
+          kev: st.kev, fix: st.fix, sort: st.sort, dir: st.dir, page: st.page
+        }));
+      } catch (e) { /* the page works without it */ }
+    }
+    function loadPrefs(st) {
+      if (!prefsOn) { return; }
+      try {
+        var raw = window.sessionStorage.getItem(PREFS_KEY);
+        var o = raw ? JSON.parse(raw) : null;
+        if (!o || typeof o !== "object") { return; }
+        if (typeof o.q === "string") { st.q = o.q.slice(0, 100); }
+        FILTER_KEYS.forEach(function (k) { if (typeof o[k] === "string") { st[k] = o[k].slice(0, 200); } });
+        st.kev = o.kev === true;
+        st.fix = o.fix === true;
+        if (SORT_KEYS.indexOf(o.sort) >= 0) { st.sort = o.sort; st.dir = o.dir === "desc" ? "desc" : "asc"; }
+        var pg = parseInt(o.page, 10);
+        if (pg >= 1) { st.page = pg; }
+      } catch (e) { /* unreadable: start fresh */ }
+    }
+
+    // The controls of the toolbar show the pane's state (after a restore or "Clear filters").
+    function syncControls() {
+      var node = panes.servers.node;
+      var st = panes.servers.st;
+      var q = node.querySelector("[data-vuln-q]");
+      if (q) { q.value = st.q; }
+      var kev = node.querySelector("[data-vuln-kev]");
+      if (kev) { kev.checked = !!st.kev; }
+      var fix = node.querySelector("[data-vuln-fix]");
+      if (fix) { fix.checked = !!st.fix; }
+      FILTER_KEYS.forEach(function (k) {
+        var sel = node.querySelector('[data-vuln-filter="' + k + '"]');
+        if (sel) { sel.value = st[k] || ""; }
+      });
+      syncFilterUi();
+    }
+    function syncFilterUi() {
+      var btn = panes.servers.node.querySelector('[data-vuln-act="clear-filters"]');
+      if (btn) { btn.hidden = !filtersSet(panes.servers.st); }
+    }
+
+    function loadFilters() {
+      if (!admin || !urls.serverFilters) { return; }
+      filtersStale = false;
+      if (filtersXhr) { filtersXhr.abort(); }
+      var req = $.ajax({ url: urls.serverFilters, dataType: "json", cache: false });
+      filtersXhr = req;
+      req.done(function (data) {
+        if (filtersXhr !== req || !alive() || !data) { return; }
+        if (data.state === "unavailable") { filtersStale = true; filtersErr = true; setStatus(panes.servers, FILTERS_ERR); return; }
+        if (filtersErr) {
+          filtersErr = false;
+          if (panes.servers.status && panes.servers.status.textContent === FILTERS_ERR) { setStatus(panes.servers, ""); }
+        }
+        var node = panes.servers.node;
+        FILTER_KEYS.forEach(function (k) {
+          var sel = node.querySelector('[data-vuln-filter="' + k + '"]');
+          if (sel) { fillSelect(sel, data[k], panes.servers.st[k]); }
+        });
+      }).fail(function (x, status) {
+        if (status !== "abort") { filtersStale = true; filtersErr = true; setStatus(panes.servers, FILTERS_ERR); }
+      }).always(function () { if (filtersXhr === req) { filtersXhr = null; } });
+    }
+
+    // While a row on the page says it is running, the pane asks again every 15 s, quietly. A drawn
+    // answer replaces the timer (and ends it when nothing runs); a failed request leaves the next tick.
+    function stopPoll(p) { if (p && p.poll) { clearTimeout(p.poll); p.poll = null; } }
+    function schedulePoll(p) {
+      stopPoll(p);
+      p.poll = setTimeout(function () {
+        p.poll = null;
+        if (!alive() || paneNode(p.name).hidden) { return; }
+        schedulePoll(p);
+        if (document.hidden || rootEl.offsetParent === null) { return; }
+        fetchPane(p, true);
+      }, POLL_MS);
+    }
+
+    function sortHead(col, st) {
+      var th = el("th", col.n ? "vuln-num" : "");
+      th.setAttribute("scope", "col");
+      var btn = el("button", "vuln-sortbtn");
+      btn.setAttribute("type", "button");
+      btn.setAttribute("data-vuln-act", "sort");
+      btn.setAttribute("data-vuln-sort", col.k);
+      btn.setAttribute("title", "Sort by " + col.t);
+      btn.appendChild(document.createTextNode(col.t));
+      if (st.sort === col.k) {
+        th.setAttribute("aria-sort", st.dir === "desc" ? "descending" : "ascending");
+        var caret = el("span", "vuln-sortcaret", st.dir === "desc" ? "▼" : "▲");
+        caret.setAttribute("aria-hidden", "true");
+        btn.appendChild(caret);
+      }
+      th.appendChild(btn);
+      return th;
+    }
+
+    function buildServersAdmin(rows, data) {
+      var st = panes.servers.st;
+      serverBulk = (data && data.bulk) || null;
+      var on = bulkOn();
+      var body = document.createElement("tbody");
+      rows.forEach(function (r) {
+        var tr = document.createElement("tr");
+        var host = r.hostname || ("Server " + r.server_id);
+        if (on) {
+          var id = goodId(r.server_id);
+          var state = r.patch || null;
+          var ok = !!(id && state && state.selectable);
+          if (!ok && id && selection.has(id)) { selection.delete(id); pruned++; }
+          var box = cell("vuln-selcol");
+          var cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.className = "form-check-input";
+          cb.setAttribute("data-vuln-sel", String(id));
+          cb.setAttribute("aria-label", "Select " + host);
+          cb.vulnId = id;
+          cb.vulnHost = host;
+          cb.vulnOk = ok;
+          cb.vulnWhy = ok ? "" : ((state && state.why) || "");
+          box.appendChild(cb);
+          tr.appendChild(box);
+        }
+        var hostTd = hostCell(r);
+        if (r.patch && r.patch.running) { hostTd.firstChild.appendChild(badgeFor(r.patch.running)); }
+        tr.appendChild(hostTd);
+        tr.appendChild(textCell(r.group_name));
+        tr.appendChild(textCell(r.environment));
+        var os = textCell(r.os_name);
+        if (r.os_build) { os.appendChild(el("div", "vuln-subline", r.os_build)); }
+        tr.appendChild(os);
+        tr.appendChild(textCell(r.owner));
+        tr.appendChild(numCell(r.vuln_critical, r.vuln_critical ? "vuln-c-crit" : ""));
+        tr.appendChild(numCell(r.vuln_high, r.vuln_high ? "vuln-c-high" : ""));
+        tr.appendChild(numCell(r.vuln_fixable));
+        tr.appendChild(numCell(r.kev, r.kev ? "vuln-kev" : ""));
+        var when = cell("vuln-ver");
+        when.textContent = r.inventory_at ? fmtTime(r.inventory_at, "when") : "–";
+        if (r.inventory_at) { when.setAttribute("title", r.inventory_at); }
+        tr.appendChild(when);
+        body.appendChild(tr);
+      });
+      var head = document.createElement("tr");
+      if (on) {
+        var hth = el("th", "vuln-selcol");
+        hth.setAttribute("scope", "col");
+        var all = document.createElement("input");
+        all.type = "checkbox";
+        all.className = "form-check-input";
+        all.setAttribute("data-vuln-selall", "1");
+        all.setAttribute("aria-label", "Select all servers on this page that can be updated");
+        hth.appendChild(all);
+        head.appendChild(hth);
+      }
+      SERVER_COLS.forEach(function (col) { head.appendChild(sortHead(col, st)); });
+      return finishTable(head, body);
+    }
+
+    // Checkbox states from the selection: checked, disabled with the reason as the title, the header
+    // box (checked / indeterminate / disabled) and the cap.
+    function syncBoxes() {
+      var p = panes.servers;
+      var boxes = p.wrap.querySelectorAll("input[data-vuln-sel]");
+      var max = bulkMax();
+      var full = max > 0 && selection.size >= max;
+      var okCount = 0;
+      var picked = 0;
+      for (var i = 0; i < boxes.length; i++) {
+        var cb = boxes[i];
+        var isOn = selection.has(cb.vulnId);
+        cb.checked = isOn;
+        if (cb.vulnOk) { okCount++; if (isOn) { picked++; } }
+        var capped = cb.vulnOk && full && !isOn;
+        cb.disabled = !cb.vulnOk || capped || runBusy;
+        var why = !cb.vulnOk ? cb.vulnWhy : (capped ? "At most " + max + " servers can be updated at once." : "");
+        if (why) { cb.setAttribute("title", why); } else { cb.removeAttribute("title"); }
+      }
+      var head = p.wrap.querySelector("input[data-vuln-selall]");
+      if (head) {
+        head.checked = okCount > 0 && picked === okCount;
+        head.indeterminate = picked > 0 && picked < okCount;
+        head.disabled = okCount === 0 || runBusy;
+        if (okCount === 0) { head.setAttribute("title", "No server on this page can be updated."); } else { head.removeAttribute("title"); }
+      }
+    }
+
+    function renderBar() {
+      if (!barBox) { return; }
+      clearNode(barBox);
+      var bulk = serverBulk;
+      if (!bulk) { barBox.hidden = true; return; }
+      barBox.hidden = false;
+      var row = el("div", "vuln-bulkbar");
+      if (!bulk.enabled) {
+        var kept = selection.size;
+        row.appendChild(el("span", "vuln-dim", (bulk.why || "Install updates is not available.") +
+          (kept ? " " + plural(kept, "server stays", "servers stay") + " selected." : "")));
+        barBox.appendChild(row);
+        return;
+      }
+      var n = selection.size;
+      var btn = el("button", "btn btn-sm btn-primary", n ? "Install updates on " + plural(n, "server", "servers") : "Install updates");
+      btn.setAttribute("type", "button");
+      btn.setAttribute("data-vuln-act", "bulk-open");
+      btn.disabled = n === 0 || runBusy;
+      row.appendChild(btn);
+      if (n) {
+        var clr = el("button", "vuln-link vuln-textbtn", "Clear selection");
+        clr.setAttribute("type", "button");
+        clr.setAttribute("data-vuln-act", "bulk-clear");
+        clr.disabled = runBusy;
+        row.appendChild(clr);
+      }
+      if (bulkMax()) { row.appendChild(el("span", "vuln-dim", "Select up to " + bulkMax() + " servers.")); }
+      barBox.appendChild(row);
+    }
+
+    function renderConfirm() {
+      if (!confirmBox) { return; }
+      var n = selection.size;
+      if (!confirmOpen || !bulkOn() || !n) {
+        clearNode(confirmBox);
+        confirmRefs = null;
+        confirmOpen = false;
+        confirmBox.hidden = true;
+        return;
+      }
+      var names = [];
+      selection.forEach(function (host) { names.push(host); });
+      var sig = confirmSignature(names, runBusy, !!(serverBulk && serverBulk.requires_approval), bulkParallel());
+      if (confirmRefs && confirmRefs.sig === sig && confirmBox.firstChild) { return; }   // nothing it shows changed
+      clearNode(confirmBox);
+      confirmBox.hidden = false;
+      var panel = el("div", "vuln-confirm");
+      panel.setAttribute("role", "group");
+      panel.setAttribute("aria-label", "Confirm installing updates");
+      panel.setAttribute("tabindex", "-1");
+      panel.appendChild(el("div", "", confirmSentence(n, !!(serverBulk && serverBulk.requires_approval), bulkParallel())));
+      var text = names.slice(0, 10).join(", ");
+      if (names.length > 10) { text += " and " + (names.length - 10) + " more"; }
+      panel.appendChild(el("div", "vuln-confirm-hosts", text));
+      var chk = el("div", "form-check vuln-kev-check");
+      var restart = document.createElement("input");
+      restart.type = "checkbox";
+      restart.className = "form-check-input";
+      restart.id = "vuln-bulk-restart";
+      restart.checked = confirmRestart;
+      var lab = el("label", "form-check-label", "Restart a server when an update needs it");
+      lab.setAttribute("for", "vuln-bulk-restart");
+      chk.appendChild(restart);
+      chk.appendChild(lab);
+      panel.appendChild(chk);
+      var btns = el("div", "vuln-confirm-btns");
+      var ok = el("button", "btn btn-sm btn-primary", "Install updates");
+      ok.setAttribute("type", "button");
+      ok.setAttribute("data-vuln-act", "bulk-confirm");
+      var cancel = el("button", "btn btn-sm btn-outline-secondary", "Cancel");
+      cancel.setAttribute("type", "button");
+      cancel.setAttribute("data-vuln-act", "bulk-cancel");
+      ok.disabled = cancel.disabled = restart.disabled = runBusy;
+      btns.appendChild(ok);
+      btns.appendChild(cancel);
+      panel.appendChild(btns);
+      confirmBox.appendChild(panel);
+      confirmRefs = { panel: panel, restart: restart, ok: ok, cancel: cancel, sig: sig };
+    }
+
+    function renderMsg() {
+      if (!msgBox) { return; }
+      clearNode(msgBox);
+      if (!msg) { msgBox.hidden = true; return; }
+      var box = el("div", "vuln-msg" + (msg.kind === "error" ? " vuln-msg-bad" : ""));
+      box.setAttribute("role", "status");
+      box.setAttribute("tabindex", "-1");
+      var main = el("div", "vuln-msg-main");
+      main.appendChild(el("span", "", msg.text));
+      var url = goodPath(msg.url);
+      if (url) {
+        var link = el("a", "vuln-link", msg.linkText || "View");
+        link.setAttribute("href", url);
+        main.appendChild(link);
+      }
+      var dismiss = el("button", "vuln-link vuln-textbtn", "Dismiss");
+      dismiss.setAttribute("type", "button");
+      dismiss.setAttribute("data-vuln-act", "bulk-dismiss");
+      main.appendChild(dismiss);
+      box.appendChild(main);
+      (msg.lines || []).forEach(function (line) { box.appendChild(el("div", "vuln-msg-line", line)); });
+      msgBox.appendChild(box);
+      msgBox.hidden = false;
+    }
+    function setMsg(kind, text, url, linkText, lines) {
+      msg = text ? { kind: kind, text: text, url: url || "", linkText: linkText || "", lines: lines || [] } : null;
+      renderMsg();
+    }
+
+    function renderSelectLine() {
+      if (!selectLine) { return; }
+      clearNode(selectLine);
+      var any = false;
+      if (bulkOn() && lastTotal > lastRows) {
+        var b = el("button", "vuln-link vuln-textbtn", "Select all " + lastTotal + " matching servers");
+        b.setAttribute("type", "button");
+        b.setAttribute("data-vuln-act", "bulk-select-all");
+        b.disabled = selectBusy || runBusy;
+        selectLine.appendChild(b);
+        any = true;
+      }
+      var text = selectBusy ? "Selecting…" : selMsg;
+      if (text) { selectLine.appendChild(el("span", "vuln-dim", text)); any = true; }
+      selectLine.hidden = !any;
+    }
+
+    function applySelection() {
+      syncBoxes();
+      renderConfirm();
+      renderBar();
+      renderSelectLine();
+    }
+    // The user changed the selection by hand: whatever was said about the last "Select all" no longer holds.
+    function selectionChanged() {
+      selMsg = "";
+      if (!runBusy) { confirmOpen = false; }
+      applySelection();
+      announce(selection.size ? plural(selection.size, "server", "servers") + " selected" : "Selection cleared");
+    }
+    function resetSelection() {
+      if (selectXhr) { var old = selectXhr; selectXhr = null; old.abort(); }
+      selectBusy = false;
+      selection.clear();
+      selMsg = "";
+      if (!runBusy) { confirmOpen = false; }
+      applySelection();
+    }
+
+    function afterServers(data) {
+      var p = panes.servers;
+      var rows = (data && data.rows) || [];
+      serverBulk = (data && data.bulk) || null;
+      lastTotal = (data && data.total) || 0;
+      lastRows = rows.length;
+      if (!bulkOn()) { confirmOpen = false; }   // a failed check keeps the selection; the bar says why
+      if (pruned) {
+        selMsg = pruned === 1 ? "1 server was removed from the selection because it can no longer be updated."
+          : pruned + " servers were removed from the selection because they can no longer be updated.";
+        pruned = 0;
+      }
+      if (filtersErr) { setStatus(p, FILTERS_ERR); }
+      if (!rows.length && filtersSet(p.st)) {
+        var holder = el("div", "vuln-nomatch-act");
+        var clr = el("button", "btn btn-sm btn-outline-secondary", "Clear filters");
+        clr.setAttribute("type", "button");
+        clr.setAttribute("data-vuln-act", "clear-filters");
+        holder.appendChild(clr);
+        p.wrap.appendChild(holder);
+      }
+      syncFilterUi();
+      applySelection();
+      if (p.sortFocus) {
+        var key = p.sortFocus;
+        p.sortFocus = "";
+        var sb = p.wrap.querySelector('[data-vuln-sort="' + key + '"]');
+        if (sb) { sb.focus(); }
+      }
+      stopPoll(p);
+      var running = rows.some(function (r) { return !!(r.patch && r.patch.running); });
+      if (running) { pollKeep = 0; schedulePoll(p); }
+      else if (pollKeep > 0) { pollKeep--; schedulePoll(p); }
+    }
+
+    function clearFilters() {
+      var p = panes.servers;
+      var st = p.st;
+      st.q = "";
+      st.kev = false;
+      st.fix = false;
+      FILTER_KEYS.forEach(function (k) { st[k] = ""; });
+      st.page = 1;
+      syncControls();
+      resetSelection();
+      fetchPane(p);
+    }
+
+    function sortBy(key) {
+      var p = panes.servers;
+      if (SORT_KEYS.indexOf(key) < 0) { return; }
+      if (p.st.sort !== key) { p.st.sort = key; p.st.dir = "asc"; }
+      else if (p.st.dir !== "desc") { p.st.dir = "desc"; }
+      else { p.st.sort = ""; p.st.dir = "asc"; }   // third click: back to the default order
+      p.st.page = 1;
+      p.sortFocus = key;
+      fetchPane(p);
+    }
+
+    function selectAll() {
+      var p = panes.servers;
+      var url = goodPath((serverBulk && serverBulk.select_url) || selectUrl);
+      if (selectBusy || runBusy || !bulkOn() || !url) { return; }
+      selectBusy = true;
+      selMsg = "";
+      renderSelectLine();
+      if (selectXhr) { selectXhr.abort(); }
+      var key = JSON.stringify(serverQuery(p.st, false));
+      var req = $.ajax({ url: url, data: serverQuery(p.st, false), dataType: "json", cache: false });
+      selectXhr = req;
+      req.done(function (data) {
+        if (selectXhr !== req || !alive() || !data) { return; }
+        if (staleAnswer(key, JSON.stringify(serverQuery(p.st, false)))) { return; }   // the filter changed meanwhile
+        if (data.unavailable) { selMsg = "The results are being updated. Try again in a moment."; return; }
+        selection.clear();
+        var names = data.hostnames || {};
+        (data.ids || []).forEach(function (raw) {
+          var id = goodId(raw);
+          if (id) { selection.set(id, String(names[String(id)] || ("Server " + id))); }
+        });
+        var k = selection.size;
+        var total = Number(data.total) || 0;
+        var skipped = Number(data.skipped_count) || 0;
+        if (!k) {
+          selMsg = "No matching server can be updated.";
+        } else if (data.complete) {
+          selMsg = "Selected all " + plural(k, "server", "servers") + " that can be updated" + (skipped ? " (" + skipped + " cannot)." : ".");
+        } else {
+          selMsg = "Selected the first " + k + " of " + total + " matching servers. At most " + (Number(data.max) || k) +
+            " can be updated at once; narrow the filter to select the rest.";
+        }
+        confirmOpen = false;
+        applySelection();
+        announce(selMsg);
+      }).fail(function (x, status) {
+        if (selectXhr !== req || status === "abort") { return; }
+        var err = x && x.responseJSON && x.responseJSON.error;
+        selMsg = err || ("Could not select the matching servers (HTTP " + ((x && x.status) || 0) + ").");
+      }).always(function () {
+        if (selectXhr !== req) { return; }
+        selectXhr = null;
+        selectBusy = false;
+        if (alive()) { renderSelectLine(); }
+      });
+    }
+
+    function openConfirm() {
+      if (!selection.size || runBusy || !bulkOn()) { return; }
+      setMsg("", "");
+      confirmOpen = true;
+      confirmRestart = !(serverBulk && serverBulk.restart_default === false);
+      renderConfirm();
+      if (confirmRefs) { confirmRefs.panel.focus(); }
+    }
+    function cancelConfirm() {
+      if (runBusy) { return; }
+      confirmOpen = false;
+      renderConfirm();
+      var again = barBox && barBox.querySelector('[data-vuln-act="bulk-open"]');
+      if (again) { again.focus(); }
+    }
+
+    function runBulk() {
+      var p = panes.servers;
+      if (runBusy || !bulkOn() || !selection.size) { return; }
+      var url = goodPath((serverBulk && serverBulk.run_url) || patchUrl);
+      if (!url) {
+        confirmOpen = false;
+        applySelection();
+        setMsg("error", "Install updates is not available on this page.");
+        return;
+      }
+      var ids = [];
+      selection.forEach(function (host, id) { ids.push(id); });
+      var restart = confirmRefs ? confirmRefs.restart.checked : confirmRestart;
+      var count = ids.length;
+      runBusy = true;
+      applySelection();
+      $.ajax({
+        url: url,
+        method: "POST",
+        dataType: "json",
+        headers: { "Accept": "application/json", "X-CSRFToken": csrf },
+        data: { ids: ids.join(","), restart: restart ? 1 : 0 }
+      }).done(function (data) {
+        runBusy = false;
+        if (!alive()) { return; }
+        var servers = goodId(data && data.servers) || count;
+        if (data && data.state === "started" && goodId(data.job_id)) {
+          setMsg("info", "Job " + goodId(data.job_id) + " is installing updates on " + plural(servers, "server", "servers") + ".",
+            goodPath(data.job_url), "View job");
+        } else if (data && data.state === "approval" && (goodId(data.order_id) || data.submitted === false)) {
+          var am = approvalMessage(data);
+          setMsg("info", am.text, am.url, am.linkText);
+        } else {
+          setMsg("error", "The update may have started. Check Jobs.");
+        }
+        pollKeep = 5;
+        selection.clear();
+        confirmOpen = false;
+        selMsg = "";
+        applySelection();
+        fetchPane(p, true);
+        focusMsg();
+      }).fail(function (x) {
+        runBusy = false;
+        if (!alive()) { return; }
+        var body = (x && x.responseJSON) || {};
+        var code = (x && x.status) || 0;
+        confirmOpen = false;
+        if (code === 409 && body.refused && body.refused.length) {
+          var lines = [];
+          body.refused.forEach(function (r) {
+            var id = goodId(r && r.id);
+            if (id) { selection.delete(id); }
+            if (lines.length < 5) { lines.push(String((r && r.hostname) || ("Server " + id)) + ": " + String((r && r.why) || "")); }
+          });
+          applySelection();
+          setMsg("error", body.error || "Some of the selected servers can no longer be updated.", "", "", lines);
+        } else if (code === 200) {
+          // The server answered but not with JSON: do not claim it did not start.
+          selection.clear();
+          applySelection();
+          setMsg("error", "The update may have started. Check Jobs.");
+          pollKeep = 5;
+        } else {
+          applySelection();
+          setMsg("error", body.error || ("Could not start the update (HTTP " + code + ")."));
+        }
+        fetchPane(p, true);   // a refusal or a switched-off action changes what the rows say
+        focusMsg();
+      });
+    }
+
+    function focusMsg() {
+      var box = msgBox && msgBox.firstChild;
+      if (box) { box.focus(); return; }
+      var btn = barBox && barBox.querySelector("button");
+      if (btn) { btn.focus(); }
+    }
+
+    // Before a redraw: remember which control has the keyboard focus; the returned function focuses
+    // its replacement. Only controls this script draws are described, by attributes it set itself.
+    function captureFocus() {
+      var node = document.activeElement;
+      if (!node || !panes.servers.node.contains(node)) { return null; }
+      var sel = "";
+      var v;
+      if ((v = node.getAttribute("data-vuln-sel")) && /^\d+$/.test(v)) { sel = 'input[data-vuln-sel="' + v + '"]'; }
+      else if (node.hasAttribute("data-vuln-selall")) { sel = "input[data-vuln-selall]"; }
+      else if ((v = node.getAttribute("data-vuln-sort")) && SORT_KEYS.indexOf(v) >= 0) { sel = '[data-vuln-sort="' + v + '"]'; }
+      else if (node.getAttribute("data-vuln-act") === "page" && /^\d+$/.test(node.getAttribute("data-vuln-to") || "")) {
+        sel = '[data-vuln-act="page"][data-vuln-to="' + node.getAttribute("data-vuln-to") + '"]';
+      } else if ((v = node.getAttribute("data-vuln-act")) && /^[a-z-]+$/.test(v)) { sel = '[data-vuln-act="' + v + '"]'; }
+      if (!sel) { return null; }
+      return function () {
+        var again = panes.servers.node.querySelector(sel);
+        if (again && !again.disabled) { again.focus(); }
+      };
     }
 
     // ---- events ----
@@ -841,14 +1645,75 @@
         p.st.page = to;
         p.pagerFocus = true;
         fetchPane(p);
+      } else if (admin) {
+        if (act === "sort") { sortBy(node.getAttribute("data-vuln-sort") || ""); }
+        else if (act === "clear-filters") { clearFilters(); }
+        else if (act === "bulk-open") { openConfirm(); }
+        else if (act === "bulk-cancel") { cancelConfirm(); }
+        else if (act === "bulk-confirm") { runBulk(); }
+        else if (act === "bulk-select-all") { selectAll(); }
+        else if (act === "bulk-dismiss") { setMsg("", ""); }
+        else if (act === "bulk-clear") {
+          resetSelection();
+          announce("Selection cleared");
+        }
       }
     });
+    // Filters and the search of the Servers view clear the selection (the rows it names are gone).
+    function filterChanged(p) { if (admin && p.name === "servers") { resetSelection(); syncFilterUi(); } }
     $(rootEl).on("input", "[data-vuln-q]", function () {
       var p = paneOf(this);
       if (!p) { return; }
       p.st.q = this.value.slice(0, 100);
       p.st.page = 1;
+      filterChanged(p);
       queueFetch(p);
+    });
+    $(rootEl).on("change", "[data-vuln-filter]", function () {
+      var p = paneOf(this);
+      var key = this.getAttribute("data-vuln-filter");
+      if (!admin || !p || p.name !== "servers" || FILTER_KEYS.indexOf(key) < 0) { return; }
+      p.st[key] = this.value.slice(0, 200);
+      p.st.page = 1;
+      filterChanged(p);
+      fetchPane(p);
+    });
+    $(rootEl).on("change", "#vuln-bulk-restart", function () { confirmRestart = this.checked; });
+    $(rootEl).on("change", "input[data-vuln-sel]", function () {
+      var id = this.vulnId;
+      if (!admin || !id || runBusy) { return; }
+      if (this.checked) {
+        var max = bulkMax();
+        if (max && selection.size >= max) {
+          this.checked = false;
+          selMsg = capMessage(max);
+          renderSelectLine();
+          return;
+        }
+        selection.set(id, this.vulnHost || ("Server " + id));
+      } else {
+        selection.delete(id);
+      }
+      selectionChanged();
+    });
+    $(rootEl).on("change", "input[data-vuln-selall]", function () {
+      if (!admin || runBusy) { return; }
+      var want = this.checked;
+      var max = bulkMax();
+      var boxes = panes.servers.wrap.querySelectorAll("input[data-vuln-sel]");
+      var capped = false;
+      for (var i = 0; i < boxes.length; i++) {
+        var cb = boxes[i];
+        if (!cb.vulnOk) { continue; }
+        if (want) {
+          if (max && selection.size >= max && !selection.has(cb.vulnId)) { capped = true; break; }
+          selection.set(cb.vulnId, cb.vulnHost);
+        } else {
+          selection.delete(cb.vulnId);
+        }
+      }
+      selectionChanged();
+      if (capped) { selMsg = capMessage(max); renderSelectLine(); }
     });
     $(rootEl).on("change", "[data-vuln-sev]", function () {
       var p = paneOf(this);
@@ -862,6 +1727,7 @@
       if (!p) { return; }
       p.st.kev = this.checked;
       p.st.page = 1;
+      filterChanged(p);
       fetchPane(p);
     });
     $(rootEl).on("change", "[data-vuln-fix]", function () {
@@ -869,6 +1735,7 @@
       if (!p) { return; }
       p.st.fix = this.checked;
       p.st.page = 1;
+      filterChanged(p);
       fetchPane(p);
     });
     if (!nohash) {
@@ -876,6 +1743,28 @@
         if (!document.body.contains(rootEl)) { return; }
         applyHash();
       });
+    }
+
+    if (admin) {
+      var spNode = panes.servers.node;
+      var bulkBox = spNode.querySelector("[data-vuln-bulk]");
+      selectLine = spNode.querySelector("[data-vuln-selectline]");
+      if (bulkBox) {
+        barBox = el("div", "");
+        confirmBox = el("div", "");
+        msgBox = el("div", "");
+        barBox.hidden = confirmBox.hidden = msgBox.hidden = true;
+        bulkBox.appendChild(barBox);
+        bulkBox.appendChild(confirmBox);
+        bulkBox.appendChild(msgBox);
+      }
+      loadPrefs(panes.servers.st);
+      FILTER_KEYS.forEach(function (k) {   // a restored value is shown at once, offered or not
+        var sel = spNode.querySelector('[data-vuln-filter="' + k + '"]');
+        if (sel) { fillSelect(sel, [], panes.servers.st[k]); }
+      });
+      panes.servers.captureFocus = captureFocus;
+      syncControls();
     }
 
     showState("loading");

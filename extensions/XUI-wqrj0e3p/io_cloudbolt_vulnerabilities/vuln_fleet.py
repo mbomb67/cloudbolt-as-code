@@ -24,6 +24,7 @@ Rules that hold everywhere here:
     re-match only run the scanner and parse its report; the main thread saves the results.
 """
 import re
+import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -47,6 +48,16 @@ WAIT_S = 5
 # on new work after this long, finishes what is in flight and ends normally, so the next run carries on.
 JOB_BUDGET_S = 6 * 3600
 CANCEL_STATUSES = ("TO_CANCEL", "CANCELED")
+# Server statuses (infrastructure Server.status). The Servers list shows ACTIVE and MODIFY (a resize is
+# transient and must not make a server flicker out); only HISTORICAL servers are purged. DECOM (being deleted),
+# PROV and PROVFAILED are neither shown nor purged, as they may still become ACTIVE (a failed delete returns the
+# server to ACTIVE): they are hidden until they settle.
+CURRENT_STATUSES = ("ACTIVE", "MODIFY")
+PURGE_STATUSES = ("HISTORICAL",)
+# reconcile_servers reads CloudBolt at most this often per web process, and purges at most this many per call.
+RECONCILE_MIN_S = 15
+MAX_FORGET_PER_CALL = 50
+SWEEP_CHUNK = 500
 BAD_STATUSES = ("FAILURE", "CANCELED", "TO_CANCEL")
 
 # Reason codes of eligibility() and the skips the jobs count, in words.
@@ -97,14 +108,16 @@ def default_base_url():
 
 
 def _progress(job, message, done=None, total=None):
-    """job.set_progress (jobs/models.py line 1192), from the job's own thread only. Never raises."""
+    """job.set_progress (jobs/models.py line 1192), from one thread at a time when the run has threads
+    (vuln_jobs.progress_guard). Never raises."""
     if job is None:
         return
     try:
-        if done is None:
-            job.set_progress(message)
-        else:
-            job.set_progress(message, tasks_done=int(done), total_tasks=int(total))
+        with vuln_jobs.progress_guard():
+            if done is None:
+                job.set_progress(message)
+            else:
+                job.set_progress(message, tasks_done=int(done), total_tasks=int(total))
     except Exception:
         logger.exception("Vulnerabilities: could not set the job's progress")
 
@@ -241,6 +254,41 @@ def eligibility(server, visibility):
         return "unknown"
 
 
+def unassigned_ids():
+    """The ids of the Unassigned groups (the general one and every tenant's default group; accounts/models.py
+    Group.unassigned, common/configuration.py UnassignedManager.ids), as a set: one query for a whole request."""
+    return set(Group.unassigned.ids())
+
+
+def quick_eligibility(server, problems, unassigned, visibility):
+    """"" when updates may be offered for the server, else a reason code: the checks of vuln_patch.eligibility
+    (unsupported_os, historical, not_active, unassigned, hidden, powered_off, then the prerequisite of its kind)
+    that need no query per server, for the rows of a page and "Select all". It never says no where
+    vuln_patch.eligibility would say yes: every check here is the same test, or a subset of one. What it leaves
+    out (a Windows version the last scan found not covered, the script channel, the address, the credentials) is
+    found when the update is submitted (vuln_patch.eligibility runs there for every selected server) or by the
+    job. problems is prerequisites(), unassigned is unassigned_ids() and visibility the "visibility" setting, each
+    read once per request. The server needs its group id, status, power state, tags (a prefetch) and OS family
+    with its parents (select_related) loaded; nothing else is touched. Never raises."""
+    try:
+        if not vuln_jobs.is_supported(server):
+            return "unsupported_os"
+        if server.status == "HISTORICAL":
+            return "historical"
+        if server.status != "ACTIVE":
+            return "not_active"
+        if server.group_id in unassigned:
+            return "unassigned"
+        if not vuln_jobs.shows_tab(server, visibility):
+            return "hidden"
+        if server.power_status != "POWERON":
+            return "powered_off"
+        return prerequisite_for(server, problems)
+    except Exception:
+        logger.exception("Vulnerabilities: could not check whether server %s may be updated", getattr(server, "id", ""))
+        return "unknown"
+
+
 def _unsupported_windows(server):
     """True when the server's last scan failed because its Windows version is not one the Microsoft data covers
     (vuln_jobs.UNSUPPORTED_WINDOWS is stored in that scan's entry). Every unattended scan of it would fail the
@@ -285,9 +333,37 @@ def _stale_ids(ids):
     stale = []
     for server_id in ids:
         found = live.get(server_id)
-        if found is None or found[0] == "HISTORICAL" or found[1] in unassigned:
+        if found is None or found[0] in PURGE_STATUSES or found[1] in unassigned:
             stale.append(server_id)
     return sorted(stale)
+
+
+def _forget(ids):
+    """Remove everything stored for each of these servers: findings (vuln_db.forget_server), stored software
+    list and scan history. A server with a scan in progress is left alone, and a failure on one is logged and
+    does not stop the rest. The status and group of the ids are read again, in one query, right before anything is
+    deleted: an id whose server is current again (a sweep can be seconds old) is skipped, and when that read
+    fails nothing is deleted. The files go first and the findings row last, so a failure leaves the row and the
+    id is tried again by the next sweep. Returns the ids that were forgotten."""
+    ids = list(ids)
+    if not ids:
+        return []
+    purgeable = _stale_ids(ids)
+    if purgeable is None:
+        return []
+    purgeable = set(purgeable)
+    done = []
+    for server_id in ids:
+        try:
+            if server_id not in purgeable or _scan_running(server_id):
+                continue
+            vuln_repo.forget(server_id)
+            store.forget_state(server_id)
+            vuln_db.forget_server(server_id)
+            done.append(server_id)
+        except Exception:
+            logger.exception("Vulnerabilities: could not forget server %s", server_id)
+    return done
 
 
 def forget_stale(progress=None):
@@ -311,18 +387,116 @@ def forget_stale(progress=None):
         return result
     if progress is not None:
         progress("Removing what is stored for {}".format(_plural(len(stale), "server that is gone")))
-    for server_id in stale:
-        try:
-            if _scan_running(server_id):
-                continue
-            vuln_db.forget_server(server_id)
-            vuln_repo.forget(server_id)
-            store.forget_state(server_id)
-            result["forgotten"] += 1
-        except Exception:
-            logger.exception("Vulnerabilities: could not forget server %s", server_id)
+    result["forgotten"] = len(_forget(stale))
     result["kept"] = len(ids) - result["forgotten"]
     return result
+
+
+def owner_label(first, last, username):
+    """The owner as the Servers list shows them: the full name when there is one, else the username, else "".
+    The one helper is vuln_store.owner_label, which the scan snapshot uses as well."""
+    return store.owner_label(first, last, username)
+
+
+_reconcile_lock = threading.Lock()
+_reconcile_state = {"stamp": None, "result": None}
+
+
+def _reconcile_result(hidden=(), skipped=False, **counts):
+    result = {"checked": 0, "forgotten": 0, "refreshed": 0, "hidden": sorted(set(hidden)), "skipped": skipped}
+    result.update(counts)
+    return result
+
+
+def reconcile_servers(max_forget=MAX_FORGET_PER_CALL, force=False):
+    """Make what the findings store lists agree with CloudBolt, for a web request to call before it reads.
+
+    Servers that are gone, HISTORICAL or in an Unassigned group are purged (at most max_forget per
+    call, each in its own short transaction; the store's write lock is never held across the ORM sweep), and
+    the stored hostname, group, environment, owner and OS build of the servers that are current are refreshed.
+    Returns {"checked", "forgotten", "refreshed", "hidden", "skipped"}: hidden are the ids that must not be
+    listed though they were not purged (not current but not purgeable, such as DECOM or PROV, a scan running, a purge
+    that failed, or beyond max_forget). The CloudBolt sweep runs at most once per RECONCILE_MIN_S unless force:
+    a call inside that window answers the previous result with skipped True. Never raises; when CloudBolt
+    cannot be read nothing is forgotten and skipped is True."""
+    try:
+        with _reconcile_lock:
+            previous = _reconcile_state["result"]
+            stamp = _reconcile_state["stamp"]
+            now = _clock()
+            if not force and stamp is not None and 0 <= now - stamp < RECONCILE_MIN_S:
+                return _reconcile_result(hidden=(previous or {}).get("hidden", ()), skipped=True)
+            _reconcile_state["stamp"] = now  # claimed: a failure below is not retried at once either
+        result = _reconcile(max_forget, (previous or {}).get("hidden", ()))
+        with _reconcile_lock:
+            _reconcile_state["result"] = result
+        return dict(result, hidden=list(result["hidden"]))
+    except Exception:
+        logger.exception("Vulnerabilities: could not reconcile the stored servers with CloudBolt")
+        return _reconcile_result(skipped=True)
+
+
+def _reconcile(max_forget, kept_hidden):
+    """The work of reconcile_servers. kept_hidden is what the previous sweep hid, still hidden when this
+    one cannot read CloudBolt."""
+    try:
+        ids = sorted({int(row["server_id"]) for row in vuln_db.known_servers()})
+    except Exception:
+        logger.exception("Vulnerabilities: could not list the servers that have stored data")
+        return _reconcile_result(hidden=kept_hidden, skipped=True)
+    if not ids:
+        # known_servers cannot tell an empty store from a busy or unreadable one, so the last hidden list is kept
+        # in both cases (ids of servers that no longer exist hide nothing).
+        return _reconcile_result(hidden=kept_hidden, skipped=bool(kept_hidden))
+    try:
+        unassigned = set(Group.unassigned.ids())
+        live = {}
+        for start in range(0, len(ids), SWEEP_CHUNK):
+            for found in Server.objects.filter(id__in=ids[start:start + SWEEP_CHUNK]).values_list(
+                "id", "status", "group_id", "hostname", "group__name", "environment__name",
+                "owner__user__first_name", "owner__user__last_name", "owner__user__username", "os_build__name"
+            ):
+                live[found[0]] = found[1:]
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the servers; nothing is forgotten")
+        return _reconcile_result(hidden=kept_hidden, skipped=True)
+    stale, hidden, current = [], [], {}
+    for server_id in ids:
+        found = live.get(server_id)
+        if found is None or found[0] in PURGE_STATUSES or found[1] in unassigned:
+            stale.append(server_id)
+        elif found[0] in CURRENT_STATUSES:
+            current[server_id] = found
+        else:
+            hidden.append(server_id)
+    limit = max(0, int(max_forget))
+    forgotten = _forget(stale[:limit])
+    done = set(forgotten)
+    hidden += [server_id for server_id in stale if server_id not in done]
+    return _reconcile_result(hidden=hidden, checked=len(ids), forgotten=len(forgotten),
+                             refreshed=_refresh(current))
+
+
+def _refresh(current):
+    """Write the names of the current servers that differ from what is stored; returns how many changed.
+    Nothing is written when none differ, or when the stored names cannot be read."""
+    try:
+        stored = vuln_db.server_attributes()
+        changed = []
+        for server_id, found in current.items():
+            fresh = {
+                "server_id": server_id, "hostname": found[2] or "", "group_name": found[3] or "",
+                "environment": found[4] or "", "owner": owner_label(found[5], found[6], found[7]),
+                "os_build": found[8] or "",
+            }
+            have = stored.get(server_id)
+            if have is not None and any((have.get(key) or "") != fresh[key] for key in
+                                        ("hostname", "group_name", "environment", "owner", "os_build")):
+                changed.append(fresh)
+        return vuln_db.update_server_attributes(changed) if changed else 0
+    except Exception:
+        logger.exception("Vulnerabilities: could not refresh the stored server names")
+        return 0
 
 
 # ---------------------------------------------------------------- nightly re-match
@@ -395,7 +569,8 @@ def _requalify(server_id):
     or unknown when the row cannot be read. A re-match can run for hours, so the selection made when it
     started is not trusted when a server is submitted or saved."""
     try:
-        server = Server.objects.filter(id=server_id).select_related("group", "environment").first()
+        server = Server.objects.filter(id=server_id).select_related(
+            "group", "environment", "owner__user", "os_build").first()
     except Exception:
         logger.exception("Vulnerabilities: could not read server %s again", server_id)
         return None, "unknown"
@@ -421,15 +596,26 @@ def _changed_meanwhile(item):
 
 
 def _names(server, row):
-    """hostname, group and environment as the Server has them now; what is stored when they cannot be read."""
+    """hostname, group, environment, owner and OS build as the Server has them now; what is stored when they
+    cannot be read (the owner and the OS build each on their own)."""
     try:
-        return {
+        names = {
             "hostname": server.hostname,
             "group_name": server.group.name if server.group else "",
             "environment": server.environment.name if server.environment else "",
         }
     except Exception:
-        return {key: row.get(key) for key in ("hostname", "group_name", "environment")}
+        names = {key: row.get(key) for key in ("hostname", "group_name", "environment")}
+    try:
+        user = server.owner.user if server.owner else None
+        names["owner"] = owner_label(user.first_name, user.last_name, user.username) if user is not None else ""
+    except Exception:
+        names["owner"] = row.get("owner") or ""
+    try:
+        names["os_build"] = server.os_build.name if server.os_build else ""
+    except Exception:
+        names["os_build"] = row.get("os_build") or ""
+    return names
 
 
 def _save_rematch(item, parsed, built, counts):
@@ -845,6 +1031,17 @@ RESOURCE_STATE_ERROR = ("The scan state for this resource cannot be read or writ
                         "the Vulnerabilities folder.")
 
 
+def supported_q():
+    """The Q that keeps servers of a Linux or Windows OS family (the family itself or one of its two parents
+    up), the same test the Vulnerabilities views use. Q is imported here so this module still imports
+    without Django's query layer."""
+    from django.db.models import Q
+    linux, windows = vuln_jobs.LINUX_FAMILY, "Windows"
+    return (Q(os_family__name=linux) | Q(os_family__parent__name=linux)
+            | Q(os_family__parent__parent__name=linux) | Q(os_family__name=windows)
+            | Q(os_family__parent__name=windows) | Q(os_family__parent__parent__name=windows))
+
+
 def resource_servers(resource):
     """The resource's own servers that are not historical (sub-resources are not included), with what
     eligibility() reads loaded ahead, ordered by hostname then id."""
@@ -890,8 +1087,10 @@ def _live_run(resource_id):
 
 
 def resource_run(resource_id):
-    """The scan run in progress on the resource: {"job_id", "job_url", "started", "done", "total"}, or None
-    when there is none (a stale marker, or one that cannot be read, is no run). Never raises."""
+    """The run in progress on the resource: {"job_id", "job_url", "started", "done", "total", "kind", "message"}
+    (kind "scan", or "patch" for the install-updates run of vuln_patch_resource.py; message is the job's
+    progress text), or None when there is none (a stale marker, or one that cannot be read, is no run).
+    Never raises."""
     try:
         found = _live_run(resource_id)
         if found is None:
@@ -901,7 +1100,8 @@ def resource_run(resource_id):
         # Job.get_absolute_url (line 1679).
         total = job.total_tasks or len(marker.get("server_ids") or [])
         return {"job_id": job.id, "job_url": job.get_absolute_url(), "started": marker.get("started") or "",
-                "done": job.tasks_done or 0, "total": total}
+                "done": job.tasks_done or 0, "total": total, "kind": marker.get("kind") or "scan",
+                "message": vuln_jobs._progress_text(job)}
     except Exception:
         logger.exception("Vulnerabilities: could not read the scan run of resource %s", resource_id)
         return None
@@ -934,8 +1134,9 @@ def start_resource_scan(profile, resource, server_ids, base_url):
         with store.resource_lock(resource.id):
             running = _live_run(resource.id)
             if running is not None:
+                doing = "installing updates on" if running[0].get("kind") == "patch" else "scanning"
                 return vuln_jobs.Refusal(
-                    "Job {} is already scanning the servers of this resource.".format(running[1].id), 409)
+                    "Job {} is already {} the servers of this resource.".format(running[1].id, doing), 409)
             problems = prerequisites(base_url)
             if nothing_can_run(problems):
                 return vuln_jobs.Refusal(not_ready_message(problems), 409)

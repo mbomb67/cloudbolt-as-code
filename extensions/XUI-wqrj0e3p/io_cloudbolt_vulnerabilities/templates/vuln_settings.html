@@ -235,6 +235,51 @@
       </div>
     </div>
 
+    <div class="vuln-card">
+      <h2 class="vuln-h">Installing updates</h2>
+      <div class="vuln-field">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="vuln-patching" name="patching" value="1"{% if settings.patching %} checked{% endif %}>
+          <label class="form-check-label" for="vuln-patching">Offer Install updates</label>
+        </div>
+        <div class="vuln-help">Turning this on creates the Install Updates server action and the Install Updates on All Servers resource action, and turning it off hides both. CB admins and roles with all server actions can run the server action at once; CB admins and roles with all resource actions can run the resource action at once. Other roles must be granted each action. Requires approval is set on each action separately. The resource action appears on every resource that has a Linux or Windows server and updates its servers one at a time, only those the person may update with the server action. It works on Linux servers and on Windows Server 2022 and 2025. Servers in an Unassigned group are never updated.</div>
+        {% if field_errors.patching %}<div class="vuln-help vuln-bad">{{ field_errors.patching }}</div>{% endif %}
+        {% if settings.patching and patch_action %}{% if not patch_action.exists %}<div class="vuln-help vuln-caution">The Install Updates action is missing. Save the settings to create it again.</div>{% elif not patch_action.enabled %}<div class="vuln-help vuln-caution">The Install Updates action is switched off in CloudBolt's actions. Enable it there to offer it again.</div>{% endif %}{% endif %}
+        {% if settings.patching and resource_patch_action %}{% if not resource_patch_action.exists %}<div class="vuln-help vuln-caution">The Install Updates on All Servers action is missing. Save the settings to create it again.</div>{% elif not resource_patch_action.enabled %}<div class="vuln-help vuln-caution">The Install Updates on All Servers action is switched off in CloudBolt's actions. Enable it there to offer it again.</div>{% endif %}{% endif %}
+      </div>
+      <div class="vuln-field">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="vuln-remove-kernels" name="remove_old_kernels" value="1"{% if settings.remove_old_kernels %} checked{% endif %}>
+          <label class="form-check-label" for="vuln-remove-kernels">Remove old kernels after a restart</label>
+        </div>
+        <div class="vuln-help">After a Linux server restarts onto a new kernel, remove the older kernel's packages. A scan keeps reporting an old kernel's vulnerabilities for as long as it stays installed. Turn this off to keep the previous kernel as a boot fallback.</div>
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-restart-wait">Minutes to wait for a server to come back after a restart</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-restart-wait" name="restart_wait_min" min="5" max="120" value="{{ settings.restart_wait_min }}">
+        <div class="vuln-help">How long an update waits for a restarted server to answer again before it reports a failure, from 5 to 120 (default 60). A Windows cumulative update finishes during the restart, so the server can take a long time to answer.</div>
+        {% if field_errors.restart_wait_min %}<div class="vuln-help vuln-bad">{{ field_errors.restart_wait_min }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-patch-timeout">Minutes allowed for installing updates</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-patch-timeout" name="patch_timeout_min" min="10" max="240" value="{{ settings.patch_timeout_min }}">
+        <div class="vuln-help">How long the install itself may run on one server before it is reported as failed, from 10 to 240.</div>
+        {% if field_errors.patch_timeout_min %}<div class="vuln-help vuln-bad">{{ field_errors.patch_timeout_min }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-bulk-max">Servers per bulk update</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-bulk-max" name="bulk_patch_max" min="1" max="100" value="{{ settings.bulk_patch_max }}">
+        <div class="vuln-help">The most servers one selection on the Vulnerability Search page may hold, from 1 to 100 (default 30). Install updates works on them several at a time (Servers updated at the same time) in one job. A run stops starting servers when the job's time limit is near; those are reported as not started.</div>
+        {% if field_errors.bulk_patch_max %}<div class="vuln-help vuln-bad">{{ field_errors.bulk_patch_max }}</div>{% endif %}
+      </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-patch-parallel">Servers updated at the same time</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-patch-parallel" name="patch_parallel" min="1" max="20" value="{{ settings.patch_parallel }}">
+        <div class="vuln-help">How many servers one Install updates job works on at once. The rest wait their turn in the same job. From 1 to 20 (default 5). Updates and restarts run several servers at a time; the scan after each update runs one at a time unless Vulnerability matches at once is raised.</div>
+        {% if field_errors.patch_parallel %}<div class="vuln-help vuln-bad">{{ field_errors.patch_parallel }}</div>{% endif %}
+      </div>
+    </div>
+
     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save settings</button>
   </form>
 </div>

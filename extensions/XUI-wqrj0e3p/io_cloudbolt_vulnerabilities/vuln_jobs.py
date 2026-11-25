@@ -39,6 +39,7 @@ upload URL: the script leaves the file in a root-only directory (HOLD_DIR) and
 the job reads it over the same API tunnel (_collect).
 """
 import base64
+import contextlib
 import gzip
 import json
 import os
@@ -46,6 +47,7 @@ import re
 import secrets
 import shlex
 import tempfile
+import threading
 import time
 import zlib
 from datetime import datetime, timezone
@@ -68,6 +70,8 @@ SECRET_KEYS = ("vuln_upload_url", "vuln_token", "vuln_tools")
 LINUX_FAMILY = "Linux"
 LABEL = "Vulnerabilities"
 SCAN_PERMISSION = "server.all_actions"
+# The "kind" of the active marker the update job (vuln_patch.py) writes; a scan's marker has none.
+PATCH_KIND = "patch"
 
 # Bounds on everything parsed from the server's output.
 MAX_OUTPUT = 256 * 1024
@@ -597,11 +601,15 @@ def panel_active(server_id):
     if found is None:
         return None
     marker, job = found
+    # A marker without a kind is a scan; the update job (vuln_patch.py) writes kind "patch".
+    patching = marker.get("kind") == PATCH_KIND
     return {
         "job_id": job.id,
         "job_url": job.get_absolute_url(),
         "message": _progress_text(job),
         "started": marker.get("started") or "",
+        "kind": PATCH_KIND if patching else "scan",
+        "title": "Installing updates" if patching else "Scan running",
     }
 
 
@@ -624,11 +632,10 @@ def _in_cooldown(last):
     return age is not None and age < COOLDOWN_S
 
 
-def start(profile, server, base_url, parent_job=None):
-    """Validate and start the scan. base_url is the default portal's configured
-    site URL (never a request's Host). profile is the requesting UserProfile, or
-    None for a scan started by a recurring job (the job's owner is empty then). Returns
-    the Job, or a Refusal."""
+def precheck(server, base_url):
+    """The Refusal for a server that cannot be scanned (or updated and then scanned) right now, or None. The
+    checks that need no lock and no state: the server's status, group, OS, power, and what its kind needs
+    (the scanner and the site URL, or the Microsoft security data). start() and the update job call it."""
     if server.status == "HISTORICAL":
         return Refusal("This server is historical.")
     if server.status != "ACTIVE":
@@ -650,6 +657,27 @@ def start(profile, server, base_url, parent_job=None):
             return Refusal(NOT_SET_UP, 409)
         if not base_url:
             return Refusal(NO_SITE_URL, 409)
+    return None
+
+
+def _is_handover(marker, handover_from):
+    """True when the running marker is the update job named by handover_from (a Job id)."""
+    return bool(handover_from) and marker.get("kind") == PATCH_KIND and marker.get("job_id") == handover_from
+
+
+def start(profile, server, base_url, parent_job=None, handover_from=None):
+    """Validate and start the scan. base_url is the default portal's configured
+    site URL (never a request's Host). profile is the requesting UserProfile, or
+    None for a scan started by a recurring job (the job's owner is empty then). Returns
+    the Job, or a Refusal.
+
+    handover_from is the id of the update job (vuln_patch.py) that holds the server's active marker and
+    starts this scan as its last step. Then the running marker is accepted only when it is that job's, the
+    cooldown does not apply, and the marker stays: the tab keeps showing the update's progress until the
+    update job ends and clears it. Any other running job refuses the start, as it always did."""
+    refusal = precheck(server, base_url)
+    if refusal is not None:
+        return refusal
     cfg = store.job_settings()
     try:
         # One start at a time per server: the active check, the queueing and
@@ -657,6 +685,10 @@ def start(profile, server, base_url, parent_job=None):
         with store.start_lock(server.id):
             state = store.read_state(server.id)
             running = active_job(server.id, state)
+            if handover_from:
+                if running is None or not _is_handover(running[0], handover_from):
+                    return Refusal("The update job no longer holds this server, so the scan was not started.", 409)
+                return _queue(profile, server, cfg, base_url, parent_job, keep_active=True)
             if running is not None:
                 return Refusal(
                     "Job {} is still running on this server; wait for it to finish.".format(running[1].id), 409
@@ -694,8 +726,8 @@ def _requested_by(profile):
     return str(profile.user.username) if getattr(profile, "user", None) else str(profile)
 
 
-def _queue(profile, server, cfg, base_url, parent_job):
-    """The queued Job, or a Refusal."""
+def _queue(profile, server, cfg, base_url, parent_job, keep_active=False):
+    """The queued Job, or a Refusal. keep_active leaves the server's active marker as it is (the update job's)."""
     scan_id = store.new_scan_id()
     windows = is_windows(server)
     pull = _is_openshift_vm(server)
@@ -742,12 +774,13 @@ def _queue(profile, server, cfg, base_url, parent_job):
         server.jobs.add(job)
     except Exception:
         logger.exception("Vulnerabilities: could not label or link job %s", job.id)
-    try:
-        store.set_active(server.id, {
-            "job_id": job.id, "scan_id": scan_id, "started": started, "requested_by": requested_by,
-        })
-    except Exception:
-        logger.exception("Vulnerabilities: could not record job %s as active on server %s", job.id, server.id)
+    if not keep_active:
+        try:
+            store.set_active(server.id, {
+                "job_id": job.id, "scan_id": scan_id, "started": started, "requested_by": requested_by,
+            })
+        except Exception:
+            logger.exception("Vulnerabilities: could not record job %s as active on server %s", job.id, server.id)
     return job
 
 
@@ -926,9 +959,18 @@ def _clear_secrets(job):
         logger.exception("Could not clear the upload links from the parameters of job %s", getattr(job, "id", ""))
 
 
+def progress_guard():
+    """The lock one update run's threads write the job's progress under, or a no-op context. The lock is kept on
+    the thread object by the run (vuln_patch._run_parallel), never in a module global: every job file reloads
+    this package's modules, which would replace a global lock while the run is still using it."""
+    lock = getattr(threading.current_thread(), "vuln_progress_lock", None)
+    return lock if lock is not None else contextlib.nullcontext()
+
+
 def _progress(job, message):
     if job is not None:
-        job.set_progress(message)
+        with progress_guard():
+            job.set_progress(message)
 
 
 def run_scan(job, vuln_server_id=None, vuln_scan_id="", vuln_cfg=None, vuln_upload_url="", vuln_tools=None,
@@ -1201,12 +1243,25 @@ def _snapshot(server, parsed_output, scan_id, inventory_at, packages, matched_at
             os_name = server.os_family.name if server.os_family else ""
         except Exception:
             os_name = ""
+    owner, os_build = "", ""  # the owner's label (store.owner_label); the OS build's name
+    try:
+        user = server.owner.user if server.owner else None
+        if user is not None:
+            owner = store.owner_label(user.first_name, user.last_name, user.username)
+    except Exception:
+        owner = ""
+    try:
+        os_build = server.os_build.name if server.os_build else ""
+    except Exception:
+        os_build = ""
     return {
         "server_id": server.id,
         "hostname": server.hostname,
         "os_name": os_name,
         "group_name": server.group.name if server.group else "",
         "environment": server.environment.name if server.environment else "",
+        "owner": owner,
+        "os_build": os_build,
         "scan_id": scan_id,
         "inventory_at": inventory_at,
         "packages": packages,

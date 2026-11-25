@@ -109,4 +109,28 @@
   #vuln-root .vuln-pill-crit { background: color-mix(in srgb, var(--vuln-bad) 14%, transparent); color: var(--vuln-bad); }
   #vuln-root .vuln-pill-high { background: color-mix(in srgb, var(--vuln-warn) 22%, transparent); color: var(--vuln-warn-text); }
   #vuln-root .vuln-kev { color: var(--vuln-bad); font-weight: 700; white-space: nowrap; }
+
+  /* Servers view of the admin page: filters, sortable headers, selection and the Install updates bar. */
+  #vuln-root .vuln-filter { width: auto; max-width: 190px; }
+  #vuln-root .vuln-textbtn { background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; font-size: inherit; }
+  #vuln-root .vuln-textbtn:disabled { opacity: .5; cursor: default; }
+  #vuln-root .vuln-sortbtn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; margin: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; white-space: nowrap; cursor: pointer; }
+  #vuln-root .vuln-sortbtn:hover, #vuln-root .vuln-table th[aria-sort] .vuln-sortbtn { color: var(--bs-body-color, #212529); }
+  #vuln-root .vuln-sortcaret { font-size: 9px; }
+  #vuln-root .vuln-table .vuln-selcol { width: 28px; padding-right: 8px; }
+  #vuln-root .vuln-table .vuln-selcol .form-check-input { margin: 0; vertical-align: middle; }
+  #vuln-root .vuln-subline { font-size: 12px; font-weight: 600; color: var(--vuln-muted); margin-top: 2px; overflow-wrap: anywhere; }
+  #vuln-root .vuln-badge { display: inline-block; margin-left: 8px; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; text-decoration: none; background: color-mix(in srgb, var(--vuln-primary) 14%, transparent); color: var(--vuln-primary); }
+  #vuln-root a.vuln-badge:hover { text-decoration: underline; }
+  #vuln-root .vuln-bulkbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 4px 0 8px; font-size: 12.5px; font-weight: 600; }
+  #vuln-root .vuln-confirm { display: flex; flex-direction: column; gap: 8px; max-width: 720px; margin: 0 0 10px; padding: 12px 16px; border: 1px solid var(--vuln-line); border-radius: 12px; background: var(--vuln-card); font-size: 13px; font-weight: 600; }
+  #vuln-root .vuln-confirm:focus { outline: none; }
+  #vuln-root .vuln-confirm-hosts { color: var(--vuln-muted); overflow-wrap: anywhere; }
+  #vuln-root .vuln-confirm-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  #vuln-root .vuln-msg { --vuln-tint: var(--vuln-primary); max-width: 720px; margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--vuln-tint) 35%, transparent); background: color-mix(in srgb, var(--vuln-tint) 12%, transparent); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  #vuln-root .vuln-msg-bad { --vuln-tint: var(--vuln-bad); }
+  #vuln-root .vuln-msg-main { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; }
+  #vuln-root .vuln-msg-line { margin-top: 4px; color: var(--vuln-muted); }
+  #vuln-root .vuln-selectline { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-top: 10px; font-size: 12.5px; font-weight: 600; }
+  #vuln-root .vuln-nomatch-act { padding-bottom: 24px; }
 </style>
