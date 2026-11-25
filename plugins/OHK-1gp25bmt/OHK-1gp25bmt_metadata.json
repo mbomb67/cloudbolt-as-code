@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A global id such as RH-abc12345, or a page key such as email_settings or user_edit:USR-abc12345. An unknown key returns the list of pages.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-pe0hyuuy",
+            "label": "Global id or page key",
+            "name": "onb_link_target",
+            "placeholder": "new_resource_handler:aws",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_link_target"
+    ],
+    "description": "Turns a CloudBolt global id or a named admin page (new resource handler per technology, LDAP, SMTP, user edit, environment parameters, group quotas, and more) into an absolute UI link so the agent can send the user to the exact page where a secret is entered or an object is edited.",
+    "id": "OHK-1gp25bmt",
+    "max_retries": 0,
+    "name": "POC Onboarding: UI Link",
+    "resource_technologies": [],
+    "script_filename": "OHK-1gp25bmt_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

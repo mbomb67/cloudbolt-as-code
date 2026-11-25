@@ -1,0 +1,35 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The order or job to trace.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": true,
+            "id": "CF-hyi8pqno",
+            "label": "Order (ORD-) or job (JOB-) global id",
+            "name": "onb_target_id",
+            "placeholder": "ORD-abc12345",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "onb_target_id"
+    ],
+    "description": "Walks an order or job down to the jobs that actually failed and returns their errors, output, progress tail, failed children and a hint for the common provisioning failures, naming the job id to pass to fetch_job_log for the traceback.",
+    "id": "OHK-y95w8ai0",
+    "max_retries": 0,
+    "name": "POC Onboarding: Failure Trace",
+    "resource_technologies": [],
+    "script_filename": "OHK-y95w8ai0_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

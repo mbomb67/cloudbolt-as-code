@@ -1,0 +1,13 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "description": "Reports the appliance's POC readiness in one read: licence, portal, SMTP, proxy, Content Library, Setup Wizard, resource handlers with environments and last verify result, the Custom Server blueprint, groups, users, LDAP, SSO, installed onboarding tools, recorded POC items, and the next steps with UI links.",
+    "id": "OHK-5zg1dkcr",
+    "max_retries": 0,
+    "name": "POC Onboarding: Status",
+    "resource_technologies": [],
+    "script_filename": "OHK-5zg1dkcr_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

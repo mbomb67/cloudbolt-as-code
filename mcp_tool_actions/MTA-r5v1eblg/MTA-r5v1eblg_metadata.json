@@ -1,0 +1,39 @@
+{
+    "action_input_default_values": [],
+    "action_inputs": [
+        {
+            "allow-multiple": false,
+            "available-all-servers": false,
+            "description": "The handler to verify, by global id or name.",
+            "field-dependency-controlling-set": [],
+            "field-dependency-dependent-set": [],
+            "global-options": [],
+            "hide-if-default-value": true,
+            "id": "CF-7f2q5v3a",
+            "label": "Resource handler (RH- id or name)",
+            "name": "onb_handler",
+            "placeholder": "RH-abc12345",
+            "relevant-osfamilies": [],
+            "required": true,
+            "show-as-attribute": false,
+            "show-on-servers": false,
+            "type": "STR",
+            "value-pattern-string": null
+        }
+    ],
+    "dependencies": {
+        "hook": "plugins/OHK-s7cdvkpr"
+    },
+    "enabled": true,
+    "id": "MTA-r5v1eblg",
+    "is_synchronous": false,
+    "label": "POC Onboarding: Verify Resource Handler",
+    "last_updated": null,
+    "mcp_destructive_hint": false,
+    "mcp_idempotent_hint": true,
+    "mcp_open_world_hint": true,
+    "mcp_read_only_hint": false,
+    "mcp_tool_description": "Run Verify Connection on a resource handler (RH- id or name) and return the cloud API's real error text, which the UI form replaces with 'Unable to connect to handler with the information provided'. Adds a hint for AWS, Azure, vCenter, SCVMM, GCP, Nutanix and OpenStack errors (bad key, expired secret, wrong tenant, missing role or privilege, TLS, DNS, firewall, proxy), the link to the minimum-permissions document and the handler's edit and verify links, and records the result so onb_status shows it. Runs as a job: poll the returned id with fetch_job and read outputs. Call it after the user creates or edits a handler in the UI; when it fails, give the user the edit link and the hint, never ask for the credentials in chat. Requires a CloudBolt admin caller.",
+    "mcp_tool_name": "onb_verify_resource_handler",
+    "mcp_tool_title": ""
+}
