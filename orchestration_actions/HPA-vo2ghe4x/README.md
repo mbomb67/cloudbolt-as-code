@@ -15,7 +15,7 @@ Post-Provision orchestration action that attaches each newly provisioned Azure V
 - Custom fields `azure_nsg` and `azure_nsg_applied_id` (STR, shown on servers) are created automatically on first run, but `azure_nsg` must be present on the order form for users to pick an NSG.
 
 ## Setup
-1. Sync the repository; the action imports disabled together with both plugins.
+1. Sync the action and `plugins/OHK-vswf8b1m`, which does not travel with it, or sync the Azure Network Security Groups package ([PKG-gqw2jqgj](../../packages/PKG-gqw2jqgj/)), which carries both. The action imports disabled.
 2. Open the `azure_nsg` parameter (Admin > Parameters; create it as type STR if it does not exist), set Options to Generated and select "Azure NSG - Generate Options" (OHK-vswf8b1m). Its option values are NSG Resource IDs, which is what this action expects.
 3. Add `azure_nsg` to the Azure environments or blueprints where users should be able to choose an NSG. Options are scoped to the selected Environment's subscription and region, with a "None (do not attach an NSG)" placeholder first.
 4. Enable the action (Admin > Orchestration Actions > Post-Provision).

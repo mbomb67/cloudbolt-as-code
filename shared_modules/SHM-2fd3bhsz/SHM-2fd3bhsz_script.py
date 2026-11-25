@@ -1,0 +1,1792 @@
+"""
+StormForge agent on the Kubernetes clusters CloudBolt builds.
+
+Shared by the AWS EKS (BP-r5apcf7e), Azure Kubernetes Service (BP-20q58q9z)
+and Google Kubernetes Engine (BP-g8g8aecx) blueprints and by the Install or
+Upgrade StormForge Agent action (RSA-76jmctg6):
+
+  install_or_upgrade(resource, version)
+      Writes the StormForge credential to the stormforge-auth Secret and runs
+      `helm upgrade --install` of the StormForge chart in a short-lived Job
+      inside the cluster.
+  remove(resource)
+      Deletes the cluster in StormForge. Runs after the cluster itself is
+      deleted.
+  version_options(resource)
+      Dropdown entries for the action: installed version -> target version.
+
+and by the Apply StormForge Recommendation action (RSA-d2zufawc) on the AWS
+EKS Namespace (BP-e4c0q58z), AKS Namespace (BP-dogqi827) and GKE Namespace
+(BP-c9ca1i3z) blueprints:
+
+  namespace_scope(resource)
+      The namespace a namespace resource stands for and its cluster's name
+      in StormForge, when that cluster runs the agent.
+  apply_to_workload(resource, workload, mode)
+      Applies StormForge's patches for a workload's latest recommendation to
+      the namespace, or turns the workload's automatic deployment on or off.
+
+and by the settings actions, Set StormForge Cluster Defaults (RSA-d3y9kiq0) on
+the cluster blueprints and Set StormForge Optimization Settings
+(RSA-v35tl317) on the namespace blueprints:
+
+  set_cluster_defaults(resource, values)
+      Writes settings to the cluster-defaults ConfigMap in stormforge-system
+      and restarts the cluster agent, which reads it only at start.
+  set_namespace_settings(resource, target, values)
+      Sets settings as live.stormforge.io annotations on the namespace, or on
+      one workload in it.
+
+Every StormForge call goes to the StormForge API; nothing uses the StormForge
+CLI. The credential lives in a CloudBolt connection info named "StormForge":
+Username = client ID, Password = client secret, IP/Hostname = the StormForge
+API host of the customer's StormForge endpoint (for example
+api.stormforge.io). CloudBolt uses it for its own API calls and every
+cluster's agent runs on it: StormForge removes manage:clients from every
+client-credentials token, so an API credential cannot create one per
+cluster. Create it with StormForge's default permissions (`stormforge auth
+create`), which cover both. Nothing else names an endpoint: the issuer comes
+from discovery, the agent is pointed at the same API host, and its metrics go
+to the in. host beside the api. host. Without that connection info StormForge
+is not enabled: the build item skips it and succeeds, pointing to the
+blueprint's README.
+
+  Discovery   GET  https://<api>/.well-known/openid-configuration
+              (issuer, token_endpoint)
+  Token       POST token_endpoint, grant_type=client_credentials, audience=<api>,
+              scope=view:clusters manage:clusters
+              https://www.rfc-editor.org/rfc/rfc6749#section-4.4
+  Cluster     GET | DELETE https://<api>/v3/clusters/<name>
+              (StormForge API v3; status.phase, kubernetes.systemNamespaceUID,
+              stormforge.products[].version)
+  Workloads   GET  https://<api>/management/workloads?cluster=&namespace=
+              GET  https://<api>/management/workloads/<id>/patches
+              (id = cluster_namespace_type_name; token scope view:workloads)
+
+Applying a recommendation follows StormForge's documented kubectl path
+(https://docs.stormforge.io/optimize-live/recommendations/apply/): StormForge
+publishes each patch with the command
+`kubectl patch --field-manager=stormforge <resource>/<name> --patch-file=...`,
+which is a strategic merge patch, and this module sends the same patch to the
+Kubernetes API. Automatic deployment is the documented workload annotation
+live.stormforge.io/auto-deploy
+(https://docs.stormforge.io/docs/configure/settings/apply-settings/).
+
+The agent install follows StormForge's documented chart and externally
+managed Secret:
+  https://docs.stormforge.io/docs/installation/install/
+  https://docs.stormforge.io/docs/guides/manage-secrets/
+  chart oci://registry.stormforge.io/library/stormforge (values clusterName,
+  createAuthSecret, clusterProvider, clusterLabels, proxyUrl, noProxy,
+  authorization.issuer, stormforge.address, forwarder.remoteWriteUrl; Secret
+  keys STORMFORGE_CLIENT_ID, STORMFORGE_CLIENT_SECRET, STORMFORGE_ISSUER,
+  STORMFORGE_SERVER). The chart defaults the last three to the production
+  endpoint (https://api.stormforge.io/ and
+  https://in.stormforge.io/prometheus/write), so every install sets them.
+
+Helm runs inside the cluster, so neither the appliance nor the cluster needs
+a helm install. The Job uses a public Helm 4 image pinned by digest
+(https://github.com/alpine-docker/helm) under a temporary ServiceAccount
+bound to cluster-admin, which the chart needs because it creates CRDs and
+ClusterRoles. The Job, its ConfigMap, the ServiceAccount and the binding are
+deleted when Helm finishes.
+  Jobs              https://kubernetes.io/docs/concepts/workloads/controllers/job/
+  helm upgrade      https://helm.sh/docs/helm/helm_upgrade/
+  Helm 3 support ends 2026-11-11  https://helm.sh/blog/helm-4-released/
+
+Optional parameters on the cluster's environment (Admin > Parameters, then
+the environment's Parameters tab):
+  stormforge_helm_image   Helm 4 image, e.g. a copy in a private registry
+  stormforge_proxy_url    HTTPS proxy the agent uses to reach StormForge
+  stormforge_no_proxy     NO_PROXY list for the agent (chart default otherwise)
+
+Cluster egress the agent needs: the API host, its in. host,
+registry.stormforge.io and quay.io on 443, plus the Helm image's registry.
+"""
+
+import base64
+import datetime
+import gzip
+import json
+import re
+import time
+import urllib.parse
+
+import requests
+
+from common.methods import get_proxies, set_progress
+from infrastructure.models import CustomField, Environment
+from utilities.exceptions import CloudBoltException
+from utilities.helpers import get_ssl_verification
+from utilities.logger import ThreadLogger
+from utilities.models import ConnectionInfo
+
+logger = ThreadLogger(__name__)
+
+CONNECTION_INFO_NAME = "StormForge"
+# What CloudBolt's own calls need: read and delete clusters.
+API_SCOPES = ("view:clusters", "manage:clusters")
+# What reading a namespace's workloads and their patches needs.
+WORKLOAD_SCOPES = ("view:clusters", "view:workloads")
+
+CHART = "oci://registry.stormforge.io/library/stormforge"
+CHART_REGISTRY = "https://registry.stormforge.io"
+CHART_REPOSITORY = "library/stormforge"
+RELEASE = "stormforge"
+NAMESPACE = "stormforge-system"
+AUTH_SECRET = "stormforge-auth"
+
+# alpine/helm 4.3.1 (linux amd64, arm64 and others), pinned by digest because
+# the image's version tags are rebuilt in place.
+DEFAULT_HELM_IMAGE = (
+    "docker.io/alpine/helm:4.3.1"
+    "@sha256:e3f8d5c462d75470fbb1fce79ad5c20063657096d1f98c0fcea869e2600e2e5e"
+)
+INSTALLER = "cloudbolt-stormforge-installer"
+HELM_TIMEOUT = "10m"
+JOB_DEADLINE_SECONDS = 900
+POLL_SECONDS = 5
+IMAGE_FAILURE_GRACE_SECONDS = 90
+CONNECT_WAIT_SECONDS = 120
+REQUEST_TIMEOUT = 30
+
+MANAGED_LABELS = {"app.kubernetes.io/managed-by": "cloudbolt"}
+
+CLUSTER_ORCHESTRATOR_FIELD = "container_orchestrator_id"
+STRATEGIC_MERGE_PATCH = "application/strategic-merge-patch+json"
+
+# Which blueprint built the cluster: the field its build stores, and the
+# chart's clusterProvider value.
+PROVIDERS = (
+    ("eks_cluster_name", "EKS", "aws"),
+    ("aks_cluster_name", "AKS", "azure"),
+    ("gke_cluster_name", "GKE", "gcp"),
+)
+
+FIELD_CLUSTER = "stormforge_cluster_name"
+FIELD_VERSION = "stormforge_agent_version"
+FIELD_STATUS = "stormforge_status"
+
+ENV_HELM_IMAGE = "stormforge_helm_image"
+ENV_PROXY_URL = "stormforge_proxy_url"
+ENV_NO_PROXY = "stormforge_no_proxy"
+
+# (name, label, type, description, show_as_attribute)
+RESOURCE_FIELDS = [
+    (FIELD_CLUSTER, "StormForge Cluster", "STR",
+     "Name of this cluster in StormForge.", True),
+    (FIELD_VERSION, "StormForge Agent Version", "STR",
+     "StormForge chart version CloudBolt last installed on this cluster.", True),
+    (FIELD_STATUS, "StormForge Status", "STR",
+     "Result of CloudBolt's last StormForge install, upgrade or removal on this cluster.", True),
+]
+ENVIRONMENT_FIELDS = [
+    (ENV_HELM_IMAGE, "StormForge Helm Image", "STR",
+     "Helm 4 container image CloudBolt runs in the cluster to install the StormForge agent. "
+     "Blank uses a public image pinned by digest."),
+    (ENV_PROXY_URL, "StormForge Proxy URL", "STR",
+     "HTTPS proxy the StormForge agent uses to reach StormForge (the chart's proxyUrl)."),
+    (ENV_NO_PROXY, "StormForge No Proxy", "STR",
+     "Comma-separated NO_PROXY list for the StormForge agent (the chart's noProxy)."),
+]
+
+
+class StormForgeError(Exception):
+    """A StormForge API, registry or Kubernetes step failed; the message says which."""
+
+
+def ensure_custom_fields():
+    """Create the resource and environment fields this module uses. Idempotent."""
+    for name, label, cf_type, description, show_as_attribute in RESOURCE_FIELDS:
+        CustomField.objects.get_or_create(
+            name=name,
+            defaults=dict(label=label, description=description, type=cf_type,
+                          show_on_servers=False, show_as_attribute=show_as_attribute),
+        )
+    for name, label, cf_type, description in ENVIRONMENT_FIELDS:
+        CustomField.objects.get_or_create(
+            name=name,
+            defaults=dict(label=label, description=description, type=cf_type,
+                          show_on_servers=False, show_as_attribute=False),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Small helpers
+# ---------------------------------------------------------------------------
+
+def _http(method, url, **kwargs):
+    """requests with CloudBolt's SSL trust settings and appliance proxy."""
+    kwargs.setdefault("timeout", REQUEST_TIMEOUT)
+    kwargs.setdefault("verify", get_ssl_verification())
+    try:
+        kwargs.setdefault("proxies", get_proxies(url))
+    except Exception:  # noqa: BLE001 - a proxy misconfiguration should not hide the real call
+        kwargs.setdefault("proxies", {})
+    try:
+        return requests.request(method, url, **kwargs)
+    except requests.exceptions.RequestException as exc:
+        host = urllib.parse.urlparse(url).netloc
+        raise StormForgeError(f"Could not reach {host}: {exc}")
+
+
+def _error_text(response):
+    try:
+        body = response.json()
+    except ValueError:
+        return (response.text or "")[:300]
+    if isinstance(body, dict):
+        for key in ("error_description", "detail", "message", "error", "title"):
+            if body.get(key):
+                return str(body[key])
+    return json.dumps(body)[:300]
+
+
+def cluster_name_for_stormforge(name):
+    """A cluster name StormForge accepts: an RFC 1123 label (a-z, 0-9, '-', at most 63)."""
+    value = re.sub(r"[^a-z0-9-]+", "-", str(name or "").strip().lower())
+    value = re.sub(r"-{2,}", "-", value).strip("-")[:63].rstrip("-")
+    if not value:
+        raise StormForgeError(f"'{name}' does not give a usable StormForge cluster name.")
+    return value
+
+
+def _version_key(version):
+    return tuple(int(part) for part in version.split("."))
+
+
+def _stable(version):
+    return bool(re.fullmatch(r"\d+\.\d+\.\d+", version or ""))
+
+
+def _resolve_resource(job, resource, kwargs):
+    """Accept the resource from any of the slots CloudBolt may use."""
+    if resource is not None:
+        return resource
+    if kwargs.get("resource") is not None:
+        return kwargs["resource"]
+    for candidate in kwargs.get("resources") or []:
+        if candidate is not None:
+            return candidate
+    if job is not None:
+        return job.resource_set.first()
+    return None
+
+
+def _environment_setting(resource, name):
+    """A stormforge_* parameter value from the cluster's environment, or ''."""
+    env_id = resource.get_cf_values_as_dict().get("env_id")
+    if env_id in (None, ""):
+        return ""
+    try:
+        env = Environment.objects.filter(id=int(str(env_id).strip())).first()
+    except (TypeError, ValueError):
+        return ""
+    if env is None:
+        return ""
+    try:
+        return str(env.get_cfv(name) or "").strip()
+    except Exception:  # noqa: BLE001 - an unset or missing parameter means "use the default"
+        return ""
+
+
+def _set_fields(resource, **values):
+    """Record values on the resource; a bookkeeping failure never hides the real result."""
+    for name, value in values.items():
+        try:
+            resource.set_value_for_custom_field(name, "" if value is None else str(value))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not set %s on resource %s: %s", name, resource.id, exc)
+
+
+# ---------------------------------------------------------------------------
+# StormForge API
+# ---------------------------------------------------------------------------
+
+class StormForge:
+    """The StormForge API as one org-level client-credentials client."""
+
+    def __init__(self, api_host, client_id, client_secret, scopes=API_SCOPES):
+        host = (api_host or "").strip()
+        if not host:
+            raise StormForgeError("No StormForge API host given.")
+        if not host.startswith("http"):
+            host = f"https://{host}"
+        self.api = host.rstrip("/") + "/"
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scopes = tuple(scopes)
+        self._metadata = None
+        self._token = None
+        self._token_expires = 0
+
+    @classmethod
+    def from_connection_info(cls, scopes=API_SCOPES):
+        conn = ConnectionInfo.objects.filter(name=CONNECTION_INFO_NAME).first()
+        if conn is None:
+            raise StormForgeError(
+                f"No connection info named '{CONNECTION_INFO_NAME}'. Create it in Admin > Connection Info "
+                "with the StormForge client ID as Username and the client secret as Password."
+            )
+        if not conn.ip or not conn.username or not conn.password:
+            raise StormForgeError(
+                f"Connection info '{CONNECTION_INFO_NAME}' needs the StormForge API host (for example "
+                "api.stormforge.io) as IP/Hostname, the client ID as Username and the client secret as Password."
+            )
+        return cls(conn.ip, conn.username, conn.password, scopes=scopes)
+
+    @property
+    def host(self):
+        return urllib.parse.urlsplit(self.api).hostname or ""
+
+    @property
+    def ingest_url(self):
+        """Where the agent's metrics forwarder writes for this endpoint.
+
+        StormForge serves metrics ingest from the in. host beside the api.
+        host; the chart's own default pairs https://in.stormforge.io/prometheus/write
+        with https://api.stormforge.io/ (values.yaml forwarder.remoteWriteUrl).
+        """
+        if not self.host.startswith("api."):
+            raise StormForgeError(
+                f"Cannot tell where StormForge receives metrics for API host {self.host}. "
+                f"Set the IP/Hostname of connection info '{CONNECTION_INFO_NAME}' to the StormForge "
+                "API host, which starts with 'api.'."
+            )
+        return f"https://in.{self.host[len('api.'):]}/prometheus/write"
+
+    # -- authorization -------------------------------------------------------
+
+    def metadata(self):
+        """The authorization server metadata (issuer and token endpoint)."""
+        if self._metadata is None:
+            url = urllib.parse.urljoin(self.api, ".well-known/openid-configuration")
+            response = _http("GET", url)
+            if response.status_code != 200:
+                raise StormForgeError(f"StormForge discovery at {url} returned HTTP {response.status_code}.")
+            self._metadata = response.json()
+        return self._metadata
+
+    @property
+    def issuer(self):
+        return self.metadata().get("issuer") or self.api
+
+    def token(self):
+        """A bearer token for the connection info's credential, reused until shortly before it expires."""
+        if self._token and time.time() < self._token_expires - 60:
+            return self._token
+        token_url = self.metadata().get("token_endpoint") or urllib.parse.urljoin(self.api, "oauth/token")
+        # StormForge grants a client-credentials token only the scopes it asks
+        # for; without a scope parameter the token carries none and every API
+        # call answers 401. https://www.rfc-editor.org/rfc/rfc6749#section-4.4.2
+        response = _http("POST", token_url, data={
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "audience": self.api,
+            "scope": " ".join(self.scopes),
+        })
+        if response.status_code != 200:
+            raise StormForgeError(
+                f"StormForge refused the '{CONNECTION_INFO_NAME}' credential "
+                f"(HTTP {response.status_code}): {_error_text(response)}. Create it with "
+                "StormForge's default permissions (stormforge auth create)."
+            )
+        body = response.json()
+        self._token = body["access_token"]
+        self._token_expires = time.time() + int(body.get("expires_in") or 300)
+        return self._token
+
+    def _call(self, method, url, ok=(200,), allow_404=False, **kwargs):
+        headers = {"Authorization": f"Bearer {self.token()}", "Accept": "application/json"}
+        response = _http(method, url, headers=headers, **kwargs)
+        if response.status_code == 404 and allow_404:
+            return None
+        if response.status_code not in ok:
+            path = urllib.parse.urlparse(url).path
+            hint = ""
+            if response.status_code in (401, 403):
+                hint = (f" The '{CONNECTION_INFO_NAME}' credential may lack one of the scopes "
+                        f"{' '.join(self.scopes)}; create it with StormForge's default permissions "
+                        "(stormforge auth create).")
+            raise StormForgeError(
+                f"StormForge {method} {path} returned HTTP {response.status_code}: "
+                f"{_error_text(response)}.{hint}"
+            )
+        if not response.content:
+            return {}
+        try:
+            return response.json()
+        except ValueError:
+            return {}
+
+    # -- clusters ------------------------------------------------------------
+
+    def _cluster_url(self, name):
+        return urllib.parse.urljoin(self.api, f"v3/clusters/{urllib.parse.quote(name)}")
+
+    def get_cluster(self, name):
+        """The StormForge cluster record, or None when StormForge has no such cluster."""
+        return self._call("GET", self._cluster_url(name), allow_404=True)
+
+    def delete_cluster(self, name):
+        """Delete the cluster in StormForge. Returns False when it did not exist."""
+        return self._call("DELETE", self._cluster_url(name), ok=(200, 202, 204), allow_404=True) is not None
+
+
+# ---------------------------------------------------------------------------
+# Chart versions (anonymous OCI registry reads)
+# https://distribution.github.io/distribution/spec/api/#listing-image-tags
+# https://distribution.github.io/distribution/spec/auth/token/
+# ---------------------------------------------------------------------------
+
+def chart_versions(limit=None):
+    """Released StormForge chart versions, newest first (pre-releases left out)."""
+    tags_url = f"{CHART_REGISTRY}/v2/{CHART_REPOSITORY}/tags/list"
+    response = _http("GET", tags_url, params={"n": 1000})
+    if response.status_code == 401:
+        challenge = response.headers.get("WWW-Authenticate", "")
+        params = dict(re.findall(r'(\w+)="([^"]*)"', challenge))
+        if not params.get("realm"):
+            raise StormForgeError("registry.stormforge.io asked for a login it did not describe.")
+        token_response = _http("GET", params["realm"], params={
+            "service": params.get("service", ""),
+            "scope": f"repository:{CHART_REPOSITORY}:pull",
+        })
+        if token_response.status_code != 200:
+            raise StormForgeError(f"registry.stormforge.io token request returned HTTP {token_response.status_code}.")
+        body = token_response.json()
+        token = body.get("token") or body.get("access_token")
+        response = _http("GET", tags_url, params={"n": 1000}, headers={"Authorization": f"Bearer {token}"})
+    if response.status_code != 200:
+        raise StormForgeError(f"Listing StormForge chart versions returned HTTP {response.status_code}.")
+    versions = sorted({tag for tag in response.json().get("tags") or [] if _stable(tag)},
+                      key=_version_key, reverse=True)
+    if not versions:
+        raise StormForgeError("registry.stormforge.io lists no released StormForge chart versions.")
+    return versions[:limit] if limit else versions
+
+
+# ---------------------------------------------------------------------------
+# Kubernetes API of a CloudBolt-built cluster
+# ---------------------------------------------------------------------------
+
+class Kube:
+    """The cluster's Kubernetes API with the credentials its container orchestrator holds.
+
+    EKS and AKS go through the orchestrator's API wrapper (endpoint, EKS
+    token or AKS admin certificate, CloudBolt SSL settings). GKE goes through
+    gcp_gke.KubeClient, which trusts the cluster's own CA.
+    """
+
+    def __init__(self, kind, provider, orchestrator):
+        self.kind = kind
+        self.provider = provider
+        self.orchestrator = orchestrator
+        self._gke = None
+        self._wrapper = None
+        if kind == "GKE":
+            from shared_modules.gcp_gke import KubeClient
+
+            self._gke = KubeClient.from_orchestrator(orchestrator)
+        else:
+            self._wrapper = orchestrator.get_api_wrapper()
+            base = self._wrapper.get_clusterrole_url("v1", skip_base_url_version=True)
+            self._root = base[: -len("/api")] if base.endswith("/api") else base
+
+    @classmethod
+    def for_resource(cls, resource):
+        from containerorchestrators.kuberneteshandler.models import Kubernetes
+
+        kind, provider = cluster_kind(resource)
+        orchestrator_id = resource.get_cf_values_as_dict().get(CLUSTER_ORCHESTRATOR_FIELD)
+        orchestrator = None
+        if orchestrator_id not in (None, ""):
+            orchestrator = Kubernetes.objects.filter(id=int(str(orchestrator_id).strip())).first()
+        if orchestrator is None:
+            raise StormForgeError(
+                f"Cluster '{resource.name}' has no CloudBolt container orchestrator "
+                f"({CLUSTER_ORCHESTRATOR_FIELD}), so CloudBolt cannot reach its Kubernetes API."
+            )
+        try:
+            return cls(kind, provider, orchestrator)
+        except StormForgeError:
+            raise
+        except Exception as exc:
+            raise StormForgeError(f"Could not open the Kubernetes API of '{resource.name}': {exc}")
+
+    def request(self, method, path, body=None, params=None, allow_404=False, text=False):
+        """One call; parsed JSON (or the body text when ``text``), None on 404 when ``allow_404``."""
+        if self._gke is not None:
+            from shared_modules.gcp_gke import GKEError
+
+            try:
+                result = self._gke.request(
+                    method, path, json_body=body, params=params, allow_404=allow_404, ok=(200, 201, 202),
+                    content_type=STRATEGIC_MERGE_PATCH if method == "PATCH" else None)
+            except GKEError as exc:
+                raise StormForgeError(str(exc))
+            if text and isinstance(result, dict) and set(result) == {"text"}:
+                return result["text"]
+            if text and result is not None and not isinstance(result, str):
+                return json.dumps(result)
+            return result
+        url = f"{self._root}/{path.lstrip('/')}"
+        kwargs = {"expected_statuses": [200, 201, 202, 204] + ([404] if allow_404 else [])}
+        if body is not None:
+            kwargs["json"] = body
+        if params is not None:
+            kwargs["params"] = params
+        try:
+            response = getattr(self._wrapper, f"requests_{method.lower()}")(url, **kwargs)
+        except CloudBoltException as exc:
+            raise StormForgeError(str(exc))
+        if response.status_code == 404:
+            return None
+        if text:
+            # Pod logs are UTF-8 text/plain with no charset, which requests reads as Latin-1.
+            return response.content.decode("utf-8", "replace")
+        if response.text and response.headers.get("Content-Type", "").startswith("application/json"):
+            return response.json()
+        return {}
+
+    def get(self, path, params=None):
+        return self.request("GET", path, params=params, allow_404=True)
+
+    def apply(self, collection, name, body):
+        """Create ``body``, or replace the object named ``name`` (a PUT needs its resourceVersion)."""
+        existing = self.get(f"{collection}/{name}")
+        if existing is None:
+            return self.request("POST", collection, body=body)
+        body = json.loads(json.dumps(body))
+        body.setdefault("metadata", {})["resourceVersion"] = existing["metadata"]["resourceVersion"]
+        return self.request("PUT", f"{collection}/{name}", body=body)
+
+    def delete(self, path, params=None):
+        """Delete an object; returns False when it was already gone."""
+        return self.request("DELETE", path, params=params, allow_404=True) is not None
+
+    def patch(self, path, body, params=None):
+        """Strategic merge patch of a built-in object; None when it does not exist.
+
+        CloudBolt's orchestrator wrapper sends every PATCH as
+        application/strategic-merge-patch+json, which Kubernetes accepts for
+        built-in kinds only, so custom resources cannot be patched here.
+        https://kubernetes.io/docs/reference/using-api/api-concepts/#patch-and-apply
+        """
+        return self.request("PATCH", path, body=body, params=params, allow_404=True)
+
+
+def cluster_kind(resource):
+    """('EKS'|'AKS'|'GKE', chart clusterProvider) from the field the cluster's build stores."""
+    values = resource.get_cf_values_as_dict()
+    for field, kind, provider in PROVIDERS:
+        if values.get(field):
+            return kind, provider
+    raise StormForgeError(
+        f"'{resource.name}' is not a cluster built or discovered by the AWS EKS, Azure Kubernetes "
+        "Service or Google Kubernetes Engine blueprint."
+    )
+
+
+def cloud_cluster_name(resource):
+    values = resource.get_cf_values_as_dict()
+    for field, _kind, _provider in PROVIDERS:
+        if values.get(field):
+            return str(values[field])
+    return resource.name
+
+
+# ---------------------------------------------------------------------------
+# Helm in a Job
+# ---------------------------------------------------------------------------
+
+def _secret_value(secret, key):
+    raw = ((secret or {}).get("data") or {}).get(key)
+    if not raw:
+        return ""
+    try:
+        return base64.b64decode(raw).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return ""
+
+
+def deployed_release(kube):
+    """The deployed StormForge Helm release record as a dict, or None when there is none.
+
+    Helm keeps each release revision in a Secret labeled owner=helm,
+    name=<release>, status=<status>, version=<revision>; its 'release' key is
+    a base64, gzipped JSON document holding chart.metadata.version and the
+    user-supplied values under 'config'.
+    https://helm.sh/docs/topics/advanced/#storage-backends
+    """
+    listing = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets",
+                       params={"labelSelector": f"owner=helm,name={RELEASE},status=deployed"}) or {}
+    items = listing.get("items") or []
+    if not items:
+        return None
+    latest = max(items, key=lambda s: int(((s.get("metadata") or {}).get("labels") or {}).get("version") or 0))
+    try:
+        payload = base64.b64decode(base64.b64decode(latest["data"]["release"]))
+        if payload[:2] == b"\x1f\x8b":
+            payload = gzip.decompress(payload)
+        return json.loads(payload)
+    except (KeyError, ValueError, OSError) as exc:
+        logger.warning("Could not read the StormForge Helm release record: %s", exc)
+        return None
+
+
+def installed_version(kube, release=None):
+    """The chart version of the deployed StormForge release, or None when it is not installed."""
+    release = release if release is not None else deployed_release(kube)
+    if not release:
+        return None
+    return ((release.get("chart") or {}).get("metadata") or {}).get("version")
+
+
+def _labels(extra=None):
+    labels = dict(MANAGED_LABELS)
+    labels["app.kubernetes.io/name"] = INSTALLER
+    labels.update(extra or {})
+    return labels
+
+
+def _ensure_namespace(kube):
+    if kube.get(f"/api/v1/namespaces/{NAMESPACE}") is None:
+        kube.request("POST", "/api/v1/namespaces", body={
+            "apiVersion": "v1", "kind": "Namespace",
+            "metadata": {"name": NAMESPACE, "labels": dict(MANAGED_LABELS)},
+        })
+
+
+def _write_auth_secret(kube, sf):
+    """The stormforge-auth Secret the chart reads when createAuthSecret=false."""
+    def b64(value):
+        return base64.b64encode(value.encode("utf-8")).decode("ascii")
+
+    kube.apply(f"/api/v1/namespaces/{NAMESPACE}/secrets", AUTH_SECRET, {
+        "apiVersion": "v1", "kind": "Secret", "type": "Opaque",
+        "metadata": {"name": AUTH_SECRET, "namespace": NAMESPACE, "labels": dict(MANAGED_LABELS)},
+        "data": {
+            "STORMFORGE_CLIENT_ID": b64(sf.client_id),
+            "STORMFORGE_CLIENT_SECRET": b64(sf.client_secret),
+            "STORMFORGE_ISSUER": b64(sf.issuer),
+            "STORMFORGE_SERVER": b64(sf.api),
+        },
+    })
+
+
+def _job_spec(name, image, version, extra_env):
+    env = [
+        {"name": "HOME", "value": "/tmp"},
+        {"name": "HELM_CACHE_HOME", "value": "/tmp/helm/cache"},
+        {"name": "HELM_CONFIG_HOME", "value": "/tmp/helm/config"},
+        {"name": "HELM_DATA_HOME", "value": "/tmp/helm/data"},
+    ] + extra_env
+    args = [
+        "upgrade", "--install", RELEASE, CHART,
+        "--version", version,
+        "--namespace", NAMESPACE,
+        "--values", "/values/values.yaml",
+        "--reset-values",
+        "--wait", "--timeout", HELM_TIMEOUT,
+        "--rollback-on-failure",
+    ]
+    return {
+        "apiVersion": "batch/v1", "kind": "Job",
+        "metadata": {"name": name, "namespace": NAMESPACE, "labels": _labels()},
+        "spec": {
+            "backoffLimit": 0,
+            "activeDeadlineSeconds": JOB_DEADLINE_SECONDS,
+            "ttlSecondsAfterFinished": 3600,
+            "template": {
+                "metadata": {"labels": _labels()},
+                "spec": {
+                    "serviceAccountName": INSTALLER,
+                    "restartPolicy": "Never",
+                    "nodeSelector": {"kubernetes.io/os": "linux"},
+                    "securityContext": {
+                        "runAsNonRoot": True, "runAsUser": 65534, "runAsGroup": 65534,
+                        "seccompProfile": {"type": "RuntimeDefault"},
+                    },
+                    "containers": [{
+                        "name": "helm",
+                        "image": image,
+                        "args": args,
+                        "env": env,
+                        "resources": {
+                            "requests": {"cpu": "50m", "memory": "64Mi"},
+                            "limits": {"cpu": "500m", "memory": "512Mi"},
+                        },
+                        "securityContext": {
+                            "allowPrivilegeEscalation": False,
+                            "readOnlyRootFilesystem": True,
+                            "capabilities": {"drop": ["ALL"]},
+                        },
+                        "volumeMounts": [
+                            {"name": "tmp", "mountPath": "/tmp"},
+                            {"name": "values", "mountPath": "/values", "readOnly": True},
+                        ],
+                    }],
+                    "volumes": [
+                        {"name": "tmp", "emptyDir": {}},
+                        {"name": "values", "configMap": {"name": name}},
+                    ],
+                },
+            },
+        },
+    }
+
+
+def _pod(kube, job_name):
+    pods = kube.get(f"/api/v1/namespaces/{NAMESPACE}/pods",
+                    params={"labelSelector": f"job-name={job_name}"}) or {}
+    items = pods.get("items") or []
+    return items[0] if items else None
+
+
+def _pod_problem(pod):
+    """A container waiting reason that will not clear on its own, or why the pod is unscheduled."""
+    status = (pod or {}).get("status") or {}
+    for container in status.get("containerStatuses") or []:
+        waiting = (container.get("state") or {}).get("waiting") or {}
+        if waiting.get("reason") in ("ErrImagePull", "ImagePullBackOff", "InvalidImageName",
+                                     "CreateContainerConfigError", "CreateContainerError"):
+            return f"{waiting['reason']}: {waiting.get('message', '')}".strip()
+    for condition in status.get("conditions") or []:
+        if condition.get("type") == "PodScheduled" and condition.get("status") == "False":
+            return f"{condition.get('reason', 'Unschedulable')}: {condition.get('message', '')}".strip()
+    return ""
+
+
+def run_helm(kube, values, version, image, extra_env, progress=set_progress):
+    """Run `helm upgrade --install` in a Job; returns (succeeded, helm output or the reason it failed)."""
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+    name = f"{INSTALLER}-{stamp}"
+    sa_path = f"/api/v1/namespaces/{NAMESPACE}/serviceaccounts"
+    crb_collection = "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings"
+    cm_path = f"/api/v1/namespaces/{NAMESPACE}/configmaps"
+    job_path = f"/apis/batch/v1/namespaces/{NAMESPACE}/jobs"
+
+    progress(f"Starting Helm ({image.split('@')[0]}) in namespace {NAMESPACE}")
+    try:
+        kube.apply(sa_path, INSTALLER, {
+            "apiVersion": "v1", "kind": "ServiceAccount",
+            "metadata": {"name": INSTALLER, "namespace": NAMESPACE, "labels": _labels()},
+        })
+        kube.apply(crb_collection, INSTALLER, {
+            "apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleBinding",
+            "metadata": {"name": INSTALLER, "labels": _labels()},
+            "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "cluster-admin"},
+            "subjects": [{"kind": "ServiceAccount", "name": INSTALLER, "namespace": NAMESPACE}],
+        })
+        kube.request("POST", cm_path, body={
+            "apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": name, "namespace": NAMESPACE, "labels": _labels()},
+            "data": {"values.yaml": json.dumps(values, indent=2)},
+        })
+        kube.request("POST", job_path, body=_job_spec(name, image, version, extra_env))
+        succeeded, detail = _wait_for_job(kube, name, progress)
+        pod = _pod(kube, name)
+        output = ""
+        if pod is not None:
+            output = kube.request("GET", f"/api/v1/namespaces/{NAMESPACE}/pods/{pod['metadata']['name']}/log",
+                                  allow_404=True, text=True) or ""
+        # The chart's NOTES are a banner and production-app links; the release summary above them is what counts.
+        output = output.split("\nNOTES:", 1)[0]
+        if succeeded:
+            return True, output.strip()
+        return False, "\n".join(part for part in (detail, output.strip()) if part)
+    finally:
+        for path, params in (
+            (f"{job_path}/{name}", {"propagationPolicy": "Background"}),
+            (f"{cm_path}/{name}", None),
+            (f"{crb_collection}/{INSTALLER}", None),
+            (f"{sa_path}/{INSTALLER}", None),
+        ):
+            try:
+                kube.delete(path, params=params)
+            except StormForgeError as exc:
+                logger.warning("Could not clean up %s: %s", path, exc)
+
+
+def _wait_for_job(kube, name, progress):
+    deadline = time.time() + JOB_DEADLINE_SECONDS + 60
+    stuck_since = None
+    while True:
+        job = kube.get(f"/apis/batch/v1/namespaces/{NAMESPACE}/jobs/{name}") or {}
+        status = job.get("status") or {}
+        if status.get("succeeded"):
+            return True, ""
+        for condition in status.get("conditions") or []:
+            if condition.get("type") == "Failed" and condition.get("status") == "True":
+                return False, f"Helm job failed ({condition.get('reason', '')}: {condition.get('message', '')})."
+        if status.get("failed"):
+            return False, "Helm exited with an error."
+        problem = _pod_problem(_pod(kube, name))
+        if problem:
+            stuck_since = stuck_since or time.time()
+            if time.time() - stuck_since > IMAGE_FAILURE_GRACE_SECONDS:
+                return False, f"The Helm pod cannot start: {problem}"
+        else:
+            stuck_since = None
+        if time.time() > deadline:
+            return False, f"Helm did not finish within {JOB_DEADLINE_SECONDS // 60} minutes."
+        progress("Waiting for Helm to install the StormForge agent" + (f" ({problem})" if problem else ""))
+        time.sleep(POLL_SECONDS)
+
+
+# ---------------------------------------------------------------------------
+# Operations
+# ---------------------------------------------------------------------------
+
+def _check_identity(sf, kube, name):
+    """Refuse to install over a different cluster StormForge already knows by this name."""
+    record = sf.get_cluster(name)
+    if record is None:
+        return
+    theirs = (record.get("kubernetes") or {}).get("systemNamespaceUID")
+    ours = ((kube.get("/api/v1/namespaces/kube-system") or {}).get("metadata") or {}).get("uid")
+    if theirs and ours and theirs != ours:
+        raise StormForgeError(
+            f"StormForge already has a different cluster named '{name}'. Delete it in StormForge "
+            "or rename one of the clusters, then run Install or Upgrade StormForge Agent."
+        )
+
+
+def _refuse_downgrade(current, target):
+    """StormForge charts cannot go back: a newer chart can move its CRDs to a new
+    storage version, which Kubernetes then refuses to drop (3.5.0 -> 3.4.0 fails
+    with "v2 was previously a storage version"). Helm would roll back, so stop first.
+    https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#upgrade-existing-objects-to-a-new-stored-version
+    """
+    if current and _stable(current) and _version_key(target) < _version_key(current):
+        raise StormForgeError(
+            f"StormForge {current} is installed; going back to {target} is not supported "
+            "because newer charts change the stored version of StormForge's custom resources."
+        )
+
+
+def _ready_nodes(kube):
+    """How many nodes can run a pod: Ready and not cordoned.
+
+    https://kubernetes.io/docs/reference/node/node-status/#condition
+    """
+    count = 0
+    for node in (kube.get("/api/v1/nodes") or {}).get("items") or []:
+        if (node.get("spec") or {}).get("unschedulable"):
+            continue
+        conditions = (node.get("status") or {}).get("conditions") or []
+        if any(c.get("type") == "Ready" and c.get("status") == "True" for c in conditions):
+            count += 1
+    return count
+
+
+def _helm_managed(obj):
+    metadata = (obj or {}).get("metadata") or {}
+    return ((metadata.get("labels") or {}).get("app.kubernetes.io/managed-by") == "Helm"
+            or "meta.helm.sh/release-name" in (metadata.get("annotations") or {}))
+
+
+def _cloudbolt_managed(obj):
+    labels = ((obj or {}).get("metadata") or {}).get("labels") or {}
+    return all(labels.get(key) == value for key, value in MANAGED_LABELS.items())
+
+
+def _ensure_credential(sf, kube, progress):
+    """The chart values that point the agent at its credential.
+
+    The agent runs on the connection info's credential: StormForge removes
+    manage:clients from every client-credentials token, so CloudBolt cannot
+    create one per cluster. CloudBolt writes the credential to the
+    stormforge-auth Secret on every run, so updating the connection info and
+    running the action rotates it. A Secret CloudBolt did not write (StormForge
+    installed by hand) is kept. One the chart itself created (the default
+    createAuthSecret) stays chart-managed: switching to createAuthSecret=false
+    would make Helm delete it during the upgrade, so its values are handed
+    back to the chart. The forwarder takes its token URL from
+    authorization.issuer even when the chart does not write the Secret.
+
+    Returns (values, written): written is True when CloudBolt wrote the Secret.
+    """
+    secret = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets/{AUTH_SECRET}")
+    client_id = _secret_value(secret, "STORMFORGE_CLIENT_ID")
+    client_secret = _secret_value(secret, "STORMFORGE_CLIENT_SECRET")
+    if client_id and client_secret and not _cloudbolt_managed(secret):
+        progress(f"Keeping the StormForge credential already in Secret {NAMESPACE}/{AUTH_SECRET}")
+        if _helm_managed(secret):
+            return {"createAuthSecret": True, "authorization": {
+                "clientID": client_id, "clientSecret": client_secret, "issuer": sf.issuer,
+            }}, False
+        return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}, False
+    progress(f"Writing the '{CONNECTION_INFO_NAME}' credential to Secret {NAMESPACE}/{AUTH_SECRET}")
+    _write_auth_secret(kube, sf)
+    return {"createAuthSecret": False, "authorization": {"issuer": sf.issuer}}, True
+
+
+def _kube_time(value):
+    try:
+        return datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def secret_written_at(secret):
+    """When the stormforge-auth Secret was last written, from its managed fields; None if unknown.
+
+    The API server stamps each managedFields entry with the time of that
+    manager's last write.
+    https://kubernetes.io/docs/reference/using-api/server-side-apply/#field-management
+    """
+    metadata = (secret or {}).get("metadata") or {}
+    times = [_kube_time(entry.get("time")) for entry in metadata.get("managedFields") or []]
+    times = [t for t in times if t] or [_kube_time(metadata.get("creationTimestamp"))]
+    return max((t for t in times if t), default=None)
+
+
+def agent_pods(kube):
+    """Pods in stormforge-system that a Deployment, DaemonSet or StatefulSet runs (not Helm Jobs)."""
+    listing = kube.get(f"/api/v1/namespaces/{NAMESPACE}/pods") or {}
+    return [
+        pod for pod in listing.get("items") or []
+        if any(ref.get("kind") in ("ReplicaSet", "DaemonSet", "StatefulSet")
+               for ref in (pod.get("metadata") or {}).get("ownerReferences") or [])
+    ]
+
+
+def stale_agent_pods(kube, secret=None):
+    """Agent pods that started before stormforge-auth was last written, so run on an older credential.
+
+    The agent reads the Secret only when a container starts, and a Helm
+    upgrade that leaves the pod templates alone restarts nothing.
+    https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
+    """
+    if secret is None:
+        secret = kube.get(f"/api/v1/namespaces/{NAMESPACE}/secrets/{AUTH_SECRET}")
+    written = secret_written_at(secret)
+    if written is None:
+        return []
+    stale = []
+    for pod in agent_pods(kube):
+        started = _kube_time(((pod.get("status") or {}).get("startTime")))
+        if started is not None and started < written:
+            stale.append(pod)
+    return stale
+
+
+def _restart_stale_agent(kube, progress):
+    """Delete agent pods older than the credential; their controllers start them again on it."""
+    stale = stale_agent_pods(kube)
+    if not stale:
+        return
+    progress(f"Restarting {len(stale)} StormForge agent pod(s) that still run on the previous credential")
+    for pod in stale:
+        kube.delete(f"/api/v1/namespaces/{NAMESPACE}/pods/{pod['metadata']['name']}")
+
+
+def _wait_for_connection(sf, name, progress):
+    """(connected, agent version StormForge reports) once the agent has checked in."""
+    deadline = time.time() + CONNECT_WAIT_SECONDS
+    while True:
+        record = sf.get_cluster(name)
+        if record is not None and (record.get("status") or {}).get("phase") != "Inactive":
+            products = (record.get("stormforge") or {}).get("products") or []
+            agent = next((p.get("version") for p in products if p.get("name") == "stormforge-agent"), None)
+            return True, agent
+        if time.time() > deadline:
+            return False, None
+        progress("Waiting for the StormForge agent to check in with StormForge")
+        time.sleep(10)
+
+
+def install_or_upgrade(resource, version=None, progress=set_progress):
+    """Install or upgrade the StormForge agent; returns (status, output, error)."""
+    ensure_custom_fields()
+    sf = StormForge.from_connection_info()
+    kube = Kube.for_resource(resource)
+
+    target = version or chart_versions(limit=1)[0]
+    if not _stable(target):
+        raise StormForgeError(f"'{target}' is not a released StormForge chart version.")
+    release = deployed_release(kube)
+    current = installed_version(kube, release)
+    _refuse_downgrade(current, target)
+    # Keep the name an existing install registered under, so StormForge's history carries over.
+    name = (resource.get_cf_values_as_dict().get(FIELD_CLUSTER)
+            or ((release or {}).get("config") or {}).get("clusterName")
+            or cluster_name_for_stormforge(cloud_cluster_name(resource)))
+
+    ingest_url = sf.ingest_url
+    _check_identity(sf, kube, name)
+    # Helm and the agent run as pods; a cluster built without nodes (an EKS
+    # cluster before its first node group) has nowhere to run them. Checked
+    # after the StormForge credential is proven and before anything is
+    # written to the cluster.
+    if not _ready_nodes(kube):
+        raise StormForgeError(
+            f"{kube.kind} cluster {cloud_cluster_name(resource)} has no ready nodes to run the "
+            "StormForge agent. Add a node group or node pool first."
+        )
+    _ensure_namespace(kube)
+    values, credential_written = _ensure_credential(sf, kube, progress)
+    _set_fields(resource, **{FIELD_CLUSTER: name})
+
+    values.update({
+        "clusterName": name,
+        "clusterProvider": kube.provider,
+        "clusterLabels": {"cloudbolt.io/resource-id": str(resource.id)},
+        # The chart defaults both to the production endpoint; use the connection info's.
+        "stormforge": {"address": sf.api},
+        "forwarder": {"remoteWriteUrl": ingest_url},
+    })
+    proxy_url = _environment_setting(resource, ENV_PROXY_URL)
+    no_proxy = _environment_setting(resource, ENV_NO_PROXY)
+    extra_env = []
+    if proxy_url:
+        values["proxyUrl"] = proxy_url
+        # Helm itself pulls the chart from registry.stormforge.io through the same proxy.
+        extra_env += [{"name": "HTTPS_PROXY", "value": proxy_url}]
+    if no_proxy:
+        values["noProxy"] = no_proxy
+        extra_env += [{"name": "NO_PROXY", "value": no_proxy}]
+    image = _environment_setting(resource, ENV_HELM_IMAGE) or DEFAULT_HELM_IMAGE
+
+    verb = "Installing" if current is None else ("Reinstalling" if current == target else "Upgrading")
+    change = target if current in (None, target) else f"{current} -> {target}"
+    progress(f"{verb} StormForge agent {change} on {kube.kind} cluster {name}")
+    succeeded, output = run_helm(kube, values, target, image, extra_env, progress)
+    if output:
+        logger.info("Helm output:\n%s", output)
+    if not succeeded:
+        # --rollback-on-failure puts an existing release back, so report what is running now.
+        try:
+            still = installed_version(kube)
+        except StormForgeError:
+            still = None
+        if still:
+            _set_fields(resource, **{FIELD_VERSION: still,
+                                     FIELD_STATUS: f"{target} failed; {still} still installed"})
+        else:
+            _set_fields(resource, **{FIELD_STATUS: f"Install of {target} failed"})
+        return "FAILURE", "", f"Helm could not install StormForge {target}: {output}"
+
+    _set_fields(resource, **{FIELD_VERSION: target})
+    if credential_written:
+        _restart_stale_agent(kube, progress)
+    connected, agent_version = _wait_for_connection(sf, name, progress)
+    if not connected:
+        _set_fields(resource, **{FIELD_STATUS: f"{target} installed; agent not connected"})
+        return ("WARNING", f"StormForge agent {change} is installed on {name}.",
+                "StormForge has not heard from the agent yet. Check that the cluster can reach "
+                f"{sf.host}, {urllib.parse.urlsplit(ingest_url).hostname}, registry.stormforge.io "
+                "and quay.io on port 443.")
+    _set_fields(resource, **{FIELD_STATUS: "Connected"})
+    reported = f" (StormForge reports agent {agent_version})" if agent_version else ""
+    return "SUCCESS", f"StormForge agent {change} is installed on {name} and connected{reported}.", ""
+
+
+def remove(resource, progress=set_progress):
+    """Delete the cluster in StormForge; returns (status, output, error)."""
+    name = resource.get_cf_values_as_dict().get(FIELD_CLUSTER)
+    if not name:
+        return "SUCCESS", "StormForge was never installed on this cluster by CloudBolt; nothing to remove.", ""
+    sf = StormForge.from_connection_info()
+    progress(f"Deleting cluster {name} in StormForge")
+    deleted = sf.delete_cluster(name)
+    _set_fields(resource, **{FIELD_STATUS: "Removed from StormForge"})
+    if not deleted:
+        return "SUCCESS", f"StormForge had no cluster named {name}.", ""
+    return "SUCCESS", f"Deleted cluster {name} in StormForge.", ""
+
+
+def version_options(resource):
+    """[(version, label)] for the action: what is installed and what each choice changes it to."""
+    versions = chart_versions(limit=8)
+    latest = versions[0]
+    try:
+        current = installed_version(Kube.for_resource(resource))
+    except StormForgeError as exc:
+        logger.warning("Could not read the installed StormForge version: %s", exc)
+        current = resource.get_cf_values_as_dict().get(FIELD_VERSION) or None
+    options = []
+    for version in versions:
+        suffix = " (latest)" if version == latest else ""
+        if current is None or not _stable(current):
+            label = f"Install {version}{suffix}"
+        elif version == current:
+            label = f"Reinstall {version} (installed)"
+        elif _version_key(version) > _version_key(current):
+            label = f"Upgrade {current} → {version}{suffix}"
+        else:
+            continue  # downgrades are refused; see _refuse_downgrade
+        options.append((version, label))
+    return options
+
+
+# ---------------------------------------------------------------------------
+# Entry points for the blueprint items
+# ---------------------------------------------------------------------------
+
+def _readme_url(resource):
+    """The blueprint's README beside its metadata in the repo it was synced from, if any.
+
+    A blueprint synced from a Source Code Repository keeps the browsable URL
+    of its metadata file (<repo>/blob/<branch>/blueprints/<id>/<id>_metadata.json).
+    """
+    source = (getattr(getattr(resource, "blueprint", None), "remote_source_url", "") or "").strip()
+    if not source.startswith("http") or not source.endswith("_metadata.json"):
+        return ""
+    return source.rsplit("/", 1)[0] + "/README.md"
+
+
+def run_build_step(job, resource, kwargs):
+    """Blueprint build item: install the agent; a failure is a warning so the order completes.
+
+    With no StormForge connection info, StormForge is not enabled on this
+    CloudBolt, so the step only says so and succeeds.
+    """
+    resource = _resolve_resource(job, resource, kwargs)
+    if resource is None:
+        return "WARNING", "", "StormForge was not installed: no cluster resource was supplied."
+    if not ConnectionInfo.objects.filter(name=CONNECTION_INFO_NAME).exists():
+        url = _readme_url(resource)
+        where = url or "the StormForge setup in this blueprint's README"
+        message = f"StormForge is not enabled on this CloudBolt instance. To enable it, see {where}."
+        set_progress(message)
+        return "SUCCESS", message, ""
+    retry = "Run Install or Upgrade StormForge Agent on the cluster to try again."
+    try:
+        status, output, error = install_or_upgrade(resource)
+    except StormForgeError as exc:
+        _set_fields(resource, **{FIELD_STATUS: "Not installed"})
+        return "WARNING", "", f"StormForge was not installed: {exc} {retry}"
+    except Exception as exc:  # noqa: BLE001 - the cluster itself is fine; never fail its order here
+        logger.exception("StormForge install failed for resource %s", resource.id)
+        _set_fields(resource, **{FIELD_STATUS: "Not installed"})
+        return "WARNING", "", f"StormForge was not installed: {exc} {retry}"
+    if status == "FAILURE":
+        return "WARNING", output, f"{error} {retry}"
+    return status, output, error
+
+
+def run_teardown_step(job, resource, kwargs):
+    """Blueprint teardown item, after the cluster is deleted: remove it from StormForge."""
+    resource = _resolve_resource(job, resource, kwargs)
+    if resource is None:
+        return "WARNING", "", "No cluster resource was supplied, so nothing was removed from StormForge."
+    try:
+        return remove(resource)
+    except Exception as exc:  # noqa: BLE001 - the cluster is already gone; report and move on
+        logger.exception("StormForge removal failed for resource %s", resource.id)
+        return "WARNING", "", (
+            f"The cluster was deleted, but removing it from StormForge failed: {exc} "
+            "Delete it in the StormForge app."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Namespaces: one team's namespace on a cluster that runs the agent
+# ---------------------------------------------------------------------------
+
+# The field prefix each namespace blueprint's build stores (<prefix>name,
+# <prefix>cluster_resource_id, <prefix>orchestrator_id): shared_modules
+# eks_namespace (SHM-sa5yqm9j), aks_namespace (SHM-cozv547n) and
+# gke_namespace (SHM-kephq8iq).
+NAMESPACE_KINDS = (
+    ("eks_namespace_", "EKS", "aws"),
+    ("aks_namespace_", "AKS", "azure"),
+    ("gke_namespace_", "GKE", "gcp"),
+)
+
+APPLY_NOW = "now"
+AUTO_DEPLOY_ON = "auto_on"
+AUTO_DEPLOY_OFF = "auto_off"
+APPLY_MODES = (
+    (APPLY_NOW, "Apply the latest recommendation now"),
+    (AUTO_DEPLOY_ON, "Turn automatic deployment on"),
+    (AUTO_DEPLOY_OFF, "Turn automatic deployment off"),
+)
+AUTO_DEPLOY_ANNOTATION = "live.stormforge.io/auto-deploy"
+# The field manager StormForge's own patch command names.
+PATCH_FIELD_MANAGER = "stormforge"
+
+# StormForge workload types (plural resources) CloudBolt can annotate, with
+# their API group and version and the kind shown to people.
+WORKLOAD_TYPES = {
+    "deployments": ("apps/v1", "Deployment"),
+    "statefulsets": ("apps/v1", "StatefulSet"),
+    "daemonsets": ("apps/v1", "DaemonSet"),
+    "replicasets": ("apps/v1", "ReplicaSet"),
+    "cronjobs": ("batch/v1", "CronJob"),
+    "jobs": ("batch/v1", "Job"),
+}
+# Kinds a StormForge patch may target here: (apiVersion, kind) -> plural resource.
+PATCH_TARGETS = {
+    ("apps/v1", "Deployment"): "deployments",
+    ("apps/v1", "StatefulSet"): "statefulsets",
+    ("apps/v1", "DaemonSet"): "daemonsets",
+    ("apps/v1", "ReplicaSet"): "replicasets",
+    ("batch/v1", "CronJob"): "cronjobs",
+    ("batch/v1", "Job"): "jobs",
+    ("autoscaling/v2", "HorizontalPodAutoscaler"): "horizontalpodautoscalers",
+}
+
+_NAMESPACE_RE = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
+_OBJECT_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
+_WORKLOAD_PAGE = 100
+_WORKLOAD_PAGES = 10
+
+
+class NamespaceScope:
+    """A namespace resource's namespace and where it lives."""
+
+    def __init__(self, namespace, cluster, cluster_resource, kind, provider, orchestrator_id):
+        self.namespace = namespace
+        self.cluster = cluster                      # the cluster's name in StormForge
+        self.cluster_resource = cluster_resource
+        self.kind = kind
+        self.provider = provider
+        self.orchestrator_id = orchestrator_id
+
+
+def namespace_scope(resource):
+    """The NamespaceScope of an EKS, AKS or GKE namespace resource, or None.
+
+    None when the resource is not such a namespace, when CloudBolt has no
+    resource for its cluster, or when the agent install has not succeeded on
+    that cluster (it writes both the StormForge name and the agent version).
+    """
+    from resources.models import Resource
+
+    try:
+        values = resource.get_cf_values_as_dict()
+    except Exception:  # noqa: BLE001
+        return None
+    for prefix, kind, provider in NAMESPACE_KINDS:
+        namespace = str(values.get(prefix + "name") or "").strip()
+        if not _NAMESPACE_RE.match(namespace):
+            continue
+        cluster = resource.parent_resource
+        if cluster is None:
+            cluster_id = str(values.get(prefix + "cluster_resource_id") or "").strip()
+            cluster = Resource.objects.filter(id=int(cluster_id)).first() if cluster_id.isdigit() else None
+        if cluster is None:
+            return None
+        cluster_values = cluster.get_cf_values_as_dict()
+        name = str(cluster_values.get(FIELD_CLUSTER) or "").strip()
+        if not name or not cluster_values.get(FIELD_VERSION):
+            return None
+        orchestrator_id = values.get(prefix + "orchestrator_id") or cluster_values.get(CLUSTER_ORCHESTRATOR_FIELD)
+        return NamespaceScope(namespace, name, cluster, kind, provider, orchestrator_id)
+    return None
+
+
+def _namespace_kube(scope):
+    from containerorchestrators.kuberneteshandler.models import Kubernetes
+
+    orchestrator = None
+    if str(scope.orchestrator_id or "").strip().isdigit():
+        orchestrator = Kubernetes.objects.filter(id=int(str(scope.orchestrator_id).strip())).first()
+    if orchestrator is None:
+        raise StormForgeError(
+            f"Namespace '{scope.namespace}' has no CloudBolt container orchestrator, so CloudBolt cannot "
+            "reach its cluster's Kubernetes API."
+        )
+    try:
+        return Kube(scope.kind, scope.provider, orchestrator)
+    except StormForgeError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise StormForgeError(f"Could not open the Kubernetes API of cluster '{scope.cluster}': {exc}")
+
+
+def _require_scope(resource):
+    scope = namespace_scope(resource)
+    if scope is None:
+        raise StormForgeError(
+            f"'{resource.name}' is not an EKS, AKS or GKE namespace on a cluster that runs the StormForge agent."
+        )
+    return scope
+
+
+def _workload_id(scope, kind, name):
+    """StormForge's workload ID: cluster, namespace, type and name joined by '_'."""
+    return urllib.parse.quote("_".join((scope.cluster, scope.namespace, kind, name)), safe="")
+
+
+def parse_workload(value):
+    """('deployments', 'web') from 'deployments/web'; raises StormForgeError when malformed."""
+    kind, _, name = str(value or "").strip().partition("/")
+    if not (_OBJECT_RE.match(kind) and _OBJECT_RE.match(name)):
+        raise StormForgeError("Choose a workload.")
+    return kind, name
+
+
+def namespace_workloads(sf, scope):
+    """StormForge's workloads in the namespace: [{'type', 'name', 'auto_deploy', 'status'}]."""
+    url = urllib.parse.urljoin(sf.api, "management/workloads")
+    found = []
+    for page in range(_WORKLOAD_PAGES):
+        listing = sf._call("GET", url, params={
+            "cluster": scope.cluster, "namespace": scope.namespace,
+            "sort_field": "workload_name", "sort_direction": "asc",
+            "offset": page * _WORKLOAD_PAGE, "limit": _WORKLOAD_PAGE,
+        }) or {}
+        results = listing.get("results") or []
+        for item in results:
+            # The namespace filter is StormForge's; check it again here.
+            if item.get("namespace_name") != scope.namespace or not item.get("workload_name"):
+                continue
+            found.append({
+                "type": item.get("type") or "",
+                "name": item["workload_name"],
+                "auto_deploy": bool(item.get("auto_deploy")),
+                "status": item.get("status") or "",
+            })
+        if len(results) < _WORKLOAD_PAGE:
+            break
+    return found
+
+
+def workload_options(resource):
+    """[(value, label)] for the action's Workload dropdown."""
+    scope = _require_scope(resource)
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    options = []
+    for workload in namespace_workloads(sf, scope):
+        kind = WORKLOAD_TYPES.get(workload["type"], (None, workload["type"]))[1]
+        detail = [kind, workload["status"] or "no recommendation yet"]
+        if workload["auto_deploy"]:
+            detail.append("automatic deployment on")
+        options.append((f"{workload['type']}/{workload['name']}", f"{workload['name']} ({', '.join(detail)})"))
+    return options
+
+
+def _object_path(api_version, namespace, plural, name):
+    root = "/api/v1" if api_version == "v1" else f"/apis/{api_version}"
+    return f"{root}/namespaces/{namespace}/{plural}/{name}"
+
+
+def _apply_patches(sf, scope, kind, name, progress):
+    """Send StormForge's patches for the workload's latest recommendation to the cluster."""
+    import yaml
+
+    url = urllib.parse.urljoin(sf.api, f"management/workloads/{_workload_id(scope, kind, name)}/patches")
+    patches = (sf._call("GET", url, allow_404=True) or {}).get("patches") or []
+    if not patches:
+        raise StormForgeError(
+            f"StormForge has no patch for {kind}/{name} in namespace {scope.namespace} yet. A workload gets "
+            "its first recommendation after StormForge has watched it for a while."
+        )
+    targets = []
+    for patch in patches:
+        try:
+            body = yaml.safe_load(patch.get("data") or "")
+        except yaml.YAMLError as exc:
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} is not readable YAML: {exc}")
+        if not isinstance(body, dict):
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} is empty.")
+        metadata = body.get("metadata") or {}
+        target = str(metadata.get("name") or "")
+        plural = PATCH_TARGETS.get((body.get("apiVersion"), body.get("kind")))
+        if plural is None:
+            raise StormForgeError(
+                f"CloudBolt cannot apply StormForge's patch for {body.get('kind') or 'this object'} "
+                f"({body.get('apiVersion') or 'no apiVersion'}). Apply it with kubectl from the workload's "
+                "Patches view."
+            )
+        if not _OBJECT_RE.match(target):
+            raise StormForgeError(f"StormForge's patch for {patch.get('title') or name} names no object.")
+        if metadata.get("namespace") not in (None, "", scope.namespace):
+            raise StormForgeError(
+                f"StormForge's patch for {body.get('kind')} {target} is for namespace "
+                f"{metadata.get('namespace')}, not {scope.namespace}; nothing was applied."
+            )
+        targets.append((body, plural, target))
+
+    kube = _namespace_kube(scope)
+    applied = []
+    for body, plural, target in targets:
+        progress(f"Patching {body['kind']} {target} in namespace {scope.namespace}")
+        # The object is always addressed inside this resource's namespace.
+        # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/#patch-partially-update-the-specified-deployment
+        result = kube.patch(_object_path(body["apiVersion"], scope.namespace, plural, target), body,
+                            params={"fieldManager": PATCH_FIELD_MANAGER})
+        if result is None:
+            raise StormForgeError(
+                f"{body['kind']} {target} is not in namespace {scope.namespace} any more."
+                + (f" Already patched: {', '.join(applied)}." if applied else "")
+            )
+        applied.append(f"{body['kind']} {target}")
+    return applied
+
+
+def _set_auto_deploy(scope, kind, name, enabled, progress):
+    if kind not in WORKLOAD_TYPES:
+        raise StormForgeError(
+            f"CloudBolt cannot annotate workloads of type {kind}. Set {AUTO_DEPLOY_ANNOTATION} on it with kubectl."
+        )
+    api_version, label = WORKLOAD_TYPES[kind]
+    value = "Enabled" if enabled else "Disabled"
+    progress(f"Setting {AUTO_DEPLOY_ANNOTATION}={value} on {label} {name} in namespace {scope.namespace}")
+    # https://docs.stormforge.io/docs/configure/settings/apply-settings/
+    result = _namespace_kube(scope).patch(
+        _object_path(api_version, scope.namespace, kind, name),
+        {"metadata": {"annotations": {AUTO_DEPLOY_ANNOTATION: value}}},
+        params={"fieldManager": "cloudbolt"},
+    )
+    if result is None:
+        raise StormForgeError(f"{label} {name} is not in namespace {scope.namespace}.")
+    return label
+
+
+def apply_to_workload(resource, workload, mode, progress=set_progress):
+    """Apply a workload's latest recommendation, or switch its automatic deployment.
+
+    ``workload`` is 'type/name' as workload_options offers it. Only workloads
+    StormForge reports in the resource's own namespace are accepted. Returns
+    (status, output, error).
+    """
+    scope = _require_scope(resource)
+    kind, name = parse_workload(workload)
+    if mode not in dict(APPLY_MODES):
+        raise StormForgeError("Choose what to do with the workload.")
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    if not any(w["type"] == kind and w["name"] == name for w in namespace_workloads(sf, scope)):
+        raise StormForgeError(f"StormForge has no workload {kind}/{name} in namespace {scope.namespace}.")
+    if mode == APPLY_NOW:
+        applied = _apply_patches(sf, scope, kind, name, progress)
+        return "SUCCESS", (
+            f"Applied StormForge's latest recommendation for {name} in namespace {scope.namespace}: "
+            f"patched {', '.join(applied)}. Kubernetes rolls the pods to the new requests and limits."
+        ), ""
+    label = _set_auto_deploy(scope, kind, name, mode == AUTO_DEPLOY_ON, progress)
+    if mode == AUTO_DEPLOY_ON:
+        return "SUCCESS", (
+            f"Automatic deployment is on for {label} {name} in namespace {scope.namespace}. StormForge applies "
+            "each new recommendation once the workload's learning period is over."
+        ), ""
+    return "SUCCESS", (
+        f"Automatic deployment is off for {label} {name} in namespace {scope.namespace}. Requests and limits "
+        "stay as they are until a recommendation is applied again."
+    ), ""
+
+
+# ---------------------------------------------------------------------------
+# Optimization settings: cluster defaults, namespace and workload annotations
+# ---------------------------------------------------------------------------
+# A StormForge setting is a live.stormforge.io/<name> annotation. The same
+# names are given as cluster defaults in the cluster-defaults ConfigMap, on a
+# Namespace and on a workload; a workload's value overrides its namespace's,
+# which overrides the cluster's.
+#   https://docs.stormforge.io/docs/configure/
+#   https://docs.stormforge.io/docs/configure/cluster-defaults/
+#   https://docs.stormforge.io/docs/configure/annotate-namespaces/
+#   https://docs.stormforge.io/docs/configure/annotate-workloads/
+SETTING_PREFIX = "live.stormforge.io/"
+CLUSTER_DEFAULTS_CONFIGMAP = "cluster-defaults"
+CLUSTER_DEFAULTS_KEY = "cluster-defaults.yaml"
+CLUSTER_AGENT_DEPLOYMENT = "stormforge-cluster-agent"
+AGENT_RESTART_SECONDS = 120
+
+# What an action input may hold besides a value.
+SETTING_KEEP = "keep"
+SETTING_REMOVE = "remove"
+_KEEP_VALUES = ("", "None", SETTING_KEEP)
+_REMOVE_VALUES = ("-", SETTING_REMOVE)
+TARGET_NAMESPACE = "namespace"
+
+# https://docs.stormforge.io/docs/configure/settings/goal/
+_GOALS = (
+    ("Savings", "Savings: closer to actual usage"),
+    ("Balanced", "Balanced (StormForge's default)"),
+    ("Reliability", "Reliability: more headroom"),
+)
+# https://docs.stormforge.io/docs/configure/settings/apply-settings/
+_AUTO_DEPLOY = (
+    ("Enabled", "Enabled: StormForge applies each new recommendation"),
+    ("Disabled", "Disabled: recommendations are applied by hand (StormForge's default)"),
+)
+# https://docs.stormforge.io/docs/configure/settings/cpu-and-memory/
+_POLICIES = (
+    ("RequestsRaiseLimitsIfNeeded", "Requests; raise limits only when needed (StormForge's default)"),
+    ("RequestsAndLimits", "Requests and limits"),
+    ("RequestsOnly", "Requests only"),
+    ("DoNotOptimize", "Do not optimize"),
+)
+# (action input, setting, kind, choices). Kinds: choice, schedule, cpu, memory.
+SETTING_INPUTS = (
+    ("stormforge_cpu_goal", "cpu.optimization-goal", "choice", _GOALS),
+    ("stormforge_memory_goal", "memory.optimization-goal", "choice", _GOALS),
+    ("stormforge_schedule", "schedule", "schedule", ()),
+    ("stormforge_auto_deploy", "auto-deploy", "choice", _AUTO_DEPLOY),
+    ("stormforge_cpu_policy", "containers.cpu.optimization-policy", "choice", _POLICIES),
+    ("stormforge_memory_policy", "containers.memory.optimization-policy", "choice", _POLICIES),
+    ("stormforge_cpu_requests_min", "containers.cpu.requests.min", "cpu", ()),
+    ("stormforge_cpu_requests_max", "containers.cpu.requests.max", "cpu", ()),
+    ("stormforge_memory_requests_min", "containers.memory.requests.min", "memory", ()),
+    ("stormforge_memory_requests_max", "containers.memory.requests.max", "memory", ()),
+)
+SETTING_INPUT_NAMES = tuple(row[0] for row in SETTING_INPUTS)
+
+# https://docs.stormforge.io/docs/configure/settings/schedule/
+_SCHEDULE_MACROS = ("@never", "@hourly", "@daily", "@weekly", "@midnight")
+_DURATION_RE = re.compile(r"^P(?=\d|T\d)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$")
+_CRON_FIELD_RE = re.compile(r"^[0-9A-Za-z*/,?-]+$")
+# https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/quantity/
+_CPU_RE = re.compile(r"^[0-9]+(\.[0-9]+)?m?$")
+_MEMORY_RE = re.compile(r"^[0-9]+(\.[0-9]+)?(k|M|G|T|Ki|Mi|Gi|Ti)$")
+_CONTAINER_RE = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
+_QUANTITY_UNITS = {"": 1, "m": 1e-3, "k": 1e3, "M": 1e6, "G": 1e9, "T": 1e12,
+                   "Ki": 2 ** 10, "Mi": 2 ** 20, "Gi": 2 ** 30, "Ti": 2 ** 40}
+
+
+def setting_options(input_name):
+    """Dropdown entries for a choice input: leave as it is, each value, remove."""
+    for name, _setting, kind, choices in SETTING_INPUTS:
+        if name == input_name and kind == "choice":
+            return ([(SETTING_KEEP, "Leave as it is")] + list(choices)
+                    + [(SETTING_REMOVE, "Remove (use the inherited value or StormForge's default)")])
+    return []
+
+
+def _quantity_number(text):
+    match = re.match(r"^([0-9.]+)([A-Za-z]*)$", text)
+    return float(match.group(1)) * _QUANTITY_UNITS[match.group(2)]
+
+
+def _check_quantities(label, value, pattern, example):
+    """Validate 'quantity' or 'quantity,container=quantity,...'; returns the all-containers quantity or None."""
+    default = None
+    for index, part in enumerate(p.strip() for p in value.split(",")):
+        container, _, quantity = part.rpartition("=")
+        if container and not _CONTAINER_RE.match(container):
+            raise StormForgeError(f"{label}: '{container}' is not a container name.")
+        if not pattern.match(quantity):
+            raise StormForgeError(f"{label}: '{quantity}' is not a quantity such as {example}.")
+        if not container:
+            if index:
+                raise StormForgeError(
+                    f"{label}: give the value for all containers first, then container=value entries.")
+            default = quantity
+    return default
+
+
+def _check_schedule(label, value):
+    if value in _SCHEDULE_MACROS or _DURATION_RE.match(value):
+        return
+    fields = value.split()
+    if len(fields) == 5 and all(_CRON_FIELD_RE.match(field) for field in fields):
+        return
+    raise StormForgeError(
+        f"{label}: '{value}' is not {', '.join(_SCHEDULE_MACROS)}, an ISO 8601 duration such as P1D, "
+        "or a five-field cron expression.")
+
+
+def parse_setting_changes(values):
+    """{setting: value, or None to remove it} from the actions' inputs; inputs left alone are absent.
+
+    ``values`` maps input names to what the form sent. Raises StormForgeError
+    on a value StormForge would not accept.
+    """
+    changes, bounds = {}, {}
+    for name, setting, kind, choices in SETTING_INPUTS:
+        value = str(values.get(name) if values.get(name) is not None else "").strip()
+        if value in _KEEP_VALUES:
+            continue
+        if value in _REMOVE_VALUES:
+            changes[setting] = None
+            continue
+        if kind == "choice":
+            if value not in [choice for choice, _label in choices]:
+                raise StormForgeError(
+                    f"{setting}: '{value}' is not one of {', '.join(choice for choice, _label in choices)}.")
+        elif kind == "schedule":
+            _check_schedule(setting, value)
+        elif kind == "cpu":
+            bounds[setting] = _check_quantities(setting, value, _CPU_RE, "10m or 2")
+        else:
+            bounds[setting] = _check_quantities(setting, value, _MEMORY_RE, "32Mi or 4Gi")
+        changes[setting] = value
+    for resource in ("cpu", "memory"):
+        low = bounds.get(f"containers.{resource}.requests.min")
+        high = bounds.get(f"containers.{resource}.requests.max")
+        if low and high and _quantity_number(low) > _quantity_number(high):
+            raise StormForgeError(f"The {resource} requests minimum {low} is above the maximum {high}.")
+    return changes
+
+
+def _describe_changes(changes):
+    parts = [f"{setting}={value}" for setting, value in changes.items() if value is not None]
+    removed = [setting for setting, value in changes.items() if value is None]
+    if removed:
+        parts.append("removed " + ", ".join(removed))
+    return "; ".join(parts)
+
+
+def _effective_changes(changes, current):
+    """The changes that differ from ``current`` ({annotation key: value})."""
+    return {
+        setting: value for setting, value in changes.items()
+        if current.get(SETTING_PREFIX + setting) != value
+    }
+
+
+def _read_cluster_defaults(configmap):
+    """{annotation key: value} of the cluster-defaults ConfigMap, in the file's order."""
+    import yaml
+
+    text = ((configmap or {}).get("data") or {}).get(CLUSTER_DEFAULTS_KEY) or ""
+    try:
+        document = yaml.safe_load(text) if text.strip() else {}
+    except yaml.YAMLError as exc:
+        raise StormForgeError(
+            f"The {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap's {CLUSTER_DEFAULTS_KEY} is not readable YAML ({exc}); "
+            "fix it with kubectl first.")
+    if document is None:
+        document = {}
+    if not isinstance(document, dict):
+        raise StormForgeError(
+            f"The {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap's {CLUSTER_DEFAULTS_KEY} is not a list of settings; "
+            "fix it with kubectl first.")
+    return {str(key): str(value) for key, value in document.items()}
+
+
+def _restart_cluster_agent(kube, progress):
+    """Restart the cluster agent the way `kubectl rollout restart` does and wait for it; True when it is back.
+
+    The agent reads the cluster defaults only when it starts.
+    https://docs.stormforge.io/docs/configure/cluster-defaults/
+    https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_restart/
+    """
+    path = f"/apis/apps/v1/namespaces/{NAMESPACE}/deployments/{CLUSTER_AGENT_DEPLOYMENT}"
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    progress("Restarting the StormForge cluster agent so it loads the cluster defaults")
+    patched = kube.patch(path, {"spec": {"template": {"metadata": {"annotations": {
+        "kubectl.kubernetes.io/restartedAt": stamp}}}}}, params={"fieldManager": "cloudbolt"})
+    if patched is None:
+        return False
+    deadline = time.time() + AGENT_RESTART_SECONDS
+    while time.time() < deadline:
+        time.sleep(POLL_SECONDS)
+        deployment = kube.get(path) or {}
+        status = deployment.get("status") or {}
+        wanted = (deployment.get("spec") or {}).get("replicas") or 1
+        current = (status.get("observedGeneration") or 0) >= ((deployment.get("metadata") or {}).get("generation") or 0)
+        if (current and (status.get("updatedReplicas") or 0) >= wanted
+                and (status.get("availableReplicas") or 0) >= wanted
+                and (status.get("replicas") or 0) == wanted):
+            return True
+    return False
+
+
+def set_cluster_defaults(resource, values, progress=set_progress):
+    """Write the chosen settings to the cluster's cluster-defaults ConfigMap and restart the cluster agent.
+
+    Settings the inputs leave alone, and settings in the ConfigMap that this
+    action has no input for, stay as they are. Returns (status, output, error).
+    """
+    cf_values = resource.get_cf_values_as_dict()
+    if not cf_values.get(FIELD_VERSION):
+        raise StormForgeError(
+            f"'{resource.name}' does not run the StormForge agent. Run Install or Upgrade StormForge Agent first.")
+    changes = parse_setting_changes(values)
+    if not changes:
+        return "SUCCESS", "Nothing to change: every setting was left as it is.", ""
+    kube = Kube.for_resource(resource)
+    collection = f"/api/v1/namespaces/{NAMESPACE}/configmaps"
+    existing = kube.get(f"{collection}/{CLUSTER_DEFAULTS_CONFIGMAP}")
+    current = _read_cluster_defaults(existing)
+    changes = _effective_changes(changes, current)
+    if not changes:
+        return "SUCCESS", f"The cluster defaults of {resource.name} already hold these values.", ""
+    updated = dict(current)
+    for setting, value in changes.items():
+        if value is None:
+            updated.pop(SETTING_PREFIX + setting, None)
+        else:
+            updated[SETTING_PREFIX + setting] = value
+    # One 'key: "value"' line per setting, as StormForge's template writes it.
+    text = "".join(f"{key}: {json.dumps(value)}\n" for key, value in updated.items())
+    progress(f"Writing the cluster defaults of {resource.name}: {_describe_changes(changes)}")
+    if existing is None:
+        kube.request("POST", collection, body={
+            "apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": CLUSTER_DEFAULTS_CONFIGMAP, "namespace": NAMESPACE},
+            "data": {CLUSTER_DEFAULTS_KEY: text},
+        })
+    else:
+        kube.patch(f"{collection}/{CLUSTER_DEFAULTS_CONFIGMAP}", {"data": {CLUSTER_DEFAULTS_KEY: text}},
+                   params={"fieldManager": "cloudbolt"})
+    summary = (
+        f"Cluster defaults of {resource.name} updated: {_describe_changes(changes)}. "
+        f"{len(updated)} setting{'' if len(updated) == 1 else 's'} in the {CLUSTER_DEFAULTS_CONFIGMAP} ConfigMap."
+    )
+    if _restart_cluster_agent(kube, progress):
+        return "SUCCESS", summary + (
+            " The cluster agent restarted and uses them for every namespace and workload that does not set "
+            "its own value."), ""
+    return "WARNING", summary, (
+        f"The {CLUSTER_AGENT_DEPLOYMENT} deployment in {NAMESPACE} did not finish restarting within "
+        f"{AGENT_RESTART_SECONDS} seconds. The defaults take effect once it has restarted: "
+        f"kubectl rollout restart deployment {CLUSTER_AGENT_DEPLOYMENT} -n {NAMESPACE}")
+
+
+def settings_target_options(resource):
+    """[(value, label)] for the namespace action's Apply to dropdown: the namespace, then its workloads."""
+    scope = _require_scope(resource)
+    options = [(TARGET_NAMESPACE, f"Every workload in namespace {scope.namespace}")]
+    sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+    for workload in namespace_workloads(sf, scope):
+        if workload["type"] not in WORKLOAD_TYPES:
+            continue
+        kind = WORKLOAD_TYPES[workload["type"]][1]
+        options.append((f"{workload['type']}/{workload['name']}", f"Only {kind} {workload['name']}"))
+    return options
+
+
+def set_namespace_settings(resource, target, values, progress=set_progress):
+    """Set the chosen settings as annotations on the resource's namespace or on one workload in it.
+
+    ``target`` is 'namespace' or 'type/name' as settings_target_options
+    offers it. Returns (status, output, error).
+    """
+    scope = _require_scope(resource)
+    target = str(target or "").strip()
+    changes = parse_setting_changes(values)
+    if target == TARGET_NAMESPACE:
+        # https://kubernetes.io/docs/reference/kubernetes-api/cluster-resources/namespace-v1/
+        path, what = f"/api/v1/namespaces/{scope.namespace}", f"namespace {scope.namespace}"
+        reach = "every workload in the namespace that does not set its own value"
+    else:
+        kind, name = parse_workload(target)
+        if kind not in WORKLOAD_TYPES:
+            raise StormForgeError(
+                f"CloudBolt cannot annotate workloads of type {kind}. Set the live.stormforge.io annotations "
+                "on it with kubectl.")
+        sf = StormForge.from_connection_info(scopes=WORKLOAD_SCOPES)
+        if not any(w["type"] == kind and w["name"] == name for w in namespace_workloads(sf, scope)):
+            raise StormForgeError(f"StormForge has no workload {kind}/{name} in namespace {scope.namespace}.")
+        api_version, label = WORKLOAD_TYPES[kind]
+        path = _object_path(api_version, scope.namespace, kind, name)
+        what, reach = f"{label} {name} in namespace {scope.namespace}", "this workload only"
+    if not changes:
+        return "SUCCESS", "Nothing to change: every setting was left as it is.", ""
+    kube = _namespace_kube(scope)
+    existing = kube.get(path)
+    if existing is None:
+        raise StormForgeError(f"Kubernetes has no {what}.")
+    changes = _effective_changes(changes, (existing.get("metadata") or {}).get("annotations") or {})
+    if not changes:
+        return "SUCCESS", f"The {what} already holds these values.", ""
+    progress(f"Setting StormForge annotations on {what}: {_describe_changes(changes)}")
+    # A null value removes the annotation.
+    # https://kubernetes.io/docs/reference/using-api/api-concepts/#patch-and-apply
+    result = kube.patch(path, {"metadata": {"annotations": {
+        SETTING_PREFIX + setting: value for setting, value in changes.items()}}},
+        params={"fieldManager": "cloudbolt"})
+    if result is None:
+        raise StormForgeError(f"Kubernetes has no {what} any more.")
+    return "SUCCESS", (
+        f"StormForge settings on {what} updated: {_describe_changes(changes)}. They apply to {reach}, and "
+        "StormForge uses them from its next recommendation."), ""

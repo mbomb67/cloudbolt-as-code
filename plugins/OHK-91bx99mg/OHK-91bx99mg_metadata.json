@@ -1,0 +1,61 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "A version GKE offers above the cluster's current one, on its release channel, newest first. GKE moves the control plane one minor version at a time.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-zidgaczc",
+            "label": "Kubernetes Version",
+            "name": "gke_upgrade_version",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Upgrade the control plane and then every node pool behind it, or only the control plane. On a release channel GKE later upgrades node pools left behind itself.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-mvt22af5",
+            "label": "Upgrade Scope",
+            "name": "gke_upgrade_scope",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "gke_upgrade_version",
+        "gke_upgrade_scope"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Upgrades the GKE cluster's control plane to a version GKE offers and, unless only the control plane is chosen, then each node pool behind it.",
+    "id": "OHK-91bx99mg",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Upgrade GKE Version",
+    "resource_technologies": [],
+    "script_filename": "OHK-91bx99mg_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

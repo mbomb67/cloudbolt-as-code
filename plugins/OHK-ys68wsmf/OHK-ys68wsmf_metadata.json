@@ -1,0 +1,40 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "The File Archives file this workflow step attaches, by file name. The Prepare Windows app host workflow sets it to windows-app-host.json.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-7t486c9a",
+            "label": "Config file",
+            "name": "config_file",
+            "placeholder": "windows-app-host.json",
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null,
+            "regex_constraint": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+        }
+    ],
+    "commandline_args": null,
+    "credentials": "YOUR_CREDENTIALS",
+    "description": "Checks a Windows VM's free disk space, memory and required services against the limits in a config file from File Archives and outputs the OS caption, free space, memory and PowerShell version.",
+    "execution_timeout": 300,
+    "id": "OHK-ys68wsmf",
+    "max_retries": 0,
+    "name": "Check Windows App Host",
+    "remove_after_run": true,
+    "resource_technologies": [],
+    "run_with_sudo": false,
+    "script_filename": "OHK-ys68wsmf_script.ps1",
+    "shared": false,
+    "target_os_families": [
+        "Windows"
+    ],
+    "type": "Remote Script"
+}

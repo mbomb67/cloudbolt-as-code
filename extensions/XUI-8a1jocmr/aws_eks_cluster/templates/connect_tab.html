@@ -2,11 +2,11 @@
 {% include "aws_eks_cluster/templates/_assets.html" %}
 
 <div id="eksx-connect" class="eksx">
-  <div class="eks-card">
+  <div class="eks-flat">
     <div class="eks-hero-top">
       <div>
-        <div class="eks-eyebrow">{% trans "Connect to namespace" %}</div>
-        <div class="eks-title"><i class="bi bi-terminal" aria-hidden="true"></i> {{ namespace }}</div>
+        <div class="eks-eyebrow"><i class="bi bi-terminal" aria-hidden="true"></i> {% trans "Connect to namespace" %}</div>
+        <div class="eks-title">{{ namespace }}</div>
         <div class="eks-sub">{% if cluster_name %}{% trans "On EKS cluster" %} {{ cluster_name }}{% endif %}</div>
       </div>
       <div class="eks-tools">

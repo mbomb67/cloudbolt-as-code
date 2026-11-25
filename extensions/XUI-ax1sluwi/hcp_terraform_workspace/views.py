@@ -36,7 +36,9 @@ Vendor API references (each tfc_api call site cites its own doc):
     https://developer.hashicorp.com/terraform/cloud-docs/api-docs/cost-estimates
     https://developer.hashicorp.com/terraform/cloud-docs/api-docs/no-code-provisioning
 """
+import inspect
 import re
+import threading
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -81,6 +83,8 @@ RUN_ID_RE = re.compile(r"^run-[A-Za-z0-9]+$")
 # run needs DISCARD_PERMISSION on the resource, or CloudBolt admin.
 VIEW_PERMISSION = "resource.view"
 DISCARD_PERMISSION = "resource.manage_parameters"
+# The permission CloudBolt's own Labels dialog (resource_edit_tags) requires.
+LABELS_PERMISSION = "resource.manage_labels"
 
 # Plugin (hook) name of the Deploy Latest Version resource action
 # (plugins/OHK-4y8f1vff). The update-available banner links to that action's
@@ -350,9 +354,57 @@ def _cost_estimate(run, included):
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
+# CloudBolt 2026.1.73 and later let a tab extension take a built-in tab's
+# place: tab_extension(replaces="<slug>") puts the tab in that tab's slot
+# (CMP-3592). On an HCP Terraform resource, Terraform takes Overview's slot
+# and shows what Overview held about the resource (owner, group, status,
+# installed, labels, rate) in a row under its title.
+# Older appliances have no such argument, and there the tab follows the
+# built-in ones as before.
+_REPLACES_SUPPORTED = "replaces" in inspect.signature(tab_extension).parameters
+_tab_state = threading.local()
+
+
+class _BuiltInTab(str):
+    """Slug of the built-in tab an extension tab replaces, true only while
+    that tab is shown. CloudBolt lets the last extension that names a slug
+    decide that slot whether or not its own tab is shown, and the EKS, AKS,
+    GKE and OpenShift extensions' tabs also name Overview. A hidden tab whose
+    slug is false names nothing and leaves the slot to the tab that is shown.
+    The tab delegate records in _tab_state whether an HCP Terraform resource
+    is on the page, just before CloudBolt reads the slug, per thread because
+    every request shares the extension object."""
+
+    def __new__(cls, slug, kind):
+        tab = super().__new__(cls, slug)
+        tab.kind = kind
+        return tab
+
+    def __bool__(self):
+        return bool(getattr(_tab_state, self.kind, False))
+
+
+def _replaces(slug, kind):
+    """tab_extension arguments that put a tab in a built-in tab's slot on
+    resources of its kind."""
+    return {"replaces": _BuiltInTab(slug, kind)} if _REPLACES_SUPPORTED else {}
+
+
 class TerraformTabDelegate(TabExtensionDelegate):
     def should_display(self):
-        return bool(_attr(self.instance, "tfc_workspace_id"))
+        shown = bool(_attr(self.instance, "tfc_workspace_id"))
+        _tab_state.workspace = shown
+        return shown
+
+
+def _rate_display(resource):
+    """The resource's rate as CloudBolt's Overview tab prints it, or '' when
+    it has none (Overview leaves the row out then)."""
+    try:
+        return resource.get_rate_display() if resource.get_rate() else ""
+    except Exception:
+        logger.exception("Could not read the rate of resource %s", resource.id)
+        return ""
 
 
 def _tab_context(resource):
@@ -387,11 +439,19 @@ def _tab_context(resource):
     title="Terraform",
     delegate=TerraformTabDelegate,
     description="HCP Terraform workspace summary, runs, and managed resources",
+    **_replaces("overview", "workspace")
 )
 def terraform_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
+    profile = request.get_user_profile()
     context = _tab_context(resource)
     context.update({
+        "profile": profile,
+        "rate_display": _rate_display(resource),
+        "labels_url": (
+            reverse("resource_edit_tags", args=[resource.id])
+            if _has_permission(profile, LABELS_PERMISSION, resource) else ""
+        ),
         "source_url": reverse("hcp_tfws_source", args=[resource.id]),
         "summary_url": reverse("hcp_tfws_summary", args=[resource.id]),
         "runs_url": reverse("hcp_tfws_runs", args=[resource.id]),

@@ -7,7 +7,7 @@
             "shared_modules/SHM-jlguerjr"
         ]
     },
-    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform with a plan-approval pause; a no-op when already current, and runs on every selected resource in a bulk action.",
+    "description": "Upgrades an HCP Terraform no-code deployment's workspace to the module version pinned in HCP Terraform, pausing for plan approval only on a workspace without Auto Apply; a no-op when already current, and runs on every selected resource in a bulk action.",
     "id": "OHK-4y8f1vff",
     "max_retries": 0,
     "name": "Deploy Latest Version",

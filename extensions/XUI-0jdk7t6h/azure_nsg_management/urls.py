@@ -4,9 +4,9 @@ from . import views
 
 xui_urlpatterns = [
     path(
-        "azure-nsg/<int:resource_id>/rules-json/<str:direction>/",
-        views.nsg_rules_json,
-        name="azure_nsg_rules_json",
+        "azure-nsg/<int:resource_id>/rules-panel/",
+        views.nsg_rules_panel,
+        name="azure_nsg_rules_panel",
     ),
     path(
         "azure-nsg/<int:resource_id>/rules/add/<str:direction>/",

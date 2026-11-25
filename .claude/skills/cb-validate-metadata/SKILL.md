@@ -17,6 +17,7 @@ Load [docs/agents/metadata-schemas.md](../../../docs/agents/metadata-schemas.md)
 - **§1–§14** for per-content-type Required Fields tables, Cross-reference fields, Enums, and Round-trip caveats.
 - **§15** for content package manifests (`packages/PKG-*`), checked by Check J.
 - **§16** for standalone parameters (`parameters/CF-*`), checked by Check K.
+- **§17** for Runbooks workflows (`runbook_workflows/SWF-*`), checked by Check L.
 
 When CloudBolt changes a schema, the linter inherits the change automatically — `metadata-schemas.md` is the single source of truth.
 
@@ -110,6 +111,14 @@ Per §16. `python tools/validate_metadata.py` runs every item below.
 - **Error:** a `PWD` or `ETXT` parameter carries `global_options` or `global_defaults` (secrets).
 - **Error:** a `gen_options_hooks[]` entry without `dependencies.orchestration_hook` = `orchestration_actions/HPA-*`; a ref that does not resolve fails the general reference check.
 - **Warning:** no package lists the parameter, so it never syncs.
+- **Warning:** not in the exporter's format (`json.dumps(indent=4, sort_keys=True)` plus a newline).
+
+### Check L — Runbooks workflows (`runbook_workflows/SWF-*`)
+Per §17. `python tools/validate_metadata.py` runs every item below.
+- **Error:** folder name is not `SWF-` plus 8 or more `[a-z0-9]`, `id` differs from it, or `name` is missing.
+- **Error:** `filters` holds keys other than `os_families`, `resource_technologies` and `os_builds`, or `instance_filters` names anything but `groups`, `environments` and `configuration_managers`.
+- **Error:** no steps; a step without an `OHK-*` action or an `action_name`; a step action missing from `dependencies.hooks` as `plugins/OHK-*`. A hook ref that does not resolve fails the general reference check.
+- **Warning:** no package lists the workflow, so it never syncs.
 - **Warning:** not in the exporter's format (`json.dumps(indent=4, sort_keys=True)` plus a newline).
 
 3. **Report** as a grouped summary:

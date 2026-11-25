@@ -13,11 +13,17 @@ Checks every <ID>_metadata.json under the content directories:
   - a standalone parameter (parameters/CF-*) has a name, a known type, no
     secret option or default values, generated-options refs to
     orchestration_actions/, and belongs to a package (else it never syncs)
+  - a Runbooks workflow (runbook_workflows/SWF-*) has a name and steps, lists
+    every step's plugin under dependencies.hooks as plugins/OHK-*, and
+    belongs to a package (else it never syncs); every file its "files" list
+    carries is in its files/ folder with that SHA-256 and size, and a file a
+    step attaches that the list does not carry is a warning
 
 Exit code 1 with a list of problems, 0 when clean (warnings do not fail).
 No dependencies.
 """
 import glob
+import hashlib
 import json
 import os
 import re
@@ -27,7 +33,7 @@ CONTENT_DIRS = (
     "blueprints", "plugins", "resource_actions", "server_actions",
     "orchestration_actions", "flowcontrol_actions", "recurring_jobs",
     "cit_tests", "webhooks", "mcp_tool_actions", "shared_modules", "extensions", "forms",
-    "form_functions", "parameters",
+    "form_functions", "parameters", "runbook_workflows",
 )
 REF_RE = re.compile(r"^(%s)/([A-Z]+-[A-Za-z0-9]+)$" % "|".join(CONTENT_DIRS))
 # The nil GUID is an accepted placeholder.
@@ -47,7 +53,7 @@ MEMBER_PREFIXES = {
     "blueprints": "BP", "resource_actions": "RSA", "server_actions": "SVA",
     "orchestration_actions": "HPA", "flowcontrol_actions": "FCA", "recurring_jobs": "RJB",
     "cit_tests": "CIT", "webhooks": "IWH", "mcp_tool_actions": "MTA", "shared_modules": "SHM",
-    "plugins": "OHK", "extensions": "XUI", "parameters": "CF",
+    "plugins": "OHK", "extensions": "XUI", "parameters": "CF", "runbook_workflows": "SWF",
 }
 TRANSITIVE_DIRS = ("forms", "form_functions")
 
@@ -57,6 +63,17 @@ CF_ID_RE = re.compile(r"^CF-[a-z0-9]{8,}$")
 PARAMETER_TYPES = {"STR", "INT", "IP", "DT", "DTM", "TXT", "ETXT", "CODE", "BOOL", "DEC", "NET", "PWD",
                    "TUP", "LDAP", "URL", "NSXS", "NSXE", "STOR", "FILE", "AAP"}
 SECRET_TYPES = {"PWD", "ETXT"}
+
+# Runbooks workflows; mirrors extensions/XUI-iq65xgvr/content_packages/workflows.py and
+# runbook_workflows.export_workflow (shared_modules/SHM-nznzhpp0).
+SWF_ID_RE = re.compile(r"^SWF-[a-z0-9]{8,}$")
+WORKFLOW_FILTERS = {"os_families", "resource_technologies", "os_builds"}
+WORKFLOW_INSTANCE_FILTERS = {"groups", "environments", "configuration_managers"}
+# Workflows a blueprint's Run Workflow build item pins travel with it; mirrors
+# workflows.blueprint_pins in extensions/XUI-iq65xgvr.
+RUNNER_HOOK_REF = "plugins/OHK-69gk5ne9"
+PIN_DEFAULT_RE = re.compile(r"^workflow_a\d+$")
+PIN_QUESTION_RE = re.compile(r"^plugin-bdi-([a-z0-9]+)\.workflow$", re.IGNORECASE)
 
 
 def walk(obj, path=""):
@@ -98,11 +115,55 @@ def dependency_refs(obj):
             yield from dependency_refs(item)
 
 
+def pinned_workflows(ref, parsed):
+    """runbook_workflows/SWF-* refs blueprint ref pins by ID: a workflow_a<N>
+    default on a Run Workflow build item, or a defaultValue on that item's
+    plugin-bdi-<item>.workflow question in the blueprint's custom form."""
+    data = parsed.get(ref) or {}
+    values, items = [], set()
+    for item in data.get("deployment_items") or []:
+        item = item if isinstance(item, dict) else {}
+        hook = (item.get("dependencies") or {}).get("hook")
+        if hook != RUNNER_HOOK_REF and (parsed.get(hook) or {}).get("name") != "Run Workflow":
+            continue
+        items.add(str(item.get("id") or "")[4:].lower())
+        values += [str(d.get("value") or "") for d in item.get("parameter_defaults") or []
+                   if isinstance(d, dict) and PIN_DEFAULT_RE.match(str(d.get("name") or ""))]
+    form = parsed.get((data.get("dependencies") or {}).get("custom_form")) or {}
+    if items and isinstance(form.get("json"), str):
+        try:
+            survey = json.loads(form["json"])
+        except ValueError:
+            survey = {}
+        for element in form_elements(survey):
+            m = PIN_QUESTION_RE.match(str(element.get("name") or ""))
+            if m and m.group(1).lower() in items:
+                values.append(str(element.get("defaultValue") or ""))
+    return [f"runbook_workflows/{v.strip()}" for v in dict.fromkeys(values) if SWF_ID_RE.match(v.strip())]
+
+
+def form_elements(node):
+    """Every object with a name in a SurveyJS form definition."""
+    if isinstance(node, dict):
+        if "name" in node:
+            yield node
+        for value in node.values():
+            yield from form_elements(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from form_elements(value)
+
+
 def carried_by(ref, parsed):
-    """What exporting ref writes along with it: its dependencies, transitively."""
+    """What exporting ref writes along with it: its dependencies, transitively,
+    and the workflows a blueprint pins."""
     seen, todo = set(), [ref]
     while todo:
-        for dep in dependency_refs(parsed.get(todo.pop(), {})):
+        current = todo.pop()
+        refs = list(dependency_refs(parsed.get(current, {})))
+        if current.startswith("blueprints/"):
+            refs += pinned_workflows(current, parsed)
+        for dep in refs:
             if dep not in seen:
                 seen.add(dep)
                 todo.append(dep)
@@ -191,6 +252,91 @@ def check_parameter(problems, warnings, p, folder, data, text):
                         "plus a newline), so the next export rewrites it")
 
 
+def check_workflow(problems, warnings, p, folder, data, text):
+    if not SWF_ID_RE.match(folder):
+        problems.append(f"{p}: workflow folder {folder} is not SWF- plus 8 or more [a-z0-9]")
+    if not isinstance(data.get("name"), str) or not data["name"].strip():
+        problems.append(f"{p}: missing name")
+    filters = data.get("filters")
+    if not isinstance(filters, dict) or set(filters) - WORKFLOW_FILTERS:
+        problems.append(f"{p}: filters must be an object of {', '.join(sorted(WORKFLOW_FILTERS))} name lists")
+    instance = data.get("instance_filters")
+    if not isinstance(instance, list) or set(instance) - WORKFLOW_INSTANCE_FILTERS:
+        problems.append(f"{p}: instance_filters must list only {', '.join(sorted(WORKFLOW_INSTANCE_FILTERS))}")
+    steps = data.get("steps")
+    if not isinstance(steps, list) or not steps:
+        problems.append(f"{p}: a workflow needs at least one step")
+        steps = []
+    hooks = (data.get("dependencies") or {}).get("hooks")
+    hooks = hooks if isinstance(hooks, list) else []
+    for i, step in enumerate(steps):
+        step = step if isinstance(step, dict) else {}
+        action = step.get("action")
+        if not isinstance(action, str) or not action.startswith("OHK-"):
+            problems.append(f"{p}: steps[{i}] needs an action OHK-*")
+        elif f"plugins/{action}" not in hooks:
+            problems.append(f"{p}: steps[{i}] runs {action}, which dependencies.hooks does not list "
+                            "as plugins/" + action)
+        if not step.get("action_name"):
+            problems.append(f"{p}: steps[{i}] needs action_name; sync finds a renumbered plugin by it")
+    check_workflow_files(problems, warnings, p, data, steps)
+    if text != json.dumps(data, indent=4, sort_keys=True) + "\n":
+        warnings.append(f"{p}: not in the exporter's format (json.dumps(indent=4, sort_keys=True) "
+                        "plus a newline), so the next export rewrites it")
+
+
+def check_workflow_files(problems, warnings, p, data, steps):
+    """The files a workflow carries (the Content Package Manager stores them
+    in File Archives on sync, byte for byte): each entry's copy is in the
+    folder with its checksum and size."""
+    files = data.get("files", [])
+    if not isinstance(files, list):
+        problems.append(f"{p}: files must be a list")
+        return
+    root = os.path.dirname(p)
+    carried, paths = set(), set()
+    for i, entry in enumerate(files):
+        entry = entry if isinstance(entry, dict) else {}
+        ref, archive, name = entry.get("ref"), entry.get("archive"), entry.get("file")
+        if not (isinstance(ref, str) and isinstance(archive, str) and isinstance(name, str)
+                and ref.split("@")[0] == f"{archive}/{name}"):
+            problems.append(f"{p}: files[{i}] needs ref archive/file[@version] matching its archive and file")
+            continue
+        carried.add(ref)
+        sha256, size = entry.get("sha256"), entry.get("size")
+        if not (isinstance(sha256, str) and re.match(r"^[0-9a-f]{64}$", sha256)) or not isinstance(size, int):
+            problems.append(f"{p}: files[{i}] ({ref}) needs a lower-case hex sha256 and an integer size")
+            continue
+        path = entry.get("path")
+        if path is None:
+            continue  # carried by checksum only: too large to travel
+        if not isinstance(path, str) or not path.startswith("files/") or ".." in path.split("/"):
+            problems.append(f"{p}: files[{i}] ({ref}) path must be inside the folder's files/ directory")
+            continue
+        paths.add(path)
+        target = os.path.join(root, *path.split("/"))
+        if not os.path.isfile(target):
+            problems.append(f"{p}: files[{i}] ({ref}) is missing at {path}")
+            continue
+        with open(target, "rb") as handle:
+            content = handle.read()
+        if len(content) != size or hashlib.sha256(content).hexdigest() != sha256:
+            problems.append(f"{p}: {path} does not match the sha256 and size of files[{i}]; sync would refuse "
+                            "it (update the entry after editing the file, and keep git from converting its "
+                            "line endings: .gitattributes marks runbook_workflows/*/files/** -text)")
+    for i, step in enumerate(steps):
+        for entry in (step if isinstance(step, dict) else {}).get("archives") or []:
+            ref = (str(entry).split() or [""])[0]
+            if ref and ref not in carried:
+                warnings.append(f"{p}: steps[{i}] attaches {ref}, which files does not carry; it has to be "
+                                "uploaded to File Archives where the package syncs")
+    for current, _dirs, names in os.walk(os.path.join(root, "files")):
+        for name in names:
+            rel = os.path.relpath(os.path.join(current, name), root).replace(os.sep, "/")
+            if rel not in paths:
+                warnings.append(f"{p}: {rel} is not in the files list, so the package does not carry it")
+
+
 def main(root="."):
     os.chdir(root)
     problems = []
@@ -206,7 +352,7 @@ def main(root="."):
 
     parsed = {}
     packages = []
-    parameters = []
+    parameters = []  # (path, ref) of the parameters and workflows only a package syncs
     for p in metadata_files:
         p = p.replace("\\", "/")
         top, folder, fname = p.split("/")
@@ -229,6 +375,9 @@ def main(root="."):
             continue
         if top == "parameters":
             check_parameter(problems, warnings, p, folder, data, text)
+            parameters.append((p, f"{top}/{folder}"))
+        if top == "runbook_workflows":
+            check_workflow(problems, warnings, p, folder, data, text)
             parameters.append((p, f"{top}/{folder}"))
 
         script = data.get("script_filename")

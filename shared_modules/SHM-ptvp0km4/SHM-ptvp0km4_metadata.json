@@ -1,0 +1,12 @@
+{
+    "description": "ARM client, cluster and node pool operations, orchestrator registration, and role-assignment helpers for Azure Kubernetes Service content.",
+    "id": "SHM-ptvp0km4",
+    "label": "Azure AKS",
+    "max_retries": 0,
+    "module_name": "azure_aks",
+    "name": "azure_aks",
+    "resource_technologies": [],
+    "script_filename": "SHM-ptvp0km4_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

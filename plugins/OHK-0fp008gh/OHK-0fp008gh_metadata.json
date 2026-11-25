@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ptvp0km4"
+        ]
+    },
+    "description": "Re-reads the AKS cluster and its node pools from Azure, refreshing the cluster's values and creating, updating, or removing AKS Node Pool sub-resources to match.",
+    "id": "OHK-0fp008gh",
+    "last_updated": "2026-10-19",
+    "max_retries": 0,
+    "name": "List AKS Node Pools",
+    "resource_technologies": [],
+    "script_filename": "OHK-0fp008gh_script.py",
+    "shared": true,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

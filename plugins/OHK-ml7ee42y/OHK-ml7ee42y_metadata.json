@@ -1,0 +1,20 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-kephq8iq",
+            "shared_modules/SHM-4yw92b8x"
+        ]
+    },
+    "description": "Imports every CloudBolt landing-zone namespace on the GKE clusters CloudBolt manages as a GKE Namespace resource under its cluster, with a CloudBolt environment pinned to it for the owning group.",
+    "id": "OHK-ml7ee42y",
+    "last_updated": "2026-10-21",
+    "max_retries": 0,
+    "name": "Discover GKE Namespaces",
+    "resource_technologies": [],
+    "script_filename": "OHK-ml7ee42y_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

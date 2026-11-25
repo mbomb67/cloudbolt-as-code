@@ -2,49 +2,67 @@
 
 <link rel="stylesheet" href="{% static 'io_cloudbolt_prometheus/monitoring_dashboard.css' %}">
 
-<div class="io-prom-dash container-fluid">
-    <section class="prom-health-card">
-        <div class="prom-health-heading">Server overview</div>
-        <node-health server-id="{{ server_id }}"></node-health>
-    </section>
-
-    <div class="row prom-chart-row">
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <cpu-load-graph server-id="{{ server_id }}"></cpu-load-graph>
-            </section>
+<div class="io-prom-dash">
+    <div class="prom-hero">
+        <div>
+            <div class="prom-eyebrow"><i class="bi bi-activity" aria-hidden="true"></i> Monitoring</div>
+            <div class="prom-title">{{ hostname }} <span class="prom-status" data-prom-status></span></div>
+            <div class="prom-sub">Last 24 hours, from {{ source_label }}</div>
         </div>
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <disk-io-graph server-id="{{ server_id }}"></disk-io-graph>
-            </section>
+        <div class="prom-tools">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-prom-refresh>
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+            </button>
         </div>
     </div>
 
-    <div class="row prom-chart-row">
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <iops-graph server-id="{{ server_id }}"></iops-graph>
-            </section>
-        </div>
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <disk-usage-graph server-id="{{ server_id }}"></disk-usage-graph>
-            </section>
-        </div>
-    </div>
+    <node-health server-id="{{ server_id }}"></node-health>
 
-    <div class="row prom-chart-row">
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <mem-usage-graph server-id="{{ server_id }}"></mem-usage-graph>
-            </section>
-        </div>
-        <div class="col-md-6 prom-chart-cell">
-            <section class="prom-chart-card">
-                <net-io-graph server-id="{{ server_id }}"></net-io-graph>
-            </section>
-        </div>
+    <server-alerts server-id="{{ server_id }}"></server-alerts>
+
+    <div class="prom-cards">
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">CPU</div>
+                <div class="prom-card-s" data-prom-sub>Share of the server's CPUs in use</div>
+            </div>
+            <cpu-load-graph server-id="{{ server_id }}"></cpu-load-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Memory</div>
+                <div class="prom-card-s">Used, cached and free memory in the guest</div>
+            </div>
+            <mem-usage-graph server-id="{{ server_id }}"></mem-usage-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Disk throughput</div>
+                <div class="prom-card-s">Data read and written per second</div>
+            </div>
+            <disk-io-graph server-id="{{ server_id }}"></disk-io-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Disk operations</div>
+                <div class="prom-card-s">Read and write operations per second</div>
+            </div>
+            <iops-graph server-id="{{ server_id }}"></iops-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Filesystem free space</div>
+                <div class="prom-card-s">Space left on each mount point</div>
+            </div>
+            <disk-usage-graph server-id="{{ server_id }}"></disk-usage-graph>
+        </section>
+        <section class="prom-card">
+            <div class="prom-card-h">
+                <div class="prom-card-t">Network traffic</div>
+                <div class="prom-card-s">Data received and sent per second</div>
+            </div>
+            <net-io-graph server-id="{{ server_id }}"></net-io-graph>
+        </section>
     </div>
 </div>
 
