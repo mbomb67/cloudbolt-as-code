@@ -1,14 +1,24 @@
 """
-POC Onboarding: Trim Environment Order Form (MCP Tool Action plugin).
+Onboarding: Trim Environment Order Form (MCP Tool Action plugin).
 
 Shortens an environment's order form to what a POC user needs. CloudBolt
 hides a required parameter that has exactly one option, so the tool pins
 infrastructure choices (key pair, security group, resource group, storage
 type, datastore, disk type) to one value and removes the optional
-technology parameters a POC never touches, leaving the size and, where
-needed, the network and password visible. Pinned fields are protected from
+technology parameters a POC never touches, leaving the size, the NIC 1
+networks chosen with onb_environment_networks and, where needed, the
+password visible. Pinned fields are protected from
 the handler's sync jobs. The report profile only shows the current form.
 Synchronous. Admin only.
+
+vCenter customization sets a Windows server's Administrator password from
+new_password, else from the template's credentials, and fails with neither
+(resourcehandlers/vmware/models.py and pyvmomi_wrapper.py
+create_os_prep_obj), so on vCenter new_password is never pinned or removed,
+and the result says whether the environment gives it a value
+(newPasswordSet) and how the admin sets one or the template's credentials.
+Password and encrypted values are never returned, and never accepted through
+onb_pin.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -23,6 +33,7 @@ PROFILES = ("poc_minimal", "report")
 # Per technology: fields the user still sees (constrained to a short list of
 # sizes when those exist among the options), fields pinned to one value
 # (preferred values first; an empty list = first existing option), fields
+# NIC 1 (sc_nic_0) is never pinned here: onb_environment_networks sets its choices.
 # removed.
 TRIM = {
     "aws": {
@@ -33,7 +44,6 @@ TRIM = {
             "sec_groups": ["default"],
             "delete_ebs_volumes_on_termination": ["True", "true"],
             "ebs_volume_type": ["gp3", "gp2"],
-            "sc_nic_0": [],
         },
         "remove": ["aws_availability_zone", "aws_elastic_ip", "iops", "aws_host", "aws_host_group"],
     },
@@ -46,7 +56,6 @@ TRIM = {
             "create_public_ip": ["False", "false"],
             "availability_set_arm": [],
             "availability_zone_arm": [],
-            "sc_nic_0": [],
         },
         "remove": [
             "spot_instance_arm", "eviction_type_arm", "eviction_policy_arm", "max_price_arm",
@@ -58,7 +67,7 @@ TRIM = {
     "vmware": {
         "show": ["cpu_cnt", "mem_size"],
         "constrain": {"cpu_cnt": ["1", "2", "4"], "mem_size": ["2", "4", "8"]},
-        "pin": {"vmware_datastore": [], "vmware_disk_type": ["thin", "Thin"], "sc_nic_0": []},
+        "pin": {"vmware_datastore": [], "vmware_disk_type": ["thin", "Thin"]},
         "remove": ["vmware_resourcepool", "nsx_scope", "nsx_edge"],
     },
 }
@@ -66,6 +75,10 @@ TRIM["aws_govcloud"] = TRIM["aws"]
 TRIM["aws_china"] = TRIM["aws"]
 # Fields other fields regenerate their options from; a single option never hides them.
 NEVER_HIDDEN = {"azure_arm": ["node_size", "availability_set_arm", "azure_authentication_type"]}
+# The Windows Administrator password field a technology's customization needs; never pinned or removed.
+PASSWORD_FIELDS = {"vmware": "new_password"}
+SECRET_TYPES = ("PWD", "ETXT")
+MASK = "********"
 
 
 def _text(value):
@@ -157,8 +170,6 @@ def _option_label(cfv):
 
 def _field_rows(env, handler):
     """One row per parameter that can appear on this environment's order form."""
-    from infrastructure.models import CustomField
-
     special = set(handler.special_fields() or [])
     tech = set(handler.tech_parameter_fields() or [])
     base_names = set(getattr(handler, "base_orders_cf_names", []) or [])
@@ -169,6 +180,7 @@ def _field_rows(env, handler):
     for name in sorted(names):
         cf = env_fields.get(name) or rh_fields.get(name)
         options = list(env.custom_field_options.filter(field=cf).order_by("id"))
+        labels = [MASK if cf.type in SECRET_TYPES else _option_label(o) for o in options]
         rows[name] = {
             "name": name,
             "label": cf.label,
@@ -179,7 +191,7 @@ def _field_rows(env, handler):
             "technologyParameter": name in tech,
             "special": name in special,
             "baseOrderField": name in base_names,
-            "options": [_option_label(o) for o in options][:25],
+            "options": labels[:25],
             "optionCount": len(options),
             "_cf": cf,
             "_cfvs": options,
@@ -225,6 +237,53 @@ def _choose(row, preferred, wanted):
     return None, "no options to pin"
 
 
+def _shown(row, choice):
+    """The value to report for a pinned choice; password and encrypted values are masked."""
+    if row["type"] in SECRET_TYPES:
+        return MASK
+    return _option_label(choice) if hasattr(choice, "value") else str(choice)
+
+
+def _password_status(env, handler, rows, field, slug, base):
+    """Whether the environment gives the password field a value; the value itself is never read out."""
+    row = rows.get(field)
+    is_set = bool(row and row["onEnvironment"] and row["optionCount"])
+    entry = {"field": field, "action": "kept", "newPasswordSet": is_set,
+             "hiddenOnOrderForm": bool(row and _hidden(row, slug))}
+    if is_set:
+        return is_set, entry, None
+    if row is None or not row["onEnvironment"]:
+        entry.update(action="missing", reason="the environment does not offer {}".format(field))
+        steps = (
+            "Attach it with onb_parameter: onb_param_name={0}, onb_param_targets={1}, no onb_param_options; or have "
+            "the admin click Add on the environment's Parameters tab and pick New Password. Then the admin opens "
+            "parametersUrl, clicks the pencil in New Password's Options column, enters the value and clicks Save. "
+            "One value hides the field on the order form."
+        ).format(field, env.global_id)
+    else:
+        entry["reason"] = "the environment offers {} with no value, so the order form asks for it".format(field)
+        steps = (
+            "The admin opens parametersUrl, clicks the pencil in New Password's Options column, enters the value and "
+            "clicks Save. One value hides the field on the order form; until then the form asks for it and MCP "
+            "orders must pass new_password."
+        )
+    block = {
+        "onEnvironment": bool(row and row["onEnvironment"]),
+        "parametersUrl": base + "/environments/{}/#tab-parameters".format(env.id),
+        "steps": steps,
+        "whatToEnter": "The Windows template's Administrator password, unless the customer wants it changed at build. "
+                       "The admin types it in CloudBolt; never ask for it in chat.",
+        "why": "vCenter customization sets a Windows server's Administrator password from new_password, else from "
+               "the password in the Windows template's credentials, and fails with 'No password parameter set' when "
+               "the server has neither. On Linux templates that have credentials, CloudBolt also changes the login "
+               "password to new_password at build.",
+        "alternative": "Credentials on the Windows template are enough on their own: onb_ui_link handler_images:{} "
+                       "(the handler's Templates tab), + (Add credentials to template) or the pencil in the "
+                       "Credentials column.".format(handler.global_id),
+    }
+    return is_set, entry, block
+
+
 def _protect(env, names):
     data = env.modified_parameters or {}
     current = list(data.get("tech_specific_parameters", []) or [])
@@ -237,6 +296,23 @@ def _protect(env, names):
         data["tech_specific_parameters"] = current
         env.modified_parameters = data
         env.save()
+
+
+def _ssh_keys(env):
+    """Key pairs the environment offers and whether CloudBolt holds each one's private key (the handler's SSH Keys tab)."""
+    from common.methods import find_key_material
+
+    handler = env.resource_handler.cast() if env.resource_handler else None
+    field = getattr(handler, "ssh_keyname_field_name", None) if handler else None
+    if not field:
+        return []
+    names = env.custom_field_options.filter(field__name=field).values_list("str_value", flat=True).distinct()
+    rows = []
+    for name in list(names)[:10]:
+        if name:
+            have, _material = find_key_material(name, handler)  # the material itself is never returned
+            rows.append({"name": name, "materialUploaded": bool(have)})
+    return rows
 
 
 def run(job, *args, **kwargs):
@@ -274,17 +350,29 @@ def run(job, *args, **kwargs):
         outputs["note"] = "On {} the fields {} drive other fields' options and stay visible however many options they have.".format(
             slug, ", ".join(NEVER_HIDDEN[slug])
         )
+    password_field = PASSWORD_FIELDS.get(slug)
     if inputs["profile"] == "report":
         visible = [r["name"] for r in before if not r["hiddenOnOrderForm"]]
+        if password_field:
+            password_set, _entry, password_block = _password_status(env, handler, rows, password_field, slug, base)
+            outputs["newPasswordSet"] = password_set
+            if password_block:
+                outputs["newPassword"] = password_block
         return _success("{}: {} parameter(s) visible on the order form.".format(env.name, len(visible)),
                         dict(outputs, visibleNow=visible))
 
     table = TRIM.get(slug, {"show": [], "constrain": {}, "pin": {}, "remove": []})
-    keep = set(inputs["keep"]) | set(table["show"])
+    keep = set(inputs["keep"]) | set(table["show"]) | ({password_field} if password_field else set())
     constrain_plan = dict(table.get("constrain", {}))
     pin_plan = {name: prefs for name, prefs in table["pin"].items() if name not in keep}
     user_pins = {}
+    actions = []
     for name, values in inputs["pins"].items():
+        if name in rows and rows[name]["type"] in SECRET_TYPES:
+            # A password passed here would have come through chat; the admin types it in the UI instead.
+            actions.append({"field": name, "action": "left",
+                            "reason": "a password is entered by the admin on the environment's Parameters tab, never through onb_pin"})
+            continue
         if len(values) > 1:
             constrain_plan[name] = values
             pin_plan.pop(name, None)
@@ -292,8 +380,10 @@ def run(job, *args, **kwargs):
             pin_plan[name] = pin_plan.get(name, [])
             user_pins[name] = values[0] if values else ""
     remove_plan = [n for n in list(table["remove"]) + inputs["remove"] if n not in keep and n not in pin_plan]
+    if password_field and password_field in inputs["remove"]:
+        actions.append({"field": password_field, "action": "left",
+                        "reason": "kept: customization needs it for every Windows server on this technology"})
 
-    actions = []
     protected = []
     for name, wanted_values in constrain_plan.items():
         row = rows.get(name)
@@ -303,7 +393,7 @@ def run(job, *args, **kwargs):
         chosen = [c for c, label in zip(row["_cfvs"], labels) if label in wanted_values]
         if len(chosen) < 2 or len(chosen) == len(row["_cfvs"]):
             if name in inputs["pins"]:
-                actions.append({"field": name, "action": "left", "reason": "fewer than two of the requested values exist among the options {}".format(labels[:15])})
+                actions.append({"field": name, "action": "left", "reason": "fewer than two of the requested values exist among the options {}".format(row["options"][:15])})
             continue
         chosen.sort(key=lambda c: wanted_values.index(_option_label(c)))
         env.replace_cf_options(name, chosen)
@@ -324,7 +414,7 @@ def run(job, *args, **kwargs):
                 continue
             env.replace_cf_options(name, [choice])
             protected.append(name)
-            actions.append({"field": name, "action": "pinned", "value": _option_label(choice) if hasattr(choice, "value") else str(choice),
+            actions.append({"field": name, "action": "pinned", "value": _shown(row, choice),
                             "reason": "handler-level field; pinned instead of removed"})
             continue
         env.clear_cfv(name)
@@ -350,8 +440,7 @@ def run(job, *args, **kwargs):
             continue
         env.replace_cf_options(name, [choice])
         protected.append(name)
-        label = _option_label(choice) if hasattr(choice, "value") else str(choice)
-        entry = {"field": name, "action": "pinned", "value": label}
+        entry = {"field": name, "action": "pinned", "value": _shown(row, choice)}
         if not (row["required"] or row["type"] == "BOOL") and name not in NEVER_HIDDEN.get(slug, []):
             entry["note"] = "optional field: a single option still shows with a blank choice; remove it with onb_remove if it should disappear"
         actions.append(entry)
@@ -362,9 +451,30 @@ def run(job, *args, **kwargs):
     after_rows = _field_rows(env, handler)
     after = [_public(r, slug) for r in after_rows.values()]
     visible = [r["name"] for r in after if not r["hiddenOnOrderForm"]]
+    password_block = None
+    if password_field:
+        password_set, entry, password_block = _password_status(env, handler, after_rows, password_field, slug, base)
+        actions.append(entry)
+        outputs["newPasswordSet"] = password_set
+        if password_block:
+            outputs["newPassword"] = password_block
     outputs.update({"actions": actions, "protectedFromSync": sorted(set(protected)), "after": after, "visibleNow": visible})
+    keys = _ssh_keys(env)
+    missing = [k["name"] for k in keys if not k["materialUploaded"]]
+    if keys:
+        outputs["keyMaterial"] = {
+            "keys": keys,
+            "uploadUrl": base + "/admin/resourcehandlers/{}/#tab-ssh-keys".format(handler.id),
+            "steps": "Click the pencil in the Actions column of the key's row, paste the private key (PEM) into Key material, then Save.",
+            "why": "CloudBolt needs it to sign in to Linux servers over SSH (remote scripts such as Standard Server's Hello World) and to read the Administrator password of Windows servers on AWS.",
+        }
     outputs["next"] = (
-        "Order the Custom Server into this environment through MCP and confirm the form shows only {}. "
+        ("Before the first order, have the admin upload the private key of {} at keyMaterial.uploadUrl (keyMaterial.steps; "
+         "the key is pasted there, never in chat). ".format(", ".join(missing)) if missing else "")
+        + ("Before the first Windows order, make sure the Windows template has credentials (newPassword.alternative) "
+           "or give new_password a value on this environment (newPassword.steps and newPassword.whatToEnter); the "
+           "admin types either in CloudBolt, never in chat. " if password_block else "")
+        + "Order the Custom Server into this environment through MCP and confirm the form shows only {}. "
         "Pass onb_keep to bring a field back, onb_pin field=value to change a pin, onb_pin field=a|b|c to offer "
         "exactly those sizes.".format(", ".join(visible) or "the size")
     )

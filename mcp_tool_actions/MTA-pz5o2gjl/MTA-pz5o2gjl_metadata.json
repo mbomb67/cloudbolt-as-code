@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-pz5o2gjl",
     "is_synchronous": true,
-    "label": "POC Onboarding: Remove Environment",
+    "label": "Onboarding: Remove Environment",
     "last_updated": null,
     "mcp_destructive_hint": true,
     "mcp_idempotent_hint": true,

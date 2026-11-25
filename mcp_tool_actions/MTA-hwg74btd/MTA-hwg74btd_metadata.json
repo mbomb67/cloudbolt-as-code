@@ -103,13 +103,13 @@
     "enabled": true,
     "id": "MTA-hwg74btd",
     "is_synchronous": true,
-    "label": "POC Onboarding: Recent Errors",
+    "label": "Onboarding: Recent Errors",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": true,
-    "mcp_tool_description": "Read the last minutes of a CloudBolt log (application by default; also jobengine, authentication, mcp, saml2) and return the WARNING-and-above entries grouped by exception and message, newest first, with tracebacks, secrets redacted, and a hint for each known pattern (failed handler verification, missing egress, proxy, SSL inspection, LDAP bind, missing image, subnet or key pair). Call it right after something failed in the UI: the resource handler form hides the real error but logs it under 'Failed to validate connection'. Use onb_log=jobengine for provisioning jobs and onb_contains to narrow by handler name or text. Only the last 8 MB of the file are read. Read-only; requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Read the last minutes of a CloudBolt log (application by default; also jobengine, authentication, mcp, saml2) and return the WARNING-and-above entries grouped by exception and message, newest first, with tracebacks, secrets redacted, and a hint for each known pattern (failed handler verification, missing egress, proxy, SSL inspection, LDAP bind, missing image, guest credentials on a vCenter template, vCenter Windows password, ESXi hosts unreachable for VMware Tools scripts, a key pair's private key). Call it right after something failed in the UI: the resource handler form hides the real error but logs it under 'Failed to validate connection'. Use onb_log=jobengine for provisioning jobs and onb_contains to narrow by handler name or text. Only the last 8 MB of the file are read. Read-only; requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_recent_errors",
     "mcp_tool_title": ""
 }

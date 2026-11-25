@@ -22,7 +22,7 @@
         {
             "allow_multiple": false,
             "available_all_servers": false,
-            "description": "AWS only: also list the VPCs of this region, with the default VPC flagged.",
+            "description": "AWS only: also list the VPCs of this region with their CIDR, subnet count and default flag.",
             "field_dependency_controlling_set": [],
             "field_dependency_dependent_set": [],
             "global_options": [],
@@ -46,7 +46,7 @@
     "description": "Lists the regions, locations or clusters a resource handler can turn into environments, flags the ones already imported, lists the existing environments, and for an AWS region lists its VPCs.",
     "id": "OHK-0nuhjdxl",
     "max_retries": 0,
-    "name": "POC Onboarding: Handler Locations",
+    "name": "Onboarding: Handler Locations",
     "resource_technologies": [],
     "script_filename": "OHK-0nuhjdxl_script.py",
     "shared": false,

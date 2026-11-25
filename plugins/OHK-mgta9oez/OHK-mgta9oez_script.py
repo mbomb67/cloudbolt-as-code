@@ -3,7 +3,11 @@ Manage Blueprint Permissions (MCP Tool Action plugin).
 
 Lists, grants, or revokes a group's DEPLOY or MANAGE permission on a
 blueprint, the same ServiceBlueprintGroupPermissions rows the Permissions
-tab manages. The content-testing loop uses it around every blueprint sync:
+tab manages, and turns the blueprint's Any group can deploy checkbox on
+(open) or off (restrict). While it is on, every group may order the
+blueprint whatever the DEPLOY rows say; restrict leaves only the groups with
+DEPLOY, so it refuses when none would be left (grant_group names one to
+grant in the same call). The content-testing loop uses it around every blueprint sync:
 list before the sync, restore the same groups after it (the importer's
 add_group_permissions keeps only the groups named in the metadata, repo
 exports name none, so a sync of a blueprint whose any_group_can_deploy is
@@ -21,7 +25,7 @@ from accounts.models import Group
 from servicecatalog.models import ServiceBlueprint, ServiceBlueprintGroupPermissions
 
 PERMISSIONS = ("DEPLOY", "MANAGE")
-ACTIONS = ("grant", "revoke", "list")
+ACTIONS = ("grant", "revoke", "list", "open", "restrict")
 
 
 def _text(value):
@@ -89,6 +93,37 @@ def _state(blueprint):
     }
 
 
+def _set_any_group(blueprint, inputs):
+    """The Any group can deploy checkbox: open turns it on, restrict turns it off."""
+    wanted = inputs["action"] == "open"
+    granted = None
+    if not wanted and inputs["group"]:
+        group, error = _find_group(inputs["group"])
+        if error:
+            return _failure(error)
+        _row, made = ServiceBlueprintGroupPermissions.objects.get_or_create(permission="DEPLOY", group=group, blueprint=blueprint)
+        granted = {"id": group.global_id, "name": group.name, "changed": made}
+    if not wanted and not list(blueprint.groups_with_deploy_permission):
+        return _failure(
+            "No group has DEPLOY on '{}', so restricting it would leave only admins able to order it. "
+            "Pass grant_group to grant one in the same call, or grant first.".format(blueprint.name)
+        )
+    changed = bool(blueprint.any_group_can_deploy) != wanted
+    if changed:
+        blueprint.any_group_can_deploy = wanted
+        blueprint.save(update_fields=["any_group_can_deploy"])
+    outputs = _state(blueprint)
+    outputs.update({"action": inputs["action"], "changed": changed})
+    if granted:
+        outputs["granted"] = granted
+    if wanted:
+        message = "'{}' is open to every group{}.".format(blueprint.name, "" if changed else " (already)")
+    else:
+        message = "'{}' is restricted to: {}{}.".format(
+            blueprint.name, ", ".join(g["name"] for g in outputs["groupsThatCanDeploy"]), "" if changed else " (already)")
+    return {"status": "SUCCESS", "output_message": message, "error_message": "", "outputs": outputs}
+
+
 def run(job, *args, **kwargs):
     profile = kwargs.get("profile")
     if profile is None and job is not None:
@@ -103,7 +138,7 @@ def run(job, *args, **kwargs):
 
     inputs = _read_inputs()
     if inputs["action"] not in ACTIONS:
-        return _failure("grant_action must be grant, revoke, or list; got '{}'.".format(inputs["action"]))
+        return _failure("grant_action must be grant, revoke, list, open or restrict; got '{}'.".format(inputs["action"]))
     if not inputs["blueprint"]:
         return _failure("grant_blueprint is required: a BP-... global id or the exact name.")
     if inputs["permission"] not in PERMISSIONS:
@@ -123,6 +158,9 @@ def run(job, *args, **kwargs):
             ", ".join(g["name"] for g in outputs["groupsThatCanManage"]) or "none",
         )
         return {"status": "SUCCESS", "output_message": message, "error_message": "", "outputs": outputs}
+
+    if inputs["action"] in ("open", "restrict"):
+        return _set_any_group(blueprint, inputs)
 
     if not inputs["group"]:
         return _failure("grant_group is required for grant and revoke: a GRP-... global id or the exact name.")

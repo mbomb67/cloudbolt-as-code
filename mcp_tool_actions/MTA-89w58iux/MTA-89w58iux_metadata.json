@@ -122,7 +122,7 @@
     "enabled": true,
     "id": "MTA-89w58iux",
     "is_synchronous": true,
-    "label": "POC Onboarding: SMTP Settings",
+    "label": "Onboarding: SMTP Settings",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

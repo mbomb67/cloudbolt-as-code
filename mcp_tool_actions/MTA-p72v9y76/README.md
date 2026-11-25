@@ -1,13 +1,13 @@
-# POC Onboarding: Set Item Status
+# Onboarding: Set Item Status
 
 MCP Tool Action published to agents as `custom_onb_set_item_status`. Records a POC test plan item or prerequisite as done, skipped, not applicable or pending with a reason, in a namespaced CustomField store that onb_status and the scorecard read.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-p72v9y76 | POC Onboarding: Set Item Status |
-| Plugin | [OHK-5885tete](../../plugins/OHK-5885tete/) | POC Onboarding: Set Item Status |
+| MCP Tool Action | MTA-p72v9y76 | Onboarding: Set Item Status |
+| Plugin | [OHK-5885tete](../../plugins/OHK-5885tete/) | Onboarding: Set Item Status |
 
 ## Inputs
 | Input | Type | Meaning |
@@ -17,9 +17,10 @@ Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8
 | `onb_item_note` | string | Why the item is skipped or not applicable, or any note; the scorecard prints it. |
 
 ## Output
-item, status, note, items{} (every recorded item), summary.
+item, title, weight, status, note, recordedAt for the item just recorded; summary (counts per status) and byStatus (item ids per status, without notes). onb_status and onb_scorecard return every item's note.
 
 ## Notes
 - Admin only: the plugin refuses callers who are not CloudBolt admins.
 - Synchronous: the result comes back inline.
+- A note longer than 2000 characters is refused with its length; nothing is cut.
 - State lives in the poc_onboarding_state parameter (namespace poc_onboarding), created on first use.

@@ -1,5 +1,5 @@
 """
-POC Onboarding: Tag Mapping (MCP Tool Action plugin).
+Onboarding: Tag Mapping (MCP Tool Action plugin).
 
 Lists, adds or removes a resource handler's tag mappings: which CloudBolt
 attribute (group, owner, os_family, environment, hostname, os_build, or

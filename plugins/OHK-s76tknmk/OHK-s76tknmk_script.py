@@ -1,5 +1,5 @@
 """
-POC Onboarding: LDAP Mapping (MCP Tool Action plugin).
+Onboarding: LDAP Mapping (MCP Tool Action plugin).
 
 Maps an Active Directory or LDAP group (by distinguished name) to a
 CloudBolt group with roles, the way the LDAP utility's Group Mappings tab

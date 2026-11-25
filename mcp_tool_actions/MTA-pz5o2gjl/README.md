@@ -1,13 +1,13 @@
-# POC Onboarding: Remove Environment
+# Onboarding: Remove Environment
 
 MCP Tool Action published to agents as `custom_onb_remove_environment`. Deletes an environment imported by mistake so the POC can start over; refuses while active servers live in it.
-Part of the POC Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-poc-onboarding` skill drives; procedure in [.claude/skills/cb-poc-onboarding/SKILL.md](../../.claude/skills/cb-poc-onboarding/SKILL.md).
+Part of the Onboarding Toolkit ([packages/PKG-8aaadefz](../../packages/PKG-8aaadefz/README.md)) that the `cb-onboarding` skill drives; procedure in [.claude/skills/cb-onboarding/SKILL.md](../../.claude/skills/cb-onboarding/SKILL.md).
 
 ## Contents
 | Role | ID | Name |
 |---|---|---|
-| MCP Tool Action | MTA-pz5o2gjl | POC Onboarding: Remove Environment |
-| Plugin | [OHK-1wmzl7sp](../../plugins/OHK-1wmzl7sp/) | POC Onboarding: Remove Environment |
+| MCP Tool Action | MTA-pz5o2gjl | Onboarding: Remove Environment |
+| Plugin | [OHK-1wmzl7sp](../../plugins/OHK-1wmzl7sp/) | Onboarding: Remove Environment |
 
 ## Inputs
 | Input | Type | Meaning |

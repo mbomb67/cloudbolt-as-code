@@ -84,7 +84,7 @@
     "enabled": true,
     "id": "MTA-e5qv0zay",
     "is_synchronous": true,
-    "label": "POC Onboarding: LDAP Mapping",
+    "label": "Onboarding: LDAP Mapping",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

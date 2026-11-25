@@ -66,7 +66,7 @@
     "description": "Records a POC test plan item or prerequisite as done, skipped, not applicable or pending with a reason, in a namespaced CustomField store that onb_status and the scorecard read.",
     "id": "OHK-5885tete",
     "max_retries": 0,
-    "name": "POC Onboarding: Set Item Status",
+    "name": "Onboarding: Set Item Status",
     "resource_technologies": [],
     "script_filename": "OHK-5885tete_script.py",
     "shared": false,

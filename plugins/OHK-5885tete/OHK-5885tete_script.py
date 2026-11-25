@@ -1,5 +1,5 @@
 """
-POC Onboarding: Set Item Status (MCP Tool Action plugin).
+Onboarding: Set Item Status (MCP Tool Action plugin).
 
 Records the state of one POC test plan item or prerequisite: done, skipped,
 not_applicable or pending, with a note saying why. A customer who cannot use
@@ -9,6 +9,10 @@ of as a failure. The record lives in a namespaced CustomField on the
 appliance (the same pattern the Content Package Manager uses), so it
 survives client reconnects and is visible to onb_status. Synchronous.
 Admin only.
+
+The result carries only the item just recorded, with its note, plus counts
+and ids per status; onb_status and onb_scorecard return every item with its
+note. A note longer than NOTE_MAX is refused, never cut.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -23,6 +27,7 @@ STATE_NAMESPACE = "poc_onboarding"
 STATE_FIELD = "poc_onboarding_state"
 STATUSES = ("pending", "done", "skipped", "not_applicable")
 ITEM_RE = re.compile(r"^(P\d{1,2}|\d\.\d\.\d)$")
+NOTE_MAX = 2000
 
 # Test plan items and prerequisites, with the weight the scorecard applies.
 KNOWN_ITEMS = {
@@ -113,7 +118,7 @@ def _read_inputs():
     return {
         "item": _text(raw["onb_item_id"]).upper(),
         "status": _text(raw["onb_item_status"]).lower().replace("-", "_").replace(" ", "_"),
-        "note": _text(raw["onb_item_note"])[:1000],
+        "note": _text(raw["onb_item_note"]),
     }
 
 
@@ -126,8 +131,8 @@ def _state_field(create=False):
     field, _ = CustomField.objects.get_or_create(
         name=STATE_FIELD,
         defaults=dict(
-            label="POC Onboarding State",
-            description="State recorded by the POC onboarding MCP tools: item statuses, handler verify results, install details.",
+            label="Onboarding State",
+            description="State recorded by the onboarding MCP tools: item statuses, handler verify results, install details.",
             type="TXT",
             namespace=namespace,
         ),
@@ -160,13 +165,23 @@ def _update_state(mutate):
     return state
 
 
+def _item_order(item):
+    """Prerequisites P1 to P12 first, then test plan items in numeric order."""
+    if item.startswith("P"):
+        return (0, int(item[1:]) if item[1:].isdigit() else 0)
+    return (1,) + tuple(int(part) if part.isdigit() else 0 for part in item.split("."))
+
+
 def _summary(items):
+    """Counts per status and the item ids per status, without notes."""
     counts = {status: 0 for status in STATUSES}
-    for entry in items.values():
-        status = (entry or {}).get("status")
+    by_status = {status: [] for status in STATUSES}
+    for item_id in sorted(items, key=_item_order):
+        status = (items[item_id] or {}).get("status")
         if status in counts:
             counts[status] += 1
-    return counts
+            by_status[status].append(item_id)
+    return counts, by_status
 
 
 def run(job, *args, **kwargs):
@@ -187,6 +202,11 @@ def run(job, *args, **kwargs):
         return _failure("onb_item_status must be one of: {}.".format(", ".join(STATUSES)))
     if status in ("skipped", "not_applicable") and not inputs["note"]:
         return _failure("Give onb_item_note a short reason when an item is skipped or not applicable; the scorecard prints it.")
+    if len(inputs["note"]) > NOTE_MAX:
+        return _failure(
+            "onb_item_note is {} characters; the limit is {}. Nothing was recorded: shorten the note and call again.".format(
+                len(inputs["note"]), NOTE_MAX)
+        )
 
     title, weight = KNOWN_ITEMS.get(item, (None, None))
     when = datetime.now(timezone.utc).isoformat()
@@ -204,7 +224,7 @@ def run(job, *args, **kwargs):
         }
 
     state = _update_state(mutate)
-    items = state.get("items") or {}
+    counts, by_status = _summary(state.get("items") or {})
     outputs = {
         "item": item,
         "title": title,
@@ -212,9 +232,9 @@ def run(job, *args, **kwargs):
         "status": status,
         "note": inputs["note"],
         "recordedAt": when,
-        "items": items,
-        "summary": _summary(items),
+        "summary": counts,
+        "byStatus": by_status,
     }
     if title is None:
-        outputs["note"] = "'{}' is not in the current test plan; it was recorded anyway.".format(item)
+        outputs["warning"] = "'{}' is not in the current test plan; it was recorded anyway.".format(item)
     return _success("{} recorded as {}.".format(item, status), outputs)

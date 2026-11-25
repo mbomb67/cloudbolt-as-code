@@ -27,7 +27,7 @@
     "enabled": true,
     "id": "MTA-r5v1eblg",
     "is_synchronous": false,
-    "label": "POC Onboarding: Verify Resource Handler",
+    "label": "Onboarding: Verify Resource Handler",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,

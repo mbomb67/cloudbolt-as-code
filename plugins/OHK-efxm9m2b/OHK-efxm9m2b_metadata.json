@@ -126,7 +126,7 @@
     "description": "Creates or updates a group with its parent, entitled environments, auto-approval flag and server-count quota, covering the test plan's entitlement, approval and quota items.",
     "id": "OHK-efxm9m2b",
     "max_retries": 0,
-    "name": "POC Onboarding: Group",
+    "name": "Onboarding: Group",
     "resource_technologies": [],
     "script_filename": "OHK-efxm9m2b_script.py",
     "shared": false,

@@ -1,0 +1,15 @@
+{
+    "action_input_default_values": [],
+    "continue_on_failure": false,
+    "dependencies": {
+        "hook": "plugins/OHK-vwpjfa9d"
+    },
+    "description": "Fills the Maintenance Window order-form parameter from Python with weekly two-hour UTC windows.",
+    "enabled": true,
+    "hook_point": "Generated Parameter Options",
+    "id": "HPA-onelxnkw",
+    "last_updated": null,
+    "name": "Generate options for 'Maintenance Window'",
+    "run_on_statuses": "",
+    "run_seq": 1
+}

@@ -26,7 +26,7 @@
     "description": "Finishes the toolkit install after a sync or package import: sets Synchronous Action on the inline tools, enables every tool, checks outbound access to the Content Library and GitHub, and records the toolkit version.",
     "id": "OHK-j60flmb3",
     "max_retries": 0,
-    "name": "POC Onboarding: Install",
+    "name": "Onboarding: Install",
     "resource_technologies": [],
     "script_filename": "OHK-j60flmb3_script.py",
     "shared": false,

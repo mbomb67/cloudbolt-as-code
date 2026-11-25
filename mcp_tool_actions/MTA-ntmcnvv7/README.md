@@ -1,6 +1,6 @@
 # Manage Blueprint Permissions
 
-MCP Tool Action published to agents as `custom_manage_blueprint_permissions`. Lists, grants, or revokes a group's DEPLOY (default) or MANAGE permission on a blueprint, the same rows the blueprint's Permissions tab manages. A Source Control Repos sync of a blueprint whose metadata has `any_group_can_deploy: false` removes every group's deploy and manage permission, because the importer keeps only the groups the metadata names and repo exports name none; the testing loop lists before the sync, restores afterwards, and revokes any grant it added once the test is over. Part of [docs/agents/testing-loop.md](../../docs/agents/testing-loop.md).
+MCP Tool Action published to agents as `custom_manage_blueprint_permissions`. Lists, grants, or revokes a group's DEPLOY (default) or MANAGE permission on a blueprint, the same rows the blueprint's Permissions tab manages, and turns its Any group can deploy checkbox on (`open`) or off (`restrict`). A Source Control Repos sync of a blueprint whose metadata has `any_group_can_deploy: false` removes every group's deploy and manage permission, because the importer keeps only the groups the metadata names and repo exports name none; the testing loop lists before the sync, restores afterwards, and revokes any grant it added once the test is over. Part of [docs/agents/testing-loop.md](../../docs/agents/testing-loop.md).
 
 ## Contents
 | Role | ID | Name |
@@ -11,13 +11,13 @@ MCP Tool Action published to agents as `custom_manage_blueprint_permissions`. Li
 ## Inputs
 | Input | Type | Meaning |
 |---|---|---|
-| `grant_action` | string | `grant` (default), `revoke`, or `list` |
+| `grant_action` | string | `grant` (default), `revoke`, `list`, `open` (Any group can deploy on) or `restrict` (off; refuses when no group has DEPLOY) |
 | `grant_blueprint` | string, required | `BP-` global id or the exact blueprint name |
-| `grant_group` | string | `GRP-` global id or the exact group name; required for grant and revoke |
+| `grant_group` | string | `GRP-` global id or the exact group name; required for grant and revoke, optional for restrict (granted DEPLOY first) |
 | `grant_permission` | string | `DEPLOY` (default) or `MANAGE` |
 
 ## Output
-`anyGroupCanDeploy`, `groupsThatCanDeploy` and `groupsThatCanManage` (id and name, every group), plus `changed` for grant and revoke.
+`anyGroupCanDeploy`, `groupsThatCanDeploy` and `groupsThatCanManage` (id and name, every group), plus `changed` for grant, revoke, open and restrict, and `granted` when restrict granted a group.
 
 ## Notes
 - Admin only. Idempotent.

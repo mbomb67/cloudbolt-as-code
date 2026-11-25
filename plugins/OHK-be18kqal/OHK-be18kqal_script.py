@@ -1,5 +1,5 @@
 """
-POC Onboarding: SMTP Settings (MCP Tool Action plugin).
+Onboarding: SMTP Settings (MCP Tool Action plugin).
 
 Sets the non-secret email settings (host, port, user, TLS, from address,
 CloudBolt admin email, email on order completion) and returns the link to
@@ -123,10 +123,11 @@ def run(job, *args, **kwargs):
             "passwordSet": password_set,
         },
         "changes": changes,
-        "editUrl": base + "/admin/email_settings/edit/",
-        "testUrl": base + "/admin/email_test/",
+        "editUrl": base + "/admin/email_settings/",
+        "editClick": "Edit on the Overview tab",
         "next": (
-            "If the relay needs a password, send the user editUrl to enter it (never in chat). Then onb_smtp_test "
+            "If the relay needs a password, send the user editUrl and tell them to click Edit there to enter it (never in "
+            "chat). Then onb_smtp_test "
             "sends a test message with the saved settings."
             if not password_set else "Run onb_smtp_test to send a test message with the saved settings."
         ),

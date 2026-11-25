@@ -122,13 +122,13 @@
     "enabled": true,
     "id": "MTA-cpq7bvz4",
     "is_synchronous": true,
-    "label": "POC Onboarding: Group",
+    "label": "Onboarding: Group",
     "last_updated": null,
     "mcp_destructive_hint": false,
     "mcp_idempotent_hint": true,
     "mcp_open_world_hint": false,
     "mcp_read_only_hint": false,
-    "mcp_tool_description": "Create or update a group for the POC: parent (onb_group_parent), environments the group may order into (onb_group_environments, ENV- ids or names one per line), whether members' orders skip approval (onb_group_auto_approval true/false) and a server-count quota (onb_group_quota_servers, -1 for unlimited). An existing group of that name is updated. Test plan 2.3.2, 2.3.3, 2.4.1, 2.5.2. Echo the plan and confirm before calling. Requires a CloudBolt admin caller.",
+    "mcp_tool_description": "Create or update a group for the POC: parent (onb_group_parent), environments the group may order into (onb_group_environments, ENV- ids or names one per line), whether members' orders skip approval (onb_group_auto_approval true/false) and a server-count quota (onb_group_quota_servers, -1 for unlimited). An existing group of that name is updated; empty inputs leave its values alone, and environments are only added. Every result reports the group as it now stands: environments (its own entitlements), inheritedEnvironments and unconstrainedEnvironments when there are any, members with their roles, serverQuota (limit, used) and allowAutoApproval. fetch_group_details shows neither environments nor members, so use this as the proof. With only onb_group_name it changes nothing and reports an existing group; it never creates a group from a name alone. Test plan 2.3.2, 2.3.3, 2.4.1, 2.5.2. Echo the plan and confirm before any call that changes something. Requires a CloudBolt admin caller.",
     "mcp_tool_name": "onb_group",
     "mcp_tool_title": ""
 }

@@ -1,10 +1,18 @@
 """
-POC Onboarding: Group (MCP Tool Action plugin).
+Onboarding: Group (MCP Tool Action plugin).
 
 Creates or updates a group for the POC: parent, entitled environments,
 auto-approval and a server-count quota. Covers the test plan's group
 entitlements (2.3.2, 2.3.3), approvals (2.4.1) and quota (2.5.2) without
 the UI. Synchronous. Admin only.
+
+Inputs left empty change nothing: environments are only added, and the
+parent, description, auto-approval and quota keep their values. Called with
+only the name of an existing group it changes nothing and reports the group.
+Every result reports the group as it now stands: its environment
+entitlements, its members with their roles, its server quota and
+auto-approval, because fetch_group_details shows neither environments nor
+members.
 
 Every declared input is read from its rendered template token in
 _read_inputs(); keep each one referenced that way or CloudBolt's token scan
@@ -15,6 +23,8 @@ import re
 from decimal import Decimal
 
 GLOBAL_ID_RE = re.compile(r"^[A-Z]{2,4}-[A-Za-z0-9]{6,16}$")
+BOOL_WORDS = {"true": True, "1": True, "yes": True, "false": False, "0": False, "no": False}
+MAX_MEMBERS = 100
 
 
 def _text(value):
@@ -130,6 +140,68 @@ def _set_quota(group, servers):
     return "unlimited" if servers < 0 else str(servers)
 
 
+def _quota_report(group):
+    """The group's server-count quota as it stands: limit (None when unlimited) and servers counted against it."""
+    try:
+        item = group.quota_set.vm_cnt
+    except Exception:
+        item = None
+    if item is None:
+        return None
+    limit = item.limit
+    unlimited = limit is None or Decimal(limit).is_infinite()
+    return {"limit": None if unlimited else int(limit), "unlimited": unlimited, "used": int(item.used or 0)}
+
+
+def _env_rows(queryset):
+    return [{"id": env.global_id, "name": env.name} for env in queryset.order_by("name")]
+
+
+def _members(group):
+    """Each member of the group with the roles they hold in it; inherited roles name the group they come from."""
+    from accounts.models import GroupRoleMembership
+
+    grms = (
+        GroupRoleMembership.objects.filter(group=group)
+        .select_related("profile__user", "role", "group_inherited_from")
+        .order_by("profile__user__username", "role__name")
+    )
+    members = {}
+    for grm in grms:
+        row = members.get(grm.profile_id)
+        if row is None:
+            user = grm.profile.user
+            row = members[grm.profile_id] = {"username": user.username, "email": user.email or None, "roles": []}
+        role = grm.role.name
+        if grm.group_inherited_from_id:
+            role = "{} (inherited from {})".format(role, grm.group_inherited_from.name)
+        row["roles"].append(role)
+    return list(members.values())
+
+
+def _report(group, base):
+    """The group's current environments, members, quota and auto-approval."""
+    from infrastructure.models import Environment
+
+    members = _members(group)
+    report = {
+        "environments": _env_rows(group.environments.all()),
+        "memberCount": len(members),
+        "members": members[:MAX_MEMBERS],
+        "serverQuota": _quota_report(group),
+    }
+    inherited = _env_rows(group.inherited_environments.all())
+    if inherited:
+        report["inheritedEnvironments"] = inherited
+    unconstrained = _env_rows(Environment.without_unassigned.filter(group=None))
+    if unconstrained:
+        report["unconstrainedEnvironments"] = unconstrained
+    if len(members) > MAX_MEMBERS:
+        report["membersNote"] = "Showing {} of {} members; the group page lists them all: {}".format(
+            MAX_MEMBERS, len(members), base + "/groups/{}/".format(group.id))
+    return report
+
+
 def run(job, *args, **kwargs):
     profile = _caller(job, kwargs)
     if profile is None:
@@ -140,6 +212,8 @@ def run(job, *args, **kwargs):
     inputs = _read_inputs()
     if not inputs["name"]:
         return _failure("onb_group_name is required.")
+    if inputs["auto_approval"] and inputs["auto_approval"] not in BOOL_WORDS:
+        return _failure("onb_group_auto_approval must be true or false, or empty to leave it unchanged.")
     parent = None
     if inputs["parent"]:
         parent = _resolve_group(inputs["parent"])
@@ -157,7 +231,15 @@ def run(job, *args, **kwargs):
 
     from accounts.models import Group
 
-    group = _resolve_group(inputs["name"]) if not GLOBAL_ID_RE.match(inputs["name"]) else _resolve_group(inputs["name"])
+    group = _resolve_group(inputs["name"])
+    report_only = not any(inputs[key] for key in ("parent", "environments", "auto_approval", "quota_servers", "description"))
+    if group is None and GLOBAL_ID_RE.match(inputs["name"]):
+        return _failure("No group has the id '{}'. Nothing was changed.".format(inputs["name"]))
+    if group is None and report_only:
+        return _failure(
+            "No group is named '{}'. Nothing was created: to create it, call again with at least one other input, "
+            "such as onb_group_environments.".format(inputs["name"])
+        )
     created = False
     changes = []
     if group is None:
@@ -172,8 +254,8 @@ def run(job, *args, **kwargs):
         if inputs["description"] and group.description != inputs["description"]:
             group.description = inputs["description"]
             changes.append("description")
-    if inputs["auto_approval"] in ("true", "false", "1", "0", "yes", "no"):
-        wanted = inputs["auto_approval"] in ("true", "1", "yes")
+    if inputs["auto_approval"]:
+        wanted = BOOL_WORDS[inputs["auto_approval"]]
         if bool(group.allow_auto_approval) != wanted:
             group.allow_auto_approval = wanted
             changes.append("allow_auto_approval={}".format(wanted))
@@ -182,22 +264,22 @@ def run(job, *args, **kwargs):
     elif changes and created and len(changes) > 1:
         group.save()
 
-    env_rows = []
     for env in envs:
         if not group.environments.filter(id=env.id).exists():
             group.environments.add(env)
-            env_rows.append({"id": env.global_id, "name": env.name, "status": "entitled"})
             changes.append("environment '{}' entitled".format(env.name))
-        else:
-            env_rows.append({"id": env.global_id, "name": env.name, "status": "already entitled"})
 
-    quota_note = None
+    quota_error = None
     if quota_servers is not None:
-        try:
-            quota_note = _set_quota(group, quota_servers)
-            changes.append("server quota {}".format(quota_note))
-        except Exception as exc:
-            quota_note = "failed: {}: {}".format(type(exc).__name__, str(exc)[:300])
+        current = _quota_report(group)
+        unchanged = current is not None and (
+            current["unlimited"] if quota_servers < 0 else current["limit"] == quota_servers
+        )
+        if not unchanged:
+            try:
+                changes.append("server quota {}".format(_set_quota(group, quota_servers)))
+            except Exception as exc:
+                quota_error = "{}: {}".format(type(exc).__name__, str(exc)[:300])
 
     base = _portal_url()
     outputs = {
@@ -210,16 +292,26 @@ def run(job, *args, **kwargs):
             "allowAutoApproval": bool(group.allow_auto_approval),
             "created": created,
             "url": base + "/groups/{}/".format(group.id),
-            "quotasUrl": base + "/groups/{}/quotas/edit/".format(group.id),
+            "quotasUrl": base + "/groups/{}/#tab-quotas".format(group.id),
+            "quotasClick": "Edit on the Quotas tab",
         },
-        "environments": env_rows,
-        "serverQuota": quota_note,
-        "changes": changes,
-        "next": (
-            "Add users and roles with onb_user. Entitle the group to blueprints with manage_blueprint_permissions "
-            "when the blueprint is not open to every group. Orders from members without the approver role pause "
-            "for approval unless allowAutoApproval is true."
-        ),
     }
-    message = "Group '{}' {}; {} change(s).".format(group.name, "created" if created else "updated", len(changes))
+    outputs.update(_report(group, base))
+    if quota_error:
+        outputs["serverQuotaError"] = quota_error
+    outputs["changes"] = changes
+    outputs["next"] = (
+        "environments are the group's own entitlements; inheritedEnvironments come from its parent groups, and "
+        "unconstrainedEnvironments have no group assigned, so every group may order into them. Add users and roles "
+        "with onb_user. Entitle the group to blueprints with manage_blueprint_permissions when the blueprint is not "
+        "open to every group. Orders from members without the approver role pause for approval unless "
+        "allowAutoApproval is true."
+    )
+    if created:
+        verb = "created"
+    elif changes:
+        verb = "updated"
+    else:
+        verb = "unchanged"
+    message = "Group '{}' {}; {} change(s).".format(group.name, verb, len(changes))
     return _success(message, outputs)

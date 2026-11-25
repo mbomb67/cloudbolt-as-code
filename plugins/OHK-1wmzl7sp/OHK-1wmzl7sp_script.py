@@ -1,5 +1,5 @@
 """
-POC Onboarding: Remove Environment (MCP Tool Action plugin).
+Onboarding: Remove Environment (MCP Tool Action plugin).
 
 Deletes an environment that was imported by mistake (wrong region, wrong
 cluster, a duplicate) so the POC can start over cleanly. Refuses when any
@@ -71,11 +71,18 @@ def run(job, *args, **kwargs):
     if error:
         return _failure(error)
 
-    active = env.server_set.exclude(status="HISTORICAL").count()
+    servers = env.server_set.exclude(status="HISTORICAL")
+    active = servers.count()
     if active:
+        failed = servers.filter(status="PROVFAILED").count()
         return _failure(
-            "Environment '{}' still has {} active server(s); decommission them first (Delete server action), "
-            "then remove the environment.".format(env.name, active)
+            "Environment '{}' still has {} server(s); delete them first ({}), then remove the environment.".format(
+                env.name,
+                active,
+                "{} failed to provision: onb_failed_servers deletes those; the others with the Delete server action".format(failed)
+                if failed
+                else "Delete server action",
+            )
         )
     if env.name.lower() == "unassigned":
         return _failure("The Unassigned environment is built in and cannot be removed.")
@@ -85,7 +92,7 @@ def run(job, *args, **kwargs):
         "name": env.name,
         "handler": env.resource_handler.name if env.resource_handler else None,
         "osBuildsDetached": env.os_builds.count(),
-        "groupsDetached": env.groups_served.count(),
+        "groupsDetached": env.group_set.exclude(name="Unassigned").count(),
     }
     env.delete()
     return _success("Environment '{}' removed.".format(info["name"]), info)
