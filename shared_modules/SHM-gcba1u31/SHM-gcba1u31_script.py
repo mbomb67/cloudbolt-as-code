@@ -3,7 +3,8 @@ Active Directory helpers for the Windows domain join content.
 
 The domain comes from the LDAP Utility that a server's domain_to_join parameter
 names. This module binds with that utility's service account, searches the
-domain for organizational units, and finds and deletes computer objects. Its
+domain for organizational units, finds and deletes computer objects, and
+deletes the DNS records a computer registered in AD-integrated zones. Its
 callers are the OU suggestions action, the Windows join action, and the
 computer object cleanup action.
 
@@ -18,7 +19,18 @@ References:
   DN parsing:              https://www.python-ldap.org/en/latest/reference/ldap-dn.html
   Controls:                https://www.python-ldap.org/en/latest/reference/ldap-controls.html
   AD tree delete control:  https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ldap/ldap-server-tree-delete-oid
+  AD SD flags control:     https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ldap/ldap-server-sd-flags-oid
+  Security descriptor:     https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/7d4dac05-9cef-4563-a058-f108abecce1d
+  SID layout:              https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/f992ad60-0fe4-4b87-9fed-beb478836861
+  dnsRecord layout:        https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/6912b338-5472-4f59-b912-0edb536b6ed8
+  Record types:            https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/ac793981-1c60-43b8-be59-cdbb5c4ecb8a
+  Deleting a node's last record (dnsTombstoned):
+                           https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/37eea101-00b8-4958-99eb-de8cda4b8417
+  DNS_RPC_RECORD_TS:       https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/def7736a-dd09-4b4a-b8d6-6a702a7ecde0
 """
+import socket
+import struct
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -37,7 +49,22 @@ LDAP_TIMEOUT = 10
 # store under a computer object.
 TREE_DELETE_OID = "1.2.840.113556.1.4.805"
 
-COMPUTER_ATTRS = ["objectGUID", "sAMAccountName", "dNSHostName", "whenCreated"]
+# LDAP_SERVER_SD_FLAGS_OID asking for OWNER_SECURITY_INFORMATION (1) only, so
+# reading nTSecurityDescriptor needs no right to the SACL. The value is the BER
+# encoding of SEQUENCE { INTEGER 1 }.
+SD_FLAGS_OID = "1.2.840.113556.1.4.801"
+SD_OWNER_ONLY = b"\x30\x03\x02\x01\x01"
+
+# dnsRecord values (MS-DNSP 2.3.2.2): a 24-byte header, then the record data.
+DNS_RECORD_HEADER = 24
+DNS_RECORD_VERSION = 5
+DNS_TYPE_ZERO = 0x0000
+DNS_TYPE_A = 0x0001
+RANK_ZONE = 0xF0
+# 1970-01-01 as a FILETIME: 100-nanosecond intervals since 1601-01-01 UTC.
+FILETIME_UNIX_EPOCH = 116444736000000000
+
+COMPUTER_ATTRS = ["objectGUID", "objectSid", "sAMAccountName", "dNSHostName", "whenCreated"]
 
 
 def utilities():
@@ -221,6 +248,7 @@ def _computer(dn, entry):
     return {
         "dn": dn,
         "guid": guid_text(raw_guid) if len(raw_guid) == 16 else "",
+        "sid": _first(entry, "objectSid"),
         "sam_account_name": _first(entry, "sAMAccountName").decode("utf-8", "ignore"),
         "dns_host_name": _first(entry, "dNSHostName").decode("utf-8", "ignore"),
         "created": created,
@@ -252,3 +280,106 @@ def delete_entry(conn, dn):
 def computer_name(hostname):
     """The Windows computer name for a host name: its first label, cut to the 15-character NetBIOS limit."""
     return str(hostname).split(".")[0][:15]
+
+
+def dns_bases(conn):
+    """
+    The containers of the AD-integrated DNS zones on the directory conn is
+    bound to: CN=MicrosoftDNS in each DomainDnsZones or ForestDnsZones
+    application partition its root DSE lists in namingContexts, and
+    CN=MicrosoftDNS,CN=System of the domain partition, for zones stored there.
+    """
+    entries = conn.search_ext_s("", ldap.SCOPE_BASE, "(objectClass=*)", ["namingContexts", "defaultNamingContext"])
+    contexts, default = [], ""
+    for _, entry in entries:
+        entry = entry or {}
+        contexts += [value.decode("utf-8") for value in entry.get("namingContexts") or []]
+        default = default or _first(entry, "defaultNamingContext").decode("utf-8")
+    bases = ["CN=MicrosoftDNS,%s" % context for context in contexts
+             if context.split(",", 1)[0].upper() in ("DC=DOMAINDNSZONES", "DC=FORESTDNSZONES")]
+    if default:
+        bases.append("CN=MicrosoftDNS,CN=System,%s" % default)
+    return bases
+
+
+def find_dns_nodes(conn, fqdn):
+    """
+    The dnsNode objects that hold fqdn's records, as (dn, entry) with
+    dnsRecord and dNSTombstoned. A node's DN is DC=<name in the zone>,
+    DC=<zone>,CN=MicrosoftDNS,..., so its two first DC values joined by a dot
+    are fqdn; the name in the zone can have dots itself.
+    """
+    fqdn = fqdn.strip(".").lower()
+    labels = fqdn.split(".")
+    relative = [".".join(labels[:i]) for i in range(1, len(labels))]
+    if not relative:
+        return []
+    filterstr = "(&(objectClass=dnsNode)(|%s))" % "".join("(dc=%s)" % escape_filter_chars(name) for name in relative)
+    nodes = []
+    for base in dns_bases(conn):
+        try:
+            entries = _search(conn, base, filterstr, ["dnsRecord", "dNSTombstoned"], 20)
+        except (ldap.NO_SUCH_OBJECT, ldap.REFERRAL):
+            continue
+        for dn, entry in entries:
+            rdns = ldap.dn.str2dn(dn)
+            if len(rdns) > 1 and ("%s.%s" % (rdns[0][0][1], rdns[1][0][1])).lower() == fqdn:
+                nodes.append((dn, entry))
+    return nodes
+
+
+def dns_records(entry):
+    """(type, serial, data) of each record in a dnsNode's dnsRecord values."""
+    records = []
+    for raw in entry.get("dnsRecord") or []:
+        if len(raw) < DNS_RECORD_HEADER:
+            continue
+        length, rtype = struct.unpack_from("<HH", raw, 0)
+        serial = struct.unpack_from("<I", raw, 8)[0]
+        records.append((rtype, serial, raw[DNS_RECORD_HEADER:DNS_RECORD_HEADER + length]))
+    return records
+
+
+def a_addresses(entry):
+    """The IPv4 addresses of a dnsNode's A records."""
+    return [socket.inet_ntoa(data) for rtype, _, data in dns_records(entry) if rtype == DNS_TYPE_A and len(data) == 4]
+
+
+def is_tombstoned(entry):
+    return _first(entry, "dNSTombstoned").upper() == b"TRUE"
+
+
+def owner_sid(conn, dn):
+    """The owner SID of an object's security descriptor, in objectSid's binary form; b"" when unreadable."""
+    control = LDAPControl(SD_FLAGS_OID, True, encodedControlValue=SD_OWNER_ONLY)
+    entries = conn.search_ext_s(dn, ldap.SCOPE_BASE, "(objectClass=*)", ["nTSecurityDescriptor"],
+                                serverctrls=[control])
+    for _, entry in entries:
+        descriptor = _first(entry or {}, "nTSecurityDescriptor")
+        if len(descriptor) < 20:
+            continue
+        # Self-relative form: OffsetOwner is the second 32-bit field. A SID is
+        # 8 bytes plus 4 per subauthority, the count being its second byte.
+        offset = struct.unpack_from("<I", descriptor, 4)[0]
+        if offset and len(descriptor) >= offset + 8:
+            return descriptor[offset:offset + 8 + 4 * descriptor[offset + 1]]
+    return b""
+
+
+def tombstone_dns_node(conn, dn, entry):
+    """
+    Delete every record of a dnsNode the way a DNS server does when it deletes
+    the last record at a node: dNSTombstoned TRUE, and dnsRecord a single
+    DNS_TYPE_ZERO record whose data is the deletion time (EntombedTime). DNS
+    servers read the change at their next directory poll and drop the name, as
+    they do for a deletion another DNS server made, and their tombstone cleanup
+    removes the object later. The name is free to register again.
+    """
+    serial = max([serial for _, serial, _ in dns_records(entry)] or [0])
+    entombed = int(time.time() * 10 ** 7) + FILETIME_UNIX_EPOCH
+    # DataLength, Type, Version, Rank, Flags, Serial; TtlSeconds is big-endian;
+    # Reserved, TimeStamp; then the 8-byte EntombedTime.
+    record = (struct.pack("<HHBBHI", 8, DNS_TYPE_ZERO, DNS_RECORD_VERSION, RANK_ZONE, 0, serial)
+              + struct.pack(">I", 0) + struct.pack("<II", 0, 0) + struct.pack("<Q", entombed))
+    conn.modify_ext_s(dn, [(ldap.MOD_REPLACE, "dnsRecord", [record]),
+                           (ldap.MOD_REPLACE, "dNSTombstoned", [b"TRUE"])])

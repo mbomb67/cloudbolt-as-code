@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dpj24dfj",
+            "shared_modules/SHM-v8llc736"
+        ]
+    },
+    "description": "Installs SQL Server 2022 Developer, the Windows ADK with the WinPE add-on and SCVMM 2025 from File Archives on the SCVMM lab's management server.",
+    "id": "OHK-8f9o1496",
+    "max_retries": 0,
+    "name": "Install SCVMM",
+    "resource_technologies": [],
+    "script_filename": "OHK-8f9o1496_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

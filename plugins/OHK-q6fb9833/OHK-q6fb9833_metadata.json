@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dpj24dfj"
+        ]
+    },
+    "description": "Checks the SCVMM lab servers are in the domain, turns on nested virtualization and assigns a cluster IP on each Hyper-V host, and attaches and formats the gp3 lab volume on the SCVMM server with the iSCSI Target Server role.",
+    "id": "OHK-q6fb9833",
+    "max_retries": 0,
+    "name": "Prepare SCVMM Lab on AWS",
+    "resource_technologies": [],
+    "script_filename": "OHK-q6fb9833_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

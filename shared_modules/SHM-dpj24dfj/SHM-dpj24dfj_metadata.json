@@ -1,0 +1,12 @@
+{
+    "description": "Runs the SCVMM Lab on AWS blueprint's guest steps as marker-reporting PowerShell or polled scheduled tasks, and its EC2 steps (nested virtualization, cluster IPs, storage volume) through the AWS handler.",
+    "id": "SHM-dpj24dfj",
+    "label": "SCVMM Lab",
+    "max_retries": 0,
+    "module_name": "scvmm_lab",
+    "name": "scvmm_lab",
+    "resource_technologies": [],
+    "script_filename": "SHM-dpj24dfj_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

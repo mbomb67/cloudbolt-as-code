@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-dpj24dfj"
+        ]
+    },
+    "description": "Adds the SCVMM lab's failover cluster to SCVMM under All Hosts with a Run As account for the domain service account.",
+    "id": "OHK-ive3ka22",
+    "max_retries": 0,
+    "name": "Add Hyper-V Cluster to SCVMM",
+    "resource_technologies": [],
+    "script_filename": "OHK-ive3ka22_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
