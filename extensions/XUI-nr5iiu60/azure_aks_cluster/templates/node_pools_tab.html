@@ -2,11 +2,11 @@
 {% include "azure_aks_cluster/templates/_assets.html" %}
 
 <div id="aksx-node-pools" class="aksx">
-  <div class="aks-card">
+  <div class="aks-flat">
     <div class="aks-hero-top">
       <div>
-        <div class="aks-eyebrow">{% trans "Node pools" %}</div>
-        <div class="aks-title"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="aks-eyebrow"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {% trans "Node pools" %}</div>
+        <div class="aks-title">{{ cluster_name }}</div>
         <div class="aks-sub">{{ resource_group|default:"" }}{% if location %} &middot; {{ location }}{% endif %}</div>
       </div>
       <div class="aks-tools">
@@ -27,7 +27,7 @@
     </div>
   </div>
 
-  {# ── Node pools and nodes: the panel renders its own cards ── #}
+  {# ── Node pools and nodes: the panel renders its own headings and tables ── #}
   <div data-aks-panel="node-pools" data-aks-src="{{ node_pools_url }}" data-aks-loading="Azure and the cluster"></div>
 </div>
 

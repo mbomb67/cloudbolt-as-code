@@ -2,13 +2,14 @@
     "contents": [
         "blueprints/BP-20q58q9z",
         "blueprints/BP-dogqi827",
-        "extensions/XUI-nr5iiu60"
+        "extensions/XUI-nr5iiu60",
+        "extensions/XUI-wyauaxbl"
     ],
-    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions and the UI extension that adds cluster and namespace tabs.",
+    "description": "Provisions Azure Kubernetes Service clusters and managed-namespace landing zones with their day-2 actions, the UI extension that adds cluster and namespace tabs, and the StormForge tabs for clusters running the StormForge agent.",
     "id": "PKG-yrpqo1o0",
-    "last_updated": "2026-10-19",
+    "last_updated": "2026-11-09",
     "metadata_version": "2026.1.0",
     "minimum_version_required": "",
     "name": "Azure AKS",
-    "version": "1.0.0"
+    "version": "1.1.0"
 }

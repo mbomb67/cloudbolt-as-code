@@ -13,12 +13,13 @@ OpenShift Virtualization virtual machines and its Routes.
   users, groups, and service accounts a RoleBinding in the project names (and
   the cluster admins), the CloudBolt groups that may order into it, and the oc
   commands that sign in and switch to it; Manage access (Manage Team Access).
-- Workloads: a read-only inventory of the project: usage of CloudBolt's quota
-  (and any other quota object in it), virtual machines, Deployments,
-  StatefulSets and DaemonSets, pods, services, Routes and ingresses,
-  persistent volume claims, and recent warning events; Request quota change
-  (Request Quota Change). No logs, Secrets or ConfigMaps, and no buttons that
-  change the cluster.
+- Workloads: a read-only inventory of the project: the alerts the cluster's
+  monitoring is firing for it and the object each is about, usage of
+  CloudBolt's quota (and any other quota object in it), virtual machines,
+  Deployments, StatefulSets and DaemonSets, pods, services, Routes and
+  ingresses, persistent volume claims, and recent warning events; Request
+  quota change (Request Quota Change). No logs, Secrets or ConfigMaps, and no
+  buttons that change the cluster.
 
 Every button opens CloudBolt's own dialog for one of the blueprint's resource
 actions, so approvals, permissions and job history apply. Buttons appear only
@@ -39,11 +40,15 @@ Vendor API references (each call site cites its own page):
     https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/network_apis/route-route-openshift-io-v1
     https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/cli_tools/openshift-cli-oc
     https://github.com/kubevirt/api/blob/main/core/v1/types.go
+    https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
 """
 
 import datetime
 import importlib
+import inspect
 import re
+import threading
+from urllib.parse import urlparse
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
@@ -775,6 +780,248 @@ def _owned_by_ingress(route):
     return any(owner.get("kind") == "Ingress" for owner in (route.get("metadata") or {}).get("ownerReferences") or [])
 
 
+# ---------------------------------------------------------------------------
+# Alerts: what the cluster's monitoring is firing for the project
+# ---------------------------------------------------------------------------
+# Read from the Thanos Querier route of OpenShift's monitoring stack, which
+# answers for the platform's rules and, where monitoring for user-defined
+# projects is on, for the rules in the project itself. The route serves the
+# Prometheus HTTP API under /api and takes the bearer token the API server
+# takes; the token's identity needs the cluster-monitoring-view role.
+#   Route (path /api, port web):
+#     https://github.com/openshift/cluster-monitoring-operator/blob/release-4.18/assets/thanos-querier/route.yaml
+#   GET /api/v1/alerts (labels, annotations, state, activeAt):
+#     https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
+#   cluster-monitoring-view:
+#     https://github.com/openshift/cluster-monitoring-operator/blob/release-4.18/assets/cluster-monitoring-operator/cluster-role-view.yaml
+# The call cannot filter on an alert's labels, so the project's alerts are
+# picked out here by their namespace label; an alert without one is a
+# cluster-wide condition and is left out. OpenShift's default pod and workload
+# rules watch only its own namespaces (openshift-*, kube-*, default):
+#   https://github.com/openshift/cluster-monitoring-operator/blob/release-4.18/assets/control-plane/prometheus-rule.yaml
+# so a project shows the alerts of OpenShift Virtualization, of a managed
+# service's own rules, and of any rules in the project.
+MONITORING_NAMESPACE = "openshift-monitoring"
+THANOS_ROUTE = "thanos-querier"
+# (connect, read) seconds: monitoring must never hold up the inventory for long.
+MONITORING_TIMEOUT = (5, 20)
+HOST_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
+
+# Route host of each cluster's Thanos Querier by API URL, for the life of the
+# web process.
+_thanos_hosts = {}
+
+# Severity label values (lower-cased; some rules capitalize them) as
+# (text, pill style, icon). Red and amber mark critical and warning alerts only.
+ALERT_SEVERITIES = {
+    "critical": ("Critical", "bad", "bi-exclamation-octagon-fill"),
+    "warning": ("Warning", "warn", "bi-exclamation-triangle-fill"),
+    "info": ("Info", "muted", "bi-info-circle"),
+}
+SEVERITY_ORDER = ["critical", "warning", "info"]
+
+# Labels that name the object an alert is about, most specific first, with
+# the kind shown. kube-state-metrics names the object in a label of its kind:
+#   https://github.com/kubernetes/kube-state-metrics/tree/main/docs/metrics
+# The service, container and instance labels are left out: on most alerts
+# they describe the scrape target, not the object.
+ALERT_OBJECT_LABELS = [
+    ("deployment", "Deployment"),
+    ("statefulset", "StatefulSet"),
+    ("daemonset", "DaemonSet"),
+    ("job_name", "Job"),
+    ("cronjob", "CronJob"),
+    ("horizontalpodautoscaler", "Horizontal pod autoscaler"),
+    ("persistentvolumeclaim", "Volume claim"),
+    ("poddisruptionbudget", "Disruption budget"),
+    ("resourcequota", "Resource quota"),
+    ("pod", "Pod"),
+]
+# The inventory rows that carry an alert count, by object kind: a section
+# name, or for workloads the row's own kind.
+ALERT_SECTIONS = {
+    "Virtual machine": "vm", "Deployment": "Deployment", "StatefulSet": "StatefulSet",
+    "DaemonSet": "DaemonSet", "Pod": "pod", "Volume claim": "claim",
+}
+
+
+def _thanos_host(lz, client):
+    """Host of the cluster's thanos-querier route: read from the Route, else
+    the default host OpenShift gives it, <route>-<namespace>.apps.<cluster
+    domain>, taken from the API server's api.<cluster domain>; '' when neither
+    is known.
+    https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/network_apis/route-route-openshift-io-v1"""
+    if client.api_url in _thanos_hosts:
+        return _thanos_hosts[client.api_url]
+    host = ""
+    try:
+        route = client.get("/apis/route.openshift.io/v1/namespaces/{}/routes/{}".format(
+            MONITORING_NAMESPACE, THANOS_ROUTE))
+        host = ((route or {}).get("spec") or {}).get("host") or ""
+    except lz.LandingZoneError as exc:
+        # Reading a Route in openshift-monitoring needs more than a handler
+        # scoped to its projects may have.
+        logger.info("The %s route was not read: %s", THANOS_ROUTE, exc)
+    if not host:
+        api_host = urlparse(client.api_url).hostname or ""
+        if api_host.startswith("api."):
+            host = "{}-{}.apps.{}".format(THANOS_ROUTE, MONITORING_NAMESPACE, api_host[len("api."):])
+    if not HOST_RE.match(host):
+        return ""
+    _thanos_hosts[client.api_url] = host
+    return host
+
+
+def _project_alerts(lz, client, namespace):
+    """(alerts, problem): the firing and pending alerts labelled with the
+    project's namespace as the monitoring API returns them, or why they could
+    not be read."""
+    if not hasattr(client, "get_from_route"):
+        return [], "Alerts need the current openshift_landing_zone shared module (SHM-qmiweowv)."
+    host = _thanos_host(lz, client)
+    if not host:
+        return [], "The cluster's monitoring route could not be found."
+    try:
+        body = client.get_from_route(host, "/api/v1/alerts", timeout=MONITORING_TIMEOUT)
+    except lz.LandingZoneError as exc:
+        status = getattr(exc, "status_code", None)
+        logger.warning("Reading alerts for %s from %s failed: %s", namespace, host, exc)
+        if status in (401, 403):
+            return [], ("The resource handler's credentials may not read the cluster's monitoring: "
+                        "they need the cluster-monitoring-view role.")
+        if status is None:
+            _thanos_hosts.pop(client.api_url, None)
+        return [], "The cluster's monitoring could not be read: {}".format(str(exc)[:300])
+    alerts = ((body or {}).get("data") or {}).get("alerts") or []
+    return [
+        alert for alert in alerts
+        if (alert.get("labels") or {}).get("namespace") == namespace and alert.get("state") in ("firing", "pending")
+    ], ""
+
+
+def _owner(item, kind):
+    """Name of the owner of ``kind`` in a Kubernetes object's ownerReferences, or ''."""
+    for owner in (item.get("metadata") or {}).get("ownerReferences") or []:
+        if owner.get("kind") == kind:
+            return owner.get("name", "")
+    return ""
+
+
+def _alert_owners(vms, pods, budgets):
+    """What ties an alert's object to a virtual machine: the VM names, and
+    the VM behind each volume claim, pod and disruption budget.
+    A VirtualMachine names its disks' claims in spec.template.spec.volumes
+    (dataVolume.name, persistentVolumeClaim.claimName):
+      https://github.com/kubevirt/api/blob/main/core/v1/schema.go
+    Its virt-launcher pod and the PodDisruptionBudget KubeVirt keeps for it
+    are owned by its VirtualMachineInstance, which carries the VM's name.
+      https://kubernetes.io/docs/reference/kubernetes-api/policy-resources/pod-disruption-budget-v1/"""
+    claims = {}
+    for vm in vms:
+        name = (vm.get("metadata") or {}).get("name", "")
+        template = ((vm.get("spec") or {}).get("template") or {}).get("spec") or {}
+        for volume in template.get("volumes") or []:
+            claim = ((volume.get("dataVolume") or {}).get("name")
+                     or (volume.get("persistentVolumeClaim") or {}).get("claimName"))
+            if claim:
+                claims[claim] = name
+    return {
+        "machines": {(vm.get("metadata") or {}).get("name", "") for vm in vms},
+        "claims": claims,
+        "pods": {(p.get("metadata") or {}).get("name", ""): _owner(p, "VirtualMachineInstance") for p in pods},
+        "budgets": {(b.get("metadata") or {}).get("name", ""): _owner(b, "VirtualMachineInstance") for b in budgets},
+    }
+
+
+def _alert_object(labels, owners):
+    """(kind, name, virtual machine) of the object an alert is about, each ''
+    when unknown. OpenShift Virtualization's alerts name the VM in vmi, vm or
+    name, and carry the pod of the KubeVirt component that reported it, so a
+    VM is looked for first and a pod counts only when it is in the project.
+      https://github.com/kubevirt/kubevirt/blob/release-1.5/pkg/monitoring/rules/alerts/vms.go"""
+    machine = labels.get("vmi") or labels.get("vm") or ""
+    if not machine and labels.get("name") in owners["machines"]:
+        machine = labels["name"]
+    if machine:
+        return "Virtual machine", machine, machine
+    for label, kind in ALERT_OBJECT_LABELS:
+        name = labels.get(label)
+        if not name:
+            continue
+        if label == "pod":
+            if name not in owners["pods"]:
+                continue
+            return kind, name, owners["pods"][name]
+        if label == "persistentvolumeclaim":
+            return kind, name, owners["claims"].get(name, "")
+        if label == "poddisruptionbudget":
+            return kind, name, owners["budgets"].get(name, "")
+        return kind, name, ""
+    return "", "", ""
+
+
+def _alert_rows(alerts, owners, servers):
+    """The project's alerts for display: firing before pending, critical
+    first, longest-running first."""
+    rows = []
+    for alert in alerts:
+        labels, annotations = alert.get("labels") or {}, alert.get("annotations") or {}
+        severity = str(labels.get("severity") or "").lower()
+        text, style, icon = ALERT_SEVERITIES.get(severity, (severity.capitalize() or "None", "muted", "bi-bell"))
+        firing = alert.get("state") == "firing"
+        kind, name, machine = _alert_object(labels, owners)
+        active = str(alert.get("activeAt") or "")
+        runbook = str(annotations.get("runbook_url") or "")
+        rows.append({
+            "name": labels.get("alertname", ""),
+            "firing": firing,
+            "severity": severity,
+            "severity_text": text,
+            "pill": _pill(text, style, icon) if firing else _pill("Pending", "muted", "bi-clock"),
+            # Rules word their text as description, message (older and managed-service rules) or summary.
+            "text": annotations.get("description") or annotations.get("message") or annotations.get("summary") or "",
+            "runbook_url": runbook if runbook.startswith("https://") else "",
+            "kind": kind,
+            "object": name,
+            "machine": machine,
+            "server_url": servers.get(machine, "") if machine else "",
+            "since": _age(active[:19] + "Z") if len(active) >= 19 else "",
+            "since_title": "{} UTC".format(active[:16].replace("T", " ")) if len(active) >= 16 else "",
+            "active": active,
+        })
+    rank = {severity: index for index, severity in enumerate(SEVERITY_ORDER)}
+    rows.sort(key=lambda r: (not r["firing"], rank.get(r["severity"], len(rank)), r["active"], r["name"], r["object"]))
+    return rows
+
+
+def _mark_alerts(alerts, sections):
+    """Put an ``alerts`` pill on each inventory row a firing alert is about:
+    the count, in the color of the worst severity. ``sections`` maps "vm",
+    "pod", "claim" and "workload" to their rows; a workload row is matched on
+    its own kind. A VM also counts the alerts on its disks' claims, its pod
+    and its disruption budget."""
+    found = {}
+    for alert in alerts:
+        if not alert["firing"]:
+            continue
+        keys = set()
+        if alert["kind"] in ALERT_SECTIONS:
+            keys.add((ALERT_SECTIONS[alert["kind"]], alert["object"]))
+        if alert["machine"]:
+            keys.add(("vm", alert["machine"]))
+        for key in keys:
+            found.setdefault(key, []).append(alert["severity"])
+    for section, rows in sections.items():
+        for row in rows:
+            severities = found.get((row.get("kind") if section == "workload" else section, row["name"]))
+            if not severities:
+                continue
+            worst = next((s for s in SEVERITY_ORDER if s in severities), "")
+            _, style, icon = ALERT_SEVERITIES.get(worst, ("", "muted", "bi-bell"))
+            row["alerts"] = _pill(
+                "{} alert{}".format(len(severities), "" if len(severities) == 1 else "s"), style, icon)
+
+
 def _workloads_context(resource, profile):
     lz = _lz()
     namespace, client = _client(resource)
@@ -816,7 +1063,8 @@ def _workloads_context(resource, profile):
             + [_workload_row("DaemonSet", s) for s in items("DaemonSets", "/apis/apps/v1" + path + "/daemonsets")]
         )
         workloads.sort(key=lambda r: (r["kind"], r["name"]))
-        pods = sorted((_pod_row(p) for p in items("Pods", "/api/v1" + path + "/pods")), key=lambda r: r["name"])
+        pod_items = items("Pods", "/api/v1" + path + "/pods")
+        pods = sorted((_pod_row(p) for p in pod_items), key=lambda r: r["name"])
         endpoints = (
             [_service_row(s) for s in items("Services", "/api/v1" + path + "/services")]
             + [_route_row(r) for r in items("Routes", "/apis/route.openshift.io/v1" + path + "/routes")
@@ -828,11 +1076,26 @@ def _workloads_context(resource, profile):
             key=lambda r: r["name"],
         )
         events, warning_count = _event_rows(items("Events", "/api/v1" + path + "/events"))
+
+        raw_alerts, alerts_problem = _project_alerts(lz, client, namespace)
+        budgets = []
+        if any((a.get("labels") or {}).get("poddisruptionbudget") for a in raw_alerts):
+            budgets = items("Pod disruption budgets", "/apis/policy/v1" + path + "/poddisruptionbudgets")
     finally:
         client.close()
 
+    alerts = _alert_rows(raw_alerts, _alert_owners(vms, pod_items, budgets), servers)
+    _mark_alerts(alerts, {"vm": machines, "workload": workloads, "pod": pods, "claim": claims})
+    firing = [a for a in alerts if a["firing"]]
+
     return {
         "namespace": namespace,
+        "alerts": alerts,
+        "alerts_problem": alerts_problem,
+        "alerts_firing": len(firing),
+        "alerts_pending": len(alerts) - len(firing),
+        "alerts_critical": sum(1 for a in firing if a["severity"] == "critical"),
+        "alerts_warning": sum(1 for a in firing if a["severity"] == "warning"),
         "quota": quota,
         "other_quotas": other_quotas,
         "machines": machines,
@@ -885,12 +1148,50 @@ def workloads_panel(request, resource_id):
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
+# CloudBolt 2026.1.73 and later let a tab extension take a built-in tab's
+# place: tab_extension(replaces="<slug>") puts the tab in that tab's slot
+# (CMP-3592).
+# On a project, Workloads takes Overview's slot.
+# Older appliances have no such argument, and there the tabs follow the
+# built-in ones as before.
+_REPLACES_SUPPORTED = "replaces" in inspect.signature(tab_extension).parameters
+_tab_state = threading.local()
+
+
+class _BuiltInTab(str):
+    """Slug of the built-in tab an extension tab replaces, true only while
+    that tab is shown. CloudBolt lets the last extension that names a slug
+    decide that slot whether or not its own tab is shown, and the cluster and
+    namespace tabs of the EKS, AKS, GKE and OpenShift extensions all name
+    Overview. A hidden tab whose slug is false names nothing and leaves the
+    slot to the tab that is shown. Each tab delegate records in _tab_state
+    whether its kind of resource ("cluster" or "namespace") is on the page,
+    just before CloudBolt reads the slug, per thread because every request
+    shares the extension object."""
+
+    def __new__(cls, slug, kind):
+        tab = super().__new__(cls, slug)
+        tab.kind = kind
+        return tab
+
+    def __bool__(self):
+        return bool(getattr(_tab_state, self.kind, False))
+
+
+def _replaces(slug, kind):
+    """tab_extension arguments that put a tab in a built-in tab's slot on
+    resources of its kind."""
+    return {"replaces": _BuiltInTab(slug, kind)} if _REPLACES_SUPPORTED else {}
+
+
 class ProjectTabDelegate(TabExtensionDelegate):
     """OpenShift Project resources of the OpenShift Project Landing Zone blueprint."""
 
     def should_display(self):
         resource_type = getattr(self.instance, "resource_type", None)
-        return getattr(resource_type, "name", "") == RESOURCE_TYPE and bool(_attr(self.instance, MARKER_FIELD))
+        shown = getattr(resource_type, "name", "") == RESOURCE_TYPE and bool(_attr(self.instance, MARKER_FIELD))
+        _tab_state.namespace = shown
+        return shown
 
 
 def _tab_context(resource):
@@ -922,13 +1223,15 @@ def openshift_project_connect_tab(request, obj_id):
     model=Resource,
     title="Workloads",
     delegate=ProjectTabDelegate,
-    description="Read-only inventory of one OpenShift project: quota usage, virtual machines, workloads, pods, "
-                "services and routes, storage, and warning events",
+    description="Read-only inventory of one OpenShift project: firing alerts, quota usage, virtual machines, "
+                "workloads, pods, services and routes, storage, and warning events",
+    **_replaces("overview", "namespace")
 )
 def openshift_project_workloads_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
     context = _tab_context(resource)
     context.update({
+        "profile": request.get_user_profile(),
         "workloads_url": reverse("openshift_project_workloads_panel", args=[resource.id]),
         "quota_change_url": _action_url(request.get_user_profile(), resource, ACTION_REQUEST_QUOTA_CHANGE),
     })

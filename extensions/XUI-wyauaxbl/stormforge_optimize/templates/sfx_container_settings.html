@@ -1,0 +1,26 @@
+<div class="sfx-card sfx-set">
+  <div class="sfx-set-t">{{ c.title }}</div>
+  {% if c.note %}<div class="sfx-set-d">{{ c.note }}</div>{% endif %}
+  <div class="sfx-settings-grid" style="margin-top:8px">
+    <div>
+      <div class="k">CPU Settings</div>
+      <table class="sfx-mini">
+        <tr><td>Policy:</td><td colspan="2">{{ c.cpu.policy }}</td></tr>
+        <tr><td>Limit to Request Ratio:</td><td colspan="2">{{ c.cpu.ratio }}</td></tr>
+        <tr><th>Bounds:</th><th>Min</th><th>Max</th></tr>
+        <tr><td>Requests:</td><td>{{ c.cpu.req_min }}</td><td>{{ c.cpu.req_max }}</td></tr>
+        <tr><td>Limits:</td><td>{{ c.cpu.lim_min }}</td><td>{{ c.cpu.lim_max }}</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="k">Memory Settings</div>
+      <table class="sfx-mini">
+        <tr><td>Policy:</td><td colspan="2">{{ c.memory.policy }}</td></tr>
+        <tr><td>Limit to Request Ratio:</td><td colspan="2">{{ c.memory.ratio }}</td></tr>
+        <tr><th>Bounds:</th><th>Min</th><th>Max</th></tr>
+        <tr><td>Requests:</td><td>{{ c.memory.req_min }}</td><td>{{ c.memory.req_max }}</td></tr>
+        <tr><td>Limits:</td><td>{{ c.memory.lim_min }}</td><td>{{ c.memory.lim_max }}</td></tr>
+      </table>
+    </div>
+  </div>
+</div>

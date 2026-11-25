@@ -1,0 +1,16 @@
+{
+    "action_inputs": [],
+    "action_inputs_sequence": [],
+    "dependencies": {},
+    "description": "Adds the Pod networking record CloudBolt looks up under the namespace of each OpenShift Virtualization environment in the order, so server builds outside the default namespace do not fail at Adjusting NICs.",
+    "id": "OHK-zsv5qq15",
+    "max_retries": 0,
+    "name": "Prepare OpenShift Pod Network",
+    "resource_technologies": [
+        "OpenShift Virtualization"
+    ],
+    "script_filename": "OHK-zsv5qq15_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}

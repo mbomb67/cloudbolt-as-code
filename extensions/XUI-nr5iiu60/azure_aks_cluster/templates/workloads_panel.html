@@ -5,8 +5,15 @@
 </div>
 {% else %}
 
+{# ── Capacity ── #}
+<div class="aks-stats">
+  <div class="aks-stat"><div class="k">{% trans "CPU requested" %}</div><div class="v">{{ totals.cpu_requests }} <span class="aks-muted">/ {{ totals.cpu_allocatable }} {% trans "cores" %}</span></div></div>
+  <div class="aks-stat"><div class="k">{% trans "Memory requested" %}</div><div class="v">{{ totals.memory_requests }} <span class="aks-muted">/ {{ totals.memory_allocatable }}</span></div></div>
+  <div class="aks-stat"><div class="k">{% trans "Pods" %}</div><div class="v">{{ totals.pods }} <span class="aks-muted">{% trans "running or pending" %}</span></div></div>
+</div>
+
 {# ── Nodes ── #}
-<div class="aks-card">
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Nodes" %} &middot; {{ nodes|length }}</span>
     <div class="aks-card-tools">
@@ -14,11 +21,6 @@
       {% if pressured %}<span class="aks-pill aks-pill-warn"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> {% blocktrans count n=pressured %}{{ n }} node under pressure{% plural %}{{ n }} nodes under pressure{% endblocktrans %}</span>{% endif %}
       <input class="form-control form-control-sm" type="search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter nodes' %}" data-aks-filter="#aksx-nodes-table">
     </div>
-  </div>
-  <div class="aks-stats">
-    <div class="aks-stat"><div class="k">{% trans "CPU requested" %}</div><div class="v">{{ totals.cpu_requests }} <span class="aks-muted">/ {{ totals.cpu_allocatable }} {% trans "cores" %}</span></div></div>
-    <div class="aks-stat"><div class="k">{% trans "Memory requested" %}</div><div class="v">{{ totals.memory_requests }} <span class="aks-muted">/ {{ totals.memory_allocatable }}</span></div></div>
-    <div class="aks-stat"><div class="k">{% trans "Pods" %}</div><div class="v">{{ totals.pods }} <span class="aks-muted">{% trans "running or pending" %}</span></div></div>
   </div>
   <div class="table-responsive">
     <table id="aksx-nodes-table" class="aks-table">
@@ -73,7 +75,7 @@
 </div>
 
 {# ── Namespaces ── #}
-<div class="aks-card">
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Namespaces" %} &middot; {{ namespaces|length }}</span>
     <div class="aks-card-tools">
@@ -127,8 +129,8 @@
 </div>
 
 {% if warnings %}
-<div class="aks-note">
+<div class="aks-flat"><div class="aks-note">
   {% for warning in warnings %}<div><i class="bi bi-info-circle" aria-hidden="true"></i> {{ warning }}</div>{% endfor %}
-</div>
+</div></div>
 {% endif %}
 {% endif %}

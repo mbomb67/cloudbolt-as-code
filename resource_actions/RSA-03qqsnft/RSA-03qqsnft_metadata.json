@@ -26,6 +26,7 @@
     "auto_submit_order": false,
     "dangerous": false,
     "dependencies": {
+        "displayCondition": "plugins/OHK-plot9gy7",
         "hook": "plugins/OHK-paad1c56"
     },
     "dialog_message": "",

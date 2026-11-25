@@ -6,5 +6,8 @@ Day-2 actions on servers.
 | Action | ID | Description | Plugin |
 |---|---|---|---|
 | Deploy AWS App Migration Agent | [SVA-mwbtjfr0](SVA-mwbtjfr0/README.md) | Installs the AWS Application Migration Service replication agent on a Linux server. | [Deploy AWS App Migration Agent](../plugins/OHK-5wpzgw68/) |
+| Enable Apache Down Alert | [SVA-t1z9yt6d](SVA-t1z9yt6d/README.md) | Adds a TCP readiness probe on port 443 to an OpenShift Virtualization VM (restarting it once), creates a PrometheusRule that fires ApacheDown when the VM's pod goes not-ready, and routes the alert to the Monitoring Alerts webhook. | [Enable Apache Down Alert](../plugins/OHK-ut5c0igl/) |
+| Restart Apache | [SVA-5bg39wkr](SVA-5bg39wkr/README.md) | Restarts Apache on a Linux server, health-checks it, and opens a ServiceNow incident and posts to Microsoft Teams when an alert started the job and Apache is still unhealthy. | [Restart Apache](../plugins/OHK-eba8nsot/) |
+| Run Script (OpenShift API tunnel) | [SVA-5vsp0tv6](SVA-5vsp0tv6/) | Runs a shell script on an OpenShift Virtualization VM over SSH tunnelled through the cluster API | [Run Script (OpenShift API tunnel)](../plugins/OHK-yqrralqk/) |
 | Run Task | [SVA-4sin3s0q](SVA-4sin3s0q/README.md) | Runs the Remote Script chosen in the Run Task action on the selected VMs, after checking that it fits each VM and that its inputs are valid. | [Run Task](../plugins/OHK-o4tgygjs/) |
 | Run Workflow | [SVA-j7rbsh39](SVA-j7rbsh39/README.md) | Runs a workflow in order on the selected VMs, for the Run Workflow action or as a blueprint build item on the VMs an order deployed, after checking the workflow, every step and every input against each VM. | [Run Workflow](../plugins/OHK-69gk5ne9/) |

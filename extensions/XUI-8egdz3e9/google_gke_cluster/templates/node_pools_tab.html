@@ -2,11 +2,11 @@
 {% include "google_gke_cluster/templates/_assets.html" %}
 
 <div id="gkex-node-pools" class="gkex">
-  <div class="gke-card">
+  <div class="gke-flat">
     <div class="gke-hero-top">
       <div>
-        <div class="gke-eyebrow">{% trans "Node pools" %}</div>
-        <div class="gke-title"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-eyebrow"><i class="bi bi-hdd-stack-fill" aria-hidden="true"></i> {% trans "Node pools" %}</div>
+        <div class="gke-title">{{ cluster_name }}</div>
         <div class="gke-sub">{{ project|default:"" }}{% if location %} &middot; {{ location }}{% endif %}</div>
       </div>
       <div class="gke-tools">
@@ -27,7 +27,7 @@
     </div>
   </div>
 
-  {# ── Node pools and nodes: the panel renders its own cards ── #}
+  {# ── Node pools and nodes: the panel renders its own headings and tables ── #}
   <div data-gke-panel="node-pools" data-gke-src="{{ node_pools_url }}" data-gke-loading="Google Cloud and the cluster"></div>
 </div>
 

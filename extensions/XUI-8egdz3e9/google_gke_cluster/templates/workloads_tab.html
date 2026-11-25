@@ -2,11 +2,11 @@
 {% include "google_gke_cluster/templates/_assets.html" %}
 
 <div id="gkex-workloads" class="gkex">
-  <div class="gke-card">
+  <div class="gke-flat">
     <div class="gke-hero-top">
       <div>
-        <div class="gke-eyebrow">{% trans "Workloads" %}</div>
-        <div class="gke-title"><i class="bi bi-boxes" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-eyebrow"><i class="bi bi-boxes" aria-hidden="true"></i> {% trans "Workloads" %}</div>
+        <div class="gke-title">{{ cluster_name }}</div>
         <div class="gke-sub">
           {% if orchestrator_name %}{% trans "Read with the credentials of container orchestrator" %} {{ orchestrator_name }}{% else %}{% trans "No container orchestrator is linked to this resource" %}{% endif %}
         </div>

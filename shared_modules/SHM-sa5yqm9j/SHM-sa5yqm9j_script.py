@@ -48,6 +48,8 @@ import re
 import time
 from collections import OrderedDict
 
+import requests
+
 from accounts.models import Group
 from common.methods import set_progress
 from infrastructure.models import CustomField, Environment
@@ -348,8 +350,11 @@ class NamespaceClient:
         """Issue a request; return parsed JSON, or None on 404 when ``allow_404``.
 
         The wrapper raises CloudBoltException for any status outside
-        ``expected_statuses``; that is turned into NamespaceError so callers
-        can report it without a traceback.
+        ``expected_statuses``, and requests raises RequestException when the
+        API server cannot be reached at all (its DNS name is gone once the
+        cluster is deleted, a timeout, a TLS failure); both are turned into
+        NamespaceError so callers can report it without a traceback.
+        https://requests.readthedocs.io/en/latest/api/#requests.RequestException
         """
         url = f"{self._root}/{path.lstrip('/')}"
         expected = [200, 201, 202, 204] + ([404] if allow_404 else [])
@@ -363,6 +368,8 @@ class NamespaceClient:
             response = send(url, **kwargs)
         except CloudBoltException as exc:
             raise NamespaceError(str(exc))
+        except requests.exceptions.RequestException as exc:
+            raise NamespaceError(f"Could not reach the Kubernetes API at {self._root}: {exc}")
         if response.status_code == 404:
             return None
         if response.text and response.headers.get("Content-Type", "").startswith("application/json"):

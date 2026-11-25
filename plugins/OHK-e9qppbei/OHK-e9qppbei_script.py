@@ -76,12 +76,24 @@ def get_orchestrator_id(cluster, handler, region, current_id):
     Return the ID of the cluster's Kubernetes orchestrator: the one its
     resource already points at, else one registered for its endpoint, else a
     new one with its own environment.
+
+    A cluster deleted and created again under the same name keeps its ARN, so
+    it matches the same resource and orchestrator, but AWS gives it a new
+    endpoint; the orchestrator is then moved to that endpoint, or every call
+    through it would go to a host that no longer exists.
     """
     host = cluster["endpoint"].removeprefix("https://")
     kubernetes = (
         current_id and Kubernetes.objects.filter(id=current_id).first()
     ) or Kubernetes.objects.filter(ip=host).first()
     if kubernetes:
+        if (kubernetes.ip or "").lower() != host.lower():
+            logger.info(
+                f"EKS cluster {cluster['name']} has a new endpoint; "
+                f"updating its orchestrator from {kubernetes.ip} to {host}"
+            )
+            kubernetes.ip = host
+            kubernetes.save(update_fields=["ip"])
         return kubernetes.id
 
     kubernetes = Kubernetes.objects.create(

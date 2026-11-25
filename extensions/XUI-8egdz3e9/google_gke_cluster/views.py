@@ -76,7 +76,9 @@ Vendor API references (each call site cites its own page):
 """
 
 import importlib
+import inspect
 import re
+import threading
 from datetime import datetime, timezone
 
 from django.contrib import messages
@@ -1820,11 +1822,50 @@ def allow_all_cluster_groups(request, resource_id):
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
+# CloudBolt 2026.1.73 and later let a tab extension take a built-in tab's
+# place: tab_extension(replaces="<slug>") puts the tab in that tab's slot
+# (CMP-3592).
+# On a cluster, Cluster takes Overview's slot and Node pools takes
+# Sub-Resources'; on a namespace, Workloads takes Overview's.
+# Older appliances have no such argument, and there the tabs follow the
+# built-in ones as before.
+_REPLACES_SUPPORTED = "replaces" in inspect.signature(tab_extension).parameters
+_tab_state = threading.local()
+
+
+class _BuiltInTab(str):
+    """Slug of the built-in tab an extension tab replaces, true only while
+    that tab is shown. CloudBolt lets the last extension that names a slug
+    decide that slot whether or not its own tab is shown, and the cluster and
+    namespace tabs of the EKS, AKS, GKE and OpenShift extensions all name
+    Overview. A hidden tab whose slug is false names nothing and leaves the
+    slot to the tab that is shown. Each tab delegate records in _tab_state
+    whether its kind of resource ("cluster" or "namespace") is on the page,
+    just before CloudBolt reads the slug, per thread because every request
+    shares the extension object."""
+
+    def __new__(cls, slug, kind):
+        tab = super().__new__(cls, slug)
+        tab.kind = kind
+        return tab
+
+    def __bool__(self):
+        return bool(getattr(_tab_state, self.kind, False))
+
+
+def _replaces(slug, kind):
+    """tab_extension arguments that put a tab in a built-in tab's slot on
+    resources of its kind."""
+    return {"replaces": _BuiltInTab(slug, kind)} if _REPLACES_SUPPORTED else {}
+
+
 class ClusterTabDelegate(TabExtensionDelegate):
     """Kubernetes Cluster resources of the Google Kubernetes Engine blueprint."""
 
     def should_display(self):
-        return bool(_attr(self.instance, CLUSTER_MARKER_FIELD))
+        shown = bool(_attr(self.instance, CLUSTER_MARKER_FIELD))
+        _tab_state.cluster = shown
+        return shown
 
 
 class NamespaceTabDelegate(TabExtensionDelegate):
@@ -1832,10 +1873,12 @@ class NamespaceTabDelegate(TabExtensionDelegate):
 
     def should_display(self):
         resource_type = getattr(self.instance, "resource_type", None)
-        return (
+        shown = (
             getattr(resource_type, "name", "") == NAMESPACE_RESOURCE_TYPE
             and bool(_attr(self.instance, NAMESPACE_MARKER_FIELD))
         )
+        _tab_state.namespace = shown
+        return shown
 
 
 def _tab_context(resource):
@@ -1865,11 +1908,13 @@ def _tab_context(resource):
     title="Cluster",
     delegate=ClusterTabDelegate,
     description="Live GKE cluster status, basics, networking, security, upgrades, and features",
+    **_replaces("overview", "cluster")
 )
 def gke_cluster_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
     context = _tab_context(resource)
     context["cluster_url"] = reverse("google_gke_cluster_panel", args=[resource.id])
+    context["profile"] = request.get_user_profile()
     return render(request, TEMPLATES + "cluster_tab.html", context)
 
 
@@ -1878,6 +1923,7 @@ def gke_cluster_tab(request, obj_id):
     title="Node pools",
     delegate=ClusterTabDelegate,
     description="GKE node pools and nodes with Scale, Upgrade, and Delete actions",
+    **_replaces("sub-resources", "cluster")
 )
 def gke_node_pools_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
@@ -1967,11 +2013,13 @@ def gke_namespace_connect_tab(request, obj_id):
     title="Workloads",
     delegate=NamespaceTabDelegate,
     description="Read-only inventory of one GKE namespace: quota usage, workloads, pods, services, storage, and warning events",
+    **_replaces("overview", "namespace")
 )
 def gke_namespace_workloads_tab(request, obj_id):
     resource = get_object_or_404(Resource, pk=obj_id)
     context = _namespace_tab_context(resource)
     context.update({
+        "profile": request.get_user_profile(),
         "workloads_url": reverse("google_gke_namespace_workloads_panel", args=[resource.id]),
         "quota_change_url": _action_url(
             request.get_user_profile(), resource, ACTION_REQUEST_QUOTA_CHANGE

@@ -12,13 +12,11 @@
 {% endfor %}
 
 {# ── Summary ── #}
-<div class="aks-card">
-  <div class="aks-stats">
-    <div class="aks-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="aks-muted">/ {{ workloads|length }}</span></div></div>
-    <div class="aks-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="aks-muted">/ {{ pods|length }}</span></div></div>
-    <div class="aks-stat"><div class="k">{% trans "Services and ingresses" %}</div><div class="v">{{ endpoints|length }}</div></div>
-    <div class="aks-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
-  </div>
+<div class="aks-stats">
+  <div class="aks-stat"><div class="k">{% trans "Workloads ready" %}</div><div class="v">{{ workloads_ready }} <span class="aks-muted">/ {{ workloads|length }}</span></div></div>
+  <div class="aks-stat"><div class="k">{% trans "Pods running" %}</div><div class="v">{{ pods_running }} <span class="aks-muted">/ {{ pods|length }}</span></div></div>
+  <div class="aks-stat"><div class="k">{% trans "Services and ingresses" %}</div><div class="v">{{ endpoints|length }}</div></div>
+  <div class="aks-stat"><div class="k">{% trans "Warning events" %}</div><div class="v">{{ warning_count }}</div></div>
 </div>
 
 {# ── Quota usage ── #}
@@ -47,7 +45,7 @@
 </details>
 
 {# ── Workloads ── #}
-<details class="aks-card aks-fold" open>
+<details class="aks-flat aks-fold" open>
   <summary class="aks-card-h">
     <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
     <span class="aks-card-t">{% trans "Deployments, StatefulSets and DaemonSets" %} &middot; {{ workloads|length }}</span>
@@ -76,7 +74,7 @@
 </details>
 
 {# ── Pods ── #}
-<details class="aks-card aks-fold" open>
+<details class="aks-flat aks-fold" open>
   <summary class="aks-card-h">
     <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
     <span class="aks-card-t">{% trans "Pods" %} &middot; {{ pods|length }}</span>
@@ -112,7 +110,7 @@
 </details>
 
 {# ── Services and ingresses ── #}
-<details class="aks-card aks-fold" open>
+<details class="aks-flat aks-fold" open>
   <summary class="aks-card-h">
     <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
     <span class="aks-card-t">{% trans "Services and ingresses" %} &middot; {{ endpoints|length }}</span>
@@ -142,7 +140,7 @@
 </details>
 
 {# ── Storage ── #}
-<details class="aks-card aks-fold"{% if claims %} open{% endif %}>
+<details class="aks-flat aks-fold"{% if claims %} open{% endif %}>
   <summary class="aks-card-h">
     <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
     <span class="aks-card-t">{% trans "Persistent volume claims" %} &middot; {{ claims|length }}</span>
@@ -170,7 +168,7 @@
 </details>
 
 {# ── Warning events ── #}
-<details class="aks-card aks-fold"{% if events %} open{% endif %}>
+<details class="aks-flat aks-fold"{% if events %} open{% endif %}>
   <summary class="aks-card-h">
     <i class="bi bi-chevron-right aks-chevron" aria-hidden="true"></i>
     <span class="aks-card-t">{% trans "Recent warning events" %} &middot; {{ warning_count }}</span>

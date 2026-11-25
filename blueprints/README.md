@@ -5,8 +5,9 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 
 | Blueprint | ID | Description |
 |---|---|---|
+| 3-Tier Web App on OpenShift Virtualization | [BP-sy5pb325](BP-sy5pb325/README.md) | Builds a web, app and database VM on OpenShift Virtualization and wires them into a working PHP and MariaDB app with internal Services, a Key Vault TLS certificate, a public Route and NetworkPolicies, then starts a compliance scan of each VM. |
 | AKS Namespace | [BP-dogqi827](BP-dogqi827/README.md) | Creates a governed AKS managed namespace on an existing AKS cluster with a tiered quota, default container limits, and AKS-enforced network policies, entitles the ordering group to deploy containers into it, and grants Microsoft Entra users, groups, and pipelines namespace-scoped Azure RBAC access. |
-| AWS EKS | [BP-r5apcf7e](BP-r5apcf7e/README.md) | Creates, deletes, and discovers Amazon EKS clusters, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones. |
+| AWS EKS | [BP-r5apcf7e](BP-r5apcf7e/README.md) | Creates Amazon EKS clusters with a first managed node group, deletes and discovers them, with day-2 actions to add, list, scale, upgrade, and delete managed node groups, update add-ons, upgrade the control plane's Kubernetes version, and create namespace landing zones. |
 | AWS EKS Namespace | [BP-e4c0q58z](BP-e4c0q58z/README.md) | Creates a governed namespace on an existing EKS cluster with a tiered ResourceQuota, LimitRange, and default-deny NetworkPolicies, and entitles the ordering group to deploy containers into it. |
 | AWS Security Group | [BP-ofwowhqd](BP-ofwowhqd/README.md) | Creates, deletes, and discovers AWS VPC security groups. |
 | Azure Cross-Tenant Subscription | [BP-5pei9cno](BP-5pei9cno/README.md) | Creates Azure subscriptions in one tenant with billing in another, tagged to a cost center through invoice sections. |
@@ -24,6 +25,7 @@ Orderable resources. Each folder has a README with contents, prerequisites, and 
 | HCP Terraform No-Code Module | [BP-00meiwwz](BP-00meiwwz/README.md) | Provisions infrastructure from a pinned HCP Terraform no-code module in a dedicated workspace per deployment that HCP Terraform auto-applies. |
 | HCP Terraform VM | [BP-b0qm83lh](BP-b0qm83lh/README.md) | Provisions a VM through HCP Terraform in a dedicated workspace per deployment, with a plan-approval pause before apply. |
 | IIS Web Application | [BP-122nbdt5](BP-122nbdt5/README.md) | Deploys a Windows server and installs an IIS web application. |
+| IP Address Reservation | [BP-j25t4xpv](BP-j25t4xpv/README.md) | Reserves the next free address in a CloudBolt IP pool for a server or device CloudBolt does not build, and returns it to the pool when the reservation is deleted. |
 | Linux VM with Workflow | [BP-vy9ytey6](BP-vy9ytey6/README.md) | Deploys a Linux VM and then runs a Linux workflow on it, either one the order form offers or one an admin pins on the Run Workflow build item. |
 | Migrate Aria Automation Deployments to Resources | [BP-zq0csldu](BP-zq0csldu/README.md) | Migrates the deployments of one Aria Automation cloud template into CloudBolt resources under the matching blueprint, with owners, groups, environments, and custom properties. |
 | Migrate Aria Automation Projects to Groups | [BP-s2fsbkpo](BP-s2fsbkpo/README.md) | Migrates Aria Automation projects to CloudBolt groups with their AD group role assignments and custom properties. |

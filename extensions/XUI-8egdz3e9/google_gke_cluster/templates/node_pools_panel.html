@@ -6,7 +6,7 @@
 {% else %}
 
 {# ── Node pools, with the Google Cloud console's columns ── #}
-<div class="gke-card">
+<div class="gke-flat">
   <div class="gke-card-h">
     <span class="gke-card-t">{% trans "Node pools" %} &middot; {{ rows|length }}</span>
     <div class="gke-card-tools">
@@ -104,7 +104,7 @@
 </div>
 
 {# ── Nodes, read with the cluster orchestrator's credentials ── #}
-<div class="gke-card">
+<div class="gke-flat">
   <div class="gke-card-h">
     <span class="gke-card-t">{% trans "Nodes" %}{% if not nodes_error %} &middot; {{ nodes|length }}{% endif %}</span>
     {% if nodes %}

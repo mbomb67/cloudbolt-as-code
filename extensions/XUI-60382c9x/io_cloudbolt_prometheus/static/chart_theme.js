@@ -1,9 +1,72 @@
 /**
- * Shared Highcharts styling for the monitoring tab (compact, credits as chart title).
+ * Shared chart styling for the monitoring tab.
+ *
+ * Current CloudBolt draws these Highcharts-shaped options with ECharts through
+ * a compatibility layer that reads a subset of them; older CloudBolt draws
+ * them with Highcharts. Only options both understand are used here: a color,
+ * line width, area fill and marker switch per series, a format template for
+ * axis labels, and a tooltip formatter. Chart titles live in the card's HTML.
  */
-export const PROM_CHART_HEIGHT = 210;
+export const PROM_CHART_HEIGHT = 230;
 
 const DARK_THEME = document.documentElement.getAttribute("data-bs-theme") === "dark";
+
+/**
+ * Series colors, checked for color-blind separation on light and dark
+ * surfaces. No red, orange or yellow: those are kept for errors and warnings.
+ */
+export const SERIES = DARK_THEME
+    ? { blue: "#3987e5", aqua: "#199e70", violet: "#9085e9", magenta: "#d55181", green: "#0ca30c" }
+    : { blue: "#2a78d6", aqua: "#1baf7a", violet: "#6250d6", magenta: "#e87ba4", green: "#008300" };
+SERIES.neutral = "#898781";
+
+/** For series with no fixed meaning (mount points), taken in this order. */
+export const CATEGORICAL = [SERIES.blue, SERIES.aqua, SERIES.violet, SERIES.magenta, SERIES.green];
+
+/** One hue in three steps, least to most prominent, for the same measure at three averaging windows. */
+export const BLUE_STEPS = DARK_THEME
+    ? ["#184f95", "#3987e5", "#9ec5f4"]
+    : ["#86b6ef", "#2a78d6", "#104281"];
+
+/**
+ * True on an appliance that still draws charts with real Highcharts (a version string, and none of the
+ * ECharts layer). Current CloudBolt defines window.Highcharts as a compatibility shim with no version.
+ */
+export function isRealHighcharts() {
+    const hc = window.Highcharts;
+    return !!(hc && typeof hc.version === "string" && !window.echarts && !window.cbChart);
+}
+
+/**
+ * On real Highcharts with its default useUTC, the time axis and tooltips would show UTC. Highcharts 4 has
+ * no per-chart time zone and the global options belong to CloudBolt's other charts, so this chart's
+ * x values are moved by the browser's offset (taken at each point, so daylight saving is right): UTC
+ * drawing of the moved values reads as local time, ticks included. The tooltip formatter moves x back
+ * before it formats. Does nothing on the ECharts path, where times are already local.
+ */
+export function localTimeOptions(options) {
+    if (!isRealHighcharts() || !window.Highcharts.getOptions) {
+        return options;
+    }
+    const global = window.Highcharts.getOptions().global || {};
+    if (global.useUTC === false) {
+        return options;
+    }
+    const shift = (ts) => ts - new Date(ts).getTimezoneOffset() * 60000;
+    const unshift = (x) => x + new Date(x).getTimezoneOffset() * 60000;
+    options.series.forEach((s) => {
+        s.data = (s.data || []).map((p) => (Array.isArray(p) ? [shift(p[0]), ...p.slice(1)] : p));
+    });
+    const original = options.tooltip && options.tooltip.formatter;
+    if (original) {
+        options.tooltip.formatter = function () {
+            const context = Object.create(this);
+            context.x = unshift(this.x);
+            return original.call(context);
+        };
+    }
+    return options;
+}
 
 /** A #rgb or #rrggbb token from /portal.css as [r, g, b], or null. */
 function themeRgb(token) {
@@ -38,64 +101,121 @@ export const PROM_COLORS = {
     axisLine: themeText(0.2, "#e2e8f0"),
 };
 
-export function promCredits(chartTitle) {
-    return {
-        enabled: true,
-        text: chartTitle,
-        href: null,
-        position: { align: "right", x: -6, y: -4 },
-        style: {
-            color: PROM_COLORS.textMuted,
-            fontSize: "11px",
-            fontWeight: "600",
-            cursor: "default",
-        },
-    };
+/** A #rrggbb color as rgba() at the given alpha. */
+export function tint(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-export function promChartCommon(overrides = {}) {
-    return {
-        backgroundColor: "transparent",
-        style: {
-            fontFamily:
-                'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            fontSize: "11px",
-        },
-        // [top, right, bottom, left] — top/left must leave room or Y-axis labels clip
-        spacing: [16, 12, 10, 12],
-        ...overrides,
-    };
+function formatNumber(value) {
+    const abs = Math.abs(value);
+    return value.toFixed(abs >= 100 ? 0 : abs >= 10 ? 1 : 2);
 }
 
-export const promLegendCompact = {
-    align: "center",
-    verticalAlign: "bottom",
-    itemStyle: {
-        fontSize: "10px",
-        fontWeight: "500",
-        color: PROM_COLORS.textSoft,
-    },
-    itemHoverStyle: { color: PROM_COLORS.text },
-    itemMarginTop: 0,
-    itemMarginBottom: 0,
-    symbolRadius: 2,
-    padding: 2,
-};
+/** Prometheus [seconds, "value"] pairs as [milliseconds, number] points, scaled. */
+export function toPoints(values, scale = 1) {
+    return (values || []).map((pair) => [pair[0] * 1000, parseFloat(pair[1]) * scale]);
+}
 
-export const promXAxisDatetime = {
-    type: "datetime",
-    labels: { style: { fontSize: "10px", color: PROM_COLORS.textMuted } },
-    lineColor: PROM_COLORS.axisLine,
-    tickColor: PROM_COLORS.axisLine,
-    gridLineColor: "rgba(148, 163, 184, 0.25)",
-};
+/** The largest value across several lists of Prometheus [seconds, "value"] pairs. */
+export function maxValue(...lists) {
+    let max = 0;
+    lists.forEach((values) =>
+        (values || []).forEach((pair) => {
+            const v = parseFloat(pair[1]);
+            if (v > max) {
+                max = v;
+            }
+        })
+    );
+    return max;
+}
 
-export const promYAxisCompact = {
-    title: { text: null },
-    maxPadding: 0.02,
-    labels: {
-        style: { fontSize: "10px", color: PROM_COLORS.textMuted },
-        x: -2,
-    },
-    gridLineColor: "rgba(148, 163, 184, 0.2)",
-};
+/** The binary unit that keeps the largest value readable: { divisor, unit }. */
+export function byteUnit(max, perSecond = false) {
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let index = 0;
+    while (index < units.length - 1 && max >= 1024 ** (index + 1)) {
+        index += 1;
+    }
+    return { divisor: 1024 ** index, unit: units[index] + (perSecond ? "/s" : "") };
+}
+
+/**
+ * Chart options for a time series card.
+ * series: [{ name, color, data }]; unit: appended to axis labels and tooltip values.
+ */
+export function promOptions({ series, unit = "" }) {
+    const suffix = unit === "%" ? "%" : unit ? ` ${unit}` : "";
+    return {
+        title: { text: null },
+        credits: { enabled: false },
+        chart: {
+            type: "area",
+            zoomType: "x",
+            height: PROM_CHART_HEIGHT,
+            backgroundColor: "transparent",
+            style: {
+                fontFamily: getComputedStyle(document.body).fontFamily,
+                fontSize: "12px",
+            },
+            // [top, right, bottom, left]
+            spacing: [10, 12, 6, 8],
+        },
+        legend: {
+            align: "center",
+            verticalAlign: "bottom",
+            itemStyle: { fontSize: "12px", fontWeight: "600", color: PROM_COLORS.textSoft },
+            itemHoverStyle: { color: PROM_COLORS.text },
+            symbolRadius: 2,
+            padding: 2,
+        },
+        xAxis: {
+            type: "datetime",
+            labels: { style: { fontSize: "11px", color: PROM_COLORS.textMuted } },
+            lineColor: PROM_COLORS.axisLine,
+            tickColor: PROM_COLORS.axisLine,
+        },
+        yAxis: {
+            title: { text: null },
+            min: 0,
+            maxPadding: 0.05,
+            labels: {
+                format: `{value}${suffix}`,
+                style: { fontSize: "11px", color: PROM_COLORS.textMuted },
+            },
+            gridLineColor: "rgba(148, 163, 184, 0.25)",
+        },
+        tooltip: {
+            shared: true,
+            crosshairs: true,
+            formatter: function () {
+                const points = this.points || [this];
+                const when = new Date(this.x).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+                const rows = points.map((point) => {
+                    const color = point.color || point.series.color;
+                    return (
+                        `<span style="color:${color}">●</span> ${point.series.name}: ` +
+                        `<b>${formatNumber(point.y)}${suffix}</b>`
+                    );
+                });
+                return `<b>${when}</b><br/>${rows.join("<br/>")}`;
+            },
+        },
+        plotOptions: {
+            series: { animation: false, marker: { enabled: false } },
+        },
+        series: series.map((s) => ({
+            animation: false,
+            lineWidth: 2,
+            marker: { enabled: false },
+            fillColor: tint(s.color, 0.1),
+            ...s,
+        })),
+    };
+}

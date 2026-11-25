@@ -2,11 +2,11 @@
 {% include "google_gke_cluster/templates/_assets.html" %}
 
 <div id="gkex-groups" class="gkex">
-  <div class="gke-card">
+  <div class="gke-flat">
     <div class="gke-hero-top">
       <div>
-        <div class="gke-eyebrow">{% trans "Groups" %}</div>
-        <div class="gke-title"><i class="bi bi-people-fill" aria-hidden="true"></i> {{ cluster_name }}</div>
+        <div class="gke-eyebrow"><i class="bi bi-people-fill" aria-hidden="true"></i> {% trans "Groups" %}</div>
+        <div class="gke-title">{{ cluster_name }}</div>
         <div class="gke-sub">{% trans "CloudBolt groups that may order namespaces on this cluster" %}</div>
       </div>
       <div class="gke-tools">
@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  {# ── Entitled groups: the panel renders its own card ── #}
+  {# ── Entitled groups: the panel renders the environment card, then the heading and table ── #}
   <div data-gke-panel="groups" data-gke-src="{{ groups_url }}" data-gke-loading="CloudBolt"></div>
 </div>
 

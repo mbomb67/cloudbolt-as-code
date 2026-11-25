@@ -5,29 +5,51 @@
 </div>
 {% else %}
 
+{# ── Environment and access ── #}
 <div class="aks-card">
-  {% if state == "unconstrained" %}
-  <div class="aks-banner aks-banner-info">
-    <i class="bi bi-globe2" aria-hidden="true"></i>
-    <div class="aks-banner-body">
-      <div class="aks-banner-t">{% trans "Unconstrained: every group may order namespaces on this cluster" %}</div>
-      <div class="aks-banner-s">{% trans "The cluster's environment has no groups assigned. Add groups to limit namespaces to them." %}</div>
+  <div class="aks-meta">
+    <div class="cell">
+      <div class="k">{% trans "Environment" %}</div>
+      <div class="v">{{ environment|link_or_label:profile }}</div>
+    </div>
+    <div class="cell">
+      <div class="k">{% trans "Access" %}</div>
+      <div class="v">
+        {% if state == "unconstrained" %}
+          <span class="aks-pill aks-pill-live"><i class="bi bi-globe2" aria-hidden="true"></i> {% trans "Unconstrained" %}</span>
+        {% elif state == "restricted" %}
+          <span class="aks-pill aks-pill-warn"><i class="bi bi-lock-fill" aria-hidden="true"></i> {% trans "Unassigned" %}</span>
+        {% else %}
+          <span class="aks-pill aks-pill-ok"><i class="bi bi-people-fill" aria-hidden="true"></i> {% blocktrans count n=rows|length %}{{ n }} group{% plural %}{{ n }} groups{% endblocktrans %}</span>
+        {% endif %}
+      </div>
     </div>
   </div>
-  {% elif state == "restricted" %}
-  <div class="aks-banner">
-    <i class="bi bi-lock-fill" aria-hidden="true"></i>
-    <div class="aks-banner-body">
-      <div class="aks-banner-t">{% trans "Unassigned: no group may order namespaces on this cluster yet" %}</div>
-      <div class="aks-banner-s">{% trans "The cluster's environment has only CloudBolt's Unassigned placeholder. Add groups, or allow all groups." %}</div>
-    </div>
-  </div>
-  {% endif %}
+</div>
 
+{% if state == "unconstrained" %}
+<div class="aks-banner aks-banner-info">
+  <i class="bi bi-globe2" aria-hidden="true"></i>
+  <div class="aks-banner-body">
+    <div class="aks-banner-t">{% trans "Unconstrained: every group may order namespaces on this cluster" %}</div>
+    <div class="aks-banner-s">{% trans "The cluster's environment has no groups assigned. Add groups to limit namespaces to them." %}</div>
+  </div>
+</div>
+{% elif state == "restricted" %}
+<div class="aks-banner">
+  <i class="bi bi-lock-fill" aria-hidden="true"></i>
+  <div class="aks-banner-body">
+    <div class="aks-banner-t">{% trans "Unassigned: no group may order namespaces on this cluster yet" %}</div>
+    <div class="aks-banner-s">{% trans "The cluster's environment has only CloudBolt's Unassigned placeholder. Add groups, or allow all groups." %}</div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Entitled groups ── #}
+<div class="aks-flat">
   <div class="aks-card-h">
     <span class="aks-card-t">{% trans "Entitled groups" %} &middot; {{ rows|length }}</span>
     <div class="aks-card-tools">
-      <span class="aks-muted">{% trans "Environment" %} {{ environment|link_or_label:profile }}</span>
       {% if allow_all_url %}
       <a class="btn btn-sm btn-outline-secondary open-dialog" href="{{ allow_all_url }}" title="{% trans 'Remove every group so every group may order namespaces on this cluster' %}">
         <i class="bi bi-globe2" aria-hidden="true"></i> {% trans "Allow all groups" %}

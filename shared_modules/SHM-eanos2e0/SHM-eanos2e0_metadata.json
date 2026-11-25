@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-wkubiao7"
+        ]
+    },
+    "description": "Finds the VM of a blueprint server tier and runs setup scripts on it through the OpenShift API tunnel.",
+    "id": "SHM-eanos2e0",
+    "label": "VM Tier Scripts",
+    "max_retries": 0,
+    "module_name": "vm_tier_scripts",
+    "name": "vm_tier_scripts",
+    "resource_technologies": [],
+    "script_filename": "SHM-eanos2e0_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -1,0 +1,223 @@
+{% extends "v5/default/body.html" %}
+{% block title %}Compliance settings{% endblock %}
+{% block topnav %}admin{% endblock %}
+{% block breadcrumb-item %}<h1>Compliance settings</h1>{% endblock breadcrumb-item %}
+
+{% block content %}
+<style>
+  #oscap-settings {
+    --oscap-muted: color-mix(in srgb, var(--bs-body-color, #212529) 72%, var(--surface, #fff));
+    --oscap-soft: color-mix(in srgb, var(--bs-body-color, #212529) 78%, transparent);
+    --oscap-card: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent);
+    --oscap-line: color-mix(in srgb, var(--bs-body-color, #212529) 20%, transparent);
+    --oscap-primary: var(--bs-primary, #0d6efd);
+    --oscap-ok: var(--bs-success, #198754);
+    --oscap-bad: var(--bs-danger, #dc3545);
+    --oscap-warn: var(--bs-warning, #ffc107);
+    --oscap-warn-text: color-mix(in srgb, var(--bs-warning, #ffc107) 55%, var(--bs-body-color, #212529));
+    max-width: 820px;
+  }
+  #oscap-settings [hidden] { display: none !important; }
+  #oscap-settings .oscap-card { background: var(--oscap-card); border: 1px solid var(--oscap-line); border-radius: 12px; margin-bottom: 16px; padding: 20px 24px; }
+  #oscap-settings .oscap-eyebrow .bi { font-size: 14px; color: var(--oscap-primary); margin-right: 6px; }
+  #oscap-settings .oscap-eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--oscap-muted); }
+  #oscap-settings .oscap-lede { font-size: 13.5px; font-weight: 600; color: var(--oscap-muted); margin: 6px 0 20px; }
+  #oscap-settings .oscap-h { font-size: 16px; font-weight: 700; margin: 0 0 14px; }
+  #oscap-settings .oscap-field { margin-bottom: 18px; }
+  #oscap-settings .oscap-field:last-child { margin-bottom: 0; }
+  #oscap-settings label.oscap-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  #oscap-settings .oscap-help { font-size: 12.5px; font-weight: 600; color: var(--oscap-muted); margin-top: 4px; }
+  #oscap-settings .oscap-help.oscap-caution { color: var(--oscap-warn-text); }
+  #oscap-settings .form-control, #oscap-settings .form-select { max-width: 460px; }
+  #oscap-settings .form-control.oscap-narrow { max-width: 140px; }
+  #oscap-settings .form-check-label { font-weight: 700; font-size: 13px; }
+  #oscap-settings .oscap-notice { display: flex; gap: 10px; align-items: flex-start; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--oscap-line); background: var(--oscap-card); font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+  #oscap-settings .oscap-notice > .bi { flex: 0 0 auto; margin-top: 2px; }
+  #oscap-settings .oscap-notice ul { margin: 0; padding-left: 18px; }
+  #oscap-settings .oscap-notice-ok { border-color: color-mix(in srgb, var(--oscap-ok) 50%, transparent); background: color-mix(in srgb, var(--oscap-ok) 10%, transparent); }
+  #oscap-settings .oscap-notice-ok > .bi { color: var(--oscap-ok); }
+  #oscap-settings .oscap-notice-bad { border-color: color-mix(in srgb, var(--oscap-bad) 50%, transparent); background: color-mix(in srgb, var(--oscap-bad) 9%, transparent); }
+  #oscap-settings .oscap-notice-bad > .bi { color: var(--oscap-bad); }
+  #oscap-settings .oscap-usage { display: flex; gap: 28px; flex-wrap: wrap; }
+  #oscap-settings .oscap-usage .n { font-size: 24px; font-weight: 800; line-height: 1.15; }
+  #oscap-settings .oscap-usage .l { font-size: 11.5px; font-weight: 600; color: var(--oscap-muted); }
+  #oscap-settings .btn:focus-visible, #oscap-settings input:focus-visible, #oscap-settings select:focus-visible { outline: 2px solid var(--oscap-primary); outline-offset: 2px; }
+</style>
+
+<div id="oscap-settings">
+  <div class="oscap-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Compliance</div>
+  <div class="oscap-lede">Where compliance scan reports are stored, and who can run scans.</div>
+
+  {% if saved %}
+  <div class="oscap-notice oscap-notice-ok" role="status">
+    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+    <div>Settings saved.</div>
+  </div>
+  {% endif %}
+  {% if errors %}
+  <div class="oscap-notice oscap-notice-bad" role="alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <div>
+      <div>The settings were not saved.</div>
+      <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+
+    <div class="oscap-card">
+      <h2 class="oscap-h">Report storage</h2>
+
+      <div class="oscap-field" role="radiogroup" aria-labelledby="oscap-backend-l">
+        <div class="oscap-label" id="oscap-backend-l" style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">Store reports in</div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="backend" id="oscap-backend-local" value="local" data-oscap-backend{% if settings.backend != "s3" %} checked{% endif %}>
+          <label class="form-check-label" for="oscap-backend-local">CloudBolt appliance</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="backend" id="oscap-backend-s3" value="s3" data-oscap-backend{% if settings.backend == "s3" %} checked{% endif %}>
+          <label class="form-check-label" for="oscap-backend-s3">Amazon S3 bucket</label>
+        </div>
+        <div class="oscap-help">CloudBolt keeps only a small summary of each scan; the full report lives here.</div>
+      </div>
+
+      <div data-oscap-s3>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-aws-handler">AWS connection</label>
+          <select class="form-select form-select-sm" id="oscap-aws-handler" name="aws_handler_id">
+            <option value="">Select a connection</option>
+            {% for h in handlers %}
+            <option value="{{ h.id }}"{% if settings.aws_handler_id|stringformat:"s" == h.id|stringformat:"s" %} selected{% endif %}>{{ h.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="oscap-help">CloudBolt uses this AWS connection to write reports to the bucket.</div>
+        </div>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-s3-bucket">Bucket name</label>
+          <input type="text" class="form-control form-control-sm" id="oscap-s3-bucket" name="s3_bucket" value="{{ settings.s3_bucket }}">
+          <div class="oscap-help">The bucket must already exist.</div>
+        </div>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-s3-region">Region (optional)</label>
+          <input type="text" class="form-control form-control-sm" id="oscap-s3-region" name="s3_region" value="{{ settings.s3_region }}" placeholder="us-east-1">
+          <div class="oscap-help">Leave empty to use the bucket's own region.</div>
+        </div>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-s3-prefix">Folder prefix</label>
+          <input type="text" class="form-control form-control-sm" id="oscap-s3-prefix" name="s3_prefix" value="{{ settings.s3_prefix }}" placeholder="openscap/">
+          <div class="oscap-help">Reports are written under this prefix, one folder per server.</div>
+        </div>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-link-minutes">Download link lifetime (minutes)</label>
+          <input type="number" class="form-control form-control-sm oscap-narrow" id="oscap-link-minutes" name="link_minutes" min="1" max="60" value="{{ settings.link_minutes }}">
+          <div class="oscap-help">How long a report link stays valid after someone opens it, from 1 to 60 minutes.</div>
+        </div>
+      </div>
+
+      <div data-oscap-local>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-local-keep">Reports to keep per server</label>
+          <input type="number" class="form-control form-control-sm oscap-narrow" id="oscap-local-keep" name="local_keep" min="1" max="100" value="{{ settings.local_keep }}">
+          <div class="oscap-help">Older reports on the appliance are deleted after each scan, from 1 to 100.</div>
+        </div>
+        <div class="oscap-field">
+          <label class="oscap-label" for="oscap-local-max-gb">Maximum space for reports (GB)</label>
+          <input type="number" class="form-control form-control-sm oscap-narrow" id="oscap-local-max-gb" name="local_max_gb" min="1" max="100" value="{{ settings.local_max_gb }}">
+          <div class="oscap-help">The total space reports may use on the appliance; the oldest scans are removed first.</div>
+        </div>
+        <div class="oscap-field">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="oscap-local-insecure" name="local_insecure_upload" value="1"{% if settings.local_insecure_upload %} checked{% endif %}>
+            <label class="form-check-label" for="oscap-local-insecure">Allow servers to upload reports without TLS verification</label>
+          </div>
+          <div class="oscap-help oscap-caution">Turn this on only if servers do not trust the appliance certificate; the upload then skips certificate checks.</div>
+        </div>
+        <div class="oscap-field">
+          <div class="oscap-label">Appliance usage</div>
+          <div class="oscap-usage">
+            <div><div class="n">{{ local_usage.scans|default:0 }}</div><div class="l">Scans stored</div></div>
+            <div><div class="n">{{ local_usage.bytes|default:0|filesizeformat }}</div><div class="l">Disk used</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="oscap-card">
+      <h2 class="oscap-h">Scans</h2>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-default-profiles">Default profiles</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-default-profiles" name="default_profiles" value="{{ settings.default_profiles }}" placeholder="stig, cis">
+        <div class="oscap-help">Profiles tried in order when a user runs a scan on a Linux server without choosing one. Separate names with commas.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-timeout">Scan timeout (minutes)</label>
+        <input type="number" class="form-control form-control-sm oscap-narrow" id="oscap-timeout" name="scan_timeout_min" min="5" max="180" value="{{ settings.scan_timeout_min }}">
+        <div class="oscap-help">A scan that runs longer than this is stopped, from 5 to 180 minutes.</div>
+      </div>
+      <div class="oscap-field">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="oscap-allow-install" name="allow_install" value="1"{% if settings.allow_install %} checked{% endif %}>
+          <label class="form-check-label" for="oscap-allow-install">Let users install the scanner on a server</label>
+        </div>
+        <div class="oscap-help">Adds the install option to scans: OpenSCAP on Linux servers, SCC on Windows servers.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-visibility">Show the tab on</label>
+        <select class="form-select form-select-sm" id="oscap-visibility" name="visibility">
+          <option value="linux"{% if settings.visibility != "label" %} selected{% endif %}>Every Linux and Windows server</option>
+          <option value="label"{% if settings.visibility == "label" %} selected{% endif %}>Only servers labelled Compliance</option>
+        </select>
+        <div class="oscap-help">Choose who sees the Compliance tab on a server page.</div>
+      </div>
+    </div>
+
+    <div class="oscap-card">
+      <h2 class="oscap-h">Windows (SCC)</h2>
+      <div class="oscap-help" style="margin: -6px 0 18px;">Windows servers are scanned with the DISA SCAP Compliance Checker (SCC), which each server downloads from DISA on its first scan. DISA removes old SCC versions from its download site, so a pinned version can stop downloading. Version latest follows NIWC's release file and has no checksum check.</div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-win-profile">Windows default profile</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-win-profile" name="windows_default_profile" value="{{ settings.windows_default_profile }}" placeholder="MAC-1_Classified">
+        <div class="oscap-help">The profile a Windows scan uses when a user does not choose one.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-version">SCC version</label>
+        <input type="text" class="form-control form-control-sm oscap-narrow" id="oscap-scc-version" name="scc_version" value="{{ settings.scc_version }}" placeholder="5.15">
+        <div class="oscap-help">The SCC version servers download, such as 5.15, or latest.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-sha256">SCC checksum (SHA-256)</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-scc-sha256" name="scc_sha256" value="{{ settings.scc_sha256 }}" spellcheck="false">
+        <div class="oscap-help">The SHA-256 of that version's Windows bundle, checked after the download; clear or replace it when you change the version. It is ignored when the version is latest.</div>
+      </div>
+      <div class="oscap-field">
+        <label class="oscap-label" for="oscap-scc-url">SCC download URL</label>
+        <input type="text" class="form-control form-control-sm" id="oscap-scc-url" name="scc_url" value="{{ settings.scc_url }}" spellcheck="false">
+        <div class="oscap-help">An https address for the Windows bundle; {version} stands for the SCC version.</div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save settings</button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var root = document.getElementById("oscap-settings");
+    if (!root) { return; }
+    var s3 = root.querySelector("[data-oscap-s3]");
+    var local = root.querySelector("[data-oscap-local]");
+    function sync() {
+      var checked = root.querySelector("input[data-oscap-backend]:checked");
+      var useS3 = !!checked && checked.value === "s3";
+      s3.hidden = !useS3;
+      local.hidden = useS3;
+    }
+    Array.prototype.forEach.call(root.querySelectorAll("input[data-oscap-backend]"), function (r) {
+      r.addEventListener("change", sync);
+    });
+    sync();
+  })();
+</script>
+{% endblock content %}

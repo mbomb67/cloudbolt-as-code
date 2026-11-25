@@ -1,0 +1,17 @@
+{
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-ww6b1uwj"
+        ]
+    },
+    "description": "Opens a ServiceNow incident and posts an Adaptive Card to Microsoft Teams when an automatic alert remediation fails, each half best effort.",
+    "id": "SHM-qlvol7k8",
+    "label": "Alert Escalation",
+    "max_retries": 0,
+    "module_name": "alert_escalation",
+    "name": "alert_escalation",
+    "resource_technologies": [],
+    "script_filename": "SHM-qlvol7k8_script.py",
+    "shared": true,
+    "type": "Shared Module"
+}

@@ -1,0 +1,254 @@
+{% comment %}
+  Script for the Compliance server tab. oscap_tab.html includes this once per
+  injection; the script initialises every root it finds that has not been
+  initialised yet, so a tab injected twice never stacks timers. The styles are
+  oscap_styles.html, shared with the resource tab (oscap_resource_assets.html).
+{% endcomment %}
+{% include "io_cloudbolt_compliance/templates/oscap_styles.html" %}
+<script>
+(function () {
+  "use strict";
+  var PAGE = 25;
+  var POLL_MS = 5000;
+
+  // The header (title and the Run scan, Check server, Refresh and Settings
+  // buttons) is static in the tab shell; the panel fragment below it is
+  // re-fetched on Refresh and every 5 seconds while a job is active.
+  function initRoot(rootEl) {
+    var $root = $(rootEl);
+    var token = String(Date.now()) + ":" + Math.random();
+    rootEl.oscapToken = token;
+    rootEl.setAttribute("data-oscap-init", "1");
+    var $body = $root.find("[data-oscap-body]");
+    var panelUrl = $root.data("panel-url");
+    var startUrl = $root.data("start-url");
+    var csrf = $root.data("csrf") || "";
+    var timer = null;
+    var loading = false;
+    var busy = false;
+    var ui = { formOpen: false, rulesOpen: false, q: "", sev: "", shown: PAGE, rshown: PAGE, profile: "", install: false };
+
+    function alive() { return document.body.contains(rootEl) && rootEl.oscapToken === token; }
+    function panel() { return $body.find(".oscap-panel")[0] || null; }
+    function isActive() { var p = panel(); return !!p && p.getAttribute("data-active") === "1"; }
+    function one(sel) { return $body.find(sel)[0] || null; }
+    function runButtons() { return $root.find('[data-oscap-act="run"], [data-oscap-act="check"], [data-oscap-act="install-check"], [data-oscap-act="toggle-form"]'); }
+
+    // Run scan and Check server follow the panel: off while a job runs or when access is denied.
+    function syncHeader() {
+      var p = panel();
+      var off = busy || !p || p.getAttribute("data-active") === "1" || p.getAttribute("data-denied") === "1";
+      runButtons().prop("disabled", off);
+    }
+
+    function snapshot() {
+      if (!panel()) { return; }
+      var form = one("[data-oscap-form]");
+      var rules = one("[data-oscap-rules]");
+      var q = one("[data-oscap-filter-q]");
+      var sev = one("[data-oscap-filter-sev]");
+      var sel = one("[data-oscap-profile]");
+      var inst = one("[data-oscap-install]");
+      var table = one("[data-oscap-history]");
+      if (form) { ui.formOpen = !form.hidden; }
+      if (rules) { ui.rulesOpen = rules.open; }
+      if (q) { ui.q = q.value; }
+      if (sev) { ui.sev = sev.value; }
+      if (sel) { ui.profile = sel.value; }
+      if (inst) { ui.install = inst.checked; }
+      if (table) { ui.shown = parseInt(table.getAttribute("data-shown"), 10) || PAGE; }
+      var rtable = one("[data-oscap-rules-table]");
+      if (rtable) { ui.rshown = parseInt(rtable.getAttribute("data-shown"), 10) || PAGE; }
+    }
+    function restore() {
+      var form = one("[data-oscap-form]");
+      var rules = one("[data-oscap-rules]");
+      var q = one("[data-oscap-filter-q]");
+      var sev = one("[data-oscap-filter-sev]");
+      var sel = one("[data-oscap-profile]");
+      var inst = one("[data-oscap-install]");
+      if (form) { form.hidden = !ui.formOpen; }
+      setToggleState(!!form && ui.formOpen);
+      if (rules) { rules.open = ui.rulesOpen; }
+      if (q) { q.value = ui.q; }
+      if (sev) { sev.value = ui.sev; }
+      if (sel && ui.profile) { sel.value = ui.profile; }
+      if (inst) { inst.checked = ui.install; }
+      applyFilter();
+      applyPaging();
+    }
+    function setToggleState(open) {
+      $root.find('[data-oscap-act="toggle-form"]').attr("aria-expanded", open ? "true" : "false");
+    }
+
+    function alertHtml(text) {
+      return '<div class="oscap-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i><div></div></div>';
+    }
+    function showAlert(message) {
+      var box = one("[data-oscap-alert]");
+      if (!box) { return; }
+      if (!message) { box.hidden = true; $(box).empty(); return; }
+      $(box).html(alertHtml()).find("div div").text(message);
+      box.hidden = false;
+    }
+
+    function schedule() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (!alive() || !isActive()) { return; }
+      timer = setTimeout(function () {
+        timer = null;
+        if (!alive()) { return; }
+        if (document.hidden) { return; }   // resumes from the visibilitychange handler
+        load();
+      }, POLL_MS);
+    }
+
+    function load() {
+      if (loading || !alive()) { return; }
+      loading = true;
+      $root.addClass("oscap-loading");
+      $body.attr("aria-busy", "true");
+      $.ajax({ url: panelUrl, dataType: "html", cache: false })
+        .done(function (html) {
+          if (!alive()) { return; }
+          snapshot();
+          $body.html(html);
+          restore();
+          if (window.c2 && c2.tooltips) { c2.tooltips.init($body); }
+        })
+        .fail(function (xhr) {
+          if (!alive() || panel()) { return; }
+          $body.html('<div class="oscap-card oscap-card-flush"><div class="oscap-alert"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>' +
+            '<div>Could not load this panel (HTTP ' + (xhr && xhr.status) + ').</div></div></div>');
+        })
+        .always(function () {
+          loading = false;
+          $root.removeClass("oscap-loading");
+          $body.attr("aria-busy", "false");
+          syncHeader();
+          schedule();
+        });
+    }
+
+    function start(mode, install, datastream, profile) {
+      if (busy || !panel() || !startUrl) { return; }
+      busy = true;
+      showAlert("");
+      syncHeader();
+      $.ajax({
+        url: startUrl,
+        method: "POST",
+        contentType: "application/json",
+        dataType: "json",
+        headers: { "Accept": "application/json", "X-CSRFToken": csrf },
+        data: JSON.stringify({ mode: mode, datastream: datastream || "", profile: profile || "", install: !!install })
+      }).done(function () {
+        busy = false;
+        if (!alive()) { return; }
+        var form = one("[data-oscap-form]");
+        if (form) { form.hidden = true; }
+        ui.formOpen = false;
+        setToggleState(false);
+        load();
+      }).fail(function (xhr) {
+        busy = false;
+        if (!alive()) { return; }
+        syncHeader();
+        var data = xhr.responseJSON || {};
+        showAlert(data.error || ("Could not start (HTTP " + xhr.status + ")."));
+      });
+    }
+
+    function applyFilter() {
+      var table = one("[data-oscap-rules-table]");
+      if (!table) { return; }
+      var q = ((one("[data-oscap-filter-q]").value) || "").trim().toLowerCase();
+      var sev = one("[data-oscap-filter-sev]").value;
+      var rows = table.querySelectorAll("tr[data-oscap-rule]");
+      var matching = 0;
+      var shown = 0;
+      Array.prototype.forEach.call(rows, function (tr) {
+        var ok = (!sev || tr.getAttribute("data-sev") === sev) && (!q || tr.getAttribute("data-id").indexOf(q) !== -1);
+        if (ok) { matching++; }
+        var visible = ok && matching <= ui.rshown;
+        tr.hidden = !visible;
+        if (visible) { shown++; }
+      });
+      table.setAttribute("data-shown", String(ui.rshown));
+      var none = table.querySelector("[data-oscap-nomatch]");
+      if (none) { none.hidden = matching !== 0; }
+      var count = one("[data-oscap-filter-count]");
+      if (count) { count.textContent = matching + " of " + rows.length; }
+      var more = one("[data-oscap-rmore]");
+      if (more) {
+        var left = matching - shown;
+        more.hidden = left <= 0;
+        var btn = more.querySelector("button");
+        if (btn && left > 0) { btn.textContent = "Show more (" + left + " more)"; }
+      }
+    }
+
+    function applyPaging() {
+      var table = one("[data-oscap-history]");
+      if (!table) { return; }
+      var rows = table.querySelectorAll("tr[data-oscap-hrow]");
+      var limit = ui.shown;
+      Array.prototype.forEach.call(rows, function (tr, i) { tr.hidden = i >= limit; });
+      table.setAttribute("data-shown", String(limit));
+      var more = one("[data-oscap-more]");
+      if (more) {
+        var left = rows.length - limit;
+        more.hidden = left <= 0;
+        var btn = more.querySelector("button");
+        if (btn && left > 0) { btn.textContent = "Show more (" + left + " more)"; }
+      }
+    }
+
+    $root.on("click", "[data-oscap-act]", function (e) {
+      var el = this;
+      if (el.disabled) { return; }
+      var act = el.getAttribute("data-oscap-act");
+      e.preventDefault();
+      if (act === "refresh") { load(); }
+      else if (act === "toggle-form") {
+        var form = one("[data-oscap-form]");
+        if (!form) { return; }
+        form.hidden = !form.hidden;
+        setToggleState(!form.hidden);
+        if (!form.hidden) { var sel = one("[data-oscap-profile]"); if (sel) { sel.focus(); } }
+      } else if (act === "cancel") {
+        var f = one("[data-oscap-form]");
+        if (f) { f.hidden = true; }
+        setToggleState(false);
+        $root.find('[data-oscap-act="toggle-form"]').first().focus();
+      } else if (act === "run") {
+        var s = one("[data-oscap-profile]");
+        var opt = s && s.options[s.selectedIndex];
+        var inst = one("[data-oscap-install]");
+        start("scan", inst && inst.checked, opt ? opt.getAttribute("data-ds") : "", opt ? opt.getAttribute("data-profile") : "");
+      } else if (act === "check") { start("check", false, "", ""); }
+      else if (act === "install-check") { start("check", true, "", ""); }
+      else if (act === "more") { ui.shown += PAGE; applyPaging(); }
+      else if (act === "more-rules") { ui.rshown += PAGE; applyFilter(); }
+    });
+    $root.on("input", "[data-oscap-filter-q]", function () { ui.rshown = PAGE; applyFilter(); });
+    $root.on("change", "[data-oscap-filter-sev]", function () { ui.rshown = PAGE; applyFilter(); });
+    $root.on("submit", "form", function (e) { e.preventDefault(); });
+
+    function onVisible() {
+      if (!alive()) { document.removeEventListener("visibilitychange", onVisible); return; }
+      if (!document.hidden && isActive()) { load(); }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    syncHeader();
+    load();
+  }
+
+  $(function () {
+    $("[data-oscap-root]").each(function () {
+      if (!this.getAttribute("data-oscap-init")) { initRoot(this); }
+    });
+  });
+})();
+</script>

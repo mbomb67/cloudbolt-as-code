@@ -114,7 +114,7 @@ When editing an existing file, match the casing already present.
 | `label`, `description`, `placeholder` | string / null | |
 | `type` | string (enum) | CustomField ATTR_TYPES (see below). |
 | `allow_multiple`, `required`, `show_on_servers`, `available_all_servers`, `show_as_attribute` | boolean | Last three stripped on import. |
-| `hide_if_default_value` | boolean | Default `true`. |
+| `hide_if_default_value` | boolean | Default `true`. An input is left off the order form only when this is `true` **and** the build item gives it a default (`parameter_defaults`). The importer applies the value only when it creates the input (`c2_wrapper.update_or_create_hook_input`): a re-sync never changes it on an input that already exists, so decide it before the first sync, or change it on the appliance. |
 | `value_pattern_string` / `formatter_pattern` | string / null | The display **Formatter pattern**, a Python format string such as `{:,.2f}` (`CustomField.render_value`), not a validation regex. Export writes it as `formatter_pattern`; import sets `value_pattern_string` from `formatter_pattern` and discards a `value_pattern_string` key, so a regex written there is lost on sync. Put a regex in `regex_constraint`. |
 | `relevant_osfamilies` | array[object] | `[{"name": ...}]`. |
 | `global_options` | array | |
@@ -344,6 +344,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 | `deploy_seq` | integer | Ordering. |
 | `tier_type` | string | Polymorphic discriminator — see enums. |
 | `execute_in_parallel`, `show_on_order_form` | boolean | Import defaults `false`. |
+| | | `execute_in_parallel: true` starts the item and moves on without waiting; the next item that is not parallel starts as well and then waits for every job started since the last wait (`deploy_blueprint_job.py`). A group that runs together is therefore its parallel items followed by one non-parallel item. An input that a hidden build item fills from `parameter_defaults` must not be `required`: the order API does not count the default as provided. |
 | `rate` | string / null | |
 | `action_name`, `rate_action_name` | string | For action SIs. |
 | `dependencies` | object | See cross-references. |
@@ -355,6 +356,7 @@ CloudBolt ships **no JSON Schema and no Pydantic models** for these files. Valid
 
 Polymorphic extras by `tier_type`:
 - `server`: `restrict_applications`, `hostname_template`, `all_environments_enabled`, `os_build`, `allowed_os_families`, `applications`, `environment_selection_orchestration`.
+  - **Environments are per appliance.** A repo export carries no enabled environments. On a sync of a blueprint that already exists, the importer saves each build item's enabled environments with the parameter values preset for that item in each one, and restores them afterwards, matched by the item's `BDI-` id (`service_blueprint_import_export_mixin.py`, `enabled_envs_to_restore`; seen on an appliance 2026-11: a tier pinned to one environment with CPU and memory presets kept all three). `all_environments_enabled` is the exception: every sync sets it from the repo, so `true` puts a pinned tier back to offering every environment. Ship `false` when admins are meant to pin an environment per appliance; the blueprint then cannot be ordered until one is enabled on each server item.
 - `tfconfig`: `local_path`, `module_file`, `git_source_code_url`, `source_code_url`, `branch`, `plan_directory`, `preserve_config_dir`, `refresh_on_order`.
 - `tfoperation`: `resource_type`, `working_directory` (`source_type` ∈ {`REPO`, `ZIP`, `LOCAL`}), `variable_maps`, `plan_directory`, `refresh_on_order`, `default_tfvars`, `terraform_version`, `confirm_terraform_plan`.
 
@@ -527,7 +529,7 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 - **Serializer:** `ResourceActionSerializer` at `cbhooks/api/v3/serializers/resource_action.py:22`.
 - **Top-level sync target?** Yes.
 - **Standalone or linked?** Either. Linked to a blueprint via that blueprint's `management_actions[].dependencies.resource_action`; standalone simply has no parent reference.
-- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional custom form.
+- **Colocated files:** `<RSA-id>_metadata.json` + `<RSA-id>_script.py` (script_filename). Optional shared-module deps; optional display-condition plugin; optional custom form.
 
 ### Required fields
 
@@ -563,10 +565,18 @@ A `CloudBoltHook` with shared-module deps also carries `"dependencies": {"shared
 | Field path | Target | Notes |
 |---|---|---|
 | `dependencies.hook` | `plugins/OHK-*` | Always present. |
+| `dependencies.displayCondition` | `plugins/OHK-*` | **camelCase.** Optional; the plugin that decides whether the action shows on a resource. |
 | `dependencies.custom_form` | `forms/FRM-*` | If attached. |
 | `dependencies.sharedModules[]` | `shared_modules/SHM-*` | camelCase key. |
 
-RSA's display-condition FK is NOT exported (unlike `ServerAction`).
+Repo export and sync carry an RSA's display condition (`ResourceAction.condition`, `cbhooks/models.py:2725`) as they do for every action type: `get_action_dependencies` writes `dependencies.displayCondition` and `refresh_action_from_local_path` / `refresh_base_action_from_local_path` read it back (`cbhooks/api/v3/serializers/action_base.py:413`, `:558`, `:687`). The zip format does not: only `ServerActionSerializer` writes and reads the `condition_` sub-zip (`server_action.py:137-225`), so an RSA moved as a zip loses its condition.
+
+The condition plugin is a plain `"type": "CloudBolt Plug-in"` that defines `should_display(resource, request=None)` and returns a bool; it needs no `run`. `Resource.available_actions` (`resources/models.py:528`) hides the action when it returns False, and an exception counts as False (`run_plugin_method`, `cbhooks/models.py:4957`).
+
+```python
+def should_display(resource, request=None):
+    return bool(resource.get_value_for_custom_field("expiration_date"))
+```
 
 ### Worked example
 

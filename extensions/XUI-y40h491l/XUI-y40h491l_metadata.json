@@ -1,0 +1,30 @@
+{
+    "description": "Adds an Agent Activity page, admin entry, per-session page and user profile tab listing the orders, jobs, history and tool calls AI agents made through CloudBolt's MCP server by user, agent, session, dates and text, with CSV and Excel export; admins and Global Viewers see every user's records, other users their own.",
+    "enabled": true,
+    "icon_url": "",
+    "id": "XUI-y40h491l",
+    "label": "Agent Activity",
+    "last_updated": "2026-10-20",
+    "maximum_version_required": "",
+    "minimum_version_required": "8.6",
+    "name": "mcp_agent_activity",
+    "package_contents": [
+        "__init__.py",
+        "config.py",
+        "access.py",
+        "markers.py",
+        "filters.py",
+        "grouping.py",
+        "sources.py",
+        "activity.py",
+        "mcp_log.py",
+        "xlsx.py",
+        "views.py",
+        "urls.py",
+        "templates/_agent_activity_assets.html",
+        "templates/_agent_activity_body.html",
+        "templates/agent_activity.html",
+        "templates/agent_activity_tab.html"
+    ],
+    "version": ""
+}

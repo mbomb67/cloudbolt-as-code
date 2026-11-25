@@ -1,0 +1,196 @@
+{
+    "action_inputs": [
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Amazon Linux 2023 or Bottlerocket, on x86_64 or Arm.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [
+                {
+                    "controlling-field": {
+                        "name": "ami_type_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "instance_type_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-qdogiizo",
+            "label": "Ami Type",
+            "name": "ami_type",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Set the desired number of nodes that the group should launch with initially.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-nn7jvfhz",
+            "label": "Desired Nodes",
+            "maximum": "100.00",
+            "minimum": "2.00",
+            "name": "desired_nodes",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Disk Size depends on AMI and Instance Type. The root device disk size (in GiB) for your node group instances. The default disk size is 20 GiB.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-3nck7km3",
+            "label": "Disk Size",
+            "maximum": "100.00",
+            "minimum": "20.00",
+            "name": "disk_size",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Sizes for the AMI type's architecture. The build checks that the type is offered in every availability zone of the cluster's subnets.",
+            "field_dependency_controlling_set": [
+                {
+                    "controlling-field": {
+                        "name": "ami_type_a1"
+                    },
+                    "custom-field-options": [],
+                    "dependency-type": "REGENOPTIONS",
+                    "dependent-field": {
+                        "name": "instance_type_a1"
+                    },
+                    "maximum": null,
+                    "minimum": null,
+                    "regex": ""
+                }
+            ],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-vu1c321h",
+            "label": "Instance Type",
+            "name": "instance_type",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Set the maximum number of nodes that the group can scale out to.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-vhh1rt7j",
+            "label": "Max Nodes",
+            "maximum": "100.00",
+            "minimum": "2.00",
+            "name": "max_nodes",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Set the minimum number of nodes that the group can scale in to.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-o1cm9p9m",
+            "label": "Min Nodes",
+            "maximum": "100.00",
+            "minimum": "2.00",
+            "name": "min_nodes",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": true,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "INT",
+            "value_pattern_string": null
+        },
+        {
+            "allow_multiple": false,
+            "available_all_servers": false,
+            "description": "Leave blank to name it after the cluster with -nodes appended.",
+            "field_dependency_controlling_set": [],
+            "field_dependency_dependent_set": [],
+            "global_options": [],
+            "hide_if_default_value": false,
+            "id": "CF-xchjcpn3",
+            "label": "Nodegroup Name",
+            "name": "nodegroup_name",
+            "placeholder": null,
+            "relevant_osfamilies": [],
+            "required": false,
+            "show_as_attribute": false,
+            "show_on_servers": false,
+            "type": "STR",
+            "value_pattern_string": null
+        }
+    ],
+    "action_inputs_sequence": [
+        "nodegroup_name",
+        "ami_type",
+        "instance_type",
+        "disk_size",
+        "min_nodes",
+        "max_nodes",
+        "desired_nodes"
+    ],
+    "dependencies": {
+        "sharedModules": [
+            "shared_modules/SHM-uj1izdsm"
+        ]
+    },
+    "description": "Creates the first managed node group of a new EKS cluster during the AWS EKS blueprint's build and waits until its nodes are Ready.",
+    "id": "OHK-c4gue79a",
+    "max_retries": 0,
+    "name": "Create AWS EKS Node Group",
+    "resource_technologies": [],
+    "script_filename": "OHK-c4gue79a_script.py",
+    "shared": false,
+    "target_os_families": [],
+    "type": "CloudBolt Plug-in"
+}
