@@ -412,7 +412,6 @@
     var prefsOn = admin && !nohash;
     var selectUrl = rootEl.getAttribute("data-servers-select-url") || "";
     var patchUrl = rootEl.getAttribute("data-servers-patch-url") || "";
-    var settingsUrl = rootEl.getAttribute("data-settings-url") || "";
     urls.serverFilters = rootEl.getAttribute("data-server-filters-url") || "";
     var serverBulk = null;      // the last answer's bulk object
     var selection = new Map();  // server id -> hostname
@@ -1253,12 +1252,6 @@
         var kept = selection.size;
         row.appendChild(el("span", "vuln-dim", (bulk.why || "Install updates is not available.") +
           (kept ? " " + plural(kept, "server stays", "servers stay") + " selected." : "")));
-        var settings = goodPath(settingsUrl);
-        if (settings && /vulnerability settings/i.test(bulk.why || "")) {
-          var link = el("a", "vuln-link", "Vulnerability settings");
-          link.setAttribute("href", settings);
-          row.appendChild(link);
-        }
         barBox.appendChild(row);
         return;
       }

@@ -124,7 +124,7 @@ class ResourceTabTests(unittest.TestCase):
 
     def test_the_resource_tab_has_none_of_the_admin_controls(self):
         html = self.tab()
-        markup = re.sub(r"<script>.*?</script>", "", html, flags=re.S)   # the shared script names the attributes
+        markup = re.sub(r"<script\b[^>]*>.*?</script\s*>", "", html, flags=re.S | re.I)   # the shared script names the attributes
         root = re.search(r'<div id="vuln-root"[^>]*>', markup).group(0)
         for attr in NEW_ATTRS:
             self.assertNotIn(attr, root)
