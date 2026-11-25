@@ -992,8 +992,10 @@ def _row_patch_state(profile, server, action, context, queued, full=False, reque
     refusal there is worded like the rest. Reads one state file per server; no remote call."""
     if server is None:
         return {"selectable": False, "why": "This server no longer exists.", "running": None}
+    state = None
     try:
-        found = vuln_jobs.active_job(server.id)
+        state = store.read_state(server.id)
+        found = vuln_jobs.active_job(server.id, state)
     except Exception:
         # An unreadable state file is no proof of a running job; the job itself refuses a busy server.
         logger.exception("Vulnerabilities: cannot read the scan state of server %s", server.id)
@@ -1006,6 +1008,12 @@ def _row_patch_state(profile, server, action, context, queued, full=False, reque
                 "why": "A scan or update is already running on this server (job {}).".format(job.id),
                 "running": running}
     waiting = queued.get(server.id)
+    # A server of a running job that has already recorded its result (the record under "patch" in its state, the
+    # same key for a server action's job and a resource action's: _patch_one writes job_id = the running job)
+    # is finished, not queued. An unreadable record keeps it queued.
+    record = state.get("patch") if isinstance(state, dict) else None
+    if waiting and isinstance(record, dict) and record.get("job_id") == waiting:
+        waiting = None
     if waiting:
         running = {"job_id": waiting, "job_url": _job_link(waiting), "kind": "patch", "queued": True}
         return {"selectable": False, "why": "Waiting in update job {}.".format(waiting), "running": running}

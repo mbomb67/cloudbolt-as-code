@@ -554,7 +554,8 @@
       }
       var from = total ? (page - 1) * size + 1 : 0;
       var to = Math.min(page * size, total);
-      var line = total ? (from + "–" + to + " of " + total + " " + p.noun) : ("0 " + p.noun);
+      var one = p.noun.replace(/ies$/, "y").replace(/s$/, "");   // "1 of 1 server", not "servers"
+      var line = total ? (from + "–" + to + " of " + total + " " + (total === 1 ? one : p.noun)) : ("0 " + p.noun);
       p.pager.appendChild(el("span", "", line));
       if (pages > 1) {
         var nav = el("span", "vuln-pages");

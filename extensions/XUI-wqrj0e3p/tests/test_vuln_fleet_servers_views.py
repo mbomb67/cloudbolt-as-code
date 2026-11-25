@@ -187,7 +187,9 @@ class Env:
         self.permission = mock.Mock(side_effect=lambda profile, srv, action: (
             self.permitted(srv) if callable(self.permitted) else self.permitted))
         self.active = dict(active or {})
-        self.active_job = mock.Mock(side_effect=lambda server_id: self.active.get(server_id))
+        self.states = {}
+        self.read_state = mock.Mock(side_effect=lambda server_id: self.states.get(server_id, {}))
+        self.active_job = mock.Mock(side_effect=lambda server_id, state=None: self.active.get(server_id))
         self.prerequisites = mock.Mock(return_value=("", ""))
         self.fleet_servers = mock.Mock(side_effect=lambda **kw: page([s.id for s in self.servers]))
         self.fleet_ids = mock.Mock(side_effect=lambda **kw: {
@@ -223,6 +225,7 @@ class Env:
         enter(mock.patch.object(views.vuln_hooks, "patch_bulk_action", self.bulk_mock, create=True))
         enter(mock.patch.object(views.vuln_hooks, "queued_update_servers", self.queued, create=True))
         enter(mock.patch.object(views.vuln_jobs, "active_job", self.active_job))
+        enter(mock.patch.object(views.store, "read_state", self.read_state))
         enter(mock.patch.object(views.vuln_fleet, "quick_eligibility", self.quick, create=True))
         enter(mock.patch.object(views.vuln_fleet, "unassigned_ids", self.unassigned, create=True))
         enter(mock.patch.object(views.vuln_patch, "eligibility", self.eligibility, create=True))
@@ -355,6 +358,33 @@ class ServersListTests(unittest.TestCase):
             patch = env.call(views.vuln_fleet_servers).data["rows"][0]["patch"]
         self.assertFalse(patch["running"]["queued"])
         env.quick.assert_not_called()
+
+    def test_a_server_the_running_job_has_finished_is_selectable_again(self):
+        with Env([server(1), server(2), server(3), server(4)], queued={1: 50, 2: 50, 3: 50, 4: 50}) as env:
+            env.states[1] = {"patch": {"job_id": 50, "status": "updated"}}      # finished in this job
+            env.states[3] = {"patch": {"job_id": 49, "status": "updated"}}      # an older job's record
+            env.states[4] = {"patch": "unreadable"}                             # not a record
+            patches = {r["server_id"]: r["patch"] for r in env.call(views.vuln_fleet_servers).data["rows"]}
+        self.assertEqual(patches[1], {"selectable": True, "why": "", "running": None})
+        self.assertEqual(patches[2]["why"], "Waiting in update job 50.")      # no record yet: still queued
+        self.assertTrue(patches[2]["running"]["queued"])
+        self.assertTrue(patches[3]["running"]["queued"])
+        self.assertTrue(patches[4]["running"]["queued"])
+        self.assertEqual(env.read_state.call_count, 4)
+
+    def test_an_unreadable_state_keeps_the_server_queued(self):
+        with Env([server(1)], queued={1: 50}) as env:
+            env.read_state.side_effect = RuntimeError("state")
+            patch = env.call(views.vuln_fleet_servers).data["rows"][0]["patch"]
+        self.assertTrue(patch["running"]["queued"])
+
+    def test_a_finished_server_of_a_running_job_can_be_submitted_again(self):
+        job = types.SimpleNamespace(id=77, get_absolute_url=lambda: "/jobs/77/")
+        with Env([server(1)], queued={1: 50}) as env:
+            env.states[1] = {"patch": {"job_id": 50}}
+            env.action.run_hook_as_job.return_value = [job]
+            response = env.call(views.vuln_fleet_servers_patch, method="POST", post={"ids": "1"})
+        self.assertEqual(response.status, 200)
 
     def test_a_missing_server_is_not_selectable_and_has_no_url(self):
         with Env([server(1)]) as env:
