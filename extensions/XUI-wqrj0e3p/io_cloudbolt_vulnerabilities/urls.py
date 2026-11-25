@@ -52,6 +52,23 @@ xui_urlpatterns = [
         views.vuln_fleet_servers,
         name="vuln_fleet_servers",
     ),
+    # JSON: the values the Servers view's filters offer, and the ids "Select all" picks
+    path(
+        "vulnerabilities/fleet/server-filters/",
+        views.vuln_fleet_server_filters,
+        name="vuln_fleet_server_filters",
+    ),
+    path(
+        "vulnerabilities/fleet/servers/select/",
+        views.vuln_fleet_servers_select,
+        name="vuln_fleet_servers_select",
+    ),
+    # POST: start one Install Updates run for the selected servers (CloudBolt admins only)
+    path(
+        "vulnerabilities/fleet/servers/patch/",
+        views.vuln_fleet_servers_patch,
+        name="vuln_fleet_servers_patch",
+    ),
     # JSON for a resource's Vulnerabilities tab. Each route re-checks that the viewer may see the
     # resource and works only on the servers of it that the viewer may see.
     path(

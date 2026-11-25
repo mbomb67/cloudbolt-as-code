@@ -164,17 +164,17 @@ def sample_matches():
 
 # ---------------------------------------------------------------- schema
 class FreshSchemaTests(StoreTestCase):
-    def test_new_file_is_version_3(self):
+    def test_new_file_is_version_4(self):
         save(1, sample_matches()[1])
         conn = self.raw()
-        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 4)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         for name in ("servers", "matches", "match_cves", "server_matches", "server_packages", "server_cves",
                      "fleet_cves", "server_cves_cve", "fleet_cves_order", "matches_vuln", "servers_fleet",
                      "match_cves_cve", "server_matches_match"):
             self.assertIn(name, names)
         columns = {row[1] for row in conn.execute("PRAGMA table_info(servers)")}
-        self.assertTrue({"match_hash", "vulns", "vuln_unknown", "vuln_fixable"} <= columns)
+        self.assertTrue({"match_hash", "vulns", "vuln_unknown", "vuln_fixable", "owner", "os_build"} <= columns)
 
     def test_returned_row_has_the_server_columns_not_the_hash(self):
         row = save(1, sample_matches()[1])
@@ -264,8 +264,9 @@ class UpgradeTests(V1Builder, StoreTestCase):
                              vuln_db.cve_servers("CVE-2024-0001")):
                     self.assertEqual((page["total"], page["rows"], page["unavailable"]), (0, [], False))
                 page = vuln_db.fleet_servers()
-                self.assertFalse(page["unavailable"])
-                self.assertEqual(page["total"], len(page["rows"]))  # the added columns may be absent: empty page
+                # An old file has no owner or os_build column: an empty page the caller retries after the upgrade.
+                self.assertTrue(page["unavailable"])
+                self.assertEqual((page["total"], page["rows"]), (0, []))
                 self.assertEqual(len(vuln_db.known_servers()), 3)
                 self.assertEqual(vuln_db.schema_version(), 1)
                 self.assertEqual(sum(1 for row in self.raw().execute("PRAGMA table_info(servers)")),
@@ -278,12 +279,12 @@ class UpgradeTests(V1Builder, StoreTestCase):
             with self.subTest(with_added=with_added, user_version=user_version):
                 self.reset()
                 data = self.populated_v1(with_added, user_version)
-                self.assertEqual(vuln_db.upgrade(), 3)
+                self.assertEqual(vuln_db.upgrade(), 4)
                 conn = self.raw()
-                self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 4)
                 columns = [row[1] for row in conn.execute("PRAGMA table_info(servers)")]
                 self.assertEqual(columns.count("match_hash"), 1)
-                self.assertEqual(len(columns), 26)
+                self.assertEqual(len(columns), 28)
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM servers WHERE match_hash IS NOT NULL").fetchone()[0], 0)
                 for server_id, matches in data.items():
                     self.assertEqual(self.server_cve_rows(server_id), self.expected_server_cves(matches), server_id)
@@ -296,7 +297,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
                 self.assertEqual(vuln_db.cve_servers("CVE-2024-0001")["total"], 3)
                 self.assertTrue(vuln_db.server_cves(1)["total"] > 0)
                 # Idempotent, and the first save of each server takes the full path, the second the fast one.
-                self.assertEqual(vuln_db.upgrade(), 3)
+                self.assertEqual(vuln_db.upgrade(), 4)
                 before = self.dump("server_cves", "fleet_cves")
                 save(1, data[1])
                 self.assertIsNotNone(self.raw().execute("SELECT match_hash FROM servers WHERE server_id = 1").fetchone()[0])
@@ -323,7 +324,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         with mock.patch.object(vuln_db, "_version", version), \
                 mock.patch.object(vuln_db, "_upgrade", side_effect=AssertionError("upgraded twice")):
             vuln_db.ensure_schema(loser)  # would raise "duplicate column name" if it tried again
-        self.assertEqual(real(loser), 3)
+        self.assertEqual(real(loser), 4)
 
     def test_two_threads_upgrading_at_once(self):
         self.populated_v1(False)
@@ -344,7 +345,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         self.assertEqual(errors, [])
         columns = [row[1] for row in self.raw().execute("PRAGMA table_info(servers)")]
         self.assertEqual(len(columns), len(set(columns)))
-        self.assertEqual(vuln_db.schema_version(), 3)
+        self.assertEqual(vuln_db.schema_version(), 4)
         self.assertEqual(self.fleet(), self.fleet_by_hand())
 
     def test_a_failed_upgrade_leaves_version_1_intact(self):
@@ -359,7 +360,7 @@ class UpgradeTests(V1Builder, StoreTestCase):
         self.assertEqual(len(columns), 18)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         self.assertNotIn("server_cves", names)
-        self.assertEqual(vuln_db.upgrade(), 3)  # and the next try succeeds
+        self.assertEqual(vuln_db.upgrade(), 4)  # and the next try succeeds
 
 
 # ---------------------------------------------------------------- writes
@@ -754,7 +755,7 @@ class ReadTests(FleetStore):
         self.assertEqual(page["total"], 60)
         self.assertEqual(sorted(page["rows"][0]), sorted([
             "server_id", "hostname", "group_name", "environment", "os_name", "packages", "vulns", "vuln_critical",
-            "vuln_high", "kev", "inventory_at", "matched_at", "db_built"]))
+            "vuln_high", "kev", "inventory_at", "matched_at", "db_built", "vuln_fixable", "owner", "os_build"]))
         keys = [(-r["kev"], -r["vuln_critical"], -r["vuln_high"], r["hostname"], r["server_id"]) for r in page["rows"]]
         self.assertEqual(keys, sorted(keys))
         self.assertEqual(vuln_db.fleet_servers(page_size=10)["rows"], page["rows"][:10])
@@ -1176,7 +1177,7 @@ class SetReadTests(FleetStore):
                     raise RuntimeError("boom")
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM sqlite_temp_master").fetchone()[0], 0)
         self.assertEqual((os.path.getsize(store.FINDINGS_DB), os.stat(store.FINDINGS_DB).st_mtime_ns), (size, stamp))
-        self.assertEqual(vuln_db.schema_version(), 3)
+        self.assertEqual(vuln_db.schema_version(), 4)
 
     def test_set_cves_leaves_no_temp_table_behind(self):
         names = []
@@ -1444,11 +1445,11 @@ class FixableTests(V1Builder, StoreTestCase):
         self.assertEqual(vuln_db.schema_version(), 2)
         self.assertIs(vuln_db.readable(), False)  # a reader waits for the writer's upgrade
         self.assertIsNone(vuln_db.server_summary(1))  # why the server panel route upgrades before it reads
-        self.assertEqual(vuln_db.upgrade(), 3)
+        self.assertEqual(vuln_db.upgrade(), 4)
         self.assertEqual({i: vuln_db.server_summary(i)["vuln_fixable"] for i in (1, 2, 3, 4)}, expected)
         self.assertEqual(self.fleet(), self.fleet_by_hand())
         self.assertEqual(self.fleet()["CVE-2024-0100"][-1], 1)
-        self.assertEqual(vuln_db.upgrade(), 3)  # idempotent
+        self.assertEqual(vuln_db.upgrade(), 4)  # idempotent
         self.assertEqual({i: vuln_db.server_summary(i)["vuln_fixable"] for i in (1, 2, 3, 4)}, expected)
         self.assertIs(vuln_db.readable(), True)
 

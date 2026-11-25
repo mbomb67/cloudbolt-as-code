@@ -610,6 +610,240 @@ class ConditionTests(unittest.TestCase):
         self.assertNotIn("}}", self.source)
 
 
+# ---------------------------------------------------------------- install updates on several servers
+OFF = "Installing updates is turned off in Vulnerability Settings."
+
+
+def fake_patch_module():
+    return _module(PACKAGE + ".vuln_patch", PATCHING_OFF=OFF,
+                   parse_restart_flag=lambda value, default=True: value if isinstance(value, bool) else default)
+
+
+class BulkStateTests(unittest.TestCase):
+    def setUp(self):
+        self.world = World()
+        with self.world.installed():
+            hooks._apply_server_action(True)
+        self.action = self.world.actions[0]
+        self.action.list_view_visible = True
+        self.action.new_tab_url = None
+        self.action.custom_form_id = None
+        self.settings = {"patching": True}
+        patcher = mock.patch.object(store, "get_settings", lambda: self.settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def bulk(self):
+        patch_module = fake_patch_module()
+        with self.world.installed():
+            package = sys.modules[PACKAGE]
+            package.vuln_patch = patch_module
+            with mock.patch.dict(sys.modules, {PACKAGE + ".vuln_patch": patch_module}):
+                return hooks.patch_bulk_action()
+
+    def test_enabled_gives_the_action_label_and_the_default(self):
+        state, action = self.bulk()
+        self.assertEqual(state, {"enabled": True, "why": "", "action_label": "Install Updates",
+                                 "restart_default": True, "requires_approval": False})
+        self.assertIs(action, self.action)
+
+    def test_the_state_half_is_the_same_dict(self):
+        patch_module = fake_patch_module()
+        with self.world.installed():
+            sys.modules[PACKAGE].vuln_patch = patch_module
+            with mock.patch.dict(sys.modules, {PACKAGE + ".vuln_patch": patch_module}):
+                self.assertEqual(hooks.patch_bulk_state(), self.bulk()[0])
+
+    def refused(self, why):
+        state, action = self.bulk()
+        self.assertEqual((state["enabled"], state["why"]), (False, why))
+        self.assertIsNone(action)
+
+    def test_setting_off(self):
+        self.settings = {"patching": False}
+        self.refused(OFF)
+        self.assertIn("Vulnerability Settings", OFF)
+
+    def test_no_action(self):
+        del self.world.actions[:]
+        self.refused(hooks.BULK_NO_ACTION)
+
+    def test_action_disabled_still_names_the_label(self):
+        self.action.enabled = False
+        self.action.label = "Patch now"
+        state, action = self.bulk()
+        self.assertEqual((state["why"], state["action_label"]), (hooks.BULK_DISABLED, "Patch now"))
+        self.assertIsNone(action)
+
+    def test_bulk_operation_off(self):
+        self.action.list_view_visible = False
+        self.refused(hooks.BULK_NOT_ALLOWED)
+
+    def test_new_tab_or_custom_form(self):
+        self.action.new_tab_url = "https://example.com"
+        self.refused(hooks.BULK_NOT_AT_ONCE)
+        self.action.new_tab_url = None
+        self.action.custom_form_id = 4
+        self.refused(hooks.BULK_NOT_AT_ONCE)
+
+    def test_a_synchronous_action_is_refused(self):
+        self.action.is_synchronous = True
+        self.refused(hooks.BULK_NOT_AT_ONCE)
+
+    def test_requires_approval_is_reported(self):
+        self.action.requires_approval = True
+        state, action = self.bulk()
+        self.assertEqual((state["enabled"], state["requires_approval"]), (True, True))
+        self.assertIs(action, self.action)
+
+    def test_restart_default_follows_the_mapping(self):
+        self.action.mapping_rows[0].default_value = None
+        self.assertIs(self.bulk()[0]["restart_default"], False)
+        self.action.mapping_rows[0].default_value = types.SimpleNamespace(value=False)
+        self.assertIs(self.bulk()[0]["restart_default"], False)
+        del self.action.mapping_rows[:]
+        self.assertIs(self.bulk()[0]["restart_default"], True)
+
+    def test_unreadable_never_raises(self):
+        with mock.patch.object(store, "get_settings", side_effect=RuntimeError("disk")):
+            state, action = self.bulk()
+        self.assertEqual((state["enabled"], state["why"]), (False, hooks.BULK_UNREADABLE))
+        self.assertIsNone(action)
+
+
+class QueuedUpdateTests(unittest.TestCase):
+    def run_lookup(self, job_ids, links, items=(), sa_ids=(), ra_ids=(), error=None):
+        """items are (job id, server id or None) of approved order items."""
+        calls = {"jobs": [], "through": [], "actions": []}
+
+        class Q:
+            def __init__(self, **kw):
+                self.kw = kw
+
+            def __or__(self, other):
+                return ("or", self, other)
+
+        class Query:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def values_list(self, *fields, **kw):
+                return list(self.rows)
+
+        class JobModel:
+            ACTIVE_STATUSES = ["INIT", "PENDING", "QUEUED", "RUNNING"]
+
+            class objects:
+                @staticmethod
+                def filter(*args, **kw):
+                    calls["jobs"].append((args, kw))
+                    if error:
+                        raise error
+                    return Query(items if args else job_ids)
+
+        class Through:
+            class objects:
+                @staticmethod
+                def filter(**kw):
+                    calls["through"].append(kw)
+                    return Query([link for link in links if link[1] in kw["job_id__in"]])
+
+        def action_model(name, ids):
+            class Model:
+                class objects:
+                    @staticmethod
+                    def filter(**kw):
+                        calls["actions"].append((name, kw))
+                        return Query(ids)
+            return Model
+
+        class ContentType:
+            class objects:
+                @staticmethod
+                def get_for_model(model):
+                    return "ct-" + model.__name__
+
+        ServerModel = types.SimpleNamespace(jobs=types.SimpleNamespace(through=Through))
+        server_action = action_model("sa", list(sa_ids))
+        server_action.__name__ = "ServerAction"
+        resource_action = action_model("ra", list(ra_ids))
+        resource_action.__name__ = "ResourceAction"
+        modules = {"jobs.models": _module("jobs.models", Job=JobModel),
+                   "infrastructure.models": _module("infrastructure.models", Server=ServerModel),
+                   "cbhooks.models": _module("cbhooks.models", ServerAction=server_action,
+                                             ResourceAction=resource_action),
+                   "django.db.models": _module("django.db.models", Q=Q),
+                   "django.contrib": _module("django.contrib"),
+                   "django.contrib.contenttypes": _module("django.contrib.contenttypes"),
+                   "django.contrib.contenttypes.models": _module("django.contrib.contenttypes.models",
+                                                                 ContentType=ContentType)}
+        with mock.patch.dict(sys.modules, modules):
+            return hooks.queued_update_servers(), calls
+
+    def test_the_hook_jobs_cost_two_queries_and_the_oldest_job_wins(self):
+        found, calls = self.run_lookup([30, 20], [(1, 30), (1, 20), (2, 30), (3, 99)])
+        self.assertEqual(found, {1: 20, 2: 30})
+        self.assertEqual(len(calls["jobs"]), 1)
+        self.assertEqual(len(calls["through"]), 1)
+        args, query = calls["jobs"][0]
+        self.assertEqual(args, ())
+        self.assertEqual(query["status__in"], ["INIT", "PENDING", "QUEUED", "RUNNING"])
+        self.assertEqual(query["job_parameters__hookparameters__hook__name__in"],
+                         [hooks.PATCH_NAME, hooks.RESOURCE_PATCH_NAME])
+
+    def test_no_active_job_is_empty_without_a_link_query(self):
+        found, calls = self.run_lookup([], [])
+        self.assertEqual(found, {})
+        self.assertEqual(calls["through"], [])
+
+    def test_approved_order_items_are_found(self):
+        # Items of the server action name their server; a resource action's item goes through Server.jobs.
+        found, calls = self.run_lookup([], [(7, 61)], items=[(60, 4), (61, None)], sa_ids=[3], ra_ids=[8])
+        self.assertEqual(found, {4: 60, 7: 61})
+        self.assertEqual([c[0] for c in calls["actions"]], ["sa", "ra"])
+        self.assertEqual(calls["actions"][0][1], {"hook__name": hooks.PATCH_NAME})
+        self.assertEqual(calls["actions"][1][1], {"hook__name": hooks.RESOURCE_PATCH_NAME})
+        args, query = calls["jobs"][1]
+        self.assertEqual(len(args), 1)
+        self.assertEqual(query, {"status__in": ["INIT", "PENDING", "QUEUED", "RUNNING"]})
+        self.assertEqual(calls["through"], [{"job_id__in": [61]}])
+
+    def test_without_actions_no_item_query_is_made(self):
+        _, calls = self.run_lookup([5], [])
+        self.assertEqual(len(calls["jobs"]), 1)
+
+    def test_a_failure_is_an_empty_answer(self):
+        found, _ = self.run_lookup([1], [], error=RuntimeError("db"))
+        self.assertEqual(found, {})
+
+
+class BulkSettingTests(unittest.TestCase):
+    def test_default_range_and_clamp(self):
+        self.assertEqual(store.DEFAULT_SETTINGS["bulk_patch_max"], 30)
+        self.assertEqual(store.BULK_PATCH_RANGE, (1, 100))
+        for saved, expect in ((0, 1), (101, 100), (55, 55), ("x", 30), (None, 30)):
+            with mock.patch.object(store, "_read_json", return_value={"bulk_patch_max": saved}):
+                self.assertEqual(store.get_settings()["bulk_patch_max"], expect, saved)
+        with mock.patch.object(store, "_read_json", return_value={}):
+            self.assertEqual(store.get_settings()["bulk_patch_max"], 30)
+
+    def test_validation(self):
+        self.assertEqual(store.validate_settings({})[0]["bulk_patch_max"], 30)
+        clean, errors = store.validate_settings({"bulk_patch_max": "100"})
+        self.assertEqual((clean["bulk_patch_max"], errors), (100, {}))
+        for bad, expect in (("0", 1), ("101", 100), ("many", 30), ("", 30)):
+            clean, errors = store.validate_settings({"bulk_patch_max": bad})
+            self.assertEqual(clean["bulk_patch_max"], expect, bad)
+            self.assertEqual(errors["bulk_patch_max"], "Servers per bulk update must be a whole number from 1 to 100.")
+
+    def test_the_settings_page_has_the_field(self):
+        with open(os.path.join(SOURCE, "templates", "vuln_settings.html"), encoding="ascii") as handle:
+            html = handle.read()
+        self.assertIn('name="bulk_patch_max" min="1" max="100"', html)
+        self.assertIn("Servers per bulk update", html)
+        self.assertIn("one after another in one job", html)
+
+
 class NoTokenTests(unittest.TestCase):
     def test_no_double_braces_in_the_files_of_this_package(self):
         for name in ("vuln_hooks.py", "vuln_patch_condition.py"):

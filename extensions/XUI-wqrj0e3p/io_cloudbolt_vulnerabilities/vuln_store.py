@@ -86,6 +86,8 @@ DEFAULT_SETTINGS = {
     "patching": False,
     "restart_wait_min": 60,
     "patch_timeout_min": 90,
+    # Most servers the Vulnerabilities page starts one Install updates job for at once (they run one after another).
+    "bulk_patch_max": 30,
     # After a Linux server restarts onto a new kernel, remove the older kernel packages.
     "remove_old_kernels": True,
 }
@@ -93,6 +95,17 @@ REMATCH_WORKERS_RANGE = (1, 4)
 INVENTORY_PARALLEL_RANGE = (1, 10)
 RESTART_WAIT_RANGE = (5, 120)
 PATCH_TIMEOUT_RANGE = (10, 240)
+BULK_PATCH_RANGE = (1, 100)
+
+
+def owner_label(first, last, username):
+    """A server owner as the pages show them: the full name when there is one, else the username, else "". Every
+    part is stripped; this is the one place that decides it (the scan snapshot, the re-match and the reconcile
+    all use it)."""
+    name = " ".join(part.strip() for part in (first, last) if isinstance(part, str) and part.strip())
+    if name:
+        return name
+    return username.strip() if isinstance(username, str) else ""
 
 
 class StoreError(Exception):
@@ -410,6 +423,8 @@ def get_settings():
         result["restart_wait_min"], *RESTART_WAIT_RANGE, DEFAULT_SETTINGS["restart_wait_min"])
     result["patch_timeout_min"] = _clamp(
         result["patch_timeout_min"], *PATCH_TIMEOUT_RANGE, DEFAULT_SETTINGS["patch_timeout_min"])
+    result["bulk_patch_max"] = _clamp(
+        result["bulk_patch_max"], *BULK_PATCH_RANGE, DEFAULT_SETTINGS["bulk_patch_max"])
     result["rematch_workers"] = _clamp(
         result["rematch_workers"], *REMATCH_WORKERS_RANGE, DEFAULT_SETTINGS["rematch_workers"])
     result["inventory_parallel"] = _clamp(
@@ -448,6 +463,7 @@ def validate_settings(data):
         ("inventory_parallel", INVENTORY_PARALLEL_RANGE, "Servers scanned at once by the weekly inventory"),
         ("restart_wait_min", RESTART_WAIT_RANGE, "Minutes to wait for a server to come back after a restart"),
         ("patch_timeout_min", PATCH_TIMEOUT_RANGE, "Minutes allowed for installing updates"),
+        ("bulk_patch_max", BULK_PATCH_RANGE, "Servers per bulk update"),
     ):
         raw = str(data.get(key, DEFAULT_SETTINGS[key])).strip()
         if _whole(raw, low, high) is None:

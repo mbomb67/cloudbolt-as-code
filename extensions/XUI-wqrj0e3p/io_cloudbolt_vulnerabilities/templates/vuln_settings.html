@@ -266,6 +266,12 @@
         <div class="vuln-help">How long the install itself may run on one server before it is reported as failed, from 10 to 240.</div>
         {% if field_errors.patch_timeout_min %}<div class="vuln-help vuln-bad">{{ field_errors.patch_timeout_min }}</div>{% endif %}
       </div>
+      <div class="vuln-field">
+        <label class="vuln-label" for="vuln-bulk-max">Servers per bulk update</label>
+        <input type="number" class="form-control form-control-sm vuln-narrow" id="vuln-bulk-max" name="bulk_patch_max" min="1" max="100" value="{{ settings.bulk_patch_max }}">
+        <div class="vuln-help">Install updates runs the selected servers one after another in one job. The most servers one selection on the Vulnerability Search page may hold, from 1 to 100 (default 30). A run stops starting servers when the job's time limit is near; those are reported as not started.</div>
+        {% if field_errors.bulk_patch_max %}<div class="vuln-help vuln-bad">{{ field_errors.bulk_patch_max }}</div>{% endif %}
+      </div>
     </div>
 
     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i> Save settings</button>

@@ -34,7 +34,14 @@ paged and filtered on the server side.
 - Vulnerability Search (admin page under Custom Extensions, function
   vulnerabilities) is the fleet search: a shell page plus four JSON routes
   (vuln_fleet_summary, vuln_fleet_cves, vuln_fleet_cve_servers,
-  vuln_fleet_servers) that return one page of the findings store each.
+  vuln_fleet_servers) that return one page of the findings store each. Every
+  one first brings the store up to date with CloudBolt's servers
+  (vuln_fleet.reconcile_servers), so archived and deleted servers never show.
+  The Servers view also filters, sorts and selects servers: vuln_fleet_server_filters
+  lists the filter values, vuln_fleet_servers_select picks the servers "Select all"
+  means, and vuln_fleet_servers_patch (POST) starts one Install Updates run for the
+  selection through the Install Updates server action itself, so Requires approval
+  and the per-server permission are honored.
 - The resource tab rolls up the findings of the resource's own servers (not
   those of sub-resources) that the viewer may see: a shell page plus five
   routes (vuln_resource_summary, vuln_resource_cves, vuln_resource_cve_servers,
@@ -725,11 +732,15 @@ def _page_args(request):
 )
 @cbadmin_required
 def vulnerabilities(request):
-    """The page is a shell; its data arrives from the four JSON routes. Each URL is built on its
-    own so one failure leaves the others."""
+    """The page is a shell; its data arrives from the JSON routes. Each URL is built on its
+    own so one failure leaves the others. The context is urls (summary, cves, cve_servers, servers,
+    server_filters, servers_select, servers_patch), settings_url and page_error; the CSRF token is the
+    template's own csrf_token."""
     context = {"urls": {}, "settings_url": "", "page_error": ""}
     for key, name in (("summary", "vuln_fleet_summary"), ("cves", "vuln_fleet_cves"),
-                      ("cve_servers", "vuln_fleet_cve_servers"), ("servers", "vuln_fleet_servers")):
+                      ("cve_servers", "vuln_fleet_cve_servers"), ("servers", "vuln_fleet_servers"),
+                      ("server_filters", "vuln_fleet_server_filters"), ("servers_select", "vuln_fleet_servers_select"),
+                      ("servers_patch", "vuln_fleet_servers_patch")):
         try:
             context["urls"][key] = reverse(name)
         except Exception:
@@ -772,6 +783,7 @@ def vuln_fleet_summary(request):
     store exists but cannot be read or upgraded right now; the page retries)."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
+    _fresh_store()  # the hidden ids are ignored: the cards may count a hidden server until it is purged
     db_built = ""
     try:
         db_built = vuln_tools.status().get("db", {}).get("built") or ""
@@ -789,6 +801,7 @@ def vuln_fleet_cves(request):
     """GET ?q=&severity=&kev=1&fix=1&page=: one page of the vulnerabilities that affect scanned servers."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
+    _fresh_store()  # the hidden ids are ignored: the counts may include a hidden server until it is purged
     severity = request.GET.get("severity", "").strip().capitalize()
     if severity not in vuln_match.SEVERITIES:
         severity = ""
@@ -831,24 +844,438 @@ def vuln_fleet_cve_servers(request):
         return JsonResponse({"error": "That is not a valid CVE or advisory id."}, status=400)
     if cve.upper().startswith("CVE-"):
         cve = cve.upper()
+    _fresh_store()  # the hidden ids are ignored: a hidden server may be listed until it is purged
     result = _with_built_display(_with_urls(vuln_db.cve_servers(
         cve, search=request.GET.get("q", "").strip()[:100], **_page_args(request))))
     result["cve_info"] = _cve_info(cve)
     return JsonResponse(result)
 
 
+BULK_ERROR = "Install updates could not be checked. The CloudBolt application log has the details."
+NOT_OFFERED = "The Install Updates action is not offered for this server."
+PATCH_START_ERROR = "Install updates could not be started. The CloudBolt application log has the details."
+# "Select all N matching" looks at most this many times the cap into the matching servers, and never more than the
+# ceiling, so one request costs a bounded number of state-file reads and permission checks.
+SELECT_SCAN_FACTOR = 4
+SELECT_SCAN_CEILING = 400
+SKIPPED_LISTED = 20
+MAX_IDS_TEXT = 2000
+
+
+def _reconcile(force=False):
+    """Make the findings store match CloudBolt's servers before a read (vuln_fleet.reconcile_servers: throttled,
+    bounded) and return the ids of the servers the readers must hide. Never raises: a failure is logged and nothing
+    is hidden."""
+    try:
+        result = vuln_fleet.reconcile_servers(force=force)
+        hidden = []
+        for value in (result or {}).get("hidden") or []:
+            try:
+                hidden.append(int(value))
+            except (TypeError, ValueError):
+                continue
+        return hidden
+    except Exception:
+        logger.exception("Vulnerabilities: cannot bring the findings store up to date with the servers")
+        return []
+
+
+def _fresh_store():
+    """The store upgraded and reconciled, in that order (the reconcile writes the newest columns), and the ids to
+    hide. Called at the start of every fleet read route."""
+    _upgrade_store()
+    return _reconcile()
+
+
+def _server_filter_args(request):
+    """The keyword arguments of vuln_db.fleet_servers and fleet_server_ids that the query string sets: q (100
+    characters at most), kev=1, fix=1, group, environment, os_build and owner (one exact value each, 200 at most,
+    vuln_db.NONE_VALUE for none of os_build or owner), sort (only a key of vuln_db.FLEET_SERVER_SORTS, else "") and
+    dir (desc, else asc). The values are bound by the store, and sort picks one of its fixed expressions."""
+    def text(name, limit=200):
+        return str(request.GET.get(name, ""))[:limit]
+
+    sort = text("sort", 40)
+    if sort not in vuln_db.FLEET_SERVER_SORTS:
+        sort = ""
+    return {
+        "search": text("q", 400).strip()[:100],
+        "kev_only": request.GET.get("kev") == "1",
+        "group": text("group"),
+        "environment": text("environment"),
+        "os_build": text("os_build"),
+        "owner": text("owner"),
+        "fix_only": request.GET.get("fix") == "1",
+        "sort": sort,
+        "direction": "desc" if sort and request.GET.get("dir") == "desc" else "asc",
+    }
+
+
+def _row_ids(result):
+    ids = []
+    for row in (result or {}).get("rows") or []:
+        try:
+            ids.append(int(row.get("server_id")))
+        except (AttributeError, TypeError, ValueError):
+            continue
+    return ids
+
+
+def _load_servers(ids):
+    """{id: Server} of the servers that exist, in ONE query with what the update checks read, or None when the
+    query failed (logged). A server that does not exist is simply absent."""
+    if not ids:
+        return {}
+    try:
+        found = (Server.objects.filter(id__in=list(ids))
+                 .select_related("group", "os_family__parent__parent", "resource_handler", "owner__user")
+                 .prefetch_related("tags"))
+        return {server.id: server for server in found}
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the servers of a page")
+        return None
+
+
+def _bulk_max():
+    try:
+        return max(1, int(store.get_settings()["bulk_patch_max"]))
+    except Exception:
+        logger.exception("Vulnerabilities: cannot read the bulk update limit")
+        return store.DEFAULT_SETTINGS["bulk_patch_max"]
+
+
+def _url(name, fallback=""):
+    try:
+        return reverse(name)
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the URL %s", name)
+        return fallback
+
+
+def _job_link(job_id):
+    try:
+        return reverse("job_detail", args=[job_id])
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the link of job %s", job_id)
+        return ""
+
+
+def _bulk_object(state, maximum):
+    """The "bulk" object of the Servers answer from vuln_hooks.patch_bulk_action()'s state."""
+    return {
+        "enabled": bool(state.get("enabled")),
+        "why": state.get("why") or "",
+        "max": maximum,
+        "action_label": state.get("action_label") or vuln_hooks.PATCH_ACTION_LABEL,
+        "restart_default": bool(state.get("restart_default", True)),
+        "requires_approval": bool(state.get("requires_approval", False)),
+        "run_url": _url("vuln_fleet_servers_patch"),
+        "select_url": _url("vuln_fleet_servers_select"),
+    }
+
+
+def _row_patch_state(profile, server, action, context, queued, full=False, request=None):
+    """{"selectable", "why", "running"} of one server for a bulk Install updates, the first failing check wins:
+    the server must exist; no scan or update may hold it (its state file's active marker, running = {job_id,
+    job_url, kind, queued false}); it may not be waiting in an update job that has not ended (queued, a dict of
+    server id to job id: running.queued true); vuln_fleet.quick_eligibility must find no problem; and the viewer
+    must be permitted to run the Install Updates action on it (server_action_permitted: instant for the admins
+    this page is for, as it answers before it asks the database).
+
+    The page rows and "Select all" stop there (full false) because they must cost no query per server: context is
+    {"problems", "unassigned", "visibility"}, each read once per request, and the quick check reads only what
+    _load_servers loaded. "No way to run a script", a missing address or credentials and the other things only a
+    remote or per-server read can tell are found at submit time or by the job. The submit (full true) is bounded
+    by the selection limit, so it also runs the whole vuln_patch.eligibility and asks core whether the action is
+    offered for the server (ServerAction.server_action_dict, which evaluates the action's Display Condition and the
+    plug-in's OS family, group, environment and technology rules; the same test core's server lists apply). A
+    refusal there is worded like the rest. Reads one state file per server; no remote call."""
+    if server is None:
+        return {"selectable": False, "why": "This server no longer exists.", "running": None}
+    try:
+        found = vuln_jobs.active_job(server.id)
+    except Exception:
+        # An unreadable state file is no proof of a running job; the job itself refuses a busy server.
+        logger.exception("Vulnerabilities: cannot read the scan state of server %s", server.id)
+        found = None
+    if found is not None:
+        marker, job = found
+        kind = "patch" if marker.get("kind") == vuln_jobs.PATCH_KIND else "scan"
+        running = {"job_id": job.id, "job_url": job.get_absolute_url(), "kind": kind, "queued": False}
+        return {"selectable": False,
+                "why": "A scan or update is already running on this server (job {}).".format(job.id),
+                "running": running}
+    waiting = queued.get(server.id)
+    if waiting:
+        running = {"job_id": waiting, "job_url": _job_link(waiting), "kind": "patch", "queued": True}
+        return {"selectable": False, "why": "Waiting in update job {}.".format(waiting), "running": running}
+    try:
+        code = vuln_fleet.quick_eligibility(server, context["problems"], context["unassigned"],
+                                            context["visibility"])
+        if not code and full:
+            code = vuln_patch.eligibility(server, context["problems"])
+        if code:
+            return {"selectable": False,
+                    "why": "Cannot install updates: {}.".format(vuln_fleet.REASONS.get(code, code)), "running": None}
+        # Imported here, as vuln_hooks does: the pages work whatever happens to this module.
+        from utilities.permissions import server_action_permitted
+        if not server_action_permitted(profile, server, action):
+            return {"selectable": False, "why": "You do not have permission to install updates on this server.",
+                    "running": None}
+        if full and not action.server_action_dict(server, request):
+            return {"selectable": False, "why": NOT_OFFERED, "running": None}
+    except Exception:
+        logger.exception("Vulnerabilities: cannot work out whether server %s may be updated", server.id)
+        return {"selectable": False,
+                "why": "Cannot install updates: {}.".format(vuln_fleet.REASONS["unknown"]), "running": None}
+    return {"selectable": True, "why": "", "running": None}
+
+
+def _patch_states(profile, ids, servers, action, full=False, request=None):
+    """{server id: _row_patch_state} for the ids: the prerequisites, the waiting servers, the Unassigned group
+    ids and the settings are read once for all of them. Raises when those cannot be read, so the caller can
+    switch the bulk update off. full is for the submit only (see _row_patch_state)."""
+    context = {
+        "problems": vuln_fleet.prerequisites(vuln_fleet.default_base_url()),
+        "unassigned": vuln_fleet.unassigned_ids(),
+        "visibility": store.get_settings()["visibility"],
+    }
+    queued = vuln_hooks.queued_update_servers()
+    return {server_id: _row_patch_state(profile, servers.get(server_id), action, context, queued, full, request)
+            for server_id in ids}
+
+
+def _fleet_servers_page(filters, page_args):
+    """(result, servers) of one page. When a listed server is gone from CloudBolt or not current (the 15 second
+    throttle can leave one in the store) the store is reconciled once, now, and the page is read once more."""
+    hidden = _reconcile()
+    result = vuln_db.fleet_servers(hide_ids=hidden, **filters, **page_args)
+    servers = _load_servers(_row_ids(result))
+    if servers is not None and any(
+            server_id not in servers or servers[server_id].status not in vuln_fleet.CURRENT_STATUSES
+            for server_id in _row_ids(result)):
+        hidden = _reconcile(force=True)
+        result = vuln_db.fleet_servers(hide_ids=hidden, **filters, **page_args)
+        servers = _load_servers(_row_ids(result))
+    return result, servers
+
+
 @_api
 @cbadmin_required
 def vuln_fleet_servers(request):
-    """GET ?q=&kev=1&page=: one page of the scanned servers, worst first."""
+    """GET ?q=&kev=1&fix=1&group=&environment=&os_build=&owner=&sort=&dir=&page=: one page of the scanned servers
+    that are current in CloudBolt, worst first unless sort says otherwise (_server_filter_args). The store is
+    brought up to date first (_fresh_store) and a page that still shows a server CloudBolt no longer has is
+    read again once (_fleet_servers_page). Each row has url (its Vulnerabilities tab) and, when bulk updating is
+    available, patch = {selectable, why, running}; running is null or {job_id, job_url, kind, queued} for a server
+    held by a scan or an update (queued: waiting in an update job). bulk = {enabled, why, max, action_label,
+    restart_default, requires_approval, run_url, select_url}; when it is not enabled, why says why and the rows carry no patch. The
+    page size is fixed; a client page_size is ignored. Costs: one Server query for the page, the prerequisites and
+    the waiting servers once, one state file per row."""
     if request.method != "GET":
         return JsonResponse({"error": "Use GET."}, status=405)
-    result = vuln_db.fleet_servers(
-        search=request.GET.get("q", "").strip()[:100],
-        kev_only=request.GET.get("kev") == "1",
-        **_page_args(request)
-    )
-    return JsonResponse(_with_built_display(_with_urls(result)))
+    _upgrade_store()
+    result, servers = _fleet_servers_page(_server_filter_args(request), _page_args(request))
+    rows = result.get("rows") or []
+    ids = _row_ids(result)
+    state, action = vuln_hooks.patch_bulk_action()
+    bulk = _bulk_object(state, _bulk_max())
+    if servers is None:
+        bulk = dict(bulk, enabled=False, why=BULK_ERROR)
+        servers = {}
+    for row in rows:
+        server = servers.get(row.get("server_id"))
+        if server is not None:
+            row["url"] = server.get_absolute_url() + SERVER_TAB_HASH
+    if bulk["enabled"] and ids:
+        try:
+            states = _patch_states(request.get_user_profile(), ids, servers, action)
+            for row in rows:
+                row["patch"] = states.get(row.get("server_id"))
+        except Exception:
+            logger.exception("Vulnerabilities: cannot work out which servers of a page may be updated")
+            bulk = dict(bulk, enabled=False, why=BULK_ERROR)
+    result["bulk"] = bulk
+    return JsonResponse(_with_built_display(result))
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_server_filters(request):
+    """GET: what the Servers view's filters offer, from the current servers in the store:
+    {state, group, environment, os_build, owner, truncated}. group and environment are lists of strings (sorted
+    case-insensitively, 500 at most each); os_build and owner are lists of {value, label}, with a last entry whose
+    value is vuln_db.NONE_VALUE ("No OS build", "No owner") when a server has none. state is "ready", "empty" (no
+    server) or "unavailable" (the store cannot be read now; the page retries)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    hidden = _fresh_store()
+    found = vuln_db.fleet_server_options(hide_ids=hidden)
+
+    def labelled(key, none_label, has_none):
+        options = [{"value": value, "label": value} for value in found.get(key) or []]
+        if has_none:
+            options.append({"value": vuln_db.NONE_VALUE, "label": none_label})
+        return options
+
+    answer = {
+        "group": list(found.get("group") or []),
+        "environment": list(found.get("environment") or []),
+        "os_build": labelled("os_build", "No OS build", found.get("has_no_os_build")),
+        "owner": labelled("owner", "No owner", found.get("has_no_owner")),
+        "truncated": bool(found.get("truncated")),
+    }
+    if found.get("unavailable"):
+        state = "unavailable"
+    elif any(answer[key] for key in ("group", "environment", "os_build", "owner")):
+        state = "ready"
+    else:
+        state = "empty"
+    answer["state"] = state
+    return JsonResponse(answer)
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_servers_select(request):
+    """GET (the list's filters and sort): the servers "Select all N matching" picks, in the order the list shows:
+    {total, max, ids, hostnames, scanned, skipped, skipped_count, complete}. At most bulk_patch_max ids, the first
+    ones that _row_patch_state finds selectable among the first max x 4 matching servers (400 at most). skipped
+    lists up to 20 of the servers looked at that cannot be updated, {id, hostname, why}, skipped_count counts them
+    all. complete is true only when every matching server was looked at and every selectable one fit under max.
+    409 {error: why} while bulk updating is not available."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Use GET."}, status=405)
+    filters = _server_filter_args(request)
+    hidden = _fresh_store()
+    state, action = vuln_hooks.patch_bulk_action()
+    if not state.get("enabled"):
+        return JsonResponse({"error": state.get("why") or BULK_ERROR}, status=409)
+    maximum = _bulk_max()
+    found = vuln_db.fleet_server_ids(hide_ids=hidden, limit=min(maximum * SELECT_SCAN_FACTOR, SELECT_SCAN_CEILING),
+                                     **filters)
+    ids = [int(i) for i in found.get("ids") or []]
+    answer = {"total": int(found.get("total") or 0), "max": maximum, "ids": [], "hostnames": {}, "scanned": 0,
+              "skipped": [], "skipped_count": 0, "complete": True}
+    if found.get("unavailable"):
+        answer["unavailable"] = True
+        return JsonResponse(answer)
+    servers = _load_servers(ids)
+    if servers is None:
+        return JsonResponse({"error": BULK_ERROR}, status=500)
+    states = _patch_states(request.get_user_profile(), ids, servers, action)
+    overflow = False
+    for server_id in ids:
+        found_state = states[server_id]
+        if found_state["selectable"]:
+            if len(answer["ids"]) >= maximum:
+                overflow = True
+                break
+            answer["ids"].append(server_id)
+            answer["hostnames"][str(server_id)] = servers[server_id].hostname
+        else:
+            answer["skipped_count"] += 1
+            if len(answer["skipped"]) < SKIPPED_LISTED:
+                server = servers.get(server_id)
+                answer["skipped"].append({"id": server_id,
+                                          "hostname": server.hostname if server else "Server {}".format(server_id),
+                                          "why": found_state["why"]})
+        answer["scanned"] += 1
+    answer["complete"] = not overflow and len(ids) >= answer["total"]
+    return JsonResponse(answer)
+
+
+def _parse_ids(text, maximum):
+    """The unique positive integers of a comma-separated string, in order, or None when the text is not that
+    (an empty token, a sign, a non-digit, text over 2000 characters) or has no id or more than maximum."""
+    if not isinstance(text, str) or len(text) > MAX_IDS_TEXT:
+        return None
+    ids = []
+    for token in text.split(","):
+        token = token.strip()
+        if not (token.isascii() and token.isdigit()) or int(token) < 1:
+            return None
+        if int(token) not in ids:
+            ids.append(int(token))
+    return ids if 1 <= len(ids) <= maximum else None
+
+
+def _order_answer(order, servers, submitted):
+    """The "approval" answer for the order core made for the action. A submitted order (the action has Auto
+    submit order) is the order that waits for approval; an order that is not submitted is the viewer's current
+    order, in which the action only sits until they submit it."""
+    order_id = order.id
+    try:
+        link = reverse("order_detail", args=[order_id]) if submitted else reverse("current_order")
+    except Exception:
+        logger.exception("Vulnerabilities: cannot build the link of order %s", order_id)
+        link = ""
+    answer = {"state": "approval", "order_id": order_id, "order_url": link, "servers": servers,
+              "submitted": submitted}
+    if submitted:
+        # An approval hook may approve the order on the spot; its jobs then exist and nothing waits.
+        answer["approved"] = getattr(order, "status", "") not in ("CART", "PENDING")
+    return answer
+
+
+@_api
+@cbadmin_required
+def vuln_fleet_servers_patch(request):
+    """POST ids=<comma-separated server ids>&restart=1|0: starts ONE Install Updates run for the servers through
+    the Install Updates server action itself, the way the last step of CloudBolt's own bulk server action dialog
+    does, so Requires approval, Auto submit order and the per-server permission are honored. Steps: 409 {error}
+    while bulk updating is not available; 400 {error} unless ids are 1 to bulk_patch_max unique positive
+    integers; 409 {error, refused: [{id, hostname, why}]} and nothing started when any server cannot be updated
+    now (the checks of the list plus the whole vuln_patch.eligibility and whether the action is offered for the
+    server: _row_patch_state with full); then 200 {state: "started", job_id, job_url, servers}
+    for a job, 200 {state: "approval", order_id, order_url, servers, submitted[, approved]} for an order, or 500
+    {error} when the action started nothing or raised. It never calls vuln_patch.start_job, which does not
+    honor Requires approval."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    state, action = vuln_hooks.patch_bulk_action()
+    if not state.get("enabled"):
+        return JsonResponse({"error": state.get("why") or BULK_ERROR}, status=409)
+    maximum = _bulk_max()
+    ids = _parse_ids(request.POST.get("ids", ""), maximum)
+    if ids is None:
+        return JsonResponse({"error": "Select between 1 and {} servers.".format(maximum)}, status=400)
+    try:
+        profile = request.get_user_profile()
+        servers = _load_servers(ids)
+        if servers is None:
+            raise RuntimeError("the servers could not be read")
+        states = _patch_states(profile, ids, servers, action, full=True, request=request)
+        refused = [{"id": server_id,
+                    "hostname": servers[server_id].hostname if server_id in servers else "Server {}".format(server_id),
+                    "why": states[server_id]["why"]} for server_id in ids if not states[server_id]["selectable"]]
+        if refused:
+            return JsonResponse({"error": "{} of the selected servers can no longer be updated.".format(len(refused)),
+                                 "refused": refused}, status=409)
+        restart = bool(vuln_patch.parse_restart_flag(request.POST.get("restart"), state.get("restart_default", True)))
+        targets = [servers[server_id] for server_id in ids]
+        # The context core's bulk dialog builds from the form: the input under its clean name as a bool, the
+        # names of the inputs that carry a value (cbhooks/services/parsing.py get_hook_action_input_dict), and
+        # bulk_changes (infrastructure/views.py servers_batch_server_actions).
+        context = {"__sensitive_keys": [], "__untrusted_expressions": ["restart_if_needed"],
+                   "restart_if_needed": restart, "bulk_changes": True}
+        response = action.run_hook_as_job(
+            owner=profile, servers=targets, context=context, scheduled_time=None,
+            job_display_label="Install updates: {}".format(
+                targets[0].hostname if len(targets) == 1 else "{} servers".format(len(targets))))
+        if isinstance(response, list) and response and isinstance(getattr(response[0], "id", None), int):
+            job = response[0]
+            return JsonResponse({"state": "started", "job_id": job.id, "job_url": job.get_absolute_url(),
+                                 "servers": len(targets)})
+        if isinstance(response, tuple) and response and isinstance(getattr(response[0], "id", None), int):
+            return JsonResponse(_order_answer(response[0], len(targets), True))
+        order = getattr(response, "order", None)
+        if isinstance(getattr(order, "id", None), int):
+            return JsonResponse(_order_answer(order, len(targets), False))
+        raise RuntimeError("the action started nothing: {!r}".format(response))
+    except Exception:
+        logger.exception("Vulnerabilities: cannot start Install updates on %s servers", len(ids))
+        return JsonResponse({"error": PATCH_START_ERROR}, status=500)
 
 
 # ---------------------------------------------------------------------------

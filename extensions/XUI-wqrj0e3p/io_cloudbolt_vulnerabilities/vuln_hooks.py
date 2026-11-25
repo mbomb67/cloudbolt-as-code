@@ -644,3 +644,133 @@ def server_patch_permitted(profile, server):
         logger.exception("Vulnerabilities: could not check the Install Updates permission for server %s",
                          getattr(server, "id", ""))
         return False
+
+
+# ---------------------------------------------------------------- install updates on several servers (Servers view)
+BULK_NO_ACTION = "The Install Updates action does not exist yet. Turn on installing updates in Vulnerability Settings."
+BULK_DISABLED = "The Install Updates action is switched off."
+BULK_NOT_ALLOWED = "The Install Updates action does not allow bulk operation. A CloudBolt admin can allow it on the action."
+BULK_NOT_AT_ONCE = "The Install Updates action cannot be run on several servers at once as it is set up now."
+BULK_UNREADABLE = "Install updates could not be checked. The CloudBolt application log has the details."
+
+
+def _restart_default(hook, action):
+    """The value the Restart if needed checkbox of the action's dialog starts with, so the Servers view's own
+    checkbox starts the same (core reads it with get_default_values_for_hook_input, common/fields.py line 696: the
+    mapping of the input on the action, a mapping without a default value counts as none). True when the input
+    or its mapping cannot be found or read; False when the mapping carries no default (the dialog's checkbox
+    starts unchecked then)."""
+    try:
+        from . import vuln_patch
+
+        field = hook.input_fields.filter(name="{}_a{}".format(RESTART_INPUT, hook.id)).first()
+        if field is None:
+            return True
+        mapping = action.input_mappings.filter(hook_input=field).first()
+        if mapping is None:
+            return True
+        default = getattr(mapping, "default_value", None)
+        if default is None:
+            return False
+        return bool(vuln_patch.parse_restart_flag(default.value, True))
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the default of the Restart if needed input")
+        return True
+
+
+def patch_bulk_action():
+    """(state, action) for running Install Updates on several servers from the Servers view. state is
+    {"enabled", "why", "action_label", "restart_default", "requires_approval"}; action is the ServerAction to run (the enabled one when
+    several exist) when enabled, else None. why says in one sentence why it is not enabled (the sentences above and
+    vuln_patch.PATCHING_OFF). The checks are the ones core's own bulk dialog applies before it lists an action
+    (infrastructure/views.py servers_batch_server_actions: list_view_visible, no new_tab_url, a custom form leaves
+    the dialog; a synchronous action runs inline there, not as a job) plus the setting and the action being enabled.
+    requires_approval says the run will become an order that creates one job per server after approval, not one
+    job for all (cbhooks/models.py _save_action_items). Reads the setting, the plugin and its action once;
+    never raises."""
+    state = {"enabled": False, "why": "", "action_label": PATCH_ACTION_LABEL, "restart_default": True,
+             "requires_approval": False}
+    try:
+        from . import vuln_patch, vuln_store
+
+        if not vuln_store.get_settings().get("patching"):
+            return dict(state, why=vuln_patch.PATCHING_OFF), None
+        hook = CloudBoltHook.objects.filter(name=PATCH_NAME).first()
+        actions = patch_actions(hook) if hook is not None else []
+        if not actions:
+            return dict(state, why=BULK_NO_ACTION), None
+        action = next((a for a in actions if a.enabled), actions[0])
+        state["action_label"] = action.label or PATCH_ACTION_LABEL
+        state["requires_approval"] = bool(getattr(action, "requires_approval", False))
+        if not action.enabled:
+            return dict(state, why=BULK_DISABLED), None
+        if not action.list_view_visible:
+            return dict(state, why=BULK_NOT_ALLOWED), None
+        if action.new_tab_url or action.custom_form_id or getattr(action, "is_synchronous", False):
+            return dict(state, why=BULK_NOT_AT_ONCE), None
+        return dict(state, enabled=True, restart_default=_restart_default(hook, action)), action
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the Install Updates action for a bulk run")
+        return dict(state, why=BULK_UNREADABLE), None
+
+
+def patch_bulk_state():
+    """The state half of patch_bulk_action(): {"enabled", "why", "action_label", "restart_default",
+    "requires_approval"}. Never raises."""
+    return patch_bulk_action()[0]
+
+
+def queued_update_servers():
+    """{server id: job id} of the servers that belong to an Install Updates job (the server action's or the
+    resource action's plugin) that has not ended (Job.ACTIVE_STATUSES: initializing, pending, queued, running...).
+    A bulk or resource run marks a server busy only while it works on it, so this finds the ones still waiting.
+    Never one query per server. (1) The active jobs whose HookParameters.hook is one of the two plugins, reached
+    from Job.job_parameters the way core's own queries reach a child's fields (job_parameters__triggerparameters__,
+    cbhooks/views.py line 2275); (2) the active jobs of an approved order item of either action: with Requires
+    approval core makes one ActionJobOrderItem per server (cbhooks/models.py _save_action_items), found by
+    job_parameters__orderitem__actionjoborderitem__ (orders/models.py lines 1667 and 2362 use the same chain)
+    with the action's content type and id; a server action's item names its server, a resource action's does not,
+    so those jobs go through (3): Server.jobs, the link core makes for every server of a job
+    (cbhooks/models.py run_as_job). The actions' ids are two small lookups. UNCONFIRMED: that an approved item's
+    job has the order item itself as its job parameters (read from the model chain, not run). When a server is in
+    several jobs the oldest is reported. Returns {} when it cannot be read (logged): an unknown queue is no queue."""
+    try:
+        from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Q
+        from cbhooks.models import ResourceAction, ServerAction
+        from infrastructure.models import Server
+        from jobs.models import Job
+
+        found = {}
+
+        def note(server_id, job_id):
+            if server_id not in found or job_id < found[server_id]:
+                found[server_id] = job_id
+
+        job_ids = set(Job.objects.filter(
+            status__in=Job.ACTIVE_STATUSES,
+            job_parameters__hookparameters__hook__name__in=[PATCH_NAME, RESOURCE_PATCH_NAME],
+        ).values_list("id", flat=True))
+        item = "job_parameters__orderitem__actionjoborderitem__"
+        condition = None
+        for model, name in ((ServerAction, PATCH_NAME), (ResourceAction, RESOURCE_PATCH_NAME)):
+            ids = list(model.objects.filter(hook__name=name).values_list("pk", flat=True))
+            if ids:
+                part = Q(**{item + "content_type": ContentType.objects.get_for_model(model),
+                            item + "action_type_id__in": ids})
+                condition = part if condition is None else condition | part
+        if condition is not None:
+            for job_id, server_id in Job.objects.filter(condition, status__in=Job.ACTIVE_STATUSES).values_list(
+                    "id", item + "server_id"):
+                if server_id:
+                    note(server_id, job_id)
+                else:
+                    job_ids.add(job_id)
+        if job_ids:
+            for server_id, job_id in Server.jobs.through.objects.filter(job_id__in=sorted(job_ids)).values_list(
+                    "server_id", "job_id"):
+                note(server_id, job_id)
+        return found
+    except Exception:
+        logger.exception("Vulnerabilities: could not read the servers waiting in update jobs")
+        return {}

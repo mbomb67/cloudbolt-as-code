@@ -7,10 +7,13 @@
 {% block content %}
 {% comment %}
   The Vulnerability search admin page: a shell. Everything in it is drawn by vuln_fleet_assets.html from
-  four JSON routes (urls.summary, urls.cves, urls.cve_servers, urls.servers), one page at a time.
+  four JSON routes (urls.summary, urls.cves, urls.cve_servers, urls.servers), one page at a time; the
+  Servers view also uses urls.server_filters (filter choices), urls.servers_select ("Select all N
+  matching") and urls.servers_patch (the POST that starts Install updates for the selected servers).
+  The data-server-filters-url attribute is what switches the script's full Servers view on.
   The styles are vuln_styles.html, scoped to #vuln-root; the few rules this page adds are in the
   second style block, built from the same variables.
-  Context: urls (dict of the four route URLs), settings_url, page_error.
+  Context: urls (dict of the route URLs), settings_url, page_error, csrf_token.
 {% endcomment %}
 {% include "io_cloudbolt_vulnerabilities/templates/vuln_styles.html" %}
 <style>
@@ -28,6 +31,8 @@
 <div id="vuln-root" data-vuln-fleet="1"
      data-summary-url="{{ urls.summary }}" data-cves-url="{{ urls.cves }}"
      data-cve-servers-url="{{ urls.cve_servers }}" data-servers-url="{{ urls.servers }}"
+     data-server-filters-url="{{ urls.server_filters }}" data-servers-select-url="{{ urls.servers_select }}"
+     data-servers-patch-url="{{ urls.servers_patch }}" data-csrf="{{ csrf_token }}"
      data-settings-url="{{ settings_url }}">
   <div class="vuln-hero-top">
     <div>
@@ -117,14 +122,37 @@
     {# Servers #}
     <section data-vuln-pane="servers" aria-label="{% trans 'Servers' %}" hidden>
       <div class="vuln-bar">
-        <label class="vuln-sr" for="vuln-sq">{% trans "Search hostname, group or environment" %}</label>
-        <input type="search" class="form-control form-control-sm vuln-q" id="vuln-sq" placeholder="{% trans 'Search hostname, group or environment' %}" maxlength="100" autocomplete="off" data-vuln-q>
+        <label class="vuln-sr" for="vuln-sq">{% trans "Search hostname, group, owner, environment or OS" %}</label>
+        <input type="search" class="form-control form-control-sm vuln-q" id="vuln-sq" placeholder="{% trans 'Search hostname, group, owner, environment or OS' %}" maxlength="100" autocomplete="off" data-vuln-q>
+        <label class="vuln-sr" for="vuln-sgroup">{% trans "Group" %}</label>
+        <select class="form-select form-select-sm vuln-filter" id="vuln-sgroup" data-vuln-filter="group">
+          <option value="">{% trans "Group: all" %}</option>
+        </select>
+        <label class="vuln-sr" for="vuln-sbuild">{% trans "OS build" %}</label>
+        <select class="form-select form-select-sm vuln-filter" id="vuln-sbuild" data-vuln-filter="os_build">
+          <option value="">{% trans "OS build: all" %}</option>
+        </select>
+        <label class="vuln-sr" for="vuln-sowner">{% trans "Owner" %}</label>
+        <select class="form-select form-select-sm vuln-filter" id="vuln-sowner" data-vuln-filter="owner">
+          <option value="">{% trans "Owner: all" %}</option>
+        </select>
+        <label class="vuln-sr" for="vuln-senv">{% trans "Environment" %}</label>
+        <select class="form-select form-select-sm vuln-filter" id="vuln-senv" data-vuln-filter="environment">
+          <option value="">{% trans "Environment: all" %}</option>
+        </select>
         <div class="form-check vuln-kev-check">
           <input class="form-check-input" type="checkbox" id="vuln-skev" data-vuln-kev>
           <label class="form-check-label" for="vuln-skev">{% trans "Exploited only" %}</label>
         </div>
+        <div class="form-check vuln-kev-check">
+          <input class="form-check-input" type="checkbox" id="vuln-sfix" data-vuln-fix>
+          <label class="form-check-label" for="vuln-sfix">{% trans "With a fix only" %}</label>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-vuln-act="clear-filters" hidden>{% trans "Clear filters" %}</button>
       </div>
+      <div class="vuln-bulk" data-vuln-bulk></div>
       <div class="vuln-table-wrap" data-vuln-table></div>
+      <div class="vuln-selectline" data-vuln-selectline aria-live="polite" hidden></div>
       <div class="vuln-pager" data-vuln-pager></div>
       <div class="vuln-note" data-vuln-status aria-live="polite"></div>
     </section>

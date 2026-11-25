@@ -805,6 +805,14 @@ class BulkTests(Base):
         self.assertEqual(status, "FAILURE")
         self.assertEqual(outputs["counts"]["failed"], 3)
 
+    def test_a_progress_line_names_each_server_once_and_the_result_is_unchanged(self):
+        self.summaries[:] = [{"vulns": 5, "vuln_fixable": 5}] * 6
+        job, (status, output, errors, outputs) = self.go(servers=self.servers())
+        lines = [line for line in job.progress if line.startswith("Server ")]
+        self.assertEqual(lines, ["Server 1 of 3: h1", "Server 2 of 3: h2", "Server 3 of 3: h3"])
+        self.assertEqual((status, outputs["counts"]["updated"]), ("SUCCESS", 3))
+        self.assertEqual(len(outputs), 2)
+
     def test_the_budget_stops_new_servers(self):
         self.summaries[:] = [{"vulns": 5, "vuln_fixable": 5}] * 6
         # One server's worst case is (90 + 30 + 30) minutes = 9000 s; the first server takes 30 s.

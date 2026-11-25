@@ -24,6 +24,9 @@ vulnerabilities never read the per-server match tables:
                    save (replace_server, forget_server) and repaired by
                    rebuild_fleet
 
+Schema version 4 adds the owner and os_build columns to servers, for the Servers list's filters and sorting.
+A version-3 file is upgraded in place by ALTER (rows get ""); until then the Servers reads answer "unavailable".
+
 https://www.sqlite.org/lang_upsert.html
 https://www.sqlite.org/lang_transaction.html
 """
@@ -39,7 +42,7 @@ from . import vuln_match, vuln_store
 
 logger = logging.getLogger(__name__)  # stdlib only, so the module imports anywhere
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 BUSY_MS = 30000
 MAX_SEARCH = 100
 PAGE_MIN, PAGE_MAX = 10, 100
@@ -53,10 +56,12 @@ _SERVER_BASE_COLUMNS = (
 _SERVER_ADDED_COLUMNS = ("vulns", "vuln_critical", "vuln_high", "vuln_medium", "vuln_low", "vuln_unknown")
 # Added by version 3: the vulnerabilities of the server that have a fix. NOT NULL DEFAULT 0, set by the upgrade.
 _SERVER_FIXABLE_COLUMN = "vuln_fixable"
-_SERVER_COLUMNS = _SERVER_BASE_COLUMNS + _SERVER_ADDED_COLUMNS + (_SERVER_FIXABLE_COLUMN,)
+# Added by version 4: the owner's display name and CloudBolt's OS build name. NOT NULL DEFAULT '': "" is none.
+_SERVER_LABEL_COLUMNS = ("owner", "os_build")
+_SERVER_COLUMNS = _SERVER_BASE_COLUMNS + _SERVER_ADDED_COLUMNS + (_SERVER_FIXABLE_COLUMN,) + _SERVER_LABEL_COLUMNS
 # What the server's snapshot supplies; every other column comes from the totals.
 _SNAPSHOT_COLUMNS = ("hostname", "os_name", "group_name", "environment", "scan_id", "inventory_at", "packages",
-                     "matched_at")
+                     "matched_at") + _SERVER_LABEL_COLUMNS
 
 _TABLES = (
     """CREATE TABLE IF NOT EXISTS servers(
@@ -65,7 +70,7 @@ _TABLES = (
         findings INTEGER, critical INTEGER, high INTEGER, medium INTEGER, low INTEGER, unknown INTEGER,
         kev INTEGER, cves INTEGER, vulns INTEGER, vuln_critical INTEGER, vuln_high INTEGER,
         vuln_medium INTEGER, vuln_low INTEGER, vuln_unknown INTEGER, vuln_fixable INTEGER NOT NULL DEFAULT 0,
-        match_hash TEXT)""",
+        owner TEXT NOT NULL DEFAULT '', os_build TEXT NOT NULL DEFAULT '', match_hash TEXT)""",
     """CREATE TABLE IF NOT EXISTS matches(
         id INTEGER PRIMARY KEY, pkg_name TEXT, pkg_version TEXT, pkg_type TEXT, vuln_id TEXT,
         severity TEXT, sev_rank INTEGER, fix_state TEXT, fix_version TEXT, kev INTEGER, epss REAL,
@@ -153,6 +158,9 @@ def _upgrade(conn, before):
         conn.execute("ALTER TABLE servers ADD COLUMN match_hash TEXT")  # NULL: the first save is a full one
     if _SERVER_FIXABLE_COLUMN not in have:
         conn.execute("ALTER TABLE servers ADD COLUMN {} INTEGER NOT NULL DEFAULT 0".format(_SERVER_FIXABLE_COLUMN))
+    for column in _SERVER_LABEL_COLUMNS:
+        if column not in have:
+            conn.execute("ALTER TABLE servers ADD COLUMN {} TEXT NOT NULL DEFAULT ''".format(column))
     for statement in _INDEXES:
         conn.execute(statement)
     if before < 3:
@@ -522,6 +530,8 @@ def replace_server(server, parsed):
     digest = vuln_match.match_hash(matches)
     values = {"server_id": server_id, "db_built": parsed.get("db_built") or ""}
     values.update((column, server.get(column)) for column in _SNAPSHOT_COLUMNS)
+    for column in _SERVER_LABEL_COLUMNS:
+        values[column] = values[column] or ""  # NOT NULL: a snapshot without them stores none
     values.update((column, totals[column]) for column in _SERVER_COLUMNS if column not in values)
     others = [c for c in _SERVER_COLUMNS if c != "server_id"]
 
@@ -578,6 +588,12 @@ def forget_server(server_id):
             for table in ("server_packages", "server_matches"):
                 conn.execute("DELETE FROM {} WHERE server_id = ?".format(table), (server_id,))
             return conn.execute("DELETE FROM servers WHERE server_id = ?", (server_id,)).rowcount > 0
+
+
+def forget_servers(ids):
+    """forget_server for each id, each in its own transaction so a long purge never holds the write lock for
+    the whole batch. Returns how many had a row. An error stops the loop and propagates."""
+    return sum(1 for server_id in ids if forget_server(server_id))
 
 
 def prune_orphans():
@@ -949,33 +965,219 @@ def cve_servers(cve, search="", page=1, page_size=25):
 
 _FLEET_SERVER_COLUMNS = (
     "server_id", "hostname", "group_name", "environment", "os_name", "packages", "vulns", "vuln_critical",
-    "vuln_high", "kev", "inventory_at", "matched_at", "db_built",
+    "vuln_high", "kev", "inventory_at", "matched_at", "db_built", "vuln_fixable", "owner", "os_build",
 )
 
+# "No value" for the owner and OS build filters: the servers whose column is empty.
+NONE_VALUE = "__none__"
+MAX_FILTER = 200  # characters of a filter value
 
-def fleet_servers(search="", kev_only=False, page=1, page_size=25):
-    """One row per server with stored findings, the most exposed first; search
-    is a substring of the hostname, the group or the environment."""
-    page, page_size = _paging(page, page_size)
+# The ONLY text that ever reaches ORDER BY for the Servers list. A sort key from a caller is looked up here and
+# never put into a statement itself; direction picks ASC or DESC from a fixed pair, never from the caller's text.
+# No index backs these: the table has one row per scanned server, so a sort reads a few thousand rows at most.
+FLEET_SERVER_SORTS = {
+    "hostname": "s.hostname COLLATE NOCASE",
+    "group": "s.group_name COLLATE NOCASE",
+    "environment": "s.environment COLLATE NOCASE",
+    "os": "s.os_name COLLATE NOCASE",
+    "owner": "s.owner COLLATE NOCASE",
+    "critical": "s.vuln_critical",
+    "high": "s.vuln_high",
+    "fixable": "s.vuln_fixable",
+    "exploited": "s.kev",
+    "inventory": "s.inventory_at",
+}
+_FLEET_SERVER_DEFAULT_ORDER = "s.kev DESC, s.vuln_critical DESC, s.vuln_high DESC, s.hostname, s.server_id"
+_FLEET_SEARCH_COLUMNS = ("hostname", "group_name", "environment", "os_name", "os_build", "owner")
+
+
+def _fleet_server_order(sort, direction):
+    """The ORDER BY text: a whitelisted expression, then hostname and id so equal values keep a stable order;
+    the default order for an empty or unknown sort."""
+    expr = FLEET_SERVER_SORTS.get(sort) if isinstance(sort, str) else None
+    if expr is None:
+        return _FLEET_SERVER_DEFAULT_ORDER
+    way = "DESC" if str(direction or "").strip().lower() == "desc" else "ASC"
+    return "{} {}, s.hostname COLLATE NOCASE ASC, s.server_id ASC".format(expr, way)
+
+
+def _filter_text(value):
+    return "" if value is None else str(value)[:MAX_FILTER]
+
+
+def _hidden_ids(ids):
+    """The ids to leave out, as real ints (a bool or a value outside SQLite's integer range is dropped). Not
+    cut at MAX_SET: a hidden list may be longer, and _id_set loads a long one into a temp table."""
+    try:
+        return sorted({i for i in ids if isinstance(i, int) and not isinstance(i, bool) and -_INT64 <= i < _INT64})
+    except TypeError:
+        return []
+
+
+@contextlib.contextmanager
+def _hide_clause(conn, hide_ids):
+    """Yield (text, params): "" or " AND s.server_id NOT IN (...)" for the ids to leave out."""
+    ids = _hidden_ids(hide_ids or ())
+    if not ids:
+        yield "", []
+        return
+    with _id_set(conn, ids) as (member, params):
+        yield " AND s.server_id NOT " + member, params
+
+
+def _fleet_server_where(search, kev_only, group, environment, os_build, owner, fix_only):
+    """(where fragments, params): fixed fragments chosen here, every value bound. group and environment match
+    exactly; os_build and owner also accept NONE_VALUE for the servers that have none."""
     where, params = ["1 = 1"], []
     if kev_only:
         where.append("s.kev > 0")
+    if fix_only:
+        where.append("s.vuln_fixable > 0")
+    for column, value, has_none in (("group_name", group, False), ("environment", environment, False),
+                                    ("os_build", os_build, True), ("owner", owner, True)):
+        text = _filter_text(value)
+        if not text:
+            continue
+        if has_none and text == NONE_VALUE:
+            where.append("s.{} = ''".format(column))
+        else:
+            where.append("s.{} = ?".format(column))
+            params.append(text)
     pattern = _like(search)
     if pattern:
-        where.append("(s.hostname LIKE ? ESCAPE '\\' OR s.group_name LIKE ? ESCAPE '\\' "
-                     "OR s.environment LIKE ? ESCAPE '\\')")
-        params += [pattern, pattern, pattern]
-    order = "s.kev DESC, s.vuln_critical DESC, s.vuln_high DESC, s.hostname, s.server_id"
+        where.append("(" + " OR ".join("s.{} LIKE ? ESCAPE '\\'".format(c) for c in _FLEET_SEARCH_COLUMNS) + ")")
+        params += [pattern] * len(_FLEET_SEARCH_COLUMNS)
+    return where, params
+
+
+def _unavailable(exc):
+    """A store with no table is an empty one; any other failure (busy, damaged, or a version-3 file that has
+    no owner or os_build column yet) is "unavailable", so the page retries after an upgrade."""
+    return "no such table" not in str(exc)
+
+
+def fleet_servers(search="", kev_only=False, page=1, page_size=25, group="", environment="", os_build="",
+                  owner="", fix_only=False, sort="", direction="asc", hide_ids=()):
+    """One row per server with stored findings. Default order: the most exposed first. search is a substring of
+    the hostname, group, environment, OS, OS build or owner; group and environment are exact; os_build and
+    owner are exact or NONE_VALUE; kev_only keeps the servers with an exploited vulnerability and fix_only those
+    with a vulnerability that has a fix. sort is a key of FLEET_SERVER_SORTS (anything else: the default order)
+    and direction "desc" or else ascending; equal values are ordered by hostname, then id. hide_ids are left out.
+    Never raises: a store that cannot be read gives an empty page, "unavailable" when it is not just missing."""
+    page, page_size = _paging(page, page_size)
+    where, params = _fleet_server_where(search, kev_only, group, environment, os_build, owner, fix_only)
+    order = _fleet_server_order(sort, direction)
     columns = ", ".join("s." + c for c in _FLEET_SERVER_COLUMNS)
     try:
         with _reader() as conn:
             if conn is None:
                 return _empty_page(page, page_size)
-            return _page_of(conn, " AND ".join(where), params, order, columns, page, page_size, "servers s",
-                            lambda row: {key: row[key] for key in _FLEET_SERVER_COLUMNS})
-    except sqlite3.OperationalError as exc:
+            with _hide_clause(conn, hide_ids) as (hide, hide_params):
+                return _page_of(conn, " AND ".join(where) + hide, params + hide_params, order, columns, page,
+                                page_size, "servers s", lambda row: {key: row[key] for key in _FLEET_SERVER_COLUMNS})
+    except sqlite3.Error as exc:
         _busy(exc, "the fleet servers")
-        return _empty_page(page, page_size, unavailable=not _missing_table(exc))
+        return _empty_page(page, page_size, unavailable=_unavailable(exc))
+
+
+def fleet_server_ids(search="", kev_only=False, group="", environment="", os_build="", owner="", fix_only=False,
+                     sort="", direction="asc", hide_ids=(), limit=400):
+    """The servers fleet_servers would list, as ids only: {"total": how many match, "ids": the first `limit` of
+    them in the visible order, "unavailable": bool}. Same filters, sort and hidden ids; never raises."""
+    where, params = _fleet_server_where(search, kev_only, group, environment, os_build, owner, fix_only)
+    order = _fleet_server_order(sort, direction)
+    limit = max(0, _int(limit, 400))
+    result = {"total": 0, "ids": [], "unavailable": False}
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return result
+            with _hide_clause(conn, hide_ids) as (hide, hide_params):
+                text, bound = " AND ".join(where) + hide, params + hide_params
+                result["total"] = conn.execute(
+                    "SELECT COUNT(*) FROM servers s WHERE " + text, bound).fetchone()[0]
+                result["ids"] = [row[0] for row in conn.execute(
+                    "SELECT s.server_id FROM servers s WHERE {} ORDER BY {} LIMIT ?".format(text, order),
+                    bound + [limit])]
+            return result
+    except sqlite3.Error as exc:
+        _busy(exc, "the fleet server ids")
+        return {"total": 0, "ids": [], "unavailable": _unavailable(exc)}
+
+
+def fleet_server_options(hide_ids=(), limit=500):
+    """The values the Servers list can be filtered by, among the servers it lists: DISTINCT, non-empty,
+    case-insensitive order, at most `limit` per list ("truncated" says one was cut). has_no_owner and
+    has_no_os_build say whether some server has none. Never raises."""
+    limit = max(1, _int(limit, 500))
+    result = {"group": [], "environment": [], "os_build": [], "owner": [], "has_no_owner": False,
+              "has_no_os_build": False, "truncated": False, "unavailable": False}
+    columns = (("group", "group_name"), ("environment", "environment"), ("os_build", "os_build"),
+               ("owner", "owner"))
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return result
+            with _hide_clause(conn, hide_ids) as (hide, hide_params):
+                for key, column in columns:
+                    values = [row[0] for row in conn.execute(
+                        "SELECT DISTINCT s.{0} FROM servers s WHERE s.{0} <> ''{1} "
+                        "ORDER BY s.{0} COLLATE NOCASE LIMIT ?".format(column, hide), hide_params + [limit + 1])]
+                    if len(values) > limit:
+                        values, result["truncated"] = values[:limit], True
+                    result[key] = values
+                for key, column in (("has_no_owner", "owner"), ("has_no_os_build", "os_build")):
+                    result[key] = conn.execute(
+                        "SELECT 1 FROM servers s WHERE s.{} = ''{} LIMIT 1".format(column, hide),
+                        hide_params).fetchone() is not None
+            return result
+    except sqlite3.Error as exc:
+        _busy(exc, "the server filters")
+        result.update({"group": [], "environment": [], "os_build": [], "owner": [], "has_no_owner": False,
+                       "has_no_os_build": False, "truncated": False, "unavailable": _unavailable(exc)})
+        return result
+
+
+_ATTRIBUTE_KEYS = ("hostname", "group_name", "environment", "owner", "os_build")
+
+
+def server_attributes():
+    """A dict of server_id to a dict of hostname, group_name, environment, owner and os_build as stored, for the
+    servers that have a row; {} when the store is missing, busy or not yet at the current schema. Never raises."""
+    try:
+        with _reader() as conn:
+            if conn is None:
+                return {}
+            return {row["server_id"]: {key: row[key] for key in _ATTRIBUTE_KEYS} for row in conn.execute(
+                "SELECT server_id, {} FROM servers".format(", ".join(_ATTRIBUTE_KEYS)))}
+    except sqlite3.Error as exc:
+        _busy(exc, "the server attributes")
+        return {}
+
+
+def update_server_attributes(rows):
+    """Refresh the names stored for servers: rows are {"server_id", "hostname", "group_name", "environment",
+    "owner", "os_build"}; a row missing a key, or for a server with no row, is skipped, and only the rows given
+    are touched. One writer transaction. Returns how many rows actually changed."""
+    wanted = []
+    for row in rows or ():
+        try:
+            wanted.append([int(row["server_id"])] + ["" if row[key] is None else str(row[key])
+                                                     for key in _ATTRIBUTE_KEYS])
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not wanted or not os.path.exists(vuln_store.FINDINGS_DB):
+        return 0
+    sets = ", ".join(key + " = ?" for key in _ATTRIBUTE_KEYS)
+    differs = " OR ".join(key + " IS NOT ?" for key in _ATTRIBUTE_KEYS)
+    changed = 0
+    with _writer() as conn:
+        with _transaction(conn):
+            for server_id, *values in wanted:
+                changed += conn.execute(
+                    "UPDATE servers SET {} WHERE server_id = ? AND ({})".format(sets, differs),
+                    values + [server_id] + values).rowcount
+    return changed
 
 
 # ---------------------------------------------------------------- set reads

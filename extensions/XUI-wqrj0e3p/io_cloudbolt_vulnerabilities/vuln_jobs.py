@@ -1232,12 +1232,25 @@ def _snapshot(server, parsed_output, scan_id, inventory_at, packages, matched_at
             os_name = server.os_family.name if server.os_family else ""
         except Exception:
             os_name = ""
+    owner, os_build = "", ""  # the owner's label (store.owner_label); the OS build's name
+    try:
+        user = server.owner.user if server.owner else None
+        if user is not None:
+            owner = store.owner_label(user.first_name, user.last_name, user.username)
+    except Exception:
+        owner = ""
+    try:
+        os_build = server.os_build.name if server.os_build else ""
+    except Exception:
+        os_build = ""
     return {
         "server_id": server.id,
         "hostname": server.hostname,
         "os_name": os_name,
         "group_name": server.group.name if server.group else "",
         "environment": server.environment.name if server.environment else "",
+        "owner": owner,
+        "os_build": os_build,
         "scan_id": scan_id,
         "inventory_at": inventory_at,
         "packages": packages,

@@ -407,6 +407,15 @@ class ForgetStaleTests(Base):
         self.assertEqual(done, [2])
         self.assertEqual(result, {"forgotten": 1, "kept": 1})
 
+    def test_a_server_being_deleted_is_kept_because_a_failed_delete_returns_it_to_active(self):
+        servers = [make_server(id=1, status="DECOM"), make_server(id=2, status="MODIFY"),
+                   make_server(id=3, status="PROV"), make_server(id=4), make_server(id=5, status="HISTORICAL")]
+        result, forgot = self.run_forget(known=[1, 2, 3, 4, 5], servers=servers)
+        self.assertEqual(forgot["db"], [5])
+        self.assertEqual(forgot["repo"], [5])
+        self.assertEqual(forgot["state"], [5])
+        self.assertEqual(result, {"forgotten": 1, "kept": 4})
+
 
 class StateFilesTests(unittest.TestCase):
     def setUp(self):
@@ -2412,6 +2421,76 @@ class JobFileTests(unittest.TestCase):
             with self.assertRaises(CancelJob):
                 ns["run"](object())
         del broken
+
+
+# ---------------------------------------------------------------- owner and OS build
+def person(first="", last="", username=""):
+    return types.SimpleNamespace(user=types.SimpleNamespace(first_name=first, last_name=last, username=username))
+
+
+class OwnerLabelTests(unittest.TestCase):
+    def test_full_name_then_username_then_nothing(self):
+        self.assertEqual(fleet.owner_label("Ann", "Lee", "al"), "Ann Lee")
+        self.assertEqual(fleet.owner_label("Ann", "", "al"), "Ann")
+        self.assertEqual(fleet.owner_label("", "Lee", "al"), "Lee")
+        self.assertEqual(fleet.owner_label(" Ann ", " Lee ", "al"), "Ann Lee")
+        self.assertEqual(fleet.owner_label("", "", "al"), "al")
+        self.assertEqual(fleet.owner_label("  ", None, " al "), "al")
+        self.assertEqual(fleet.owner_label("", "", ""), "")
+        self.assertEqual(fleet.owner_label(None, None, None), "")
+        self.assertEqual(fleet.owner_label(5, [], 7), "")
+
+
+class NamesTests(unittest.TestCase):
+    ROW = {"hostname": "old", "group_name": "Old group", "environment": "Old env", "owner": "Old owner",
+           "os_build": "Old build"}
+
+    def test_names_read_the_server_now(self):
+        server = make_server(hostname="web-9", owner=person("Ann", "Lee", "al"),
+                             os_build=types.SimpleNamespace(name="RHEL 9"))
+        self.assertEqual(fleet._names(server, self.ROW), {
+            "hostname": "web-9", "group_name": "Dev", "environment": "Env", "owner": "Ann Lee", "os_build": "RHEL 9"})
+
+    def test_a_server_without_owner_or_build_gives_empty_values(self):
+        names = fleet._names(make_server(owner=None, os_build=None), self.ROW)
+        self.assertEqual((names["owner"], names["os_build"]), ("", ""))
+        self.assertEqual(fleet._names(make_server(owner=person("", "", "al"), os_build=None), self.ROW)["owner"], "al")
+
+    def test_unreadable_values_keep_what_is_stored_each_on_its_own(self):
+        # make_server has no owner or os_build attribute: reading them fails, so the stored values stay.
+        names = fleet._names(make_server(), self.ROW)
+        self.assertEqual((names["owner"], names["os_build"]), ("Old owner", "Old build"))
+        self.assertEqual((names["hostname"], names["group_name"]), ("web-01", "Dev"))   # these read fine
+        broken = make_server(owner=person("Ann", "Lee"), os_build=None)
+        names = fleet._names(types.SimpleNamespace(**dict(vars(broken), group=None, environment=object())), self.ROW)
+        self.assertEqual(names["hostname"], "old")                       # the old trio is all-or-nothing
+        self.assertEqual((names["owner"], names["os_build"]), ("Ann Lee", ""))
+        self.assertEqual(fleet._names(make_server(), {})["owner"], "")
+
+
+class SnapshotTests(Base):
+    def snapshot(self, server):
+        return jobs._snapshot(server, {"os": "Red Hat Enterprise Linux 9.4"}, "scan1", "2026-11-01T00:00:00Z", 10,
+                              "2026-11-01T00:05:00Z")
+
+    def test_the_snapshot_carries_the_owner_and_the_os_build(self):
+        snap = self.snapshot(make_server(owner=person("Ann", "Lee", "al"), os_build=types.SimpleNamespace(name="RHEL 9")))
+        self.assertEqual((snap["owner"], snap["os_build"]), ("Ann Lee", "RHEL 9"))
+        self.assertEqual((snap["hostname"], snap["group_name"], snap["environment"]), ("web-01", "Dev", "Env"))
+        snap = self.snapshot(make_server(owner=person("", "", "al"), os_build=types.SimpleNamespace(name="RHEL 9")))
+        self.assertEqual(snap["owner"], "al")
+
+    def test_a_missing_owner_or_build_is_an_empty_string_never_an_error(self):
+        for server in (make_server(), make_server(owner=None, os_build=None),
+                       make_server(owner=types.SimpleNamespace(user=None), os_build=None)):
+            snap = self.snapshot(server)
+            self.assertEqual((snap["owner"], snap["os_build"]), ("", ""))
+
+    def test_the_snapshot_is_saved_with_both_columns(self):
+        # The store's column list takes both from the snapshot, so a save never writes None into a NOT NULL column.
+        snap = self.snapshot(make_server())
+        self.assertTrue({"owner", "os_build"} <= set(db._SNAPSHOT_COLUMNS))
+        self.assertTrue({"owner", "os_build"} <= set(snap))
 
 
 if __name__ == "__main__":

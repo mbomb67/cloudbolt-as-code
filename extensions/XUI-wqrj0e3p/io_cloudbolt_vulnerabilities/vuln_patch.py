@@ -1113,6 +1113,7 @@ def run_patch(job, servers=None, server=None, restart_if_needed=None, profile=No
             if stopped or out_of_time:
                 counts["skipped"] += len(targets) - position
                 break
+            _progress(job, "Server {} of {}: {}".format(position + 1, len(targets), target.hostname))
             try:
                 done = _patch_one(job, target, restart, cfg)
             except PatchFailed as exc:
